@@ -1,26 +1,55 @@
 export const LINKS: {
-    github: string
-    linkedin: string
-    instagram: string
-    strava: string
-    telegram: string
-    email: string
-} = {
-    github: "https://github.com/calvindotsg",
-    linkedin: "https://www.linkedin.com/in/calvin-loh/",
-    instagram: "https://www.instagram.com/calvindotsg/",
-    strava: "https://www.strava.com/athletes/37641259/",
-    telegram: "https://t.me/calvindotsg/",
-    email: "mailto:hello@calvin.sg?subject=Let's%20get%20in%20touch!%20A%20quick%20question&body=Hey!%0A%0AJust%20popped%20by%20your%20website%20calvin.sg%20and%20had%20a%20quick%20question%3A%0A%0AName%3A%20%0AMessage%3A%0A%0ALooking%20forward%20to%20your%20response!%0A%0ACheers%2C"
-};
+    link_name: string
+    link: string
+    logo: string
+}[] = [
+    {
+        link_name: "Github",
+        link: "https://github.com/calvindotsg/",
+        logo: "fa6-brands:github"
+    },
+    {
+        link_name: "LinkedIn",
+        link: "https://www.linkedin.com/in/calvin-loh/",
+        logo: "fa6-brands:linkedin"
+    },
+    {
+        link_name: "Instagram",
+        link: "https://www.instagram.com/calvindotsg/",
+        logo: "fa6-brands:instagram"
+    },
+    {
+        link_name: "Strava",
+        link: "https://www.strava.com/athletes/37641259/",
+        logo: "fa6-brands:strava"
+    },
+    {
+        link_name: "Telegram",
+        link: "https://t.me/calvindotsg/",
+        logo: "fa6-brands:telegram"
+    },
+    {
+        link_name: "Email",
+        link: "mailto:hello@calvin.sg?subject=Let's%20get%20in%20touch!%20A%20quick%20question&body=Hey!%0A%0AJust%20popped%20by%20your%20website%20calvin.sg%20and%20had%20a%20quick%20question%3A%0A%0AName%3A%20%0AMessage%3A%0A%0ALooking%20forward%20to%20your%20response!%0A%0ACheers%2C",
+        logo: "fa6-solid:envelope"
+    },
+];
 
-export const CAREER: {
+export const CAREER_NOW: {
     job_name: string
     description: string
-} = {
-    job_name: "Software engineer",
-    description: "Maximising value, minimising effort: Identifying bottlenecks with opportunities for automation"
-}
+    company: string
+    company_url: string
+    start_date: string
+}[] = [
+    {
+        job_name: "Software engineer",
+        description: "Maximising value, minimising effort: Identifying bottlenecks with opportunities for automation",
+        company: "heymax.ai",
+        company_url: "https://www.heymax.ai",
+        start_date: "Aug 2023"
+    }
+]
 
 export const ABOUT_ME: {
     description: string[]
