@@ -1,9 +1,10 @@
 ---
 import Card from "./Card/index.astro";
 import Button from "./Button.astro";
-import {LINKS, WELCOME} from "../lib/constants";
+import { LINKS, WELCOME, METADATA } from "../lib/constants";
 import { Icon } from 'astro-icon/components';
 import { Image } from "astro:assets";
+import portfolioImage from '../assets/me.webp'
 ---
 
 <Card colSpan="md:col-span-3" rowSpan="md:row-span-4">
@@ -29,9 +30,9 @@ import { Image } from "astro:assets";
     <Image
       width="300"
       height="300"
-      src="/me.webp"
-      class="w-auto max-h-[300px] select-none absolute right-[-110px] bottom-[-20px] z-[-1] opacity-50 md:opacity-100 md:relative md:right-auto md:bottom-auto md:z-auto pointer-events-none"
-      alt="memoji of gianmarco"
+      src={portfolioImage}
+      class="w-auto max-h-[300px] select-none absolute right-[-110px] bottom-[-20px] z-[-1] opacity-50 md:opacity-100 md:relative md:right-[-50px] md:bottom-auto md:z-auto pointer-events-none shadow-border"
+      alt={`${METADATA.name}`}
     />
   </div>
 </Card>

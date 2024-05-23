@@ -28,11 +28,6 @@ export const LINKS: {
         logo: "fa6-brands:telegram",
         name: "Telegram"
     },
-    {
-        link: "mailto:hello@calvin.sg?subject=Let's%20get%20in%20touch!%20A%20quick%20question&body=Hey!%0A%0AJust%20popped%20by%20your%20website%20calvin.sg%20and%20had%20a%20quick%20question%3A%0A%0AName%3A%20%0AMessage%3A%0A%0ALooking%20forward%20to%20your%20response!%0A%0ACheers%2C",
-        logo: "fa6-solid:envelope",
-        name: "Email"
-    },
 ];
 
 export const CAREER: {
@@ -58,11 +53,11 @@ export const CAREER: {
         company: "NCS PTE LTD",
         company_url: "https://www.ncs.co",
         description: [
-            "Reduce production issues in a full-stack web application by 90%.",
+            "Resolved production issues in a full-stack web application by 90%.",
             "First point of contact with end users to communicate and resolve pain points with offshore developers."
         ],
         end_date: "Aug 2023",
-        job_name: "Software engineer",
+        job_name: "Business systems analyst",
         start_date: "Jun 2022"
     }
 ]
@@ -92,30 +87,30 @@ export const NOW: {
     ]
 }
 
-export const COUNTRIES_VISITED: {
-    countries_array: string[]
-} = {
-    countries_array: [
-        "Australia",
-        "China",
-        "Hong Kong",
-        "Indonesia",
-        "Malaysia"
-    ]
-}
-
 export const FOOTER: {
     footer: string
 } = {
-    footer: "© 2024 · Built with ❤️, more love to Astro template by Gianmarco"
+    footer: "Built with ❤️, more love to Astro template by Gianmarco"
 }
 
-export const SEO: {
+export const METADATA: {
     title: string
     description: string
+    site_url: string
+    name: string
+    image_url: string
+    address_locality: string
+    address_country: string
+    email_obfuscated: string
 } = {
-    title: "Calvin - Software engineer | Cyclist",
-    description: "Hustle hustling at startup, probably cycling when you find me"
+    title: "Calvin - Software engineer | Enthusiastic learner | Road Cyclist",
+    description: "Hustle hustling at startup, probably cycling when you find me",
+    site_url: "https://www.calvin.sg",
+    name: "Calvin",
+    image_url: "https://www.calvin.sg/og-image.jpg",
+    address_locality: "Singapore",
+    address_country: "SG",
+    email_obfuscated: "hello[at]calvin.sg"
 }
 
 export const COLOURS: {
