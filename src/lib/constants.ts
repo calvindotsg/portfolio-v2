@@ -35,7 +35,7 @@ export const LINKS: {
     },
 ];
 
-export const CAREER_NOW: {
+export const CAREER: {
     company: string
     company_url: string
     description: string[]
@@ -107,10 +107,39 @@ export const COUNTRIES_VISITED: {
 export const FOOTER: {
     footer: string
 } = {
-    footer: "Built with ❤️, more love to Astro template by Gianmarco"
+    footer: "© 2024 · Built with ❤️, more love to Astro template by Gianmarco"
 }
 
-export const METADATA = {}
+export const SEO: {
+    title: string
+    description: string
+} = {
+    title: "Calvin - Software engineer | Cyclist",
+    description: "Hustle hustling at startup, probably cycling when you find me"
+}
+
+export const COLOURS: {
+    theme: "light" | "dark",
+    background: string,
+    accent: string,
+    shadow: string,
+    text: string
+}[] = [
+    {
+        theme: "light",
+        background: "#ffffff",
+        accent: "#ffa6fc",
+        shadow: "#904c77",
+        text: "#0c1713"
+    },
+    {
+        theme: "dark",
+        background: "#0c1713",
+        accent: "#ffa6fc",
+        shadow: "#ff79da",
+        text: "#ffffff"
+    }
+];
 
 export const loaderAnimation = [".loader", {
     opacity: [1, 0], pointerEvents: "none"
