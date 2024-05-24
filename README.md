@@ -59,7 +59,7 @@ $ npm run dev
 # Configuration
 
 1. Modify this portfolio web app with your data in `./components/lib/constants.ts`
-2. 
+2. Replace the `site` and other properties with your data in `astro.config.mjs`
 
 # Deploy on Netlify 🚀
 
