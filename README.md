@@ -7,7 +7,7 @@
 
 [![GitHub Repo stars](https://img.shields.io/github/stars/calvindotsg/portfolio-v2)](https://github.com/calvindotsg/portfolio-v2/stargazers)
 [![GitHub license](https://img.shields.io/github/license/calvindotsg/portfolio-v2)](./LICENSE)
-[![Netlify Status](https://api.netlify.com/api/v1/badges/a192381f-548e-4258-93e8-cb8a57150ed9/deploy-status)](https://app.netlify.com/sites/calvindotsg/deploys)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/1e7b40f5-97bf-4baa-8648-dd03494f3e53/deploy-status)](https://app.netlify.com/sites/calvindotsg/deploys)
 [![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/w/calvindotsg/portfolio-v2/main)](https://github.com/calvindotsg/portfolio-v2/commits/main/)
 [![GitHub forks](https://img.shields.io/github/forks/calvindotsg/portfolio-v2)](https://github.com/calvindotsg/portfolio-v2/forks)
 
