@@ -13,7 +13,7 @@
 
 ## A personal portfolio website made using `Astro`.
 
-![Calvin portfolio webapp preview](public/preview.png)
+![Calvin portfolio webapp preview](public/preview.jpg)
 
 ## Features
 
