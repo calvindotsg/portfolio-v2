@@ -107,7 +107,7 @@ export const METADATA: {
     description: "Hustle hustling at startup, probably cycling when you find me",
     site_url: "https://calvin.sg/",
     name: "Calvin",
-    image_url: "https://calvin.sg/og-image.jpg",
+    image_url: "https://calvin.sg/preview.png",
     address_locality: "Singapore",
     address_country: "SG",
     email_obfuscated: "hello[at]calvin.sg"
