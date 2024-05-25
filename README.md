@@ -29,36 +29,33 @@
 - [unocss](https://unocss.dev/)
 - [motion](https://motion.dev/)
 - [d3](https://d3js.org/)
+- [Font Awesome](https://fontawesome.com/) 
 
 # Steps ▶️
 
 ```bash
 # Clone this repository
-$ git clone https://github.com/Ladvace/astro-bento-portfolio
+$ git clone https://github.com/calvindotsg/portfolio-v2
 ```
 
 ```bash
 # Go into the repository
-$ cd astro-bento-portfolio
+$ cd portfolio-v2
 ```
 
 ```bash
 # Install dependencies
-$ pnpm install
-or
 $ npm install
 ```
 
 ```bash
 # Start the project in development
-$ pnpm run dev
-or
 $ npm run dev
 ```
 
-# Configuration
+# Configuration 🖌️
 
-1. Modify this portfolio web app with your data in `./components/lib/constants.ts`
+1. Modify this portfolio web app with your personal details in `./components/lib/constants.ts`
 2. Replace the `site` and other properties with your data in `astro.config.mjs`
 
 # Deploy on Netlify 🚀
@@ -76,9 +73,10 @@ For any queries or discussions regarding the project, please open an issue in th
 
 ## Sharing 💗
 
-Project is open source. Feel free to make your own version. All you need to do is to fork this repository,
-edit [/src/editable-stuff/config.js](./src/editable-stuff/config.js) and add resume. Mark star ⭐ if you like the project.
+- Project is open source. 
+- Feel free to make your own version, by adding your own personal details described in `# Configuration`. 
+- Mark star ⭐ if you like the project.
 
 ## Acknowledgement ❤️
 
-This portfolio webapp [calvin.sg](https://calvin.sg) is a fork of the works of [Gianmarco](https://github.com/Ladvace)
+This portfolio web app [calvin.sg](https://calvin.sg) is a fork of the works of [Gianmarco](https://github.com/Ladvace)
