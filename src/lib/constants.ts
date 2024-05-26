@@ -37,6 +37,7 @@ export const CAREER: {
     end_date: string
     job_name: string
     start_date: string
+    emoji: string
 }[] = [
     {
         company: "heymax.ai",
@@ -47,7 +48,8 @@ export const CAREER: {
         ],
         end_date: "Present",
         job_name: "Software engineer",
-        start_date: "Aug 2023"
+        start_date: "Aug 2023",
+        emoji: "🔧"
     },
     {
         company: "NCS PTE LTD",
@@ -58,7 +60,8 @@ export const CAREER: {
         ],
         end_date: "Aug 2023",
         job_name: "Business systems analyst",
-        start_date: "Jun 2022"
+        start_date: "Jun 2022",
+        emoji: "🔎"
     }
 ]
 
