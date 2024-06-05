@@ -35,10 +35,10 @@
     "@unocss/postcss": "^0.59.0",
     "@unocss/preset-uno": "^0.59.0",
     "@unocss/reset": "^0.59.0",
-    "autoprefixer": "^10.4.19",
-    "markdown-it": "^14.1.0",
-    "motion": "^10.17.0",
+    "unocss": "^0.59.0",
     "sanitize-html": "^2.13.0",
-    "unocss": "^0.59.0"
+    "motion": "^10.17.0",
+    "autoprefixer": "^10.4.19",
+    "markdown-it": "^14.1.0"
   }
 }
