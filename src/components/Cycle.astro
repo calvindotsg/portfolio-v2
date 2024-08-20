@@ -1,0 +1,35 @@
+---
+import Card from "./Card/index.astro";
+import { CYCLE } from "../lib/constants";
+import Button from "./Button.astro";
+import { Icon } from 'astro-icon/components';
+---
+
+<Card colSpan="md:col-span-1" rowSpan="md:row-span-2">
+  <div class="flex justify-between w-full items-start mb-2">
+    <div class="flex flex-col w-full px-4">
+      <h2>My cycling goal this year</h2>
+      <!-- Progress Bar Container -->
+      <div class="bg-gray-200 rounded-full h-24px mt-4 overflow-hidden relative">
+        <!-- Progress Bar -->
+        <div
+          class="h-full bg-pink-2 rounded-full relative"
+          style={`width: ${(CYCLE.current_progress / CYCLE.total_goal) * 100}%; padding-left: 8px; padding-right: 8px; box-sizing: border-box;`}
+        >
+          <!-- Cycling Emoji Indicator -->
+          <span
+            class="absolute right-20px top-4px transform translate-x-1/2 -translate-y-1/4 text-lg"
+          >🚴</span>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center justify-between text-sm text-gray-700">
+        <span>{CYCLE.current_progress} km of {CYCLE.total_goal} km</span>
+        <a href={CYCLE.strava_url} target="_blank" aria-label="Follow me on Strava">
+          <Button aria-label="Follow me on Strava button">
+            <Icon name="fa6-brands:strava" class="h-4" />
+          </Button>
+        </a>
+      </div>
+    </div>
+  </div>
+</Card>

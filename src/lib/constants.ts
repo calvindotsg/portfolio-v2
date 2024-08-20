@@ -74,6 +74,16 @@ export const ABOUT_ME: {
     ]
 }
 
+export const CYCLE: {
+    total_goal: number
+    current_progress: number
+    strava_url: string
+} = {
+    total_goal: 3000,
+    current_progress: 1440.1,
+    strava_url: "https://www.strava.com/athletes/37641259/"
+}
+
 export const WELCOME: {
     description: string[]
 } = {
