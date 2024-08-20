@@ -13,12 +13,12 @@ import { Icon } from 'astro-icon/components';
       <div class="bg-gray-200 rounded-full h-24px mt-4 overflow-hidden relative">
         <!-- Progress Bar -->
         <div
-          class="h-full bg-pink-2 rounded-full relative"
+          class="h-full bg-pink-3 rounded-full relative"
           style={`width: ${(CYCLE.current_progress / CYCLE.total_goal) * 100}%; padding-left: 8px; padding-right: 8px; box-sizing: border-box;`}
         >
           <!-- Cycling Emoji Indicator -->
           <span
-            class="absolute right-20px top-4px transform translate-x-1/2 -translate-y-1/4 text-lg"
+            class="absolute right-15px top-[-2px] transform translate-x-1/2 -translate-y-1/4 text-lg mirror"
           >🚴</span>
         </div>
       </div>
