@@ -5,10 +5,9 @@ import Button from "./Button.astro";
 import { Icon } from 'astro-icon/components';
 ---
 
-<Card colSpan="md:col-span-1" rowSpan="md:row-span-2">
+<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title="My cycling goal this year">
   <div class="flex justify-between w-full items-start mb-2">
     <div class="flex flex-col w-full px-4">
-      <h2>My cycling goal this year</h2>
       <!-- Progress Bar Container -->
       <div class="bg-gray-200 rounded-full h-24px mt-4 overflow-hidden relative">
         <!-- Progress Bar -->
@@ -22,7 +21,7 @@ import { Icon } from 'astro-icon/components';
           >🚴</span>
         </div>
       </div>
-      <div class="mt-4 flex items-center justify-between text-sm text-gray-700">
+      <div class="mt-4 flex items-center justify-between text-xs font-light">
         <span>{CYCLE.current_progress} km of {CYCLE.total_goal} km</span>
         <a href={CYCLE.strava_url} target="_blank" aria-label="Follow me on Strava">
           <Button aria-label="Follow me on Strava button">
