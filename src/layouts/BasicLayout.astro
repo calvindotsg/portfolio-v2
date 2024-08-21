@@ -68,7 +68,7 @@ const schema = {
     <script type="application/ld+json" set:html={JSON.stringify(schema)}/>
     <script defer src="https://analytics.us.umami.is/script.js" data-website-id={import.meta.env.UMAMI_ID}></script>
     <link rel="sitemap" href="/sitemap-index.xml"/>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.us.umami.is; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' https://cdn.fontshare.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.us.umami.is; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' https://cdn.fontshare.com; connect-src 'self' https://api-gateway.umami.dev;">
 </head>
 <body
         class="bg-darkslate-700 md:h-screen flex flex-col justify-center items-center"
