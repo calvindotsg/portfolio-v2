@@ -1,34 +1,32 @@
 <script>
-    import {onDestroy, onMount} from "svelte";
+    import {onMount} from "svelte";
 
     export let currentProgress;
     export let totalGoal;
 
+    let progressBarContainer;
     let progressWidth = 0;
-    let observer;
 
     const animateProgressBar = () => {
         progressWidth = (currentProgress / totalGoal) * 100;
     };
 
-    const handleIntersection = (entries) => {
-        if (entries[0].isIntersecting) {
-            animateProgressBar();
-        }
-    };
-
     onMount(() => {
-        observer = new IntersectionObserver(handleIntersection);
-        observer.observe(document.querySelector('.progress-bar-container'));
-    });
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                animateProgressBar();
+            }
+        });
+        observer.observe(progressBarContainer);
 
-    onDestroy(() => {
-        if (observer) observer.disconnect();
+        return () => {
+            observer.disconnect();
+        };
     });
 </script>
 
 <style>
-    .progress-bar-container {
+    :global(.progress-bar-container) {
         overflow: hidden;
         background-color: #e5e7eb; /* gray-200 */
         border-radius: 9999px; /* full */
@@ -36,18 +34,18 @@
         margin-top: 16px;
     }
 
-    .progress-bar {
+    :global(.progress-bar) {
         height: 100%;
-        background-color: #f472b6; /* pink-400 */
+        background-color: #f472b6;
         border-radius: 9999px; /* full */
-        transition: width 1.5s ease-in-out;
+        transition: width 2s ease-in-out;
         padding-left: 8px;
         padding-right: 8px;
         box-sizing: border-box;
         position: relative;
     }
 
-    .cycling-icon {
+    :global(.cycling-icon) {
         position: absolute;
         right: 25px;
         top: 6px;
@@ -56,10 +54,10 @@
     }
 </style>
 
-<div class="progress-bar-container">
+<div bind:this={progressBarContainer} class="progress-bar-container">
     <div class="progress-bar" style="width: {progressWidth}%">
-    <span
-            class="cycling-icon"
-    >🚴🏻</span>
+        <span
+                class="cycling-icon"
+        >🚴🏻</span>
     </div>
 </div>
