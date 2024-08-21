@@ -1,34 +1,35 @@
 ---
 import Card from "./Card/index.astro";
-import { CYCLE } from "../lib/constants";
+import {CYCLE} from "../lib/constants";
 import Button from "./Button.astro";
-import { Icon } from 'astro-icon/components';
+import {Icon} from 'astro-icon/components';
 ---
 
 <Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title="My cycling goal this year">
-  <div class="flex justify-between w-full items-start mb-2">
-    <div class="flex flex-col w-full px-4">
-      <!-- Progress Bar Container -->
-      <div class="bg-gray-200 rounded-full h-24px mt-4 overflow-hidden relative">
-        <!-- Progress Bar -->
-        <div
-          class="h-full bg-pink-3 rounded-full relative"
-          style={`width: ${(CYCLE.current_progress / CYCLE.total_goal) * 100}%; padding-left: 8px; padding-right: 8px; box-sizing: border-box;`}
-        >
-          <!-- Cycling Emoji Indicator -->
-          <span
-            class="absolute right-15px top-[-2px] transform translate-x-1/2 -translate-y-1/4 text-lg mirror"
-          >🚴</span>
+    <div class="flex justify-between w-full items-start mb-2">
+        <div class="flex flex-col w-full px-4">
+            <!-- Progress Bar Container -->
+            <div class="bg-gray-200 rounded-full h-24px mt-4 overflow-hidden relative">
+                <!-- Progress Bar -->
+                <div
+                        class="h-full bg-pink-4 rounded-full relative"
+                        style={`width: ${(CYCLE.current_progress / CYCLE.total_goal) * 100}%; padding-left: 8px; padding-right: 8px; box-sizing: border-box;`}
+                >
+                    <!-- Cycling Emoji Indicator -->
+                    <Icon
+                            name="fa6-solid:person-biking"
+                            class="absolute right-25px top-[6px] transform translate-x-1/2 -translate-y-1/4 text-md"
+                    />
+                </div>
+            </div>
+            <div class="mt-4 flex items-center justify-between text-xs font-light">
+                <span>{CYCLE.current_progress} km of {CYCLE.total_goal} km</span>
+                <a href={CYCLE.strava_url} target="_blank" aria-label="Follow me on Strava">
+                    <Button aria-label="Follow me on Strava button">
+                        <Icon name="fa6-brands:strava" class="h-6"/>
+                    </Button>
+                </a>
+            </div>
         </div>
-      </div>
-      <div class="mt-4 flex items-center justify-between text-xs font-light">
-        <span>{CYCLE.current_progress} km of {CYCLE.total_goal} km</span>
-        <a href={CYCLE.strava_url} target="_blank" aria-label="Follow me on Strava">
-          <Button aria-label="Follow me on Strava button">
-            <Icon name="fa6-brands:strava" class="h-4" />
-          </Button>
-        </a>
-      </div>
     </div>
-  </div>
 </Card>
