@@ -16,7 +16,6 @@
     "@astrojs/solid-js": "^4.2.0",
     "@astrojs/svelte": "^5.5.0",
     "@iconify-json/fa6-brands": "^1.1.19",
-    "@iconify-json/fa6-solid": "^1.1.24",
     "@iconify-json/ri": "^1.1.20",
     "@rive-app/canvas": "^2.16.0",
     "@studio-freight/lenis": "^1.0.42",
