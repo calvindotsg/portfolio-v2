@@ -38,7 +38,7 @@
 
     .progress-bar {
         height: 100%;
-        background-color: #ec4899; /* pink-4 */
+        background-color: #f472b6; /* pink-400 */
         border-radius: 9999px; /* full */
         transition: width 1.5s ease-in-out;
         padding-left: 8px;
@@ -60,6 +60,6 @@
     <div class="progress-bar" style="width: {progressWidth}%">
     <span
             class="cycling-icon"
-    >🚴</span>
+    >🚴🏻</span>
     </div>
 </div>
