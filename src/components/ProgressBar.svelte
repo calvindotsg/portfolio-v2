@@ -45,7 +45,7 @@
         position: relative;
     }
 
-    :global(.cycling-icon) {
+    :global(.goal-icon) {
         position: absolute;
         right: 25px;
         top: 6px;
@@ -57,7 +57,7 @@
 <div bind:this={progressBarContainer} class="progress-bar-container">
     <div class="progress-bar" style="width: {progressWidth}%">
         <span
-                class="cycling-icon"
+                class="goal-icon"
         >🚴🏻</span>
     </div>
 </div>

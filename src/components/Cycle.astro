@@ -1,23 +1,23 @@
 ---
 import Card from "./Card/index.astro";
-import {CYCLE} from "../lib/constants";
+import {GOAL} from "../lib/constants";
 import Button from "./Button.astro";
 import {Icon} from 'astro-icon/components';
 import ProgressBar from './ProgressBar.svelte';
 ---
 
-<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title="My cycling goal this year">
+<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${GOAL.goal_name} goal this year`>
     <div class="flex justify-between w-full items-start mb-2">
         <div class="flex flex-col w-full px-4">
             <ProgressBar client:visible
-                         currentProgress={CYCLE.current_progress}
-                         totalGoal={CYCLE.total_goal}/>
+                         currentProgress={GOAL.current_progress}
+                         totalGoal={GOAL.total_goal}/>
             <div class="mt-4 flex items-center justify-between text-xs font-light">
-                <span>{CYCLE.current_progress} km of {CYCLE.total_goal} km</span>
-                <a href={CYCLE.strava_url} target="_blank" aria-label="Follow me on Strava">
-                    <Button aria-label="Follow me on Strava button">
-                        <Icon name="fa6-brands:strava" class="h-6"/>
-                        <span class="sr-only">Follow me on Strava</span>
+                <span>{GOAL.current_progress} {GOAL.measurable_unit} of {GOAL.total_goal} {GOAL.measurable_unit}</span>
+                <a href={GOAL.website_url} target="_blank" aria-label="Follow me link">
+                    <Button aria-label="Follow me button">
+                        <Icon name=`${GOAL.cta_logo}` class="h-6"/>
+                        <span class="sr-only">Follow me</span>
                     </Button>
                 </a>
             </div>
