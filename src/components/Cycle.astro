@@ -1,0 +1,26 @@
+---
+import Card from "./Card/index.astro";
+import {GOAL} from "../lib/constants";
+import Button from "./Button.astro";
+import {Icon} from 'astro-icon/components';
+import ProgressBar from './ProgressBar.svelte';
+---
+
+<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${GOAL.goal_name} goal this year`>
+    <div class="flex justify-between w-full items-start mb-2">
+        <div class="flex flex-col w-full px-4">
+            <ProgressBar client:visible
+                         currentProgress={GOAL.current_progress}
+                         totalGoal={GOAL.total_goal}/>
+            <div class="mt-4 flex items-center justify-between text-xs font-light">
+                <span>{GOAL.current_progress} {GOAL.measurable_unit} of {GOAL.total_goal} {GOAL.measurable_unit}</span>
+                <a href={GOAL.website_url} target="_blank" aria-label="Follow me link">
+                    <Button aria-label="Follow me button">
+                        <Icon name=`${GOAL.cta_logo}` class="h-6"/>
+                        <span class="sr-only">Follow me</span>
+                    </Button>
+                </a>
+            </div>
+        </div>
+    </div>
+</Card>

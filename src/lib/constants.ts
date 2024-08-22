@@ -74,6 +74,24 @@ export const ABOUT_ME: {
     ]
 }
 
+export const GOAL: {
+    total_goal: number
+    current_progress: number
+    website_url: string
+    goal_name: string
+    emoji: string
+    cta_logo: string
+    measurable_unit: string
+} = {
+    total_goal: 3000,
+    current_progress: 1440.1,
+    website_url: "https://www.strava.com/athletes/37641259/",
+    goal_name: "Cycling",
+    emoji: "🚴🏻",
+    cta_logo: "fa6-brands:strava",
+    measurable_unit: "km"
+}
+
 export const WELCOME: {
     description: string[]
 } = {

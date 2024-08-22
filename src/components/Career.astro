@@ -11,11 +11,11 @@ import { CAREER } from "../lib/constants";
       title=`${job.emoji} I'm a ${job.job_name}`
   >
     <div class="flex flex-col gap-2">
-      <p class="text-sm font-light">
+      <ul class="text-sm-1 font-light list-disc list-inside">
         {job.description.map((item, idx) => (
             <li key={idx}>{item}</li>
         ))}
-      </p>
+      </ul>
       <p class="text-xs font-light">
         {job.start_date} - {job.end_date}
       </p>
