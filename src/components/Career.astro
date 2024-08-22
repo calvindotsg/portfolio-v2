@@ -1,27 +1,26 @@
 ---
 import Card from "./Card/index.astro";
-import { CAREER } from "../lib/constants";
+import {CAREER} from "../lib/constants";
 ---
 
 {CAREER.map((job, index) => (
-  <Card
-      key={index}
-      colSpan="md:col-span-1"
-      rowSpan="md:row-span-6"
-      title=`${job.emoji} I'm a ${job.job_name}`
-  >
+<Card
+        key={index}
+        colSpan="md:col-span-1"
+        rowSpan="md:row-span-6"
+        title=`${job.emoji} I'm a ${job.job_name}`
+>
     <div class="flex flex-col gap-2">
-      <ul class="text-sm-1 font-light list-disc list-inside">
-        {job.description.map((item, idx) => (
-            <li key={idx}>{item}</li>
-        ))}
-      </ul>
-      <p class="text-xs font-light">
-        {job.start_date} - {job.end_date}
-      </p>
-      <a href={job.company_url} class="text-xs font-light">
-        {job.company}
-      </a>
+        <ul class="text-sm-1 font-light list-disc list-inside">
+            {job.description.map((item, idx) => (
+                    <li key={idx}>{item}</li>))}
+        </ul>
+        <p class="text-xs font-light">
+            {job.start_date} - {job.end_date}
+        </p>
+        <a href={job.company_url} class="text-xs font-light">
+            {job.company}
+        </a>
     </div>
-  </Card>
-))}
+</Card>
+    ))}
