@@ -32,7 +32,7 @@ export const CAREER: {
     emoji: "🔧"
 }, {
     company: "NCS PTE LTD",
-    company_url: "https://www.ncs.co",
+    company_url: "https://www.ncs.co/en-sg/",
     description: ["Resolved production issues in a full-stack web application by 90%.", "First point of contact with end users to communicate and resolve pain points with offshore developers."],
     end_date: "Aug 2023",
     job_name: "Business systems analyst",
@@ -93,7 +93,7 @@ export const METADATA: {
     email_obfuscated: string
 } = {
     title: "Calvin - Software engineer | Enthusiastic learner | Road Cyclist",
-    description: "Hustle hustling at startup, probably cycling when you find me",
+    description: "Hustle hustling at startup, probably cycling when you find me. Cycling? I am working towards a goal of 3000km this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
     image_url: "https://calvin.sg/preview.jpg",
