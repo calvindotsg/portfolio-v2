@@ -20,7 +20,7 @@
 - Modern and Minimal bento-like, sleek UI Design
 - All in one page
 - Fully Responsive
-- Performances and SEO optimizations
+- Performance, Accessibility and SEO optimizations
 - Deployed on [Netlify](https://www.netlify.com/)
 
 ## Tech Stack
