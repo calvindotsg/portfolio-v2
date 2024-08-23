@@ -28,6 +28,7 @@
 - [Astro](https://astro.build)
 - [Svelte](https://svelte.dev/)
 - [unocss](https://unocss.dev/)
+- [motion](https://motion.dev/)
 - [Font Awesome](https://fontawesome.com/) 
 
 # Steps ▶️
