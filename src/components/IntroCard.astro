@@ -9,7 +9,7 @@ import portfolioImage from '../assets/me.webp'
 ---
 
 <Card colSpan="md:col-span-3" rowSpan="md:row-span-4">
-    <div class="flex w-full h-full">
+    <div class="flex w-full h-full justify-between md:pr-8">
         <div class="flex flex-col justify-between md:max-h-[300px] gap-4">
             <div class="flex flex-col h-full">
                 <h6 class="text-sm font-light m-0 text-[var(--text)]">welcome</h6>
@@ -25,13 +25,15 @@ import portfolioImage from '../assets/me.webp'
                 </a>))}
             </div>
         </div>
-        <Image
-                width="275"
-                height="275"
-                src={portfolioImage}
-                class="w-auto max-h-[415px] select-none absolute right-[-70px] top-1/2 transform -translate-y-1/2 z-[-1] opacity-40 md:opacity-100 md:relative md:right-[-50px] md:top-auto md:transform-none md:z-auto pointer-events-none shadow-border"
-                alt={`${METADATA.name}`}
-                loading="eager"
-        />
+        <div>
+            <Image
+                    width="275"
+                    height="275"
+                    src={portfolioImage}
+                    class="w-auto max-h-[415px] select-none absolute right-[-50px] top-1/2 transform -translate-y-1/2 z-[-1] opacity-60 md:opacity-100 md:relative md:right-auto md:top-auto md:transform-none md:z-auto pointer-events-none shadow-border"
+                    alt={`${METADATA.name}`}
+                    loading="eager"
+            />
+        </div>
     </div>
 </Card>
