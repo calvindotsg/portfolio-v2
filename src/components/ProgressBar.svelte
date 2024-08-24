@@ -37,7 +37,7 @@
 
     :global(.progress-bar) {
         height: 100%;
-        background-color: #f472b6;
+        background-color: var(--shadow);
         border-radius: 9999px;
         transition: width 2s ease-in-out;
         padding-left: 8px;

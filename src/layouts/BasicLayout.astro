@@ -66,7 +66,7 @@ const schema = {
           content="default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.us.umami.is; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' https://cdn.fontshare.com; connect-src 'self' https://api-gateway.umami.dev;">
 </head>
 <body
-        class="bg-darkslate-700 md:h-screen flex flex-col justify-center items-center"
+        class="bg-[var(--background)] md:h-screen flex flex-col justify-center items-center"
 >
 <slot name="loader"/>
 <slot/>
@@ -90,10 +90,14 @@ const schema = {
         font-display: swap;
     }
 
+
     body {
         margin: 0;
         font-family: "Satoshi", sans-serif;
         -webkit-font-smoothing: antialiased;
+        background-color: var(--background);
+        color: var(--text);
+        transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     h1,
@@ -106,7 +110,7 @@ const schema = {
     }
 
     p {
-        font-family: "Satoshi",sans-serif;
+        font-family: "Satoshi", sans-serif;
     }
 
     b {
@@ -114,7 +118,53 @@ const schema = {
     }
 
     .shadow-border {
-        box-shadow: 10px 10px 0 #E8A7AB;
+        box-shadow: 10px 10px 0 var(--shadow);
         border-radius: 8px;
+    }
+
+
+    /* Theme Variables */
+    :root[data-theme='light'] {
+        --background: #FAFAFA; /* grey-50 */
+        --card-background: #F5F5F5; /* grey-100 */
+        --card-border: #E5E5E5; /* grey-200 */
+        --shadow: #EC7981; /* primary-300 */
+        --accent: #F3A3AA; /* primary-200 */
+        --text: #0B0B0B; /* darkslate-900 */
+    }
+
+    :root[data-theme='dark'] {
+        --background: #111111; /* darkslate-700 */
+        --card-background: #171717; /* darkslate-500 */
+        --card-border: #2C2C2C; /* darkslate-100 */
+        --shadow: #F3A3AA; /* primary-200 */
+        --accent: #F9CDD3; /* primary-100 */
+        --text: #FAFAFA; /* grey-50 */
+    }
+
+    /* Card Styling */
+    .card {
+        background-color: var(--card-background);
+        border: 1px solid var(--card-border);
+        color: var(--text);
+        transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+    }
+
+    .button-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr); /* Four buttons per row */
+        gap: 16px; /* Space between buttons */
+    }
+
+    @media (max-width: 640px) {
+        .button-grid {
+            grid-template-columns: repeat(3, 1fr); /* Three buttons per row on smaller screens */
+        }
+    }
+
+    @media (max-width: 400px) {
+        .button-grid {
+            grid-template-columns: repeat(2, 1fr); /* Two button per row on very small screens */
+        }
     }
 </style>
