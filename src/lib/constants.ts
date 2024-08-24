@@ -51,7 +51,7 @@ export const GOAL: {
     current_progress: number
     website_url: string
     goal_name: string
-    emoji: string
+    goal_logo: string
     cta_logo: string
     measurable_unit: string
 } = {
@@ -59,7 +59,7 @@ export const GOAL: {
     current_progress: 1440.1,
     website_url: "https://www.strava.com/athletes/37641259/",
     goal_name: "Cycling",
-    emoji: "🚴🏻",
+    goal_logo: "🚴🏻",
     cta_logo: "fa6-brands:strava",
     measurable_unit: "km"
 }

@@ -3,6 +3,7 @@
 
     export let currentProgress;
     export let totalGoal;
+    export let goalLogo;
 
     let progressBarContainer;
     let progressWidth = 0;
@@ -28,8 +29,8 @@
 <style>
     :global(.progress-bar-container) {
         overflow: hidden;
-        background-color: #e5e7eb; /* gray-200 */
-        border-radius: 9999px; /* full */
+        background-color: #e5e7eb;
+        border-radius: 9999px;
         height: 24px;
         margin-top: 16px;
     }
@@ -37,7 +38,7 @@
     :global(.progress-bar) {
         height: 100%;
         background-color: #f472b6;
-        border-radius: 9999px; /* full */
+        border-radius: 9999px;
         transition: width 2s ease-in-out;
         padding-left: 8px;
         padding-right: 8px;
@@ -45,7 +46,7 @@
         position: relative;
     }
 
-    :global(.goal-icon) {
+    :global(.goal-logo) {
         position: absolute;
         right: 25px;
         top: 6px;
@@ -57,7 +58,7 @@
 <div bind:this={progressBarContainer} class="progress-bar-container">
     <div class="progress-bar" style="width: {progressWidth}%">
         <span
-                class="goal-icon"
-        >🚴🏻</span>
+                class="goal-logo"
+        >{goalLogo}</span>
     </div>
 </div>

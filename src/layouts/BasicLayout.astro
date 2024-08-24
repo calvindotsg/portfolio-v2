@@ -4,15 +4,9 @@ import {METADATA, LINKS, CAREER} from "../lib/constants";
 interface Props {
     title: string;
     description: string;
-    slug?: string | undefined;
-    frontmatter?: {
-        file: string; url: string | undefined;
-    } & {
-        title: string; description: string;
-    };
 }
 
-const {title, description, page, slug, frontmatter} = Astro.props;
+const {title, description} = Astro.props;
 const image = `${Astro.url.origin}/preview.jpg`;
 
 const schema = {
@@ -86,7 +80,6 @@ const schema = {
         font-weight: normal;
         font-style: normal;
         font-display: swap;
-        font-weight: 100 1000;
     }
 
     @font-face {
@@ -95,7 +88,6 @@ const schema = {
         font-weight: normal;
         font-style: normal;
         font-display: swap;
-        font-weight: 100 1000;
     }
 
     body {
@@ -114,7 +106,7 @@ const schema = {
     }
 
     p {
-        font-family: "Satoshi";
+        font-family: "Satoshi",sans-serif;
     }
 
     b {
