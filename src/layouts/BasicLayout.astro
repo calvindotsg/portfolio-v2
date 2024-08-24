@@ -152,19 +152,20 @@ const schema = {
 
     .button-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr); /* Four buttons per row */
-        gap: 16px; /* Space between buttons */
+        grid-template-columns: repeat(4, auto); /* Auto width for buttons */
+        justify-content: start; /* Left align the grid */
     }
 
     @media (max-width: 640px) {
         .button-grid {
-            grid-template-columns: repeat(4, 1fr); /* Four buttons per row on smaller screens */
+            grid-template-columns: repeat(3, auto); /* Maintain four buttons per row on smaller screens */
         }
     }
 
     @media (max-width: 400px) {
         .button-grid {
-            grid-template-columns: repeat(3, 1fr); /* Three button per row on very small screens */
+            grid-template-columns: repeat(3, auto); /* Switch to three buttons per row on very small screens */
         }
     }
+
 </style>
