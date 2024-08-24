@@ -7,7 +7,7 @@ const {rounded} = Astro.props;
 ---
 
 <button
-        class={`custom-btn text-xl max-h-[50px] shadow-custom shadow-primary-200 active:shadow-none active:translate-x-[3px] active:translate-y-[3px] text-gray-200 px-5 py-2 border border-primary-100 hover:text-primary-100 transition-colors duration-100 ease-in-out bg-gray-900 cursor-pointer ${rounded ? "rounded-full" : "rounded-lg"}`}
+        class={`custom-btn text-xl max-h-[50px] shadow-custom shadow-[var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] text-[var(--text)] px-5 py-2 border border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-100 ease-in-out bg-[var(--background)] cursor-pointer ${rounded ? "rounded-full" : "rounded-lg"}`}
 >
     <slot/>
 </button>
