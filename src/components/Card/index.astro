@@ -17,12 +17,12 @@ const {title, body, colSpan, rowSpan, href, colorText, height} = Astro.props;
 ---
 
 <div
-        class={`card h-max sm:h-auto group overflow-hidden transform-y-[-40%] bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] hover:border-[var(--accent)] align-start flex-none ${height || "h-full"} justify-start relative transform perspective-1200 w-full transition duration-75 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
+        class={`card group overflow-hidden transform-y-[-40%] bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] hover:border-[var(--accent)] flex-none ${height || "h-full"} justify-start relative perspective-1200 w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
-    {href ? (<a href={href} class={`h-full w-full text-[var(--text)]`}>
+    {href ? (<a href={href} class="h-full w-full text-[var(--text)]">
         <Icon
                 name="fa6-solid:arrow-up"
-                class="h-6 float-right group-hover:text-[var(--accent)] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform ease-in-out duration-100 z-20"
+                class="h-6 float-right group-hover:text-[var(--accent)] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform ease-in-out duration-300 z-20"
         />
         <Content title={title} body={body}>
             <slot/>
@@ -32,4 +32,3 @@ const {title, body, colSpan, rowSpan, href, colorText, height} = Astro.props;
                 <slot/>
             </Content>)}
 </div>
-
