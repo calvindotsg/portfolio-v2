@@ -4,7 +4,7 @@ import Button from "./Button.astro";
 import {LINKS, WELCOME, METADATA} from "../lib/constants";
 import {Icon} from 'astro-icon/components';
 import ThemeSwitcher from "./ThemeSwitcher.svelte";
-import {Image} from "astro:assets";
+import {Picture} from "astro:assets";
 import portfolioImage from '../assets/me.webp'
 ---
 
@@ -26,12 +26,12 @@ import portfolioImage from '../assets/me.webp'
             </div>
         </div>
         <div>
-            <Image
-                    width="275"
-                    height="275"
+            <Picture
                     src={portfolioImage}
-                    class="w-auto max-h-[415px] select-none absolute right-[-50px] top-1/2 transform -translate-y-1/2 z-[-1] opacity-60 md:opacity-100 md:relative md:right-auto md:top-auto md:transform-none md:z-auto pointer-events-none shadow-[10px_10px_0_var(--shadow)] rounded-[8px]"
+                    formats={['webp', 'jpeg']}
+                    densities={[1, 1.5, 2]}
                     alt={`${METADATA.name}`}
+                    class="w-auto max-w-auto select-none absolute right-[-50px] top-1/2 transform -translate-y-1/2 z-[-1] opacity-60 md:max-w-auto md:opacity-100 md:relative md:right-auto md:top-auto md:transform-none md:z-auto pointer-events-none shadow-[10px_10px_0_var(--shadow)] rounded-[8px]"
                     loading="eager"
             />
         </div>
