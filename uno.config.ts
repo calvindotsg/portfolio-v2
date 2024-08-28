@@ -1,4 +1,3 @@
-// uno.config.ts
 import {defineConfig, presetUno, presetWebFonts} from "unocss";
 
 export default defineConfig({
@@ -8,7 +7,9 @@ export default defineConfig({
         boxShadow: {
             custom: `2px 2px 0`, "custom-hover": `1px 1px 0`,
         }, fontFamily: {
-            sans: ["CabinetGrotesk", "Satoshi"],
+            sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "sans-serif"],
+            serif: ["Georgia", "serif"],
+            mono: ["Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"],
         }, gridTemplateRows: {
             "auto-250": "repeat(auto-fill, 250px)",
         }, gridTemplateColumns: {
@@ -48,9 +49,5 @@ export default defineConfig({
                 900: "#891321",
             },
         },
-    }, presets: [presetUno(), presetWebFonts({
-        provider: "fontshare", fonts: {
-            sans: ["Cabinet Grotesk", "Satoshi"], serif: "Zodiak",
-        },
-    }),],
+    }, presets: [presetUno(), presetWebFonts({})],
 });
