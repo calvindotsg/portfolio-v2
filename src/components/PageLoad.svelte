@@ -1,7 +1,6 @@
 <script lang="ts">
     import {onMount} from 'svelte';
     import {spring, stagger, timeline, type TimelineDefinition} from 'motion';
-    import {loaderAnimation} from "../lib/constants.ts";
 
     let mainElement: HTMLElement;
 
@@ -9,7 +8,11 @@
         const cards = mainElement.querySelectorAll('.card');
 
         const sequence: TimelineDefinition = [
-            loaderAnimation,
+            [".loader", {
+                opacity: [1, 0], pointerEvents: "none"
+            }, {
+                easing: "ease-out"
+            }],
             [
                 cards,
                 {y: ['40%', '0%'], opacity: [0, 1]},

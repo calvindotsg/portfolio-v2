@@ -101,9 +101,3 @@ export const METADATA: {
     address_country: "SG",
     email_obfuscated: "hello[at]calvin.sg"
 }
-
-export const loaderAnimation = [".loader", {
-    opacity: [1, 0], pointerEvents: "none"
-}, {
-    easing: "ease-out"
-}];
