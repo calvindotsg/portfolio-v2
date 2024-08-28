@@ -7,28 +7,14 @@ import IntroCard from "../components/IntroCard.astro";
 import AboutMe from "../components/AboutMe.astro";
 import Now from "../components/Now.astro";
 import {FOOTER, METADATA} from "../lib/constants";
+import PageLoad from "../components/PageLoad.svelte";
 ---
-
-<script>
-    import {stagger, spring, timeline, type TimelineDefinition} from "motion";
-    import {loaderAnimation} from "../lib/constants";
-
-    const cards = document.querySelectorAll(".card");
-
-    const sequence = [loaderAnimation, [cards, {y: ["40%", "0%"], opacity: [0, 1]}, {
-        at: "-0.1", duration: 0.4, delay: stagger(0.3), easing: spring({velocity: 100, stiffness: 50, damping: 10}),
-    },],];
-
-    timeline(sequence as TimelineDefinition);
-</script>
 
 <Layout
         title={METADATA.title}
         description={METADATA.description}
 >
-    <main
-            class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-6xl overflow-hidden relative w-full sm:p-4 sm:gap-2 md:grid-cols-2 md:gap-3 md:p-6 lg:h-screen lg:grid-rows-8 lg:grid-cols-4 lg:gap-4 lg:max-h-[800px]"
-    >
+    <PageLoad client:load>
         <IntroCard/>
         <Goal/>
         <AboutMe/>
@@ -39,6 +25,6 @@ import {FOOTER, METADATA} from "../lib/constants";
                 {FOOTER.footer}
             </p>
         </Card>
-    </main>
+    </PageLoad>
 </Layout>
 
