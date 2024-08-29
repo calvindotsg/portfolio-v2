@@ -7,14 +7,15 @@ import IntroCard from "../components/IntroCard.astro";
 import AboutMe from "../components/AboutMe.astro";
 import Now from "../components/Now.astro";
 import {FOOTER, METADATA} from "../lib/constants";
-import PageLoad from "../components/PageLoad.svelte";
 ---
 
 <Layout
         title={METADATA.title}
         description={METADATA.description}
 >
-    <PageLoad client:load>
+    <main
+            class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-6xl overflow-hidden relative w-full sm:p-4 sm:gap-2 md:grid-cols-2 md:gap-3 md:p-6 lg:h-screen lg:grid-rows-8 lg:grid-cols-4 lg:gap-4 lg:max-h-[800px]"
+    >
         <IntroCard/>
         <Goal/>
         <AboutMe/>
@@ -25,6 +26,5 @@ import PageLoad from "../components/PageLoad.svelte";
                 {FOOTER.footer}
             </p>
         </Card>
-    </PageLoad>
+    </main>
 </Layout>
-
