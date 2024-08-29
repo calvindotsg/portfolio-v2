@@ -8,7 +8,7 @@ import ProgressBar from './ProgressBar.svelte';
 
 <Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${GOAL.goal_name} goal this year`>
     <div class="flex justify-between w-full items-start mb-2">
-        <div class="flex flex-col w-full px-4">
+        <div class="flex flex-col w-full px-3">
             <ProgressBar client:visible
                          currentProgress={GOAL.current_progress}
                          totalGoal={GOAL.total_goal}
