@@ -24,7 +24,7 @@
 </script>
 
 <div bind:this={progressBarContainer} class="overflow-hidden bg-gray-300 rounded-full h-6 mt-4">
-    <div class="h-full bg-[var(--shadow)] rounded-full transition-all duration-[1500ms] ease-in-out px-2 box-border relative"
+    <div class="h-full bg-[var(--shadow)] rounded-full transition-all duration-[1500ms] delay-[200ms] ease-in-out px-2 box-border relative"
          style="width: {progressWidth}%">
         <span class="absolute right-6 top-1.5 translate-x-1/2 -translate-y-1/4 transform scale-x-[-1] text-base">
             {goalLogo}

@@ -9,6 +9,22 @@ import Now from "../components/Now.astro";
 import {FOOTER, METADATA} from "../lib/constants";
 ---
 
+<script>
+    import {stagger, spring, timeline, type TimelineDefinition} from "motion";
+
+    const cards = document.querySelectorAll(".card");
+
+    const sequence = [[".loader", {
+        opacity: [1, 0], pointerEvents: "none"
+    }, {
+        easing: "ease-out"
+    }], [cards, {y: ["40%", "0%"], opacity: [0, 1]}, {
+        at: "-0.1", duration: 0.3, delay: stagger(0.2), easing: spring({velocity: 100, stiffness: 50, damping: 10}),
+    },],];
+
+    timeline(sequence as TimelineDefinition);
+</script>
+
 <Layout
         title={METADATA.title}
         description={METADATA.description}
