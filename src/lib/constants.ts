@@ -43,7 +43,7 @@ export const CAREER: {
 export const ABOUT_ME: {
     description: string[]
 } = {
-    description: ["I seek practical experiences where opportunities for learning are actively up for grabs.", "If you tell me to wake up at 5.30am, I would say you're crazy. But if it's for cycling, count me in!"]
+    description: ["I seek practical experiences where opportunities for learning are actively up for grabs.", "If you tell me to wake up at 5.30am, I would say you're crazy. But if it's for cycling, count me in!","Join me towards my goal of cycling 3000km this year."]
 }
 
 export const GOAL: {
@@ -56,7 +56,7 @@ export const GOAL: {
     measurable_unit: string
 } = {
     total_goal: 3000,
-    current_progress: 1631.8,
+    current_progress: 1710.2,
     website_url: "https://www.strava.com/athletes/37641259/",
     goal_name: "Cycling",
     goal_logo: "🚴🏻",
@@ -93,7 +93,7 @@ export const METADATA: {
     email_obfuscated: string
 } = {
     title: "Calvin - Software engineer | Enthusiastic learner | Road Cyclist",
-    description: "Hustle hustling at startup, probably cycling when you find me. Cycling? I am working towards a goal of 3000km this year.",
+    description: "Hustle hustling at startup, probably cycling when you find me. Cycling? Join me towards my goal of 3000km this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
     image_url: "https://calvin.sg/preview.jpg",
