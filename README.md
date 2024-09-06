@@ -11,72 +11,78 @@
 [![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/w/calvindotsg/portfolio-v2/main)](https://github.com/calvindotsg/portfolio-v2/commits/main/)
 [![GitHub forks](https://img.shields.io/github/forks/calvindotsg/portfolio-v2)](https://github.com/calvindotsg/portfolio-v2/forks)
 
-## A personal portfolio website made using `Astro`.
+## Overview
 
-![Calvin portfolio webapp preview](public/preview.jpg)
+A personal portfolio website built with [Astro](https://astro.build), showcasing my skills, projects, and interests.
+
+![Portfolio Preview](public/preview.jpg)
 
 ## Features
 
-- Modern and Minimal bento-like, sleek UI Design
-- All in one page
-- Fully Responsive
-- Performance, Accessibility and SEO optimizations
-- Deployed on [Netlify](https://www.netlify.com/)
+- Bento-style, minimal, single-page design
+- Fully responsive layout
+- Dark/Light mode support
+- Optimized for performance, accessibility, and SEO
+- CI/CD integration with [Netlify](https://www.netlify.com/)
 
 ## Tech Stack
 
 - [Astro](https://astro.build)
 - [Svelte](https://svelte.dev/)
-- [unocss](https://unocss.dev/)
-- [motion](https://motion.dev/)
-- [Font Awesome](https://fontawesome.com/) 
+- [UnoCSS](https://unocss.dev/)
+- [Motion](https://motion.dev/)
+- [Font Awesome](https://fontawesome.com/)
+- [Netlify](https://www.netlify.com/)
 
-# Steps ▶️
+## Getting Started
 
-```bash
-# Clone this repository
-$ git clone https://github.com/calvindotsg/portfolio-v2
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/calvindotsg/portfolio-v2
+   ```
 
-```bash
-# Go into the repository
-$ cd portfolio-v2
-```
+2. Navigate to the project directory:
+   ```bash
+   cd portfolio-v2
+   ```
 
-```bash
-# Install dependencies
-$ npm install
-```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-```bash
-# Start the project in development
-$ npm run dev
-```
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-# Configuration 🖌️
+## Configuration
 
-1. Modify this portfolio web app with your personal details in `./components/lib/constants.ts`
-2. Replace the `site` and other properties with your data in `astro.config.mjs`
+1. Update your personal details in `./components/lib/constants.ts`.
+2. Modify the `site` and other relevant properties in `astro.config.mjs`.
 
-# Deploy on Netlify 🚀
+## Deployment
 
-Deploying your website on Netlify
+### Deploy on Netlify
 
-Simplify fork this repo and linking it to your Netlify account.
+To deploy on Netlify:
 
-or
+1. Fork this repository.
+2. Link the forked repo to your Netlify account.
 
-[![Netlify Deploy button](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/calvindotsg/portfolio-v2)
+Alternatively, deploy directly with this button:
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/calvindotsg/portfolio-v2)
 
 ## Contact
-For any queries or discussions regarding the project, please open an issue in the repository.
 
-## Sharing 💗
+For any questions or feedback, feel free to [open an issue](https://github.com/calvindotsg/portfolio-v2/issues) in the repository.
 
-- Project is open source. 
-- Feel free to make your own version, by adding your own personal details described in `# Configuration`. 
-- Mark star ⭐ if you like the project.
+## Support 💗
 
-## Acknowledgement ❤️
+- This project is open-source. Feel free to fork it and customize it with your details as described in the **Configuration** section.
+- If you like the project, don't forget to star ⭐ the repository.
 
-This portfolio web app [calvin.sg](https://calvin.sg) is a fork of the works of [Gianmarco](https://github.com/Ladvace)
+## Acknowledgements
+
+This portfolio is inspired by [Gianmarco's work](https://github.com/Ladvace) and deployed at [calvin.sg](https://calvin.sg).
