@@ -14,12 +14,16 @@ import ProgressBar from './ProgressBar.svelte';
                          totalGoal={GOAL.total_goal}
                          goalLogo={GOAL.goal_logo}
             />
-            <div class="mt-4 flex-col items-start justify-between text-xs font-light">
-                <a>{GOAL.current_progress} {GOAL.measurable_unit} of {GOAL.total_goal} {GOAL.measurable_unit}</a>
-                <a>Last year's: {GOAL.progress_last_year} {GOAL.measurable_unit}</a>
-                <a href={GOAL.website_url} target="_blank" aria-label="Follow me link">
+            <div class="mt-4 flex items-center justify-between text-xs font-light">
+                <!-- Left side text, stacked vertically -->
+                <div class="flex flex-col space-y-1">
+                    <span>{GOAL.current_progress} {GOAL.measurable_unit} of {GOAL.total_goal} {GOAL.measurable_unit}</span>
+                    <span>Last year's: {GOAL.progress_last_year} {GOAL.measurable_unit}</span>
+                </div>
+                <!-- Right side button -->
+                <a href={GOAL.website_url} target="_blank" aria-label="Follow me link" class="ml-4">
                     <Button aria-label="Follow me button">
-                        <Icon name=`${GOAL.cta_logo}` class="h-6"/>
+                        <Icon name={`${GOAL.cta_logo}`} class="h-6" />
                         <span class="sr-only">Follow me</span>
                     </Button>
                 </a>
