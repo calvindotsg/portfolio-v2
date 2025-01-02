@@ -16,6 +16,7 @@ import ProgressBar from './ProgressBar.svelte';
             />
             <div class="mt-4 flex items-center justify-between text-xs font-light">
                 <span>{GOAL.current_progress} {GOAL.measurable_unit} of {GOAL.total_goal} {GOAL.measurable_unit}</span>
+                <span>Last year's: {GOAL.progress_last_year} {GOAL.measurable_unit}</span>
                 <a href={GOAL.website_url} target="_blank" aria-label="Follow me link">
                     <Button aria-label="Follow me button">
                         <Icon name=`${GOAL.cta_logo}` class="h-6"/>
