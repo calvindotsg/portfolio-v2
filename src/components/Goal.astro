@@ -14,7 +14,7 @@ import ProgressBar from './ProgressBar.svelte';
                          totalGoal={GOAL.total_goal}
                          goalLogo={GOAL.goal_logo}
             />
-            <div class="mt-4 flex items-center justify-between text-xs font-light">
+            <div class="mt-4 flex-col items-start justify-between text-xs font-light">
                 <span>{GOAL.current_progress} {GOAL.measurable_unit} of {GOAL.total_goal} {GOAL.measurable_unit}</span>
                 <span>Last year's: {GOAL.progress_last_year} {GOAL.measurable_unit}</span>
                 <a href={GOAL.website_url} target="_blank" aria-label="Follow me link">
