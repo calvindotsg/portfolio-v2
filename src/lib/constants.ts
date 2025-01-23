@@ -49,6 +49,7 @@ export const ABOUT_ME: {
 export const GOAL: {
     total_goal: number
     current_progress: number
+    progress_last_year: number
     website_url: string
     goal_name: string
     goal_logo: string
