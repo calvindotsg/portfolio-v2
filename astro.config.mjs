@@ -29,5 +29,8 @@ export default defineConfig({
   adapter: netlify({ edgeMiddleware: true }),
   vite: {
     assetsInclude: "**/*.riv",
+    resolve: {
+        conditions: ['browser'],
+    },
   },
 });
