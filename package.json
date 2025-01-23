@@ -21,7 +21,7 @@
     "autoprefixer": "^10.4.20",
     "motion": "^10.18.0",
     "solid-js": "^1.9.2",
-    "svelte": "^5.15.0"
+    "svelte": "^5.1.16"
   },
 "devDependencies": {
 "vite": "4.5.9",
