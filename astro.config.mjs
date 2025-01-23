@@ -25,9 +25,6 @@ export default defineConfig({
     icon(),
     svelte(),
   ],
-  markdown: {
-    remarkPlugins: [remarkReadingTime],
-  },
   output: "server",
   adapter: netlify({ edgeMiddleware: true }),
   vite: {
