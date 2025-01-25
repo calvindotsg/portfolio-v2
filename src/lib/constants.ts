@@ -25,9 +25,9 @@ export const CAREER: {
 }[] = [{
     company: "heymax.ai",
     company_url: "https://www.heymax.ai",
-    description: ["Maximising value, minimising effort: Identifying bottlenecks with opportunities for automation.", "We grow by listening to why you love heymax along with your pain points."],
+    description: ["Maximising value, minimising effort: Identifying bottlenecks in processes with opportunities for automation.", "We grow by listening to why you love heymax along with your pain points."],
     end_date: "Present",
-    job_name: "Software engineer",
+    job_name: "Solutions engineer",
     start_date: "Aug 2023",
     emoji: "🔧"
 }, {
