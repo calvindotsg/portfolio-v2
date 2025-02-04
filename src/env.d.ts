@@ -1,7 +1,7 @@
 /// <reference path="../.astro/types.d.ts" />
 /// <reference types="astro/client" />
 interface ImportMetaEnv {
-    readonly POSTHOG_API_KEY: string;
+    readonly UMAMI_ID: string;
 }
 
 declare module "*.riv" {
