@@ -30,6 +30,7 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 - [Astro](https://astro.build)
 - [Svelte](https://svelte.dev/)
 - [UnoCSS](https://unocss.dev/)
+- [Posthog](https://posthog.com/) 
 - [Motion](https://motion.dev/)
 - [Font Awesome](https://fontawesome.com/)
 - [Netlify](https://www.netlify.com/)
