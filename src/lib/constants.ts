@@ -57,7 +57,7 @@ export const GOAL: {
     measurable_unit: string
 } = {
     total_goal: 3000,
-    current_progress: 199.6,
+    current_progress: 252,1,
     progress_last_year: 2528,
     website_url: "https://www.strava.com/athletes/37641259/",
     goal_name: "Cycling",
@@ -94,7 +94,7 @@ export const METADATA: {
     address_country: string
     email_obfuscated: string
 } = {
-    title: "Calvin - Software engineer | Enthusiastic learner | Road Cyclist",
+    title: "Calvin - Business systems analyst | Enthusiastic learner | Road Cyclist",
     description: "Hustle hustling at startup, probably cycling when you find me. Cycling? Join me towards my goal of 3000km this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
