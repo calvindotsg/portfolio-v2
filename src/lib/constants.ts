@@ -27,7 +27,7 @@ export const CAREER: {
     company_url: "https://www.heymax.ai",
     description: ["Maximising value, minimising effort: Identifying bottlenecks in processes with opportunities for automation.", "We grow by listening to why you love heymax along with your pain points."],
     end_date: "Present",
-    job_name: "Solutions engineer",
+    job_name: "Solution engineer",
     start_date: "Aug 2023",
     emoji: "🔧"
 }, {
