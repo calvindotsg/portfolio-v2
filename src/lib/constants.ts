@@ -69,7 +69,7 @@ export const GOAL: {
 export const WELCOME: {
     description: string[]
 } = {
-    description: ["👋 Hi, I'm Calvin", "Business Systems Analyst.", "Enthusiastic learner.", "Road Cyclist."]
+    description: ["👋 Hi, I'm Calvin", "Founding Solutions engineer.", "Enthusiastic learner.", "Road Cyclist."]
 }
 
 export const NOW: {
