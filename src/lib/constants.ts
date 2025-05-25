@@ -27,7 +27,7 @@ export const CAREER: {
     company_url: "https://www.heymax.ai",
     description: ["Maximising value, minimising effort: Identifying bottlenecks in processes with opportunities for automation.", "We grow by listening to why you love heymax along with your pain points."],
     end_date: "Present",
-    job_name: "Solution engineer",
+    job_name: "Founding Solutions engineer",
     start_date: "Aug 2023",
     emoji: "🔧"
 }, {
@@ -94,7 +94,7 @@ export const METADATA: {
     address_country: string
     email_obfuscated: string
 } = {
-    title: "Calvin - Business systems analyst | Enthusiastic learner | Road Cyclist",
+    title: "Calvin - Founding Solutions engineer | Enthusiastic learner | Road Cyclist",
     description: "Hustle hustling at startup, probably cycling when you find me. Cycling? Join me towards my goal of 3000km this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
