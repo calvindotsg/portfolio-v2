@@ -26,8 +26,8 @@ export const CAREER: {
     company: "HeyMax",
     company_url: "https://www.heymax.ai",
     description: [
-        "Built customer support from scratch as we grew to 5 figure weekly active users",
-        "Started as a community member, became founding engineer guided by 'What impact can we make?'"
+        "Started as a community member, now an engineer turning your pain points into smiles",
+        "Built customer support from scratch as we grew to 5 figure weekly active users"
     ],
     end_date: "Present",
     job_name: "Founding Solutions Engineer",
