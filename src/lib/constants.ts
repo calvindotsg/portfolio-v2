@@ -26,8 +26,8 @@ export const CAREER: {
     company: "HeyMax",
     company_url: "https://www.heymax.ai",
     description: [
-        "Built customer support from scratch as we grew to tens of thousands of users",
-        "Made sure our customers' voices were heard across all teams"
+        "Built customer support from scratch as we grew to 5 figure weekly active users",
+        "Started as a community member, became founding engineer guided by 'What impact can we make?'"
     ],
     end_date: "Present",
     job_name: "Founding Solutions Engineer",
@@ -37,8 +37,8 @@ export const CAREER: {
     company: "NCS Group",
     company_url: "https://www.ncs.co/en-sg/",
     description: [
-        "Helped business users fix issues quickly when things went wrong",
-        "I'm your Sherlock with data to solve tricky technical problems"
+        "I'm your solution when you hear users say 'I'm trying to do my job but your app is so buggy'",
+        "I'm your Sherlock with data and logs to solve tricky technical problems"
     ],
     end_date: "Aug 2023",
     job_name: "Business Systems Analyst",
@@ -50,8 +50,8 @@ export const ABOUT_ME: {
     description: string[]
 } = {
     description: [
-        "If you tell me to wake up at 5:30am, I'd say you're crazy. But if it's for cycling? Count me in!",
-        "Join me in my latest cycling challenge 1000km in 5 weeks to raise funds for troubled teens #CYCLEHOME"
+        "If you tell me to wake up before sunrise, I'd say you're crazy. But if it's for cycling? Count me in!",
+        "Join me in my latest cycling challenge 1000km in 5 weeks, helping troubled teens #CYCLEHOME"
     ]
 }
 
@@ -78,7 +78,7 @@ export const GOAL: {
 export const WELCOME: {
     description: string[]
 } = {
-    description: ["👋 Hi, I'm Calvin", "Founding Solutions Engineer.", "Enthusiastic learner.", "Road cyclist."]
+    description: ["👋 Hi, I'm Calvin", "Founding Solutions Engineer.", "Road cyclist.", "Enthusiastic learner."]
 }
 
 export const NOW: {
@@ -103,7 +103,7 @@ export const METADATA: {
     address_country: string
     email_obfuscated: string
 } = {
-    title: "Calvin - Founding Solutions Engineer | Enthusiastic Learner | Road Cyclist",
+    title: "Calvin - Founding Solutions Engineer | Road Cyclist | Enthusiastic Learner",
     description: "Building things at a startup, probably cycling when you find me. Join my 3000km cycling goal this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
