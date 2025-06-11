@@ -23,19 +23,25 @@ export const CAREER: {
     start_date: string
     emoji: string
 }[] = [{
-    company: "heymax.ai",
+    company: "HeyMax",
     company_url: "https://www.heymax.ai",
-    description: ["Maximising value, minimising effort: Identifying bottlenecks in processes with opportunities for automation.", "We grow by listening to why you love heymax along with your pain points."],
+    description: [
+        "Built customer support from scratch as we grew to tens of thousands of users",
+        "Made sure our customers' voices were heard across all teams"
+    ],
     end_date: "Present",
-    job_name: "Founding Solutions engineer",
+    job_name: "Founding Solutions Engineer",
     start_date: "Aug 2023",
     emoji: "🔧"
 }, {
-    company: "NCS PTE LTD",
+    company: "NCS Group",
     company_url: "https://www.ncs.co/en-sg/",
-    description: ["Resolved production issues in a full-stack web application by 90%.", "First point of contact with end users to communicate and resolve pain points with offshore developers."],
+    description: [
+        "Helped business users fix issues quickly when things went wrong",
+        "I'm your Sherlock with data to solve tricky technical problems"
+    ],
     end_date: "Aug 2023",
-    job_name: "Business systems analyst",
+    job_name: "Business Systems Analyst",
     start_date: "Jun 2022",
     emoji: "🔎"
 }]
@@ -43,7 +49,10 @@ export const CAREER: {
 export const ABOUT_ME: {
     description: string[]
 } = {
-    description: ["I seek practical experiences where opportunities for learning are actively up for grabs.", "If you tell me to wake up at 5.30am, I would say you're crazy. But if it's for cycling, count me in!","Join me towards my goal of cycling 3000km this year."]
+    description: [
+        "If you tell me to wake up at 5:30am, I'd say you're crazy. But if it's for cycling? Count me in!",
+        "Join me in my latest cycling challenge 1000km in 5 weeks to raise funds for troubled teens #CYCLEHOME"
+    ]
 }
 
 export const GOAL: {
@@ -69,13 +78,13 @@ export const GOAL: {
 export const WELCOME: {
     description: string[]
 } = {
-    description: ["👋 Hi, I'm Calvin", "Founding Solutions engineer.", "Enthusiastic learner.", "Road Cyclist."]
+    description: ["👋 Hi, I'm Calvin", "Founding Solutions Engineer.", "Enthusiastic learner.", "Road cyclist."]
 }
 
 export const NOW: {
     description: string[]
 } = {
-    description: ["Hustle hustling at startup, probably cycling when you find me"]
+    description: ["Building things at a startup, probably cycling when you find me"]
 }
 
 export const FOOTER: {
@@ -94,8 +103,8 @@ export const METADATA: {
     address_country: string
     email_obfuscated: string
 } = {
-    title: "Calvin - Founding Solutions engineer | Enthusiastic learner | Road Cyclist",
-    description: "Hustle hustling at startup, probably cycling when you find me. Cycling? Join me towards my goal of 3000km this year.",
+    title: "Calvin - Founding Solutions Engineer | Enthusiastic Learner | Road Cyclist",
+    description: "Building things at a startup, probably cycling when you find me. Join my 3000km cycling goal this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
     image_url: "https://calvin.sg/preview.jpg",
