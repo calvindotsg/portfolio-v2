@@ -51,7 +51,7 @@ export const ABOUT_ME: {
 } = {
     description: [
         "If you tell me to wake up before sunrise, I'd say you're crazy. But if it's for cycling? Count me in!",
-        "Join me in my latest cycling challenge 1000km in 5 weeks, helping troubled teens #CYCLEHOME"
+        "Join me in my latest cycling challenge 1000km in 5 weeks, helping vulnerable teens #cyclehome"
     ]
 }
 
