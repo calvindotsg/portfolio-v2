@@ -10,19 +10,66 @@ import {FOOTER, METADATA} from "../lib/constants";
 ---
 
 <script>
-    import {stagger, spring, timeline, type TimelineDefinition} from "motion";
+import { animate, stagger, spring } from "motion";
 
-    const cards = document.querySelectorAll(".card");
+document.addEventListener("DOMContentLoaded", () => {
+    const loader = document.querySelector('.loader');
+    const cards = document.querySelectorAll('main > *');
 
-    const sequence = [[".loader", {
-        opacity: [1, 0], pointerEvents: "none"
-    }, {
-        easing: "ease-out"
-    }], [cards, {y: ["40%", "0%"], opacity: [0, 1]}, {
-        at: "-0.1", duration: 0.4, delay: stagger(0.3), easing: spring({velocity: 100, stiffness: 50, damping: 10}),
-    },],];
+    // Set initial states
+    if (loader) {
+        loader.style.opacity = '1';
+    }
 
-    timeline(sequence as TimelineDefinition);
+    cards.forEach(card => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(40%)';
+    });
+
+    // Animation sequence
+    const runAnimations = async () => {
+        // 1. Fade out loader (opacity 1 → 0, disable pointer events)
+        if (loader) {
+            animate(
+                loader,
+                { opacity: 0 },
+                { 
+                    duration: 0.5,
+                    type: spring,
+                    velocity: 100,
+                    stiffness: 50,
+                    damping: 10
+                }
+            );
+
+            // Disable pointer events after fade starts
+            setTimeout(() => {
+                loader.style.pointerEvents = 'none';
+            }, 100);
+        }
+
+        // 2. Animate cards with stagger (start 0.1s before loader finishes)
+        setTimeout(() => {
+            animate(
+                cards,
+                { 
+                    opacity: 1,
+                    transform: 'translateY(0%)' 
+                },
+                { 
+                    delay: stagger(0.3),
+                    duration: 0.4,
+                    type: spring,
+                    velocity: 100,
+                    stiffness: 50,
+                    damping: 10
+                }
+            );
+        }, 400); // Start 0.1s before loader finishes (500ms - 100ms)
+    };
+
+    runAnimations();
+});
 </script>
 
 <Layout
