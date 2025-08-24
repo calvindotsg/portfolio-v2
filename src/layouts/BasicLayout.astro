@@ -118,19 +118,20 @@ const schema = {
 
     .button-grid {
         display: grid;
-        grid-template-columns: repeat(4, auto); /* Auto width for buttons */
+        grid-template-columns: repeat(4, auto); /* Maximum 4 buttons per row */
         justify-content: start; /* Left align the grid */
+        gap: 1rem; /* Consistent spacing between rows and columns */
     }
 
     @media (max-width: 640px) {
         .button-grid {
-            grid-template-columns: repeat(3, auto); /* Maintain four buttons per row on smaller screens */
+            grid-template-columns: repeat(3, auto); /* 3 buttons per row on smaller screens */
         }
     }
 
     @media (max-width: 400px) {
         .button-grid {
-            grid-template-columns: repeat(3, auto); /* Switch to three buttons per row on very small screens */
+            grid-template-columns: repeat(2, auto); /* 2 buttons per row on very small screens */
         }
     }
 </style>

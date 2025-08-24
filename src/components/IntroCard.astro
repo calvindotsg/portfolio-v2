@@ -15,7 +15,7 @@ import portfolioImage from '../assets/me.webp'
                 <h6 class="text-sm font-light m-0 text-[var(--text)]">welcome</h6>
                 {WELCOME.description.map((item, index) => (<h1 class="m-0 font-light text-xl">{item}</h1>))}
             </div>
-            <div class="flex gap-4 button-grid">
+            <div class="button-grid">
                 <ThemeSwitcher client:load/>
                 {LINKS.map(({link, logo, name}) => (<a href={link} aria-label={name} target="_blank" key={name}>
                     <Button aria-label={name}>
