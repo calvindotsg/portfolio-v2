@@ -15,9 +15,14 @@ npm run dev
 # Build for production
 npm run build
 
-# Preview production build
-npm run preview
+# Type checking
+npm run check
+
+# Linting
+npm run eslint
 ```
+
+Note: `npm run preview` is not supported due to the Netlify adapter configuration. Use `npm run build` and deploy to Netlify for production testing.
 
 ## Tech Stack & Architecture
 
