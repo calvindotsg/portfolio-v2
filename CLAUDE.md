@@ -73,3 +73,7 @@ The site is configured for Netlify deployment with:
 - Edge middleware support
 - Automatic sitemap generation
 - Robots.txt generation
+
+## Memories
+
+- Any user configurable variable are implemented and configured in `src/lib/constants.ts`

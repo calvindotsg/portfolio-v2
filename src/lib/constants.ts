@@ -12,6 +12,8 @@ export const LINKS: {
     link: "https://www.strava.com/athletes/37641259/", logo: "fa6-brands:strava", name: "Strava"
 }, {
     link: "https://t.me/calvindotsg/", logo: "fa6-brands:telegram", name: "Telegram"
+}, {
+    link: "/src/assets/Calvin_Loh_Solutions_Engineer_Resume.pdf", logo: "ri:file-pdf-2-line", name: "Resume"
 },];
 
 export const CAREER: {
