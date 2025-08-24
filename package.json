@@ -20,7 +20,6 @@
     "astro-robots-txt": "^1.0.0",
     "autoprefixer": "^10.4.20",
     "motion": "^10.18.0",
-    "solid-js": "^1.9.2",
     "svelte": "^5.1.16"
   },
 "devDependencies": {
