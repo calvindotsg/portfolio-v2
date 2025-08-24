@@ -10,7 +10,7 @@ import {FOOTER, METADATA} from "../lib/constants";
 ---
 
 <script>
-    import {stagger, spring, timeline, type TimelineDefinition} from "motion";
+    import {stagger, spring, animate} from "motion";
 
     const cards = document.querySelectorAll(".card");
 
@@ -22,7 +22,7 @@ import {FOOTER, METADATA} from "../lib/constants";
         at: "-0.1", duration: 0.4, delay: stagger(0.3), easing: spring({velocity: 100, stiffness: 50, damping: 10}),
     },],];
 
-    timeline(sequence as TimelineDefinition);
+    animate(sequence);
 </script>
 
 <Layout
