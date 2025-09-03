@@ -6,7 +6,7 @@
 <!-- PROJECT LOGO -->
 
 [![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/w/calvindotsg/portfolio-v2/main)](https://github.com/calvindotsg/portfolio-v2/commits/main/)
-[![GitHub license](https://img.shields.io/github/license/calvindotsg/portfolio-v2)](./LICENSE)(https://app.netlify.com/sites/calvindotsg/deploys)
+[![GitHub license](https://img.shields.io/github/license/calvindotsg/portfolio-v2)](./LICENSE)
 [![Netlify Status](https://api.netlify.com/api/v1/badges/1e7b40f5-97bf-4baa-8648-dd03494f3e53/deploy-status)](https://app.netlify.com/sites/calvindotsg/deploys)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/calvindotsg/portfolio-v2)
 
