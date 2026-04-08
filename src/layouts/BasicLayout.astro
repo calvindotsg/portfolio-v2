@@ -16,9 +16,9 @@ const schema = {
     url: METADATA.site_url,
     sameAs: [LINKS.map(item => item.link)],
     image: METADATA.image_url,
-    jobTitle: CAREER.at(0).job_name,
+    jobTitle: CAREER[0].job_name,
     worksFor: {
-        "@type": "Organization", name: CAREER.at(0).job_name, address: {
+        "@type": "Organization", name: CAREER[0].job_name, address: {
             "@type": "PostalAddress",
             addressLocality: METADATA.address_locality,
             addressCountry: METADATA.address_country,

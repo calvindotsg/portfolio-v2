@@ -11,13 +11,15 @@ interface Props {
     colorText?: string;
     height?: string;
     width?: string;
+    padding?: string;
+    bgColor?: string;
 }
 
-const {title, body, colSpan, rowSpan, href, colorText, height} = Astro.props;
+const {title, body, colSpan, rowSpan, href, colorText, height, padding, bgColor} = Astro.props;
 ---
 
 <div
-        class={`card group overflow-hidden transform-y-[-40%] bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] hover:border-[var(--accent)] flex-none ${height || "h-full"} justify-start relative perspective-1200 w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
+        class={`card group overflow-hidden transform-y-[-40%] ${bgColor || "bg-[var(--card-background)]"} shadow-lg rounded-lg ${padding || "p-6"} border border-[var(--card-border)] hover:border-[var(--accent)] flex-none ${height || "h-full"} justify-start relative perspective-1200 w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
     {href ? (<a href={href} class="h-full w-full text-[var(--text)]">
         <Icon

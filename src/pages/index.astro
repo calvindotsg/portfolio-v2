@@ -13,8 +13,8 @@ import {FOOTER, METADATA} from "../lib/constants";
 import { animate, stagger, spring } from "motion";
 
 document.addEventListener("DOMContentLoaded", () => {
-    const loader = document.querySelector('.loader');
-    const cards = document.querySelectorAll('main > *');
+    const loader = document.querySelector('.loader') as HTMLElement | null;
+    const cards = document.querySelectorAll<HTMLElement>('main > *');
 
     // Set initial states
     if (loader) {
@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Disable pointer events after fade starts
             setTimeout(() => {
-                loader.style.pointerEvents = 'none';
+                (loader as HTMLElement).style.pointerEvents = 'none';
             }, 100);
         }
 
