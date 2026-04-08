@@ -17,7 +17,7 @@ import portfolioImage from '../assets/me.webp'
             </div>
             <div class="button-grid">
                 <ThemeSwitcher client:load/>
-                {LINKS.map(({link, logo, name}) => (<a href={link} aria-label={name} target="_blank" key={name}>
+                {LINKS.map(({link, logo, name}) => (<a href={link} aria-label={name} target="_blank">
                     <Button aria-label={name}>
                         <Icon name={logo} class="h-6"/>
                         <span class="sr-only">{name} Profile</span>
