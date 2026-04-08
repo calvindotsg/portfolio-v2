@@ -1,0 +1,14 @@
+# Calvin Loh
+
+> Business Systems Analyst at HeyMax, a loyalty and travel rewards platform in Singapore. Builds docs-as-code platforms, workflow automation, and AI-powered operations tooling.
+
+## Projects
+
+- [calvin.sg](https://calvin.sg): Personal website built with Astro and Svelte
+- [granola-to-minutes](https://github.com/calvindotsg/granola-to-minutes): CLI tool that exports Granola meeting data to Minutes-native markdown
+- [mac-upkeep](https://github.com/calvindotsg/mac-upkeep): Automated macOS maintenance CLI
+
+## Links
+
+- [GitHub](https://github.com/calvindotsg)
+- [LinkedIn](https://www.linkedin.com/in/calvin-loh/)
