@@ -68,7 +68,7 @@ export const GOAL: {
     measurable_unit: string
 } = {
     total_goal: 3000,
-    current_progress: 516.6,
+    current_progress: 585.1,
     progress_last_year: 1440.8,
     website_url: "https://www.strava.com/athletes/37641259/",
     goal_name: "Cycling",
