@@ -1,5 +1,6 @@
 import {readFileSync, readdirSync, existsSync} from "node:fs";
 import {parseHTML} from "linkedom";
+import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
 import {METADATA} from "../src/lib/constants";
@@ -74,6 +75,29 @@ describe("dist/index.html is prerendered", () => {
         const src = doc().querySelector("main img")?.getAttribute("src") ?? "";
         expect(src).toMatch(/^\/_astro\//);
         expect(src).not.toContain(".netlify");
+    });
+
+    /**
+     * The portrait is laid out at 275 CSS px, so a DPR-2 screen needs 550 real
+     * pixels or it renders soft — which is what PageSpeed's "Serves images with
+     * low resolution" audit flagged in production.
+     *
+     * This asserts pixels, not markup, because Astro silently *drops* a density
+     * that would upscale the source. Raise the layout width past half the
+     * source's 1000 px and the srcset disappears with a green build; this test is
+     * the only thing that would say so.
+     */
+    it("offers the portrait at 2x density for high-DPI screens", async () => {
+        const img = doc().querySelector("main img");
+        const width = Number(img?.getAttribute("width"));
+        expect(width, "the portrait must declare a layout width").toBeGreaterThan(0);
+
+        const candidate = (img?.getAttribute("srcset") ?? "").match(/(\S+)\s+2x/)?.[1];
+        expect(candidate, "the portrait must offer a 2x srcset candidate").toBeTruthy();
+
+        expect(existsSync(`dist${candidate}`), `dist${candidate} must be emitted`).toBe(true);
+        const {width: emitted} = await sharp(`dist${candidate}`).metadata();
+        expect(emitted, "the 2x candidate must carry twice the layout pixels").toBe(width * 2);
     });
 });
 
