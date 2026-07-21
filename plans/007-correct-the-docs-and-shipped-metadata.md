@@ -42,8 +42,15 @@ graph), and it points them at `./components/lib/constants.ts`, a path that has
 never existed. `CLAUDE.md` is the first file every agent session reads and it
 asserts an "edge middleware" deployment for which no middleware file exists
 anywhere in the repo. `public/llms.txt` exists specifically so AI crawlers get an
-authoritative bio, and it gives the owner a job title he left in August 2023,
-attached to the wrong employer.
+authoritative bio, and it still describes the site as "built with Astro and
+Svelte" — a framework plan 003 deleted.
+
+> **Amended 2026-07-21, after `3f45874`.** As authored, this plan also rewrote
+> `llms.txt`'s job title from "Business Systems Analyst" to "Founding Solutions
+> Engineer". **That is now backwards and would ship a false fact.** Calvin
+> retitled the current role to *Business Systems Analyst* in `3f45874`, so
+> `llms.txt:3` is correct as it stands. Step 5a now verifies it instead of
+> editing it. See "Why `llms.txt:3` is correct today".
 
 Plans 002–006 also invalidate a second layer of these docs: they delete Svelte,
 the Motion library, the SSR adapter and the loader layout, all of which the Tech
@@ -169,50 +176,44 @@ The site is configured for Netlify deployment with:
 - Robots.txt generation
 ```
 
-`public/llms.txt:3` and `public/llms.txt:7`:
-
-```markdown
-> Business Systems Analyst at HeyMax, a loyalty and travel rewards platform in Singapore. Builds docs-as-code platforms, workflow automation, and AI-powered operations tooling.
-```
+`public/llms.txt:7` — the only wrong line in this file:
 
 ```markdown
 - [calvin.sg](https://calvin.sg): Personal website built with Astro and Svelte
 ```
 
-### Why `llms.txt:3` is wrong, from the repo's own data
+### Why `llms.txt:3` is correct today — do not "fix" it
 
-`src/lib/constants.ts:27-37` — `CAREER[0]`:
+`llms.txt:3` reads:
 
-```ts
-    company: "HeyMax",
-    company_url: "https://www.heymax.ai",
-    ...
-    end_date: "Present",
-    job_name: "Founding Solutions Engineer",
-    start_date: "Aug 2023",
+```markdown
+> Business Systems Analyst at HeyMax, a loyalty and travel rewards platform in Singapore. Builds docs-as-code platforms, workflow automation, and AI-powered operations tooling.
 ```
 
-`src/lib/constants.ts:38-48` — `CAREER[1]`:
+**That matches the repository and must be left alone.** When this plan was
+authored at `4550e1f`, `CAREER[0].job_name` was `"Founding Solutions Engineer"`
+and `llms.txt` was the single dissenter — so the plan told the executor to
+rewrite the title. Commit `3f45874` (2026-07-21) inverted that: Calvin retitled
+the current role, and the repo now reads
 
 ```ts
-    company: "NCS Group",
-    ...
-    end_date: "Aug 2023",
+// src/lib/constants.ts:35 — CAREER[0], HeyMax, "Present"
     job_name: "Business Systems Analyst",
-    start_date: "Jun 2022",
+// src/lib/constants.ts:46 — CAREER[1], NCS Group, ended Aug 2023
+    job_name: "Business Systems Analyst",
+// src/lib/constants.ts:108
+    title: "Calvin - Business Systems Analyst | Road Cyclist | Enthusiastic Learner",
 ```
 
-`src/lib/constants.ts:108` corroborates:
+**Both career entries deliberately carry the same title.** Calvin confirmed that
+explicitly; it is not a copy-paste slip, and no part of this plan may "correct"
+it. `llms.txt:3` now agrees with `CAREER[0]`, so Step 5a verifies rather than
+edits.
 
-```ts
-    title: "Calvin - Founding Solutions Engineer | Road Cyclist | Enthusiastic Learner",
-```
-
-So "Business Systems Analyst" is the **NCS Group** role that ended Aug 2023, and
-`llms.txt` pairs it with HeyMax. The correct current title is
-**"Founding Solutions Engineer"**. Three independent places in the repo say so
-(`constants.ts:35`, `constants.ts:83`, `constants.ts:108`); `llms.txt` is the
-single dissenter.
+This file is a hand-maintained duplicate of facts in `src/lib/constants.ts` with
+nothing keeping the two in sync — which is precisely how the title drifted in the
+first place, and precisely why this plan nearly re-introduced the drift in the
+opposite direction.
 
 ### Repo conventions that apply
 
@@ -560,24 +561,33 @@ serve the site, that is a STOP condition (the doc line would be false).
 
 ### Step 5: Fix `public/llms.txt`
 
-Two single-line edits. **Do not add, remove or reword anything else in this
-file** — the remaining sentences are the owner's own description of his work and
-projects, and this plan has no authority to rewrite them.
+**Exactly one single-line edit.** **Do not add, remove or reword anything else in
+this file** — the remaining sentences are the owner's own description of his work
+and projects, and this plan has no authority to rewrite them.
 
-**5a.** On line 3, change only the job title. Before:
+**5a. Verify line 3; do NOT edit it.** An earlier revision of this plan told you
+to rewrite the job title here. That instruction was withdrawn — see "Why
+`llms.txt:3` is correct today". Line 3 must still read, byte for byte:
 
 ```
 > Business Systems Analyst at HeyMax, a loyalty and travel rewards platform in Singapore. Builds docs-as-code platforms, workflow automation, and AI-powered operations tooling.
 ```
 
-After:
+Confirm it agrees with the repo rather than changing it:
 
-```
-> Founding Solutions Engineer at HeyMax, a loyalty and travel rewards platform in Singapore. Builds docs-as-code platforms, workflow automation, and AI-powered operations tooling.
+```bash
+node -e "
+const fs = require('fs');
+const txt = fs.readFileSync('public/llms.txt', 'utf8');
+const title = fs.readFileSync('src/lib/constants.ts', 'utf8').match(/job_name:\s*\"([^\"]+)\"/)[1];
+console.log('CAREER[0].job_name :', title);
+console.log('llms.txt agrees    :', txt.includes(title + ' at HeyMax'));
+"
 ```
 
-The new title is copied verbatim from `src/lib/constants.ts:35`. Everything after
-`at HeyMax,` is untouched.
+→ `CAREER[0].job_name : Business Systems Analyst` and `llms.txt agrees : true`.
+**If `agrees` is false, STOP** — the two have drifted again and which one is right
+is Calvin's call, not yours.
 
 **5b.** On line 7, drop the Svelte claim. Before:
 
@@ -605,7 +615,6 @@ const c = fs.readFileSync('src/lib/constants.ts', 'utf8');
 const title = c.match(/job_name:\s*\"([^\"]+)\"/)[1];
 console.log('title from constants:', title);
 console.log('llms.txt states it:', txt.includes(title + ' at HeyMax'));
-console.log('stale title gone:', !txt.includes('Business Systems Analyst'));
 console.log('svelte claim gone:', !/Svelte/i.test(txt));
 console.log('line count:', txt.trimEnd().split('\n').length);
 "
@@ -614,16 +623,16 @@ console.log('line count:', txt.trimEnd().split('\n').length);
 →
 
 ```
-title from constants: Founding Solutions Engineer
+title from constants: Business Systems Analyst
 llms.txt states it: true
-stale title gone: true
 svelte claim gone: true
 line count: 14
 ```
 
 (The regex takes the **first** `job_name` in `constants.ts`, which is
 `CAREER[0]` — the current role. The line count proves you did not add or delete
-lines.)
+lines. There is deliberately **no** "stale title gone" check: "Business Systems
+Analyst" is the correct current title and must remain in this file.)
 
 ### Step 6: Add a Testing section to `README.md`
 
@@ -758,9 +767,9 @@ console.log('dist/preview.jpg', statSync('dist/preview.jpg').size, 'bytes');
 `tests/build-output.test.ts` also asserts `dist/preview.jpg` exists.)
 
 **What this step does NOT do:** the screenshot still shows the *2024* site —
-"Software Engineer" instead of "Founding Solutions Engineer", 1440.1 km instead
-of the current figure, five social buttons instead of six, and none of the
-refactored layout. **Do not attempt to regenerate it.** Taking a fresh screenshot
+"Software Engineer" instead of the current "Business Systems Analyst", 1440.1 km
+instead of the current figure, five social buttons instead of six, and none of
+the refactored layout. **Do not attempt to regenerate it.** Taking a fresh screenshot
 requires launching a browser, choosing a viewport, waiting for the right paint,
 and judging whether the framing looks good — all of which are human decisions an
 executor cannot verify it got right, and a wrong one ships a broken share card to
@@ -814,8 +823,11 @@ Machine-checkable. ALL must hold:
 - [ ] `grep -n "src/lib/constants.ts" README.md` returns at least one match
 - [ ] `grep -n "Any user configurable variable are implemented and configured in \`src/lib/constants.ts\`" CLAUDE.md` returns exactly one match
 - [ ] `grep -n "^## Testing" README.md` returns one match, and `grep -c "pnpm test" README.md` is ≥ 2
-- [ ] `grep -c "Business Systems Analyst" public/llms.txt` returns `0`
-- [ ] `grep -c "Founding Solutions Engineer at HeyMax" public/llms.txt` returns `1`
+- [ ] `grep -c "Business Systems Analyst at HeyMax" public/llms.txt` returns `1`
+      (the **current** title — this line is correct and must not be edited)
+- [ ] `grep -c "Founding Solutions Engineer" public/llms.txt` returns `0`
+- [ ] `git diff --stat -- public/llms.txt` shows **1 insertion, 1 deletion**
+      (line 7 only — if line 3 also changed, revert it)
 - [ ] `grep -ci "svelte" public/llms.txt` returns `0`
 - [ ] `public/llms.txt` is still 14 lines (`wc -l < public/llms.txt` → `14`)
 - [ ] `node -e "require('sharp')('public/preview.jpg').metadata().then(m=>console.log(m.width,m.height))"` prints `1200 630`

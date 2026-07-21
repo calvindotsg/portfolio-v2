@@ -27,8 +27,8 @@ and update your row when done.
 | 003 | Delete the client runtime: Svelte and motion out, CSS in | P1 | M | 002 | **DONE** (`621dd5a`) |
 | 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | **DONE** (`ef0da28`) |
 | 005 | Delete dead configuration and template cruft | P2 | S | 004 | **DONE** (`255dbca`) |
-| 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | TODO (next) |
-| 007 | Correct the documentation and shipped metadata | P3 | S | 006 | TODO |
+| 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | **DONE** (`ad7c5bf`) |
+| 007 | Correct the documentation and shipped metadata | P3 | S | 006 | TODO (next) |
 | 008 | Serve the portrait at device resolution | P2 | XS | 002, 004 | **DONE** (`b14287d`) |
 
 Plan 008 was **not** produced by the audit — it was raised from a production
@@ -143,6 +143,45 @@ Post-deploy verification against the pre-refactor production snapshot:
   `Button` swallows props, which is the defect. Mutating the `<button>` element
   directly turns it red correctly.
 
+- **006** merged as `ad7c5bf` (squash of 4 commits, PR #31). 51/51 green in both
+  worktrees; **19 → 18 direct dependencies**; `pnpm audit --audit-level=critical`
+  **exit 1 → exit 0** (`{critical:1, high:10, moderate:9, low:2}` →
+  `{critical:0, high:6, moderate:4, low:0}`). None of those advisories was
+  runtime-reachable — the exposure was build-time supply chain, in the laptop and
+  the Netlify container holding the deploy credentials.
+  **Icon geometry was measured, not asserted.** Production's seven `<svg>` widths
+  were captured *before* dispatch, while the old renderer was still live; the new
+  CSS mask rules reproduce all of them exactly (0.97 / 0.88 / 0.88 / 0.75 / 0.97 /
+  1em), each with `display:inline-block`, a mask URL and
+  `background-color:currentColor`. `text-xl`'s 28 px line-height governs over both
+  the old 24 px and new 20 px icon box, so button height is unchanged. All eight
+  accessible names are byte-identical and every icon span is `aria-hidden`.
+  Preview-vs-production: **visible text IDENTICAL**; all 60 markup deltas are the
+  `<svg>`/`<symbol>`/`<use>` → `<span>` swap and nothing else. Net first-load
+  weight **+159 bytes brotli (+1.9 %)** as the icon payload moves from HTML into
+  CSS — measured compressed, since uncompressed (+1,563 B) is not what anyone
+  pays.
+  *A real test defect found in review — the first in this run that was not a
+  stale premise.* Deleting the Goal CTA's icon span outright left **all 51 tests
+  green**. `fa6-brands:strava` is used twice (a `LINKS` entry and
+  `GOAL.cta_logo`), so 7 icon *references* collapse to 6 distinct *classes*; the
+  new test looped over classes calling `doc.querySelector`, which returns the
+  first match in document order — always IntroCard's copy — leaving the Goal CTA
+  icon unasserted. Ironically the plan's own correct warning ("six distinct
+  icons, do not expect seven distinct classes") is what steered it there: right
+  for the CSS-rule check, wrong for the DOM check. Now asserts one element per
+  *reference*, and Step 7a of the plan was amended so the blind spot is not
+  inherited. Re-mutation-tested three ways (delete the span → `expected 6 to be
+  7`; drop its `aria-hidden`; drop `aria-hidden` on an IntroCard icon). The other
+  new assertion was mutation-tested by dropping `extraProperties.display` and by
+  emptying the safelist.
+  *Reviewer note on method*: the first geometry comparison reported **FAIL on
+  five of six** — that was the reviewer's own bug, not the code's. The minifier
+  strips leading zeros, so `0.97em` is written `.97em`. Same family as the
+  `::before` → `:before` trap.
+  *Also corrected*: the assumption that moving bytes into a content-hashed asset
+  buys repeat-visit caching. It does **not** here — Netlify serves `/_astro/*`
+  with `cache-control: public,max-age=0,must-revalidate`, the same as the HTML.
 - **005** merged as `255dbca` (squash of 7 commits, PR #30). 49/49 green in both
   worktrees; `pnpm check` hints **4 → 2** (both `ts(6385)` `presetUno`
   deprecations cleared); **20 → 19 direct dependencies**.
@@ -226,14 +265,14 @@ one maintainer, and every plan touches overlapping files. Each plan is merged to
 
 Measured in the spike, not estimated:
 
-| | before (`main`) | after | now (through 005) |
+| | before (`main`) | after | now (through 006) |
 |---|---|---|---|
-| direct dependencies | 23 | 16 | **19** |
+| direct dependencies | 23 | 16 | **18** |
 | client JS files | 6 | 0 | **0** |
 | client JS bytes | 106,861 | ~525, inline | **525, inline** |
 | Netlify SSR function | 2.4 MB | none | **none** |
-| `pnpm audit` critical / high | 1 / 12 | 0 / 6, all dev-only | — |
-| automated tests | 0 | 32+ | **49** |
+| `pnpm audit` critical / high | 1 / 12 | 0 / 6, all dev-only | **0 / 6** |
+| automated tests | 0 | 32+ | **51** |
 | `pnpm eslint` problems | 2 | 0 | **0** |
 
 The spike measured the client-JS baseline as 95,031 bytes; re-measured against
