@@ -24,8 +24,8 @@ and update your row when done.
 |------|-------|----------|--------|------------|--------|
 | 001 | Establish a regression safety net | P1 | M | — | **DONE** (`4144f81`) |
 | 002 | Prerender the site and delete the SSR adapter | P1 | M | 001 | **DONE** (`a4a3e0e`) |
-| 003 | Delete the client runtime: Svelte and motion out, CSS in | P1 | M | 002 | TODO (next) |
-| 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | TODO |
+| 003 | Delete the client runtime: Svelte and motion out, CSS in | P1 | M | 002 | **DONE** (`621dd5a`) |
+| 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | TODO (next) |
 | 005 | Delete dead configuration and template cruft | P2 | S | 004 | TODO |
 | 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | TODO |
 | 007 | Correct the documentation and shipped metadata | P3 | S | 006 | TODO |
@@ -34,8 +34,8 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 
 ### Production status
 
-**Plans 001–002 are live on https://calvin.sg** as of 2026-07-21 (deploy
-`6a5f0917`, commit `9cc89bd`). The push to `main` triggered the deploy, and
+**Plans 001–003 are live on https://calvin.sg** as of 2026-07-21 (deploy
+`6a5f152c`, commit `621dd5a`). The push to `main` triggered the deploy, and
 `netlify build --dry` confirms the build ran `build.command from netlify.toml`
 — i.e. production was gated on `pnpm check && pnpm test`, not just `pnpm build`.
 
@@ -76,6 +76,37 @@ Post-deploy verification against the pre-refactor production snapshot:
   failed on the maintainer's machine, where `.netlify/v1` survived from earlier
   adapter builds and nothing ever deletes it. `tests/setup/build.ts` now clears
   it before building, preserving `.netlify/state.json`.
+- **003** merged as `621dd5a` (squash of 4 commits, PR #27). 41/41 tests green in
+  both the executor worktree and the main worktree. Production deploy
+  `6a5f152c` verified live: **0 external JS files** referenced, 0 `astro-island`
+  markers, no `.loader` div, the pre-paint theme script present, the progress bar
+  at `--progress: 74.88%` (= 2246.4/3000) without JS, and the old bundles
+  (`client.Bb6KOtAu.js`, `ThemeSwitcher.DKIzLg0a.js`) now 404.
+  All 3 new tests were **mutation-tested**: removing the inline theme script,
+  re-adding a `.loader` div, and forcing an external JS chunk each turned exactly
+  one test red. The 002 stale-artifact failure mode was explicitly re-checked and
+  does **not** apply — a `.js` file planted in `dist/_astro` is cleared by
+  `astro build`, and the suite passed in the main worktree where 6 stale JS files
+  were present beforehand.
+  Preview-vs-production diff: one visible-text delta, the `🔆` glyph leaving the
+  DOM text. **Intended** — it moved to CSS `::before` keyed off `data-theme`, and
+  the rules were confirmed present in the preview stylesheet
+  (`.theme-toggle:before{content:"🔆"}`, byte-identical CSS to the local build),
+  so the visitor still sees it and now sees the *correct* glyph in dark mode from
+  first paint. Every markup delta was predicted by the plan.
+  *Plan defect found by the executor*: the "ships zero external JavaScript files"
+  assertion sat in Step 6, one step before Step 7 removes the `svelte()`
+  integration — and `@astrojs/svelte` emits its `client.svelte.*.js` runtime
+  purely because it is registered, regardless of whether any `.svelte` file or
+  `client:*` directive survives. Proven by elimination: at end of Step 5 the tree
+  had zero of both and still emitted a 29,694-byte chunk across a clean rebuild;
+  deleting only the two `svelte()` lines took `dist/_astro` to zero. The plan was
+  amended to move the test to Step 7d (`f044fdf`, squashed into `621dd5a`) rather
+  than documenting a knowingly-red step.
+  *Tooling defect found in review*: `.scratchpad/prod-diff.py` normalised only the
+  serving origin, so since 002 made canonical/`og:url`/JSON-LD emit the configured
+  `site`, a preview's identical tags diffed as changes. Fixed to normalise the
+  canonical site too, and to strip Netlify's preview-only deploy-id beacon.
 
 ## Dependency notes
 
@@ -105,14 +136,19 @@ one maintainer, and every plan touches overlapping files. Each plan is merged to
 
 Measured in the spike, not estimated:
 
-| | before (`main`) | after |
-|---|---|---|
-| direct dependencies | 23 | 16 |
-| client JS files | 6 | 0 |
-| client JS bytes | 95,031 | 539, inline |
-| Netlify SSR function | 2.4 MB | none |
-| `pnpm audit` critical / high | 1 / 12 | 0 / 6, all dev-only |
-| automated tests | 0 | 32+ |
+| | before (`main`) | after | now (through 003) |
+|---|---|---|---|
+| direct dependencies | 23 | 16 | 20 |
+| client JS files | 6 | 0 | **0** |
+| client JS bytes | 106,861 | ~525, inline | **525, inline** |
+| Netlify SSR function | 2.4 MB | none | **none** |
+| `pnpm audit` critical / high | 1 / 12 | 0 / 6, all dev-only | — |
+| automated tests | 0 | 32+ | **41** |
+
+The spike measured the client-JS baseline as 95,031 bytes; re-measured against
+the current lockfile it is **106,861** across the same 6 files (the spike
+worktree's `node_modules` resolved ~12% smaller). The post-003 inline figure is
+525 bytes measured on the shipped `dist/index.html`, not the spike's 539.
 
 ## Findings considered and rejected
 
