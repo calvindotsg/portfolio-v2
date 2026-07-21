@@ -175,13 +175,15 @@ Neither is an agent's call. Both are recorded so a new run does not "helpfully"
 do them.
 
 - ~~`public/preview.jpg` is still the August 2024 screenshot.~~ **Resolved
-  2026-07-21**: the maintainer supplied a current dark-theme screenshot, and it
-  now ships processed to the same 1200×630 / `#111111`-pillarbox canvas plan
-  007 established (52,228 bytes). It shows the live site's facts (Business
-  Systems Analyst, seven buttons, 2246.4 km). The README hero, `og:image` and
-  `twitter:image` all resolve from this one filename — whenever the site's
-  visible content changes materially, a fresh maintainer-provided screenshot
-  through the same pipeline is the whole refresh.
+  2026-07-21**: the maintainer supplied a current dark-theme screenshot. It
+  ships as a **hero-card crop filling the full 1200×630 canvas** (45,646
+  bytes) rather than a whole-page pillarbox — the maintainer asked for the
+  optimum social composition, and cropping to the welcome card (name, role
+  lines, buttons, portrait) renders the text ~2× larger in unfurls. Crop
+  recipe from a full-page 2386×1658 capture: `extract(left 90, top 0,
+  1647×800)` → `resize(1200×630, contain, #111111)` → mozjpeg q80. The README
+  hero, `og:image` and `twitter:image` all resolve from this one filename —
+  a future refresh is a new screenshot through this same recipe.
 - **`public/llms.txt` duplicates facts from `src/lib/constants.ts` by hand**,
   with nothing keeping them in sync. That is exactly how its job title went stale
   once, and how plan 007 nearly re-staled it in the opposite direction. Add it to
