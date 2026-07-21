@@ -1,6 +1,4 @@
 import {experimental_AstroContainer as AstroContainer} from "astro/container";
-import {getContainerRenderer} from "@astrojs/svelte/container-renderer";
-import {loadRenderers} from "astro:container";
 import {parseHTML} from "linkedom";
 import {beforeAll, describe, expect, it} from "vitest";
 
@@ -13,14 +11,12 @@ let html: string;
 let text: string;
 
 beforeAll(async () => {
-    const renderers = await loadRenderers([getContainerRenderer()]);
-    const container = await AstroContainer.create({renderers});
+    const container = await AstroContainer.create();
     html = await container.renderToString(Index);
     doc = parseHTML(html).document as unknown as Document;
 
-    // `html` begins with a hoisted <script> tag, which makes linkedom treat that
-    // script as documentElement and leaves document.body empty. Re-parse the markup
-    // inside a real body so textContent is reliable regardless of the leading tag.
+    // Re-parse the markup inside a real body so textContent is reliable
+    // regardless of any leading non-element content in the rendered string.
     const wrapper = parseHTML("<html><body></body></html>").document;
     wrapper.body.innerHTML = html;
     text = (wrapper.body.textContent ?? "").replace(/\s+/g, " ");
@@ -94,5 +90,16 @@ describe("page content", () => {
         expect(img?.getAttribute("width")).toBeTruthy();
         expect(img?.getAttribute("height")).toBeTruthy();
         expect(img?.getAttribute("alt")).toBeTruthy();
+    });
+});
+
+describe("no client runtime", () => {
+    it("sets data-theme from an inline script in <head>", () => {
+        const inline = [...doc.querySelectorAll("script")].filter((s) => !s.getAttribute("src"));
+        expect(inline.some((s) => (s.textContent ?? "").includes("dataset.theme"))).toBe(true);
+    });
+
+    it("renders no loader overlay", () => {
+        expect(doc.querySelector(".loader")).toBeNull();
     });
 });

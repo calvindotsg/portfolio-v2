@@ -3,7 +3,7 @@ import Card from "./Card/index.astro";
 import Button from "./Button.astro";
 import {LINKS, WELCOME, METADATA} from "../lib/constants";
 import {Icon} from 'astro-icon/components';
-import ThemeSwitcher from "./ThemeSwitcher.svelte";
+import ThemeSwitcher from "./ThemeSwitcher.astro";
 import {Image} from "astro:assets";
 import portfolioImage from '../assets/me.webp'
 ---
@@ -16,7 +16,7 @@ import portfolioImage from '../assets/me.webp'
                 {WELCOME.description.map((item, index) => (<h1 class="m-0 font-light text-xl">{item}</h1>))}
             </div>
             <div class="button-grid">
-                <ThemeSwitcher client:load/>
+                <ThemeSwitcher/>
                 {LINKS.map(({link, logo, name}) => (<a href={link} aria-label={name} target="_blank">
                     <Button aria-label={name}>
                         <Icon name={logo} class="h-6"/>

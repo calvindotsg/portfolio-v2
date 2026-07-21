@@ -4,8 +4,6 @@ import robotsTxt from "astro-robots-txt";
 import UnoCSS from "@unocss/astro";
 import icon from "astro-icon";
 
-import svelte from "@astrojs/svelte";
-
 // https://astro.build/config
 export default defineConfig({
   site: "https://calvin.sg/",
@@ -19,7 +17,6 @@ export default defineConfig({
     }),
     UnoCSS({ injectReset: true }),
     icon(),
-    svelte(),
   ],
   output: "static",
 });

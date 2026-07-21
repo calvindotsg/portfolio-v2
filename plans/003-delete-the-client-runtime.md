@@ -36,13 +36,17 @@
 
 ## Why this matters
 
-Today the page ships **6 external JavaScript files totalling 95,031 bytes**
-(motion 61,533 · Svelte runtime 30,418 · ThemeSwitcher 1,163 · ProgressBar
-918 · Svelte glue 889 · legacy 110) to do three things: fade six cards in, flip
-a `data-theme` attribute, and set one width percentage. After this plan the
-site ships **0 external JS files and 539 bytes of inline script** (a 343-byte
-pre-paint theme script and a 196-byte toggle click handler). These numbers were
-*measured* on a complete working prototype of this exact change, not estimated.
+Today the page ships **6 external JavaScript files totalling 106,861 bytes**
+(motion 63,370 · Astro island runtime 40,102 · ThemeSwitcher 1,303 ·
+ProgressBar 1,051 · Svelte glue 925 · legacy 110) to do three things: fade six
+cards in, flip a `data-theme` attribute, and set one width percentage. After
+this plan the site ships **0 external JS files and ~539 bytes of inline
+script** (a pre-paint theme script and a toggle click handler).
+
+*(Byte figures re-measured on the current lockfile at commit `b8d2673`. An
+earlier draft of this plan quoted 95,031 bytes from the spike worktree, whose
+`node_modules` resolved ~12% smaller; the file **count** was correct in both.
+The plan's assertions are on counts, not bytes, so nothing downstream changes.)*
 
 The same JS also causes three real, production-verified defects that this plan
 fixes:
@@ -696,21 +700,26 @@ describe("no client runtime", () => {
 });
 ```
 
-**6e.** In `tests/build-output.test.ts`, add this test inside the existing
-`describe("dist/", …)` block (after the "emits exactly one stylesheet" test):
+**Verify**: `pnpm test` → exit 0, exactly **`BASELINE + 2`** tests pass.
 
-```ts
-    it("ships zero external JavaScript files", () => {
-        const js = readdirSync("dist/_astro").filter((f) => f.endsWith(".js"));
-        expect(js).toEqual([]);
-    });
-```
-
-(`readdirSync` is already imported in that file.)
-
-**Verify**: `pnpm test` → exit 0, exactly **`BASELINE + 3`** tests pass.
+> The third new test — "ships zero external JavaScript files" — is deliberately
+> NOT added here. It is added in Step 7d, because it cannot pass until Step 7
+> removes the `svelte()` integration. See the note at the top of Step 7.
 
 ### Step 7: Remove the Svelte and motion toolchain
+
+> **Why the "zero external JS" test lives here and not in Step 6.**
+> `@astrojs/svelte` emits its client hydration runtime as a `client.svelte.*.js`
+> chunk **purely because the integration is registered** — it does not check
+> whether any `.svelte` component or `client:*` directive still exists. Verified
+> by elimination during the 003 run: at the end of Step 5 the tree had zero
+> `.svelte` files and zero `client:` directives, yet `pnpm build` still emitted
+> `client.svelte.n7m6oswU.js` (29,694 bytes) deterministically across a full
+> clean rebuild (`rm -rf dist .astro node_modules/.astro node_modules/.vite`);
+> deleting **only** the two `svelte()` lines from `astro.config.mjs`, changing
+> nothing else, took `dist/_astro` to zero `.js` files. So the assertion is only
+> satisfiable after 7b. Every step in this plan ends with a fully green suite —
+> do not add a test at a point where it must be red.
 
 **7a.** Remove the dependencies:
 
@@ -734,12 +743,25 @@ import svelte from "@astrojs/svelte";
 rm svelte.config.js
 ```
 
+**7d.** Now that the integration is gone, add the third new test. In
+`tests/build-output.test.ts`, inside the existing `describe("dist/", …)` block
+(after the "emits exactly one stylesheet" test):
+
+```ts
+    it("ships zero external JavaScript files", () => {
+        const js = readdirSync("dist/_astro").filter((f) => f.endsWith(".js"));
+        expect(js).toEqual([]);
+    });
+```
+
+(`readdirSync` is already imported in that file.)
+
 **Verify** (all of them):
 - `pnpm install` → exit 0
 - `grep -n "svelte" astro.config.mjs package.json` → **no matches**
 - `pnpm check` → `0 errors`
 - `pnpm eslint` → exit 0 (the 2 pre-existing warnings only)
-- `pnpm test` → `BASELINE + 3` pass
+- `pnpm test` → exit 0, `BASELINE + 3` pass
 
 ### Step 8: Final artifact verification
 
@@ -762,10 +784,11 @@ section (deletions included).
 
 ## Test plan
 
-- **3 new tests** (Step 6), asserting the three outcomes this plan exists for:
-  the pre-paint inline theme script is present in the rendered head; no
-  `.loader` element renders; `dist/_astro` contains zero `.js` files. Modelled
-  on the existing suites they extend.
+- **3 new tests**, asserting the three outcomes this plan exists for: the
+  pre-paint inline theme script is present in the rendered head (Step 6d); no
+  `.loader` element renders (Step 6d); `dist/_astro` contains zero `.js` files
+  (Step **7d** — it cannot pass before the `svelte()` integration is removed;
+  see the note opening Step 7). Modelled on the existing suites they extend.
 - **3 deleted lines**: the Svelte container-renderer wiring in
   `tests/rendered-html.test.ts`, scheduled for deletion by plan 001 itself.
 - **Everything existing must stay green unmodified** (except the renderer

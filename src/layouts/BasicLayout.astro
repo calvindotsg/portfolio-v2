@@ -61,11 +61,19 @@ const schema = {
     <script type="application/ld+json" set:html={JSON.stringify(schema)}/>
     <script defer src="https://cloud.umami.is/script.js" data-website-id={import.meta.env.UMAMI_ID}></script>
     <link rel="sitemap" href="/sitemap-index.xml"/>
+    <script is:inline>
+        (() => {
+            const stored = localStorage.getItem("theme");
+            const theme = stored === "light" || stored === "dark"
+                ? stored
+                : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+            document.documentElement.dataset.theme = theme;
+        })();
+    </script>
 </head>
 <body
         class="bg-[var(--background)] md:h-screen flex flex-col justify-center items-center"
 >
-<slot name="loader"/>
 <slot/>
 </body>
 </html>
@@ -132,6 +140,32 @@ const schema = {
     @media (max-width: 400px) {
         .button-grid {
             grid-template-columns: repeat(2, auto); /* 2 buttons per row on very small screens */
+        }
+    }
+
+    /* Card entrance — replaces the JS stagger. Pure CSS, no client bundle. */
+    main > * {
+        animation: card-in 0.4s ease-out backwards;
+    }
+
+    main > *:nth-child(1) { animation-delay: 0.00s; }
+    main > *:nth-child(2) { animation-delay: 0.08s; }
+    main > *:nth-child(3) { animation-delay: 0.16s; }
+    main > *:nth-child(4) { animation-delay: 0.24s; }
+    main > *:nth-child(5) { animation-delay: 0.32s; }
+    main > *:nth-child(6) { animation-delay: 0.40s; }
+    main > *:nth-child(7) { animation-delay: 0.48s; }
+
+    @keyframes card-in {
+        from {
+            opacity: 0;
+            transform: translateY(40%);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        main > * {
+            animation: none;
         }
     }
 </style>
