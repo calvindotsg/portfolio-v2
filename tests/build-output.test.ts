@@ -3,7 +3,8 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {METADATA} from "../src/lib/constants";
+import {GOAL, LINKS, METADATA} from "../src/lib/constants";
+import {iconClass} from "../src/lib/icons";
 
 /**
  * Asserts on what `pnpm build` actually emits. A green build is not evidence the
@@ -39,6 +40,19 @@ describe("dist/", () => {
     it("copies the public assets the page links to", () => {
         for (const asset of ["favicon.ico", "preview.jpg", "resume.pdf"]) {
             expect(existsSync(`dist/${asset}`), `dist/${asset} must exist`).toBe(true);
+        }
+    });
+
+    it("emits a usable CSS rule for every safelisted icon class", () => {
+        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"));
+        expect(sheet, "dist/_astro must contain a stylesheet").toBeTruthy();
+        const css = read(`dist/_astro/${sheet}`);
+        const wanted = new Set([...LINKS.map(({logo}) => iconClass(logo)), iconClass(GOAL.cta_logo)]);
+        for (const cls of wanted) {
+            const rule = css.match(new RegExp(`\\.${cls}\\{([^}]*)\\}`))?.[1];
+            expect(rule, `${cls} has no CSS rule — the safelist in uno.config.ts stopped matching`).toBeTruthy();
+            expect(rule, `${cls} must be inline-block or it renders at zero size`).toMatch(/display:\s*inline-block/);
+            expect(rule, `${cls} must carry a mask image`).toContain("--un-icon:url(");
         }
     });
 });
