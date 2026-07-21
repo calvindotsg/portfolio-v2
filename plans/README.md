@@ -28,7 +28,7 @@ and update your row when done.
 | 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | **DONE** (`ef0da28`) |
 | 005 | Delete dead configuration and template cruft | P2 | S | 004 | **DONE** (`255dbca`) |
 | 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | **DONE** (`ad7c5bf`) |
-| 007 | Correct the documentation and shipped metadata | P3 | S | 006 | TODO (next) |
+| 007 | Correct the documentation and shipped metadata | P3 | S | 006 | **DONE** (`759ed8f`) |
 | 008 | Serve the portrait at device resolution | P2 | XS | 002, 004 | **DONE** (`b14287d`) |
 
 Plan 008 was **not** produced by the audit — it was raised from a production
@@ -143,6 +143,41 @@ Post-deploy verification against the pre-refactor production snapshot:
   `Button` swallows props, which is the defect. Mutating the `<button>` element
   directly turns it red correctly.
 
+- **007** merged as `759ed8f` (squash of 6 commits, PR #32). 51/51 green — this
+  plan changed **no code**: `git diff -- src/ package.json pnpm-lock.yaml tests/`
+  is empty. `public/preview.jpg` 2400×1600 / 383,429 B → **1200×630 / 54,485 B**
+  (−85.8 %), the largest file shipped to `dist/`.
+  Preview-vs-production: **visible text and markup both IDENTICAL**; the only
+  shipped deltas are `/llms.txt` (one line) and `/preview.jpg`.
+  **The job-title instruction had inverted and was reversed before dispatch.** As
+  authored, Step 5a rewrote `llms.txt` from "Business Systems Analyst" to
+  "Founding Solutions Engineer" — correct at `4550e1f`, and `3f45874` flipped it,
+  so running it verbatim would have published a title Calvin does not hold to the
+  file whose whole purpose is an authoritative bio for AI crawlers. Neither guard
+  would have caught it: the drift probe reports *whether* a file changed, not
+  whether the instruction still points the right way, and the plan's own
+  verification would have **half**-passed. `git diff -- public/llms.txt` is
+  exactly 1 insertion / 1 deletion, on line 7.
+  *Three further plan defects, all fixed in the plan file as well as the docs*:
+  (a) the anti-regression grep `npm (install|run)` is unanchored and `pnpm
+  install` *contains* `npm install`, so it matched the very command Step 3b
+  mandates — **unsatisfiable by construction**, and the same pattern in the
+  CLAUDE.md check passed only by luck; now anchored to `^[[:space:]]*`.
+  (b) Step 3d had the README state Netlify's build command as `pnpm build`; it is
+  `pnpm check && pnpm test` from `netlify.toml`, which the plan predates — the
+  wrong version reads as though deploys skip the suite.
+  (c) `CLAUDE.md` named `src/components/Card/Content.astro`, deleted by `ef0da28`
+  in this same chain, and Step 4d explicitly said to leave that bullet alone.
+  *Every new factual claim was checked against the repo* rather than trusted:
+  `SKIP_BUILD=1` exists (`tests/setup/build.ts:20`), `ICON_COLLECTIONS` is
+  `["fa6-brands","ri"]`, `@keyframes` rules exist with no JS animation library,
+  `public/robots.txt` ships verbatim, `pnpm preview` returns **200**, and the
+  pre-paint theme script is at `BasicLayout.astro:64`. The `CLAUDE.md` Memories
+  contract survives verbatim. The resized image was **viewed, not just
+  byte-counted** — full page, no crop, invisible `#111111` pillarbox.
+  *Executor note*: the plan's `pnpm preview` snippet kills only the pnpm wrapper,
+  leaving an orphaned Astro listener bound to 4321 that produced a spurious 404 on
+  a retry; fixed to `pkill -f "astro preview"`.
 - **006** merged as `ad7c5bf` (squash of 4 commits, PR #31). 51/51 green in both
   worktrees; **19 → 18 direct dependencies**; `pnpm audit --audit-level=critical`
   **exit 1 → exit 0** (`{critical:1, high:10, moderate:9, low:2}` →
@@ -265,7 +300,7 @@ one maintainer, and every plan touches overlapping files. Each plan is merged to
 
 Measured in the spike, not estimated:
 
-| | before (`main`) | after | now (through 006) |
+| | before (`main`) | after | **final** |
 |---|---|---|---|
 | direct dependencies | 23 | 16 | **18** |
 | client JS files | 6 | 0 | **0** |
