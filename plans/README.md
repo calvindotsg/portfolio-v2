@@ -22,8 +22,8 @@ and update your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | Establish a regression safety net | P1 | M | — | TODO |
-| 002 | Prerender the site and delete the SSR adapter | P1 | M | 001 | TODO |
+| 001 | Establish a regression safety net | P1 | M | — | **DONE** (`4144f81`) |
+| 002 | Prerender the site and delete the SSR adapter | P1 | M | 001 | IN PROGRESS |
 | 003 | Delete the client runtime: Svelte and motion out, CSS in | P1 | M | 002 | TODO |
 | 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | TODO |
 | 005 | Delete dead configuration and template cruft | P2 | S | 004 | TODO |
