@@ -2,7 +2,7 @@
 import Card from "./Card/index.astro";
 import Button from "./Button.astro";
 import {LINKS, WELCOME, METADATA} from "../lib/constants";
-import {Icon} from 'astro-icon/components';
+import {iconClass} from "../lib/icons";
 import ThemeSwitcher from "./ThemeSwitcher.astro";
 import {Image} from "astro:assets";
 import portfolioImage from '../assets/me.webp'
@@ -19,7 +19,7 @@ import portfolioImage from '../assets/me.webp'
                 <ThemeSwitcher/>
                 {LINKS.map(({link, logo, name}) => (<a href={link} aria-label={name} target="_blank">
                     <Button>
-                        <Icon name={logo} class="h-6"/>
+                        <span class={iconClass(logo)} aria-hidden="true"></span>
                         <span class="sr-only">{name} Profile</span>
                     </Button>
                 </a>))}
