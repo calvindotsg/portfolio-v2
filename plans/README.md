@@ -174,13 +174,14 @@ agent's:
 Neither is an agent's call. Both are recorded so a new run does not "helpfully"
 do them.
 
-- **`public/preview.jpg` is still the August 2024 screenshot.** It shows
-  "Software Engineer", five social buttons and 1440.1 km — none of which match
-  the current site. Plan 007 resized it (383,429 → 54,485 bytes) but did not
-  regenerate it: framing a screenshot is a judgment call an executor cannot
-  verify, and a bad one ships to every LinkedIn and Slack unfurl. The README
-  hero, `og:image` and `twitter:image` all resolve from that one filename, so
-  replacing the file is the whole fix.
+- ~~`public/preview.jpg` is still the August 2024 screenshot.~~ **Resolved
+  2026-07-21**: the maintainer supplied a current dark-theme screenshot, and it
+  now ships processed to the same 1200×630 / `#111111`-pillarbox canvas plan
+  007 established (52,228 bytes). It shows the live site's facts (Business
+  Systems Analyst, seven buttons, 2246.4 km). The README hero, `og:image` and
+  `twitter:image` all resolve from this one filename — whenever the site's
+  visible content changes materially, a fresh maintainer-provided screenshot
+  through the same pipeline is the whole refresh.
 - **`public/llms.txt` duplicates facts from `src/lib/constants.ts` by hand**,
   with nothing keeping them in sync. That is exactly how its job title went stale
   once, and how plan 007 nearly re-staled it in the opposite direction. Add it to
