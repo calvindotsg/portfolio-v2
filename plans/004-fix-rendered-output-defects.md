@@ -215,9 +215,11 @@ The two call sites are `src/components/IntroCard.astro:21` and
                     </Button>
 ```
 
-(Plan 003 replaces the `<Icon …/>` lines with `<span class={…} aria-hidden="true">`.
-The `<Button aria-label=…>` and `<span class="sr-only">` lines are untouched by
-plan 003 — those are what this plan changes.)
+(**Correction, verified against `main` after 003 merged**: plan 003 does *not*
+touch the `<Icon …/>` lines — it explicitly lists them as out of scope, and
+**plan 006** is what replaces them with `<span class={…}>`. Both call sites still
+read exactly as quoted above, `<Icon>` included. Leave those lines alone; the
+`<Button aria-label=…>` lines are the only thing this plan changes here.)
 
 Neither call site passes `rounded`; production HTML has 7 `custom-btn` buttons,
 7 with `rounded-lg`, 0 with `rounded-full`. And `Button` renders a bare
