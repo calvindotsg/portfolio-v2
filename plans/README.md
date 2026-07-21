@@ -25,8 +25,8 @@ and update your row when done.
 | 001 | Establish a regression safety net | P1 | M | — | **DONE** (`4144f81`) |
 | 002 | Prerender the site and delete the SSR adapter | P1 | M | 001 | **DONE** (`a4a3e0e`) |
 | 003 | Delete the client runtime: Svelte and motion out, CSS in | P1 | M | 002 | **DONE** (`621dd5a`) |
-| 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | TODO (next) |
-| 005 | Delete dead configuration and template cruft | P2 | S | 004 | TODO |
+| 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | **DONE** (`ef0da28`) |
+| 005 | Delete dead configuration and template cruft | P2 | S | 004 | TODO (next) |
 | 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | TODO |
 | 007 | Correct the documentation and shipped metadata | P3 | S | 006 | TODO |
 
@@ -34,8 +34,8 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 
 ### Production status
 
-**Plans 001–003 are live on https://calvin.sg** as of 2026-07-21 (deploy
-`6a5f152c`, commit `621dd5a`). The push to `main` triggered the deploy, and
+**Plans 001–004 are live on https://calvin.sg** as of 2026-07-21 (deploy
+`6a5f1a55`, commit `ef0da28`). The push to `main` triggered the deploy, and
 `netlify build --dry` confirms the build ran `build.command from netlify.toml`
 — i.e. production was gated on `pnpm check && pnpm test`, not just `pnpm build`.
 
@@ -107,6 +107,36 @@ Post-deploy verification against the pre-refactor production snapshot:
   serving origin, so since 002 made canonical/`og:url`/JSON-LD emit the configured
   `site`, a preview's identical tags diffed as changes. Fixed to normalise the
   canonical site too, and to strip Netlify's preview-only deploy-id beacon.
+- **004** merged as `ef0da28` (squash of 10 commits, PR #28). 48/48 green in both
+  worktrees. Production deploy `6a5f1a55` verified: JSON-LD `worksFor.name` is
+  `"HeyMax"`, `sameAs` is a flat list of 5 absolute URLs with no `/resume.pdf`,
+  `@context` is `https`; zero occurrences of `text-sm-1`, `custom-btn`,
+  `transform-y-` or `sizes=` remain; 3 `<ul>`s carry `text-sm`.
+  eslint down to 1 warning (the `colorText` one is gone).
+  Preview-vs-production diff: **visible text byte-identical** (the one intended
+  visual change is CSS, not content). Every markup delta predicted: JSON-LD
+  flattened and `https`, `transform-y-[-40%]` gone from 6 cards, `custom-btn` gone
+  from 7 buttons, `sizes` gone from the portrait, `text-sm-1` → `text-sm` on 3
+  lists.
+  All 7 new assertions **mutation-tested**, plus the dead-class tripwire probed
+  with both `custom-btn` and `transform-y-[`. `Card`'s rewritten class string was
+  proved character-identical to what the old template produced with no props,
+  minus only the dead `transform-y-[-40%]` — the one edit in this plan that no
+  test covers.
+  *Three plan defects found by the executor*, all verified before amending:
+  (a) the step-4 button test asserted `aria-label` must be absent wherever
+  `.sr-only` text exists, on the false premise that `ThemeSwitcher.astro` has no
+  `.sr-only` child — it has both, with identical text, reproducing the Svelte
+  original; the invariant is *no downgrade*, so the test now requires them to
+  agree rather than requiring absence; (b) a verify and a done criterion grepped
+  for a bare `rounded-full` expecting no matches, impossible since it is live in
+  `ProgressBar.astro` and `Pulse.astro`; (c) a done criterion counted
+  `description: string$` expecting 1, but `METADATA.description` also matches.
+  *Reviewer note on method*: the first attempt to mutation-test the button
+  assertion **passed**, which looked like a dead test. It was an invalid mutation
+  — adding `aria-label` to `<Button>` cannot reach the DOM precisely because
+  `Button` swallows props, which is the defect. Mutating the `<button>` element
+  directly turns it red correctly.
 
 ## Dependency notes
 
@@ -143,7 +173,7 @@ Measured in the spike, not estimated:
 | client JS bytes | 106,861 | ~525, inline | **525, inline** |
 | Netlify SSR function | 2.4 MB | none | **none** |
 | `pnpm audit` critical / high | 1 / 12 | 0 / 6, all dev-only | — |
-| automated tests | 0 | 32+ | **41** |
+| automated tests | 0 | 32+ | **48** |
 
 The spike measured the client-JS baseline as 95,031 bytes; re-measured against
 the current lockfile it is **106,861** across the same 6 files (the spike
