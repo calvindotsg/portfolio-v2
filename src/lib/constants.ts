@@ -32,7 +32,7 @@ export const CAREER: {
         "Built customer support from scratch as we grew to 5 figure weekly active users"
     ],
     end_date: "Present",
-    job_name: "Founding Solutions Engineer",
+    job_name: "Business Systems Analyst",
     start_date: "Aug 2023",
     emoji: "🔧"
 }, {
@@ -80,7 +80,7 @@ export const GOAL: {
 export const WELCOME: {
     description: string[]
 } = {
-    description: ["👋 Hi, I'm Calvin", "Founding Solutions Engineer.", "Road cyclist.", "Enthusiastic learner."]
+    description: ["👋 Hi, I'm Calvin", "Business Systems Analyst.", "Road cyclist.", "Enthusiastic learner."]
 }
 
 export const NOW: {
@@ -105,7 +105,7 @@ export const METADATA: {
     address_country: string
     email_obfuscated: string
 } = {
-    title: "Calvin - Founding Solutions Engineer | Road Cyclist | Enthusiastic Learner",
+    title: "Calvin - Business Systems Analyst | Road Cyclist | Enthusiastic Learner",
     description: "Building things at a startup, probably cycling when you find me. Join my 3000km cycling goal this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
