@@ -3,8 +3,3 @@
 interface ImportMetaEnv {
     readonly UMAMI_ID: string;
 }
-
-declare module "*.riv" {
-    const content: any;
-    export default content;
-}

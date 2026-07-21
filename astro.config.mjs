@@ -24,10 +24,4 @@ export default defineConfig({
   ],
   output: "server",
   adapter: netlify({ middlewareMode: 'edge' }),
-  vite: {
-    assetsInclude: "**/*.riv",
-    resolve: {
-        conditions: ['browser'],
-    },
-  },
 });
