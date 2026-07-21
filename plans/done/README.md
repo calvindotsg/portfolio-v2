@@ -1,3 +1,84 @@
+# Completed run 2 — 2026-07-21 (plans 009–010)
+
+Run 2 audited the post-refactor repo at `c8fe10f`. Nine read-only category
+auditors (opus) fanned out via a workflow; every finding went to an independent
+adversarial skeptic instructed to refute it. **8 findings came back; 2 were
+refuted outright, 4 downgraded, 2 confirmed — and after advisor review, exactly
+2 items were worth acting on.** Five categories (security, performance, DX,
+docs, direction) returned zero findings. On this baseline that is the correct
+outcome: the run's own brief said "I audited nine categories and only two
+findings are worth acting on is a complete, successful run."
+
+Everything killed is recorded in `../README.md` § "Findings considered and
+rejected — Run 2" so the next run does not re-derive it.
+
+## Run 2 verification log
+
+- **009 — lockfile refresh** merged as `c00dd73` (PR #35).
+  *Plan-authoring defect caught in pre-flight, before dispatch*: the audit
+  finding claimed all 10 advisories clear in-range; empirically testing the
+  command against a scratch copy of the manifest+lockfile showed
+  `@netlify/otel@6.0.3` (latest) pins `@opentelemetry/core` to exactly `2.7.1`,
+  so only 9 of 10 clear. The plan was written with the corrected expectation
+  (1 moderate residual, accepted, no override) and the executor verified it
+  exactly.
+  *Execution incident, fully recovered*: a user interrupt mid-dispatch broke the
+  first executor's worktree provisioning — it ran in the primary checkout and
+  its commit briefly landed on local `main`. It detected this itself, moved the
+  commit to a branch (`e4490f1`), hard-reset local `main` to `origin/main`
+  (byte-identical, verified), and resynced `node_modules`. A redundantly
+  relaunched second executor found the work present and verified rather than
+  redid it. Nothing was pushed from `main`; the history that merged is clean.
+  *Reviewer verification, independent of both executors*: detached review
+  worktree at `e4490f1` — `pnpm audit` → exactly 1 moderate
+  (`@opentelemetry/core`); `pnpm check` 0/0/2 hints; `pnpm eslint` 0 problems;
+  51/51 tests; **`dist/index.html` and the emitted stylesheet byte-identical**
+  to the pre-refresh build (the UnoCSS 66.6.8→66.7.5 minor changes zero output
+  bytes). No major jumps: `astro` 7.1.3, `eslint-plugin-astro` 1.7.0.
+  Preview-vs-production (PR #35): visible text **IDENTICAL** (1144 chars),
+  markup **IDENTICAL**.
+  *Known non-blocking*: pre-existing peer warning
+  (`eslint-plugin-jsx-a11y` declares eslint `^3–^9`, repo runs 10) — unchanged
+  by this plan, lints clean.
+- **010 — layout head hardening** merged as `1f06c27` (PR #36).
+  Executor: 53/53 (baseline 51 + 2), `pnpm check` 0/0/2, eslint 0; the
+  tokenised before/after diff of `dist/index.html` showed **exactly one
+  delta** — `<html lang="en">` → `<html lang="en" data-theme="light">` — with
+  the og:image/twitter:image tags byte-identical (the `|| METADATA.image_url`
+  fallback deletion is output-neutral, proving it was dead code). Both new
+  assertions mutation-tested by the executor (each mutation turned exactly the
+  named test red, suite green on revert).
+  *Reviewer verification*: full ladder re-run in the worktree (53/53, check and
+  eslint clean); **mutation 1 re-run personally** (strip the `data-theme`
+  attribute → exactly 1 failed / 52 passed → green on restore); scope audited
+  per commit (`08a88b6` touches only `BasicLayout.astro`, `2bdd166` only
+  `tests/build-output.test.ts`).
+  Because of the 009 worktree incident, the executor's branch had stacked on
+  `e4490f1`; the PR was built by cherry-picking the two commits onto the
+  post-009 `main` so each PR stayed single-purpose.
+  Preview-vs-production (PR #36): visible text **IDENTICAL**; exactly one
+  markup delta, the predicted `data-theme` attribute (+19 bytes uncompressed —
+  the only shipped-output change of the whole run).
+  Production verified live post-merge: `https://calvin.sg/` serves
+  `<html lang="en" data-theme="light">`.
+
+## What run 2 is worth
+
+| | before (`c8fe10f`) | after (`1f06c27`) |
+|---|---|---|
+| `pnpm audit` | 6 high, 4 moderate | **0 high, 1 moderate** (documented residual) |
+| automated tests | 51 | **53** |
+| direct dependencies | 18 | **18** (refresh only, no adds/removes) |
+| shipped page delta | — | **+19 bytes**: one `data-theme="light"` attribute |
+| deleted | — | the unreachable `\|\| METADATA.image_url` fallback (×2) |
+
+Run 2 changed no visible text, no visual rendering for JS visitors, and no
+dependency set — by design. The wins are hygiene (a legible audit floor),
+robustness (no-JS visitors keep the designed appearance), and net (social-preview
+tags and the theme default are now asserted).
+
+---
+
 # Completed run — 2026-07-21 (plans 001–008)
 
 > **Archive.** This is the full record of the first `improve` run: what was done,

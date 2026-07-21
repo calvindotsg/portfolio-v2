@@ -1,8 +1,9 @@
 # Implementation Plans
 
-**Run 2 (2026-07-21, audited at `c8fe10f`) produced two executable plans: 009
-and 010.** Plans 001–008 are all DONE, merged, and live on https://calvin.sg;
-their files and the full evidence log are archived in [`done/`](done/README.md).
+**Nothing is executable right now.** Two runs are complete: plans 001–008
+(run 1) and 009–010 (run 2) are all DONE, merged, and live on
+https://calvin.sg. Their files and the full evidence log are archived in
+[`done/`](done/README.md).
 
 Run 2's deep audit fanned nine read-only auditors over the repo; they returned
 **8 findings, of which the adversarial skeptic pass and advisor review left 2
@@ -29,17 +30,14 @@ audits anything. Read it first.
   Every failure in the last run came from a plan believing something about the
   repo that had stopped being true — not from bad code.
 
-### ⚠️ The standing run prompt contains one stale premise
+### ⚠️ The standing run prompt goes stale between runs — the baseline below wins
 
-The autonomous run prompt says:
-
-> *"this repo has zero automated tests, so plan 001 must establish a regression
-> safety net first"*
-
-**That is no longer true.** `tests/` holds **51 assertions** across 3 files and
-gates production via `netlify.toml`. A new run must **extend** that suite, not
-recreate it. Re-running the prompt verbatim would spend its first and most
-expensive plan rebuilding something that already exists.
+The re-pasted run prompt has carried a stale premise both times: run 1's said
+*"this repo has zero automated tests"* (there were tests by then), run 2's said
+*"51 assertions"* and *"6 high advisories"* (now **53** and **1 moderate** after
+plans 009–010). Treat every number in the prompt as unverified until checked
+against the baseline table below; the suite must always be **extended**, never
+recreated.
 
 ## Execution order & status
 
@@ -53,15 +51,15 @@ expensive plan rebuilding something that already exists.
 | 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | **DONE** (`ad7c5bf`) |
 | 007 | Correct the documentation and shipped metadata | P3 | S | 006 | **DONE** (`759ed8f`) |
 | 008 | Serve the portrait at device resolution | P2 | XS | 002, 004 | **DONE** (`b14287d`) |
-| 009 | Refresh the lockfile in-range, clearing 9 of 10 audit advisories | P2 | S | — | TODO |
-| 010 | Harden the layout head: no-JS default theme, dead og:image fallback, social-tag assertions | P2 | S | — | TODO |
+| 009 | Refresh the lockfile in-range, clearing 9 of 10 audit advisories | P2 | S | — | **DONE** (`c00dd73`) |
+| 010 | Harden the layout head: no-JS default theme, dead og:image fallback, social-tag assertions | P2 | S | — | **DONE** (`1f06c27`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
 Plan 008 did not come from the audit — it was raised from a production PageSpeed
 report mid-run and executed out of numeric order.
 
-## Baseline: what this repo is now (verified at `f129245`)
+## Baseline: what this repo is now (verified at `f129245`, updated after run 2 at `1f06c27`)
 
 A fresh audit should start from these facts rather than re-deriving them, and
 should re-check any it intends to rely on.
@@ -75,9 +73,9 @@ should re-check any it intends to rely on.
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
 | components | 10 `.astro` files; **no UI framework**, no `.svelte`, no islands |
 | `uno.config.ts` | 21 lines |
-| tests | **51** assertions, 3 files, run by `pnpm test` |
+| tests | **53** assertions, 3 files, run by `pnpm test` (51 + 2 from plan 010) |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
-| `pnpm audit` | **0 critical**, 6 high, 4 moderate — all build/dev-only transitives (the earlier "6 high" line omitted the moderates; same set, no drift). 9 of 10 clear via an in-range `pnpm update --no-save` (plan 009); the 1 residual moderate is `@opentelemetry/core`, pinned exactly by `@netlify/otel@6.0.3` and unreachable without an override |
+| `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up |
 | deploy gate | `netlify.toml` runs `pnpm check && pnpm test`; the UI command is deliberately empty |
 | content source | everything user-facing is in `src/lib/constants.ts` |
 
