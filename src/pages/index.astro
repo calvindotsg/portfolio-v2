@@ -1,5 +1,5 @@
 ---
-import Layout from "../layouts/Layout.astro";
+import Layout from "../layouts/BasicLayout.astro";
 import Card from "../components/Card/index.astro";
 import Career from "../components/Career.astro";
 import Goal from "../components/Goal.astro";
@@ -8,69 +8,6 @@ import AboutMe from "../components/AboutMe.astro";
 import Now from "../components/Now.astro";
 import {FOOTER, METADATA} from "../lib/constants";
 ---
-
-<script>
-import { animate, stagger, spring } from "motion";
-
-document.addEventListener("DOMContentLoaded", () => {
-    const loader = document.querySelector('.loader') as HTMLElement | null;
-    const cards = document.querySelectorAll<HTMLElement>('main > *');
-
-    // Set initial states
-    if (loader) {
-        loader.style.opacity = '1';
-    }
-
-    cards.forEach(card => {
-        card.style.opacity = '0';
-        card.style.transform = 'translateY(40%)';
-    });
-
-    // Animation sequence
-    const runAnimations = async () => {
-        // 1. Fade out loader (opacity 1 → 0, disable pointer events)
-        if (loader) {
-            animate(
-                loader,
-                { opacity: 0 },
-                { 
-                    duration: 0.5,
-                    type: spring,
-                    velocity: 100,
-                    stiffness: 50,
-                    damping: 10
-                }
-            );
-
-            // Disable pointer events after fade starts
-            setTimeout(() => {
-                (loader as HTMLElement).style.pointerEvents = 'none';
-            }, 100);
-        }
-
-        // 2. Animate cards with stagger (start 0.1s before loader finishes)
-        setTimeout(() => {
-            animate(
-                cards,
-                { 
-                    opacity: 1,
-                    transform: 'translateY(0%)' 
-                },
-                { 
-                    delay: stagger(0.3),
-                    duration: 0.4,
-                    type: spring,
-                    velocity: 100,
-                    stiffness: 50,
-                    damping: 10
-                }
-            );
-        }, 400); // Start 0.1s before loader finishes (500ms - 100ms)
-    };
-
-    runAnimations();
-});
-</script>
 
 <Layout
         title={METADATA.title}
