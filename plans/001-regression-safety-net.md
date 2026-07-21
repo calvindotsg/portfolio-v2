@@ -164,6 +164,7 @@ modules, TypeScript) into the runner for free. `linkedom` gives real
 Create it at the repo root with exactly this content:
 
 ```ts
+/// <reference types="vitest/config" />
 import {getViteConfig} from "astro/config";
 
 export default getViteConfig({
@@ -176,7 +177,17 @@ export default getViteConfig({
 });
 ```
 
-Three details here are load-bearing and were each found by hitting the failure:
+Four details here are load-bearing and were each found by hitting the failure:
+
+0. The `/// <reference types="vitest/config" />` triple-slash directive on line 1.
+   `tsconfig.json` has `"include": ["**/*"]`, so `astro check` typechecks this root
+   config file — and `getViteConfig` is typed as returning Vite's plain
+   `UserConfig`, which has no `test` key. Without the directive to pull in
+   vitest's type augmentation, `pnpm check` fails with:
+   `vitest.config.ts:4:5 - error ts(2353): Object literal may only specify known
+   properties, and 'test' does not exist in type 'UserConfig'.`
+   This does not affect `pnpm test` at all — only `pnpm check` — so it is easy to
+   miss until the typecheck gate runs.
 
 1. `getViteConfig` from `astro/config` — **not** `defineConfig` from
    `vitest/config`. With the plain vitest config, importing `src/pages/index.astro`
