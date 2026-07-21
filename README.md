@@ -27,11 +27,10 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 ## Tech Stack
 
 - [Astro](https://astro.build)
-- [Svelte](https://svelte.dev/)
 - [UnoCSS](https://unocss.dev/)
+- [Iconify](https://iconify.design/) (Font Awesome 6 Brands + Remix Icon sets)
 - [Umami](https://umami.is/)
-- [Motion](https://motion.dev/)
-- [Font Awesome](https://fontawesome.com/)
+- [Vitest](https://vitest.dev/)
 - [Netlify](https://www.netlify.com/)
 
 ## Getting Started
@@ -46,26 +45,68 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
    cd portfolio-v2
    ```
 
-3. Install dependencies:
+3. Install dependencies (this repo pins pnpm; `npm install` would ignore
+   `pnpm-lock.yaml`):
    ```bash
-   npm install
+   pnpm install
    ```
 
-4. Start the development server:
+4. Copy the environment template — `UMAMI_ID` enables the analytics snippet and
+   can be left as-is for local development:
    ```bash
-   npm run dev
+   cp .env.example .env
+   ```
+
+5. Start the development server:
+   ```bash
+   pnpm dev
    ```
 
 ## Configuration
 
-1. Update your personal details in `./components/lib/constants.ts`.
+1. Update your personal details in `src/lib/constants.ts` — every piece of site
+   content (links, career, about, cycling goal, footer, SEO metadata) lives
+   there.
 2. Modify the `site` and other relevant properties in `astro.config.mjs`.
+
+## Testing
+
+```bash
+# Run the full suite once
+pnpm test
+
+# Re-run on change
+pnpm test:watch
+```
+
+Three suites, all under `tests/`:
+
+- `tests/rendered-html.test.ts` — renders `src/pages/index.astro` in-process with
+  Astro's Container API and asserts on the result: page title, meta description,
+  canonical link, the JSON-LD block, and that every entry in
+  `src/lib/constants.ts` (welcome lines, about bullets, career entries, links,
+  goal figures, footer) reaches the page.
+- `tests/constants.test.ts` — data invariants for `src/lib/constants.ts`: link
+  URLs are absolute or root-relative, icon names come from an installed Iconify
+  collection, the cycling figures are finite and within range, and the SEO title
+  and description stay within useful lengths.
+- `tests/build-output.test.ts` — asserts on what `pnpm build` actually emits into
+  `dist/`: `robots.txt` pointing at the sitemap, the sitemap index, exactly one
+  stylesheet, and the public assets the page links to.
+
+`pnpm test` runs `pnpm build` once as a global setup so the build-output suite
+has real artifacts. Set `SKIP_BUILD=1` to reuse an existing `dist/` while
+iterating.
 
 ## Deployment
 
 ### Deploy on Netlify
 
-To deploy on Netlify:
+The site builds to a fully static `dist/` directory — no adapter, no serverless
+function. `netlify.toml` is the single source of truth for the build: the command
+is `pnpm check && pnpm test` — the suite runs `pnpm build` itself, so every
+deploy is gated on typechecking and the assertions — and the publish directory is
+`dist`. To deploy your own copy:
 
 1. Fork this repository.
 2. Link the forked repo to your Netlify account.
