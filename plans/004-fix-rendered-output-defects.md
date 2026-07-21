@@ -913,7 +913,11 @@ Machine-checkable. ALL must hold:
 - [ ] `test ! -e src/components/Card/Content.astro`
 - [ ] `grep -c 'CAREER\[0\].company' src/layouts/BasicLayout.astro` → `1`
 - [ ] `grep -c 'sameAs: LINKS.filter' src/layouts/BasicLayout.astro` → `1`
-- [ ] `grep -c 'description: string$' src/lib/constants.ts` → `1` (the `NOW` block)
+- [ ] `grep -c 'description: string\[\]' src/lib/constants.ts` → `3`, down from the
+      drift-check baseline of `4` (only `NOW` converts; `ABOUT_ME`, `CAREER` and
+      `WELCOME` stay arrays). **Do not** check `grep -c 'description: string$'` and
+      expect `1` — an earlier draft did, but `METADATA.description` is also typed
+      `string` and always was, so that pattern correctly returns `2`.
 - [ ] `node -e '…'` from step 8 prints a flat `sameAs` of absolute URLs and
       `worksFor.name === "HeyMax"`
 - [ ] `git status --porcelain` lists only the files in the "In scope" list
