@@ -176,14 +176,18 @@ do them.
 
 - ~~`public/preview.jpg` is still the August 2024 screenshot.~~ **Resolved
   2026-07-21**: the maintainer supplied a current dark-theme screenshot. It
-  ships as a **hero-card crop filling the full 1200×630 canvas** (45,646
+  ships as a **hero-card crop filling the full 1200×630 canvas** (42,946
   bytes) rather than a whole-page pillarbox — the maintainer asked for the
   optimum social composition, and cropping to the welcome card (name, role
-  lines, buttons, portrait) renders the text ~2× larger in unfurls. Crop
-  recipe from a full-page 2386×1658 capture: `extract(left 90, top 0,
-  1647×800)` → `resize(1200×630, contain, #111111)` → mozjpeg q80. The README
-  hero, `og:image` and `twitter:image` all resolve from this one filename —
-  a future refresh is a new screenshot through this same recipe.
+  lines, buttons, portrait) renders the text ~2× larger in unfurls. Recipe
+  (maintainer supplies a hero-card screenshot on the `#111111` page
+  background): detect the card's pixel bounds by scanning for non-`#111111`
+  rows/columns, `extract` the card plus a uniform 24px margin, then
+  `resize(1200×630, fit contain, background #111111)` → mozjpeg q80 — contain
+  centers the card with equal letterbox bands (vertical asymmetry in the
+  first crop was called out and fixed). The README hero, `og:image` and
+  `twitter:image` all resolve from this one filename — a future refresh is a
+  new screenshot through this same recipe.
 - **`public/llms.txt` duplicates facts from `src/lib/constants.ts` by hand**,
   with nothing keeping them in sync. That is exactly how its job title went stale
   once, and how plan 007 nearly re-staled it in the opposite direction. Add it to
