@@ -18,26 +18,31 @@ pnpm build
 # Type checking
 pnpm check
 
+# Tests (renders the page and asserts on the output)
+pnpm test
+
 # Linting
 pnpm eslint
 ```
 
-Note: `pnpm preview` is not supported due to the Netlify adapter configuration. Use `pnpm build` and deploy to Netlify for production testing.
+Note: `pnpm preview` serves the built `dist/` directory locally on
+http://localhost:4321 — the site is a static build with no adapter, so the
+preview is byte-identical to what Netlify serves.
 
 ## Tech Stack & Architecture
 
-- **Framework**: Astro with server-side rendering
-- **UI Components**: Mix of Astro and Svelte components
+- **Framework**: Astro with static output (`output: "static"`) — every page is
+  prerendered at build time; there is no adapter and no server runtime
+- **UI Components**: Astro components only — no client-side UI framework
 - **Styling**: UnoCSS (atomic CSS framework)
-- **Icons**: Astro Icon with Font Awesome 6 brands
-- **Animation**: Motion library
-- **Deployment**: Netlify with edge middleware
+- **Icons**: Iconify collections `@iconify-json/fa6-brands` and `@iconify-json/ri`
+- **Animation**: CSS animations only
+- **Deployment**: Netlify, serving the prerendered `dist/` directory
 
 ## Key Architecture Points
 
 ### Component Structure
 - **Astro Components**: Main UI components (`.astro` files) for static content
-- **Svelte Components**: Interactive components like `ThemeSwitcher.svelte` and `ProgressBar.svelte`
 - **Card System**: Reusable card layout in `src/components/Card/` with `index.astro` and `Content.astro`
 
 ### Configuration & Content
@@ -47,12 +52,15 @@ Note: `pnpm preview` is not supported due to the Netlify adapter configuration. 
 
 ### Styling System
 - **UnoCSS**: Atomic CSS with custom theme configuration in `uno.config.ts`
-- **Theme Support**: Dark/light mode via CSS custom properties and Svelte theme switcher
-- **Custom Design System**: Predefined colors (gray, darkslate, primary), shadows, and grid templates
+- **Theme Support**: dark/light mode via CSS custom properties defined in
+  `src/layouts/BasicLayout.astro`; the active theme is written to
+  `<html data-theme>` by an inline `<script is:inline>` in `<head>` before first
+  paint
+- **Custom Design System**: theme tokens (colors, shadows) defined in
+  `uno.config.ts`
 
 ### Layout Hierarchy
-- `BasicLayout.astro` → `Layout.astro` → page components
-- Loader functionality built into layout system
+- `src/layouts/BasicLayout.astro` wraps the single page `src/pages/index.astro`
 - Responsive bento grid layout for different screen sizes
 
 ## Content Management
@@ -68,11 +76,11 @@ All site content is managed through `src/lib/constants.ts`:
 
 ## Deployment
 
-The site is configured for Netlify deployment with:
-- Server-side rendering enabled
-- Edge middleware support
+The site is a fully static build deployed to Netlify:
+- Every page is prerendered to `dist/` at build time
+- No adapter, no serverless function, and no middleware
 - Automatic sitemap generation
-- Robots.txt generation
+- `robots.txt` shipped in the build output
 
 ## Memories
 
