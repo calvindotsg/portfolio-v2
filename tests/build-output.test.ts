@@ -85,6 +85,24 @@ describe("dist/index.html is prerendered", () => {
         expect(href).toBe(METADATA.site_url);
     });
 
+    it("declares a default theme so no-JS visitors keep the designed colors", () => {
+        // Every color token is defined under :root[data-theme=…]; without this
+        // attribute a visitor whose JS never runs gets unstyled, transparent cards.
+        expect(doc().querySelector("html")?.getAttribute("data-theme")).toBe("light");
+    });
+
+    it("emits the social-preview tags unfurls depend on", () => {
+        const meta = (sel: string) => doc().querySelector(sel)?.getAttribute("content");
+        expect(meta('meta[property="og:title"]')).toBe(METADATA.title);
+        expect(meta('meta[property="og:description"]')).toBe(METADATA.description);
+        expect(meta('meta[property="og:image"]')).toBe(METADATA.image_url);
+        expect(meta('meta[name="twitter:image"]')).toBe(meta('meta[property="og:image"]'));
+        expect(meta('meta[name="twitter:card"]')).toBe("summary_large_image");
+        // og:url is origin-only BY DESIGN (plan 002) — never assert it against the
+        // canonical URL or METADATA.site_url, which carry a trailing slash.
+        expect(meta('meta[property="og:url"]')).toBe(new URL(METADATA.site_url).origin);
+    });
+
     it("serves the portrait as a build-emitted asset, not a runtime image CDN URL", () => {
         const src = doc().querySelector("main img")?.getAttribute("src") ?? "";
         expect(src).toMatch(/^\/_astro\//);
