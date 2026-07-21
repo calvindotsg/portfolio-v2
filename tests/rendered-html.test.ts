@@ -117,3 +117,16 @@ describe("no client runtime", () => {
         expect(doc.querySelector(".loader")).toBeNull();
     });
 });
+
+describe("markup defects fixed by plan 004", () => {
+    it("styles every bullet list with a class the stylesheet actually defines", () => {
+        const lists = [...doc.querySelectorAll("main ul")];
+        expect(lists.length, "the about-me and career cards render <ul>s").toBeGreaterThan(0);
+        for (const ul of lists) {
+            // Token-wise, not substring-wise: "text-sm-1" contains "text-sm".
+            const tokens = (ul.getAttribute("class") ?? "").split(/\s+/);
+            expect(tokens).toContain("text-sm");
+            expect(tokens).not.toContain("text-sm-1");
+        }
+    });
+});
