@@ -4,6 +4,7 @@ import {beforeAll, describe, expect, it} from "vitest";
 
 import Index from "../src/pages/index.astro";
 import {ABOUT_ME, CAREER, FOOTER, GOAL, LINKS, METADATA, WELCOME} from "../src/lib/constants";
+import {iconClass} from "../src/lib/icons";
 
 let doc: Document;
 let html: string;
@@ -104,6 +105,15 @@ describe("page content", () => {
         expect(img?.getAttribute("width")).toBeTruthy();
         expect(img?.getAttribute("height")).toBeTruthy();
         expect(img?.getAttribute("alt")).toBeTruthy();
+    });
+
+    it("renders a decorative icon element for every configured icon", () => {
+        const wanted = [...LINKS.map(({logo}) => iconClass(logo)), iconClass(GOAL.cta_logo)];
+        for (const cls of wanted) {
+            const el = doc.querySelector(`span[class~="${cls}"]`);
+            expect(el, `no element carries the icon class ${cls}`).toBeTruthy();
+            expect(el?.getAttribute("aria-hidden"), `${cls} must be aria-hidden so the sr-only label remains the accessible name`).toBe("true");
+        }
     });
 });
 
