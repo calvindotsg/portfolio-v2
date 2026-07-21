@@ -543,13 +543,29 @@ do not re-import them. Add this test inside the existing
 ```ts
     it("renders a decorative icon element for every configured icon", () => {
         const wanted = [...LINKS.map(({logo}) => iconClass(logo)), iconClass(GOAL.cta_logo)];
+        // Count *references*, not distinct classes. `fa6-brands:strava` is used
+        // twice — once in LINKS, once as GOAL.cta_logo — so 7 references collapse
+        // to 6 classes. Asserting per class lets querySelector return the first
+        // copy and leaves the second element, the Goal CTA icon, unchecked:
+        // deleting it outright kept the whole suite green.
+        const els = [...doc.querySelectorAll("span")]
+            .filter((s) => wanted.includes(s.getAttribute("class") ?? ""));
+        expect(els.length, "one icon element per configured icon reference").toBe(wanted.length);
         for (const cls of wanted) {
-            const el = doc.querySelector(`span[class~="${cls}"]`);
-            expect(el, `no element carries the icon class ${cls}`).toBeTruthy();
-            expect(el?.getAttribute("aria-hidden"), `${cls} must be aria-hidden so the sr-only label remains the accessible name`).toBe("true");
+            expect(doc.querySelector(`span[class~="${cls}"]`), `no element carries the icon class ${cls}`).toBeTruthy();
+        }
+        for (const el of els) {
+            expect(el.getAttribute("aria-hidden"), `${el.getAttribute("class")} must be aria-hidden so the sr-only label remains the accessible name`).toBe("true");
         }
     });
 ```
+
+**Why this counts elements rather than classes.** `fa6-brands:strava` appears
+twice — in `LINKS` and as `GOAL.cta_logo` — so there are **7 icon elements but
+only 6 distinct classes**. An earlier version of this test looped over the 6
+classes and used `doc.querySelector`, which returns the first match in document
+order; the Goal CTA's icon was therefore never asserted, and deleting that span
+outright left the whole suite green. Assert one element per *reference*.
 
 **Verify**: `pnpm exec vitest run tests/rendered-html.test.ts -t "decorative icon"`
 → `1 passed`.

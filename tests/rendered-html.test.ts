@@ -109,10 +109,19 @@ describe("page content", () => {
 
     it("renders a decorative icon element for every configured icon", () => {
         const wanted = [...LINKS.map(({logo}) => iconClass(logo)), iconClass(GOAL.cta_logo)];
+        // Count *references*, not distinct classes. `fa6-brands:strava` is used
+        // twice — once in LINKS, once as GOAL.cta_logo — so 7 references collapse
+        // to 6 classes. Asserting per class lets querySelector return the first
+        // copy and leaves the second element, the Goal CTA icon, unchecked:
+        // deleting it outright kept the whole suite green.
+        const els = [...doc.querySelectorAll("span")]
+            .filter((s) => wanted.includes(s.getAttribute("class") ?? ""));
+        expect(els.length, "one icon element per configured icon reference").toBe(wanted.length);
         for (const cls of wanted) {
-            const el = doc.querySelector(`span[class~="${cls}"]`);
-            expect(el, `no element carries the icon class ${cls}`).toBeTruthy();
-            expect(el?.getAttribute("aria-hidden"), `${cls} must be aria-hidden so the sr-only label remains the accessible name`).toBe("true");
+            expect(doc.querySelector(`span[class~="${cls}"]`), `no element carries the icon class ${cls}`).toBeTruthy();
+        }
+        for (const el of els) {
+            expect(el.getAttribute("aria-hidden"), `${el.getAttribute("class")} must be aria-hidden so the sr-only label remains the accessible name`).toBe("true");
         }
     });
 });
