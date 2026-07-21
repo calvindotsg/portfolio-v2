@@ -430,10 +430,22 @@ Leave the numbered fork/link steps and the Deploy-to-Netlify button unchanged.
 **Verify**:
 
 ```bash
-grep -nEi "npm (install|run)|components/lib/constants\.ts|svelte|motion" README.md; echo "exit=$?"
+# Anchored to line start on purpose. An unanchored `npm (install|run)` also
+# matches `pnpm install` — the very command this README is supposed to give —
+# which makes the check unsatisfiable. Anchoring restricts it to real commands
+# inside fences, where an `npm` instruction would actually mislead someone.
+grep -nE "^[[:space:]]*npm (install|run)" README.md; echo "exit=$?"
+
+# Dead tech and the nonexistent path. Kept separate: these are safe to match
+# anywhere in the file, the npm one is not.
+grep -nEi "components/lib/constants\.ts|svelte|motion" README.md; echo "exit=$?"
+
+# The prose warning in 3b is DELIBERATE and must survive — it is the one place
+# `npm` should still appear.
+grep -c 'npm install` would ignore' README.md
 ```
 
-→ prints only `exit=1` (grep found nothing).
+→ the first two print only `exit=1`; the third prints `1`.
 
 ### Step 4: Fix `CLAUDE.md`
 
@@ -520,9 +532,10 @@ The site is a fully static build deployed to Netlify:
 **Verify**, all four:
 
 ```bash
-grep -nEi "npm (install|run)|svelte|motion|edge middleware|server-side rendering" CLAUDE.md; echo "exit=$?"
+grep -nE "^[[:space:]]*npm (install|run)" CLAUDE.md; echo "exit=$?"
+grep -nEi "svelte|motion|edge middleware|server-side rendering" CLAUDE.md; echo "exit=$?"
 ```
-→ prints only `exit=1`.
+→ both print only `exit=1`.
 
 ```bash
 grep -c "src/lib/constants.ts" CLAUDE.md
@@ -552,8 +565,15 @@ pnpm preview > /tmp/astro-preview.log 2>&1 &
 PREVIEW_PID=$!
 until curl -s -o /dev/null http://localhost:4321/ || ! kill -0 $PREVIEW_PID 2>/dev/null; do :; done
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:4321/
-kill $PREVIEW_PID 2>/dev/null
+# `kill $PREVIEW_PID` only kills the pnpm wrapper, not the astro process it
+# spawned. The orphan stays bound to 4321 and will answer a later retry — which
+# once produced a spurious 404 against a stale process. Kill the real listener.
+pkill -f "astro preview" 2>/dev/null
 ```
+
+If you ran this more than once, check for orphans before trusting a failure:
+`lsof -ti:4321,4322`. A stale listener from a previous attempt answering on 4321
+is the likeliest cause of an unexpected non-200 here.
 
 → prints `200`. If it prints `000`, check `/tmp/astro-preview.log` for a
 different port and retry against that port once; if preview genuinely does not
@@ -818,8 +838,10 @@ justifies.
 
 Machine-checkable. ALL must hold:
 
-- [ ] `grep -nEi "npm (install|run)|components/lib/constants\.ts|svelte|motion" README.md` returns no matches (exit 1)
-- [ ] `grep -nEi "npm (install|run)|svelte|motion|edge middleware|server-side rendering" CLAUDE.md` returns no matches (exit 1)
+- [ ] `grep -nE "^[[:space:]]*npm (install|run)" README.md` returns no matches (exit 1)
+- [ ] `grep -nEi "components/lib/constants\.ts|svelte|motion" README.md` returns no matches (exit 1)
+- [ ] ``grep -c 'npm install` would ignore' README.md`` returns `1` — the deliberate anti-npm warning survives
+- [ ] `grep -nE "^[[:space:]]*npm (install|run)" CLAUDE.md` and `grep -nEi "svelte|motion|edge middleware|server-side rendering" CLAUDE.md` both return no matches (exit 1)
 - [ ] `grep -n "src/lib/constants.ts" README.md` returns at least one match
 - [ ] `grep -n "Any user configurable variable are implemented and configured in \`src/lib/constants.ts\`" CLAUDE.md` returns exactly one match
 - [ ] `grep -n "^## Testing" README.md` returns one match, and `grep -c "pnpm test" README.md` is ≥ 2
