@@ -1,6 +1,27 @@
-# Pinned in the repo so the deploy pipeline runs the same gates a developer does.
-# `pnpm test` builds the site itself (see tests/setup/build.ts globalSetup), so
-# this is one build that also gates on typechecking and the assertion suite.
+# This file is the single source of truth for the build. The build command in the
+# Netlify UI is deliberately EMPTY -- do not re-add it.
+#
+# Netlify resolves `netlify.toml` over the UI setting, so having both meant
+# `netlify api getSite` reported a stale `cmd` that had not run for some time.
+# That is a trap: the dashboard looks authoritative and is not. Verify what
+# actually runs with `netlify build --dry`, which prints the resolved source
+# ("build.command from netlify.toml").
+#
+# `publish` is intentionally still ALSO set in the UI. If this file were ever
+# deleted, an empty publish directory makes Netlify serve the repository root --
+# i.e. publish the source. Leaving `dir = "dist"` in the UI means that scenario
+# fails loudly (dist/ is gitignored and would not exist) instead of leaking.
+#
+# `pnpm test` runs the build itself via tests/setup/build.ts globalSetup, so this
+# is one build that also gates the deploy on typechecking and the assertion
+# suite. A failing suite fails the deploy and production keeps serving the
+# previous build.
 [build]
   command = "pnpm check && pnpm test"
   publish = "dist"
+
+# Build plugins are intentionally left installed via the Netlify UI rather than
+# declared here (netlify-purge-cloudflare-on-deploy, @netlify/plugin-lighthouse).
+# Declaring them in both places is the same ambiguity this file just removed, and
+# a UI-installed plugin can only be removed from the UI -- so moving them would
+# need a manual step that cannot be verified from the repo.
