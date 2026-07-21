@@ -129,4 +129,21 @@ describe("markup defects fixed by plan 004", () => {
             expect(tokens).not.toContain("text-sm-1");
         }
     });
+
+    it("labels every button from its own content, without an overriding aria-label", () => {
+        const buttons = [...doc.querySelectorAll("button")];
+        expect(buttons.length, "the page renders icon buttons").toBeGreaterThan(0);
+        for (const button of buttons) {
+            const srOnly = button.querySelector(".sr-only")?.textContent?.trim() ?? "";
+            const ariaLabel = button.getAttribute("aria-label") ?? "";
+            expect(ariaLabel || srOnly, "every button needs an accessible name").not.toBe("");
+            // aria-label wins outright over content, so it must never replace a
+            // *different* sr-only name — that silently downgrades the name
+            // ("Github Profile" -> "Github"). Carrying both with identical text is
+            // redundant but harmless, and the theme toggle does exactly that.
+            if (srOnly && ariaLabel) {
+                expect(ariaLabel, "aria-label must not override a different sr-only name").toBe(srOnly);
+            }
+        }
+    });
 });
