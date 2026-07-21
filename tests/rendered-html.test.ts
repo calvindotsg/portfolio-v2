@@ -146,4 +146,12 @@ describe("markup defects fixed by plan 004", () => {
             }
         }
     });
+
+    it("never emits a sizes attribute without a srcset to select from", () => {
+        for (const img of [...doc.querySelectorAll("img")]) {
+            if (img.hasAttribute("sizes")) {
+                expect(img.hasAttribute("srcset"), "sizes is inert without srcset").toBe(true);
+            }
+        }
+    });
 });
