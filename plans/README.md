@@ -32,6 +32,24 @@ and update your row when done.
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
+### Production status
+
+**Plans 001–002 are live on https://calvin.sg** as of 2026-07-21 (deploy
+`6a5f0917`, commit `9cc89bd`). The push to `main` triggered the deploy, and
+`netlify build --dry` confirms the build ran `build.command from netlify.toml`
+— i.e. production was gated on `pnpm check && pnpm test`, not just `pnpm build`.
+
+Post-deploy verification against the pre-refactor production snapshot:
+
+| check | result |
+|---|---|
+| visible text vs. pre-refactor prod | **identical**, 1155 chars |
+| `available_functions` on the deploy | **none** (was a 2.4 MB SSR function) |
+| `GET /.netlify/functions/ssr` | **404** |
+| response headers | `public,max-age=0,must-revalidate` + `etag` (was `no-cache`, `Durable; fwd=bypass`) |
+| portrait asset | `/_astro/me.D44fd81e_1hBdqr.webp` (8 kB, build-emitted) |
+| canonical | `https://calvin.sg/` from config, no longer echoing the request host |
+
 ### Verification log
 
 - **001** merged as `4144f81`. 32/32 tests green. The net was mutation-tested, not
