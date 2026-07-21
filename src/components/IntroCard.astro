@@ -13,7 +13,7 @@ import portfolioImage from '../assets/me.webp'
         <div class="flex flex-col justify-between md:max-h-[300px] gap-4">
             <div class="flex flex-col h-full">
                 <h6 class="text-sm font-light m-0 text-[var(--text)]">welcome</h6>
-                {WELCOME.description.map((item, index) => (<h1 class="m-0 font-light text-xl">{item}</h1>))}
+                {WELCOME.description.map((item) => (<h1 class="m-0 font-light text-xl">{item}</h1>))}
             </div>
             <div class="button-grid">
                 <ThemeSwitcher/>
@@ -31,6 +31,7 @@ import portfolioImage from '../assets/me.webp'
                     alt={`${METADATA.name}`}
                     width="275"
                     height="275"
+                    densities={[2]}
                     format="webp"
                     class="w-auto max-h-[415px] select-none absolute right-[-50px] top-1/2 transform -translate-y-1/2 z-[-1] opacity-70 md:opacity-100 md:relative md:right-auto md:top-auto md:transform-none md:z-auto pointer-events-none md:shadow-[10px_10px_0_var(--shadow)] rounded-[8px]"
                     loading="eager"
