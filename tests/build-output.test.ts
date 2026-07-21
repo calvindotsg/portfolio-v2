@@ -88,3 +88,26 @@ describe("no on-demand rendering output", () => {
         expect(existsSync("dist/server")).toBe(false);
     });
 });
+
+describe("source hygiene", () => {
+    /**
+     * These class names look like utilities but generate no CSS rule at all —
+     * each was verified against the built stylesheet. They are typos, not
+     * shortcuts: `text-sm-1` should be `text-sm`. UnoCSS fails silently on them,
+     * so this is the only gate that can catch a reintroduction.
+     */
+    const DEAD_CLASSES = ["text-sm-1", "custom-btn", "transform-y-["];
+
+    it("references no utility class that generates no CSS", () => {
+        const files = readdirSync("src", {recursive: true, encoding: "utf8"})
+            .filter((f) => /\.(astro|ts|css)$/.test(f))
+            .map((f) => `src/${f}`);
+        expect(files.length, "src/ must contain source files").toBeGreaterThan(0);
+        for (const file of files) {
+            const source = read(file);
+            for (const dead of DEAD_CLASSES) {
+                expect(source, `${file} references the dead class "${dead}"`).not.toContain(dead);
+            }
+        }
+    });
+});

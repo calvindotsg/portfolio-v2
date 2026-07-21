@@ -84,9 +84,9 @@ export const WELCOME: {
 }
 
 export const NOW: {
-    description: string[]
+    description: string
 } = {
-    description: ["Building things at a startup, probably cycling when you find me"]
+    description: "Building things at a startup, probably cycling when you find me"
 }
 
 export const FOOTER: {

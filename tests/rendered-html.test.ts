@@ -50,8 +50,22 @@ describe("JSON-LD structured data", () => {
         expect(schema.name).toBe(METADATA.name);
     });
 
-    it("exposes a sameAs list", () => {
-        expect(Array.isArray(schema.sameAs)).toBe(true);
+    it("exposes sameAs as a flat list of the absolute LINKS URLs", () => {
+        const absolute = LINKS.filter((l) => /^https?:\/\//.test(l.link)).map((l) => l.link);
+        expect(absolute.length, "LINKS must contain at least one absolute URL").toBeGreaterThan(0);
+        // Flat array of strings — not [[…]], and no site-relative paths.
+        expect(schema.sameAs).toEqual(absolute);
+        for (const entry of schema.sameAs) expect(entry).toMatch(/^https?:\/\//);
+    });
+
+    it("names the employer in worksFor, and the job title in jobTitle", () => {
+        expect(schema.worksFor.name).toBe(CAREER[0].company);
+        expect(schema.jobTitle).toBe(CAREER[0].job_name);
+        expect(schema.worksFor.name).not.toBe(schema.jobTitle);
+    });
+
+    it("uses the https schema.org context", () => {
+        expect(schema["@context"]).toBe("https://schema.org");
     });
 });
 
@@ -101,5 +115,43 @@ describe("no client runtime", () => {
 
     it("renders no loader overlay", () => {
         expect(doc.querySelector(".loader")).toBeNull();
+    });
+});
+
+describe("markup defects fixed by plan 004", () => {
+    it("styles every bullet list with a class the stylesheet actually defines", () => {
+        const lists = [...doc.querySelectorAll("main ul")];
+        expect(lists.length, "the about-me and career cards render <ul>s").toBeGreaterThan(0);
+        for (const ul of lists) {
+            // Token-wise, not substring-wise: "text-sm-1" contains "text-sm".
+            const tokens = (ul.getAttribute("class") ?? "").split(/\s+/);
+            expect(tokens).toContain("text-sm");
+            expect(tokens).not.toContain("text-sm-1");
+        }
+    });
+
+    it("labels every button from its own content, without an overriding aria-label", () => {
+        const buttons = [...doc.querySelectorAll("button")];
+        expect(buttons.length, "the page renders icon buttons").toBeGreaterThan(0);
+        for (const button of buttons) {
+            const srOnly = button.querySelector(".sr-only")?.textContent?.trim() ?? "";
+            const ariaLabel = button.getAttribute("aria-label") ?? "";
+            expect(ariaLabel || srOnly, "every button needs an accessible name").not.toBe("");
+            // aria-label wins outright over content, so it must never replace a
+            // *different* sr-only name — that silently downgrades the name
+            // ("Github Profile" -> "Github"). Carrying both with identical text is
+            // redundant but harmless, and the theme toggle does exactly that.
+            if (srOnly && ariaLabel) {
+                expect(ariaLabel, "aria-label must not override a different sr-only name").toBe(srOnly);
+            }
+        }
+    });
+
+    it("never emits a sizes attribute without a srcset to select from", () => {
+        for (const img of [...doc.querySelectorAll("img")]) {
+            if (img.hasAttribute("sizes")) {
+                expect(img.hasAttribute("srcset"), "sizes is inert without srcset").toBe(true);
+            }
+        }
     });
 });

@@ -215,9 +215,11 @@ The two call sites are `src/components/IntroCard.astro:21` and
                     </Button>
 ```
 
-(Plan 003 replaces the `<Icon …/>` lines with `<span class={…} aria-hidden="true">`.
-The `<Button aria-label=…>` and `<span class="sr-only">` lines are untouched by
-plan 003 — those are what this plan changes.)
+(**Correction, verified against `main` after 003 merged**: plan 003 does *not*
+touch the `<Icon …/>` lines — it explicitly lists them as out of scope, and
+**plan 006** is what replaces them with `<span class={…}>`. Both call sites still
+read exactly as quoted above, `<Icon>` included. Leave those lines alone; the
+`<Button aria-label=…>` lines are the only thing this plan changes here.)
 
 Neither call site passes `rounded`; production HTML has 7 `custom-btn` buttons,
 7 with `rounded-lg`, 0 with `rounded-full`. And `Button` renders a bare
@@ -669,20 +671,38 @@ block created in step 2:
         for (const button of buttons) {
             const srOnly = button.querySelector(".sr-only")?.textContent?.trim() ?? "";
             const ariaLabel = button.getAttribute("aria-label") ?? "";
-            expect(srOnly || ariaLabel, "every button needs an accessible name").not.toBe("");
-            // aria-label wins over content, so it must not sit on top of sr-only text.
-            if (srOnly) expect(ariaLabel, "aria-label would override the sr-only name").toBe("");
+            expect(ariaLabel || srOnly, "every button needs an accessible name").not.toBe("");
+            // aria-label wins outright over content, so it must never replace a
+            // *different* sr-only name — that silently downgrades the name
+            // ("Github Profile" -> "Github"). Carrying both with identical text is
+            // redundant but harmless, and the theme toggle does exactly that.
+            if (srOnly && ariaLabel) {
+                expect(ariaLabel, "aria-label must not override a different sr-only name").toBe(srOnly);
+            }
         }
     });
 ```
 
-This also passes for the theme-toggle button plan 003 introduces, which carries
-an `aria-label` and no `sr-only` child.
+> **Corrected against `main` after 003 merged.** An earlier draft asserted
+> `if (srOnly) expect(ariaLabel).toBe("")` and claimed the theme-toggle button
+> "carries an `aria-label` and no `sr-only` child". That is false —
+> `src/components/ThemeSwitcher.astro` carries **both**, with identical text
+> (`aria-label="Toggle Theme"` and `<span class="sr-only">Toggle Theme</span>`),
+> faithfully reproducing the Svelte original that plan 003 replaced. The strict
+> form fails on it. The invariant that actually matters is *no downgrade*, which
+> the corrected form above expresses: both may be present, but they must agree.
 
 **Verify**, all three:
 - `pnpm exec vitest run tests/rendered-html.test.ts` → all pass, **1 more test**
-- `grep -rc 'rounded-full\|custom-btn' src/` → no matches in any file
+- `grep -rn 'custom-btn\|rounded?: boolean\|rounded ? "rounded-full"' src/` → no matches
 - `pnpm check` → `0 errors`
+
+> **Do not grep for a bare `rounded-full`.** An earlier draft did, and expected
+> "no matches" — impossible: `rounded-full` is a legitimate utility used 4× in
+> `src/components/ProgressBar.astro` (the track and the fill) and
+> `src/components/Pulse.astro` (the pulse dot), none of which this plan touches.
+> What must disappear is `Button`'s dead `rounded` **prop** and the `custom-btn`
+> class, which the scoped grep above targets.
 
 ### Step 5: Collapse `Card` to its three real props and delete `Content.astro`
 
@@ -885,13 +905,19 @@ Machine-checkable. ALL must hold:
 - [ ] `pnpm eslint` exits 0, with the `colorText` warning gone
 - [ ] `pnpm build` exits 0
 - [ ] `grep -rn 'text-sm-1\|custom-btn\|transform-y-\[' src/` → **no matches**
-- [ ] `grep -rn 'rounded-full\|rounded?: boolean' src/` → **no matches**
+- [ ] `grep -rn 'custom-btn\|rounded?: boolean\|rounded ? "rounded-full"' src/` → **no matches**
+      (NOT a bare `rounded-full` — that is a live utility in `ProgressBar.astro`
+      and `Pulse.astro`; see the note in Step 4)
 - [ ] `grep -rn 'astro-icon' src/components/Card/` → **no matches**
 - [ ] `grep -c 'sizes=' src/components/IntroCard.astro` → `0`
 - [ ] `test ! -e src/components/Card/Content.astro`
 - [ ] `grep -c 'CAREER\[0\].company' src/layouts/BasicLayout.astro` → `1`
 - [ ] `grep -c 'sameAs: LINKS.filter' src/layouts/BasicLayout.astro` → `1`
-- [ ] `grep -c 'description: string$' src/lib/constants.ts` → `1` (the `NOW` block)
+- [ ] `grep -c 'description: string\[\]' src/lib/constants.ts` → `3`, down from the
+      drift-check baseline of `4` (only `NOW` converts; `ABOUT_ME`, `CAREER` and
+      `WELCOME` stay arrays). **Do not** check `grep -c 'description: string$'` and
+      expect `1` — an earlier draft did, but `METADATA.description` is also typed
+      `string` and always was, so that pattern correctly returns `2`.
 - [ ] `node -e '…'` from step 8 prints a flat `sameAs` of absolute URLs and
       `worksFor.name === "HeyMax"`
 - [ ] `git status --porcelain` lists only the files in the "In scope" list
@@ -940,6 +966,13 @@ For the human or agent who owns this code next:
   to add `densities={[1, 2]}` (or `widths={[275, 550]}` together with a restored
   `sizes`) to the `<Image>` in `IntroCard.astro`. The step-6 test is written as an
   invariant precisely so that change passes without editing the test.
+- **The theme toggle's `sr-only` span is redundant.** `ThemeSwitcher.astro`
+  carries `aria-label="Toggle Theme"` *and* `<span class="sr-only">Toggle
+  Theme</span>`. Since `aria-label` wins accessible-name computation outright,
+  the span contributes nothing to assistive tech. It is harmless, it is what the
+  Svelte original did, and removing it would change the page's extracted visible
+  text — so it was deliberately left alone. If it is ever cleaned up, drop the
+  span and keep the `aria-label`, not the reverse.
 - **The `card` class still generates no CSS.** It was left in place because it is
   a semantic hook rather than a mistyped utility, and plan 003's card-entrance
   animation may want a selector. If nothing ever selects it, it is a free deletion

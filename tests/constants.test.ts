@@ -103,3 +103,10 @@ describe("prose blocks", () => {
         expect(FOOTER.footer.length).toBeGreaterThan(0);
     });
 });
+
+describe("NOW", () => {
+    it("is a single string, so a second sentence cannot silently run together", () => {
+        expect(typeof NOW.description).toBe("string");
+        expect(Array.isArray(NOW.description)).toBe(false);
+    });
+});

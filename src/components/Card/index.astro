@@ -1,36 +1,16 @@
 ---
-import {Icon} from "astro-icon/components";
-import Content from "./Content.astro";
-
 interface Props {
     title?: string;
-    body?: string;
     colSpan?: string;
     rowSpan?: string;
-    href?: string;
-    colorText?: string;
-    height?: string;
-    width?: string;
-    padding?: string;
-    bgColor?: string;
 }
 
-const {title, body, colSpan, rowSpan, href, colorText, height, padding, bgColor} = Astro.props;
+const {title, colSpan, rowSpan} = Astro.props;
 ---
 
 <div
-        class={`card group overflow-hidden transform-y-[-40%] ${bgColor || "bg-[var(--card-background)]"} shadow-lg rounded-lg ${padding || "p-6"} border border-[var(--card-border)] hover:border-[var(--accent)] flex-none ${height || "h-full"} justify-start relative perspective-1200 w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
+        class={`card group overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] hover:border-[var(--accent)] flex-none h-full justify-start relative perspective-1200 w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
-    {href ? (<a href={href} class="h-full w-full text-[var(--text)]">
-        <Icon
-                name="ri:arrow-right-up-line"
-                class="h-6 float-right group-hover:text-[var(--accent)] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform ease-in-out duration-300 z-20"
-        />
-        <Content title={title} body={body}>
-            <slot/>
-        </Content>
-    </a>) : (
-            <Content title={title} body={body}>
-                <slot/>
-            </Content>)}
+    {title && <h2 class="text-xl font-bold m-0 z-20">{title}</h2>}
+    <slot/>
 </div>
