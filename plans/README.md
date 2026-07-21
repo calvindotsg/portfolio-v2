@@ -1,15 +1,22 @@
 # Implementation Plans
 
-**Nothing is executable right now.** Plans 001–008 are all DONE, merged, and live
-on https://calvin.sg. Their files and the full evidence log are archived in
-[`done/`](done/README.md).
+**Run 2 (2026-07-21, audited at `c8fe10f`) produced two executable plans: 009
+and 010.** Plans 001–008 are all DONE, merged, and live on https://calvin.sg;
+their files and the full evidence log are archived in [`done/`](done/README.md).
+
+Run 2's deep audit fanned nine read-only auditors over the repo; they returned
+**8 findings, of which the adversarial skeptic pass and advisor review left 2
+worth acting on** — five categories (security, performance, DX, docs,
+direction) returned zero findings, which on this baseline is the correct
+outcome, not a failed audit. Everything killed is recorded below so it is not
+re-derived.
 
 This file is the **living index**: the state a new `improve` run needs before it
 audits anything. Read it first.
 
 ## If you are starting a new run
 
-- **Numbering continues at `009`.** The improve skill requires monotonic
+- **Numbering continues at `011`.** The improve skill requires monotonic
   numbering across runs — do not restart at 001. (*"If `plans/` already exists
   from a previous run, reconcile, don't duplicate: read `plans/README.md`, keep
   numbering monotonic, skip findings already planned or listed as rejected."*)
@@ -46,6 +53,8 @@ expensive plan rebuilding something that already exists.
 | 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | **DONE** (`ad7c5bf`) |
 | 007 | Correct the documentation and shipped metadata | P3 | S | 006 | **DONE** (`759ed8f`) |
 | 008 | Serve the portrait at device resolution | P2 | XS | 002, 004 | **DONE** (`b14287d`) |
+| 009 | Refresh the lockfile in-range, clearing 9 of 10 audit advisories | P2 | S | — | TODO |
+| 010 | Harden the layout head: no-JS default theme, dead og:image fallback, social-tag assertions | P2 | S | — | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -68,7 +77,7 @@ should re-check any it intends to rely on.
 | `uno.config.ts` | 21 lines |
 | tests | **51** assertions, 3 files, run by `pnpm test` |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
-| `pnpm audit` | **0 critical**, 6 high — all build/dev-only, none removable |
+| `pnpm audit` | **0 critical**, 6 high, 4 moderate — all build/dev-only transitives (the earlier "6 high" line omitted the moderates; same set, no drift). 9 of 10 clear via an in-range `pnpm update --no-save` (plan 009); the 1 residual moderate is `@opentelemetry/core`, pinned exactly by `@netlify/otel@6.0.3` and unreachable without an override |
 | deploy gate | `netlify.toml` runs `pnpm check && pnpm test`; the UI command is deliberately empty |
 | content source | everything user-facing is in `src/lib/constants.ts` |
 
@@ -77,6 +86,43 @@ smaller* wins than the first one found, and should say so plainly when a finding
 is cosmetic.
 
 ## Findings considered and rejected
+
+### Run 2 (2026-07-21, audited at `c8fe10f`)
+
+Killed by the run-2 skeptic pass or advisor review — do not re-audit:
+
+- **CORRECT-02 — Person.nationality derived from `address_locality`.** Correct
+  today (Singapore is both locality and country); the divergence scenario is
+  speculative on a single-maintainer, single-file content surface. Refuted.
+- **TEST-01 — a test asserting `llms.txt` agrees with `CAREER[0]`.** The
+  llms.txt hand-sync is an "Open item owned by the maintainer" with a chosen
+  mitigation (manual checklist); shipping a prose-coupling test would override
+  that decision. Refuted — exactly the "helpfully doing them" this file warns
+  about.
+- **DEBT-01 — delete the unused `METADATA.email_obfuscated`.** The field is
+  author contact data (his voice/intent, plans 005 and 007 both left it), so
+  deletion is the maintainer's call; its self-referential test is 3 harmless
+  lines. Recorded, not planned.
+- **eslint-plugin-astro 1.7.0 → 3.0.1.** Lints clean today; the upgrade forces
+  new Node engine ranges and parser peers for zero articulable gain on a
+  10-file .astro repo. Not worth doing now.
+- **typescript 6.0.2 → 7.x (native compiler).** `@astrojs/check` /
+  `@typescript-eslint` compatibility unestablished, and the repo has almost no
+  hand-written TS. Investigate-only; no leverage.
+- **lint-staged 16 → 17.** No changelog signal affecting the hook. Skipped.
+- **Security headers (CSP etc.) via netlify.toml.** Static one-pager, no
+  forms/auth/cookies/user input; a real CSP needs `unsafe-inline` plus a
+  cloud.umami.is allow-list. Marginal value, deliberately not raised.
+- **DX micro-items** — silencing the two `astro(4000)` is:inline hints (they
+  communicate intent), `.editorconfig`, widening the eslint glob (settled:
+  constants.ts is test-gated), pre-commit check/test duplication, a Umami
+  `preconnect`. All rejected as taste-tier or duplicative.
+
+Also corrected in run 2: the original DEP-01 claim "all 10 advisories clear
+in-range" is false — `@netlify/otel@6.0.3` pins `@opentelemetry/core@2.7.1`
+exactly, so plan 009 expects a 1-moderate residual and says so.
+
+### Run 1 (2026-07-21, audited at `4550e1f`)
 
 Six findings were refuted by the skeptic pass. Recorded here so they are not
 re-audited next run:
