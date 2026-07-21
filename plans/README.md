@@ -23,14 +23,41 @@ and update your row when done.
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 001 | Establish a regression safety net | P1 | M | — | **DONE** (`4144f81`) |
-| 002 | Prerender the site and delete the SSR adapter | P1 | M | 001 | IN PROGRESS |
-| 003 | Delete the client runtime: Svelte and motion out, CSS in | P1 | M | 002 | TODO |
+| 002 | Prerender the site and delete the SSR adapter | P1 | M | 001 | **DONE** (`a4a3e0e`) |
+| 003 | Delete the client runtime: Svelte and motion out, CSS in | P1 | M | 002 | TODO (next) |
 | 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | TODO |
 | 005 | Delete dead configuration and template cruft | P2 | S | 004 | TODO |
 | 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | TODO |
 | 007 | Correct the documentation and shipped metadata | P3 | S | 006 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
+
+### Verification log
+
+- **001** merged as `4144f81`. 32/32 tests green. The net was mutation-tested, not
+  just run: pushing `GOAL.current_progress` above `total_goal` and emptying the
+  about-me list each turned exactly one test red, and both returned to green on
+  restore.
+  *Plan defect found by the executor*: `astro check` typechecks the root
+  `vitest.config.ts`, and `getViteConfig` is typed as Vite's plain `UserConfig`,
+  which has no `test` key — needs `/// <reference types="vitest/config" />`.
+  The executor stopped rather than improvising; the plan was amended (`bdce3ae`).
+- **002** merged as `a4a3e0e`, plus `eca342c` from review. 38/38 tests green.
+  Deploy preview diffed against production: **visible text byte-identical**.
+  Only three markup deltas, all intended — canonical/`og:url`/`og:image`/JSON-LD
+  `url` now read the configured `site` instead of echoing the request origin
+  (that is CORRECT-03 fixed for free); the portrait moved from
+  `/.netlify/images?url=…&w=275&h=275` to a build-emitted `/_astro/…webp`
+  (41 kB → 8 kB); and `astro-island` uids are per-build noise.
+  Response headers confirm the win: production serves
+  `cache-control: no-cache` with `cache-status: "Netlify Durable"; fwd=bypass`,
+  the preview serves `cache-control: public,max-age=0,must-revalidate` with an
+  `etag`.
+  *Defect found in review, not by the executor*: the new
+  "no SSR function emitted" assertion passed in the executor's fresh worktree but
+  failed on the maintainer's machine, where `.netlify/v1` survived from earlier
+  adapter builds and nothing ever deletes it. `tests/setup/build.ts` now clears
+  it before building, preserving `.netlify/state.json`.
 
 ## Dependency notes
 
