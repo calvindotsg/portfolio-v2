@@ -27,3 +27,7 @@ pnpm-debug.log*
 # macOS-specific files
 .DS_Store
 
+# agent working files
+.scratchpad/
+.claude/worktrees/
+
