@@ -30,6 +30,11 @@ describe("dist/", () => {
         expect(css.length).toBe(1);
     });
 
+    it("ships zero external JavaScript files", () => {
+        const js = readdirSync("dist/_astro").filter((f) => f.endsWith(".js"));
+        expect(js).toEqual([]);
+    });
+
     it("copies the public assets the page links to", () => {
         for (const asset of ["favicon.ico", "preview.jpg", "resume.pdf"]) {
             expect(existsSync(`dist/${asset}`), `dist/${asset} must exist`).toBe(true);
