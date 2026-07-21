@@ -1,6 +1,5 @@
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
-import netlify from "@astrojs/netlify";
 import robotsTxt from "astro-robots-txt";
 import UnoCSS from "@unocss/astro";
 import icon from "astro-icon";
@@ -22,6 +21,5 @@ export default defineConfig({
     icon(),
     svelte(),
   ],
-  output: "server",
-  adapter: netlify({ middlewareMode: 'edge' }),
+  output: "static",
 });
