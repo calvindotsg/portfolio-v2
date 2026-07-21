@@ -50,8 +50,22 @@ describe("JSON-LD structured data", () => {
         expect(schema.name).toBe(METADATA.name);
     });
 
-    it("exposes a sameAs list", () => {
-        expect(Array.isArray(schema.sameAs)).toBe(true);
+    it("exposes sameAs as a flat list of the absolute LINKS URLs", () => {
+        const absolute = LINKS.filter((l) => /^https?:\/\//.test(l.link)).map((l) => l.link);
+        expect(absolute.length, "LINKS must contain at least one absolute URL").toBeGreaterThan(0);
+        // Flat array of strings — not [[…]], and no site-relative paths.
+        expect(schema.sameAs).toEqual(absolute);
+        for (const entry of schema.sameAs) expect(entry).toMatch(/^https?:\/\//);
+    });
+
+    it("names the employer in worksFor, and the job title in jobTitle", () => {
+        expect(schema.worksFor.name).toBe(CAREER[0].company);
+        expect(schema.jobTitle).toBe(CAREER[0].job_name);
+        expect(schema.worksFor.name).not.toBe(schema.jobTitle);
+    });
+
+    it("uses the https schema.org context", () => {
+        expect(schema["@context"]).toBe("https://schema.org");
     });
 });
 

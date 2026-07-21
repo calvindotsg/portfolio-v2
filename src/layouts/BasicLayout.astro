@@ -10,15 +10,15 @@ const {title, description} = Astro.props;
 const image = `${Astro.url.origin}/preview.jpg`;
 
 const schema = {
-    "@context": "http://schema.org",
+    "@context": "https://schema.org",
     "@type": "Person",
     name: METADATA.name,
     url: METADATA.site_url,
-    sameAs: [LINKS.map(item => item.link)],
+    sameAs: LINKS.filter(item => /^https?:\/\//.test(item.link)).map(item => item.link),
     image: METADATA.image_url,
     jobTitle: CAREER[0].job_name,
     worksFor: {
-        "@type": "Organization", name: CAREER[0].job_name, address: {
+        "@type": "Organization", name: CAREER[0].company, address: {
             "@type": "PostalAddress",
             addressLocality: METADATA.address_locality,
             addressCountry: METADATA.address_country,
