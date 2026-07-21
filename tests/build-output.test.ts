@@ -1,4 +1,5 @@
 import {readFileSync, readdirSync, existsSync} from "node:fs";
+import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
 import {METADATA} from "../src/lib/constants";
@@ -33,5 +34,52 @@ describe("dist/", () => {
         for (const asset of ["favicon.ico", "preview.jpg", "resume.pdf"]) {
             expect(existsSync(`dist/${asset}`), `dist/${asset} must exist`).toBe(true);
         }
+    });
+});
+
+/**
+ * These assertions only became possible once `output: "static"` replaced the
+ * Netlify SSR adapter (plan 002). Before that, `pnpm build` emitted no
+ * `dist/index.html` at all — the page lived inside a 2.4 MB serverless function.
+ *
+ * NOTE: `dist/index.html` starts with a hoisted <script> above <html>, which
+ * makes linkedom treat that script as documentElement and leaves document.body
+ * empty. Element queries work; whole-document textContent does not. Assert text
+ * with plain string `toContain` and elements with `querySelector`.
+ */
+describe("dist/index.html is prerendered", () => {
+    const doc = () => parseHTML(read("dist/index.html")).document;
+
+    it("is emitted by the build", () => {
+        expect(existsSync("dist/index.html")).toBe(true);
+    });
+
+    it("carries the configured title and description", () => {
+        const html = read("dist/index.html");
+        expect(html).toContain(`<title>${METADATA.title}</title>`);
+        expect(html).toContain(METADATA.description);
+    });
+
+    it("self-canonicalises to the configured site URL, not a request URL", () => {
+        const href = doc().querySelector('link[rel="canonical"]')?.getAttribute("href");
+        expect(href).toBe(METADATA.site_url);
+    });
+
+    it("serves the portrait as a build-emitted asset, not a runtime image CDN URL", () => {
+        const src = doc().querySelector("main img")?.getAttribute("src") ?? "";
+        expect(src).toMatch(/^\/_astro\//);
+        expect(src).not.toContain(".netlify");
+    });
+});
+
+describe("no on-demand rendering output", () => {
+    it("emits no Netlify serverless or edge function", () => {
+        expect(existsSync(".netlify/v1/functions"), "the SSR adapter is gone; no function may be emitted").toBe(false);
+        expect(existsSync(".netlify/v1/edge-functions")).toBe(false);
+    });
+
+    it("emits no server bundle inside dist/", () => {
+        expect(existsSync("dist/_worker.js")).toBe(false);
+        expect(existsSync("dist/server")).toBe(false);
     });
 });
