@@ -31,7 +31,7 @@ const schema = {
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width"/>
@@ -47,7 +47,7 @@ const schema = {
     <meta property="og:url" content={Astro.url.origin}/>
     <meta
             property="og:image"
-            content={image || METADATA.image_url}
+            content={image}
     />
     <!-- Basic Twitter Card tags -->
     <meta name="twitter:card" content="summary_large_image"/>
@@ -55,7 +55,7 @@ const schema = {
     <meta name="twitter:description" content={description}/>
     <meta
             name="twitter:image"
-            content={image || METADATA.image_url}
+            content={image}
     />
     <link href={Astro.url.href} rel="canonical"/>
     <script type="application/ld+json" set:html={JSON.stringify(schema)}/>
