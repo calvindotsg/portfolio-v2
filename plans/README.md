@@ -26,8 +26,8 @@ and update your row when done.
 | 002 | Prerender the site and delete the SSR adapter | P1 | M | 001 | **DONE** (`a4a3e0e`) |
 | 003 | Delete the client runtime: Svelte and motion out, CSS in | P1 | M | 002 | **DONE** (`621dd5a`) |
 | 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | **DONE** (`ef0da28`) |
-| 005 | Delete dead configuration and template cruft | P2 | S | 004 | TODO (next) |
-| 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | TODO |
+| 005 | Delete dead configuration and template cruft | P2 | S | 004 | **DONE** (`255dbca`) |
+| 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | TODO (next) |
 | 007 | Correct the documentation and shipped metadata | P3 | S | 006 | TODO |
 | 008 | Serve the portrait at device resolution | P2 | XS | 002, 004 | **DONE** (`b14287d`) |
 
@@ -143,6 +143,36 @@ Post-deploy verification against the pre-refactor production snapshot:
   `Button` swallows props, which is the defect. Mutating the `<button>` element
   directly turns it red correctly.
 
+- **005** merged as `255dbca` (squash of 7 commits, PR #30). 49/49 green in both
+  worktrees; `pnpm check` hints **4 → 2** (both `ts(6385)` `presetUno`
+  deprecations cleared); **20 → 19 direct dependencies**.
+  `uno.config.ts` 60 → 9 lines, and it was proved **byte-identical (219 bytes)**
+  to the text Step 2 specifies rather than eyeballed.
+  **The whole-plan CSS delta was re-derived by the reviewer**, not taken from the
+  executor's report — building `origin/main` and the branch, splitting each
+  stylesheet into rules and sorting, gives exactly **one** removed rule:
+  `h1,h2,h3,h4,h5,h6,p{font-family:…}`, 13,115 → 12,962 bytes, 188 → 187 rules.
+  47 lines of config deleted, zero bytes of CSS changed.
+  The load-bearing `robots.txt` assertion was **mutation-tested two ways** (wrong
+  sitemap host; file deleted) — each turned exactly that test red, and
+  `git diff origin/main..HEAD -- tests/` was **empty**, so the net was not
+  weakened to fit the change.
+  Preview-vs-production: **visible text and markup both IDENTICAL**, and the
+  preview stylesheet's SHA-256 matched the local build exactly.
+  The one visitor-observable change — `/robots.txt` losing
+  `Sitemap: …/sitemap-0.xml` — was **verified rather than assumed**: the plan
+  claims the index makes it redundant, and `dist/sitemap-index.xml` does contain
+  exactly that one `<loc>`.
+  *No plan defect reached the executor*, because two were caught in pre-flight:
+  11 hard-coded `Tests  32 passed (32)` expectations plus a `32/32` STOP
+  condition (the suite was at 49 — the executor would have stopped at Step 1),
+  and a hand-off note claiming plan 005 owned the `IntroCard.astro` eslint
+  warning when its scope excludes `src/components/` entirely.
+  *Executor notes, both benign*: a stale `git add` pathspec split Step 3 across
+  two commits (7 rather than the suggested 6, identical net tree); and three
+  "expect zero hits" greps returned hits **inside the plan's own markdown**,
+  since the plan's grep commands do not exclude `plans/`. Excluding `plans/`,
+  zero functional references remain.
 - **008** merged as `b14287d` (PR #29). 49/49 green in both worktrees;
   `pnpm eslint` now reports **0 problems**, down from 1 warning.
   PageSpeed Insights had flagged the portrait under *"Serves images with low
@@ -196,9 +226,9 @@ one maintainer, and every plan touches overlapping files. Each plan is merged to
 
 Measured in the spike, not estimated:
 
-| | before (`main`) | after | now (through 008) |
+| | before (`main`) | after | now (through 005) |
 |---|---|---|---|
-| direct dependencies | 23 | 16 | 20 |
+| direct dependencies | 23 | 16 | **19** |
 | client JS files | 6 | 0 | **0** |
 | client JS bytes | 106,861 | ~525, inline | **525, inline** |
 | Netlify SSR function | 2.4 MB | none | **none** |
