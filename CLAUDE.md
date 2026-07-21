@@ -43,7 +43,7 @@ preview is byte-identical to what Netlify serves.
 
 ### Component Structure
 - **Astro Components**: Main UI components (`.astro` files) for static content
-- **Card System**: Reusable card layout in `src/components/Card/` with `index.astro` and `Content.astro`
+- **Card System**: Reusable card layout in `src/components/Card/index.astro`
 
 ### Configuration & Content
 - **Constants**: All site content and configuration centralized in `src/lib/constants.ts`

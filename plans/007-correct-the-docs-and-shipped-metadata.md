@@ -154,6 +154,10 @@ styling system, layout hierarchy, and the deployment section:
 - **Card System**: Reusable card layout in `src/components/Card/` with `index.astro` and `Content.astro`
 ```
 
+**Note:** the `Content.astro` half of that last bullet is itself stale as of
+`ef0da28` (plan 004) — `src/components/Card/` now contains only `index.astro`.
+Step 4d fixes this bullet too; it is not merely quoted for its Svelte line.
+
 ```markdown
 ### Styling System
 - **UnoCSS**: Atomic CSS with custom theme configuration in `uno.config.ts`
@@ -421,9 +425,16 @@ that single line with:
 
 ```markdown
 The site builds to a fully static `dist/` directory — no adapter, no serverless
-function. Netlify's build command is `pnpm build` and its publish directory is
+function. `netlify.toml` is the single source of truth for the build: the command
+is `pnpm check && pnpm test` — the suite runs `pnpm build` itself, so every
+deploy is gated on typechecking and the assertions — and the publish directory is
 `dist`. To deploy your own copy:
 ```
+
+Do **not** write "the build command is `pnpm build`". It is
+`pnpm check && pnpm test`, from `netlify.toml` — read the file rather than
+assuming, and note that the Netlify UI's build-command field is deliberately
+empty, so a dashboard reading is not authoritative here.
 
 Leave the numbered fork/link steps and the Deploy-to-Netlify button unchanged.
 
@@ -478,8 +489,13 @@ preview is byte-identical to what Netlify serves.
 ```
 
 **4d. Component Structure.** Replace the `- **Svelte Components**: ...` bullet at
-`CLAUDE.md:40` with nothing (delete the line). Leave the `Astro Components` and
-`Card System` bullets as they are.
+`CLAUDE.md:40` with nothing (delete the line). Leave the `Astro Components` bullet
+as it is. **Also fix the `Card System` bullet** — it names `Content.astro`, which
+plan 004 (`ef0da28`) deleted; the directory now contains only `index.astro`:
+
+```markdown
+- **Card System**: Reusable card layout in `src/components/Card/index.astro`
+```
 
 **4e. Styling System.** Replace `CLAUDE.md:50-51` with:
 

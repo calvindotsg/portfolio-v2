@@ -103,7 +103,9 @@ iterating.
 ### Deploy on Netlify
 
 The site builds to a fully static `dist/` directory — no adapter, no serverless
-function. Netlify's build command is `pnpm build` and its publish directory is
+function. `netlify.toml` is the single source of truth for the build: the command
+is `pnpm check && pnpm test` — the suite runs `pnpm build` itself, so every
+deploy is gated on typechecking and the assertions — and the publish directory is
 `dist`. To deploy your own copy:
 
 1. Fork this repository.
