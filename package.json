@@ -11,7 +11,9 @@
     "astro": "astro",
     "eslint": "eslint 'src/**/*.{js,astro}'",
     "check": "astro check",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
@@ -34,9 +36,11 @@
     "eslint-plugin-astro": "^1.6.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "husky": "^9.1.7",
+    "linkedom": "^0.18.13",
     "lint-staged": "^16.4.0",
     "typescript": "^6.0.2",
-    "unocss": "^66.6.7"
+    "unocss": "^66.6.7",
+    "vitest": "^4.1.10"
   },
   "lint-staged": {
     "src/**/*.{js,astro}": [
