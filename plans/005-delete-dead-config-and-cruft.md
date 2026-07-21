@@ -34,9 +34,11 @@
   line and one duplicated CSS rule. Nothing here changes behaviour.
 - **Depends on**: `plans/001-regression-safety-net.md`,
   `plans/002-*.md`, `plans/003-*.md`, `plans/004-*.md` — **all four must be
-  merged to `main` before you start.** Plan 001 gives you the 32-test regression
-  net this plan leans on; plans 002–004 have already rewritten
-  `astro.config.mjs`, `package.json` and `src/layouts/BasicLayout.astro`.
+  merged to `main` before you start.** Plan 001 gives you the regression net this
+  plan leans on — 32 assertions when it landed, **49 today**, after plans 003–004
+  and 008 added to it; plans 002–004 have already rewritten `astro.config.mjs`,
+  `package.json` and `src/layouts/BasicLayout.astro`. **This plan adds none**, so
+  49 is the count you must both start and finish with.
 - **Category**: tech-debt
 - **Planned at**: commit `4550e1f`, 2026-07-21
 
@@ -403,8 +405,8 @@ That is **153 bytes**, and it is the *entire* expected CSS delta of Step 7.
 |---|---|---|
 | Install | `pnpm install` | exit 0 |
 | Typecheck | `pnpm check` | exit 0, `0 errors` |
-| Lint | `pnpm eslint` | exit 0 (pre-existing warnings tolerated) |
-| Tests | `pnpm test` | exit 0, `Tests  32 passed (32)` |
+| Lint | `pnpm eslint` | exit 0, **0 problems** |
+| Tests | `pnpm test` | exit 0, `Tests  49 passed (49)` |
 | Build | `pnpm build` | exit 0, `Complete!` |
 | Remove a dep | `pnpm remove astro-robots-txt` | exit 0 |
 
@@ -535,7 +537,7 @@ cp dist/robots.txt /tmp/plan005-robots-before.txt
 
 **Verify**, all of:
 - `pnpm check` → `0 errors`
-- `pnpm test` → `Tests  32 passed (32)`
+- `pnpm test` → `Tests  49 passed (49)`
 - `pnpm build` → exit 0
 - `snapshot_css` prints exactly one filename and a rule count (no "expected
   exactly 1 stylesheet" error)
@@ -616,7 +618,7 @@ adds one later.
    ```
    → **no output**, exit 0. A zero-line diff is the whole point of this step.
 
-3. `pnpm test` → `Tests  32 passed (32)`
+3. `pnpm test` → `Tests  49 passed (49)`
 4. `wc -l uno.config.ts` → `9`
 
 ### Step 3: Replace both robots.txt producers with one static file
@@ -689,7 +691,7 @@ diff /tmp/plan005-robots-before.txt dist/robots.txt
 ```bash
 pnpm test
 ```
-→ `Tests  32 passed (32)`. This is the load-bearing check for this step: plan
+→ `Tests  49 passed (49)`. This is the load-bearing check for this step: plan
 001's `tests/build-output.test.ts` asserts `dist/robots.txt` exists, matches
 `/User-agent:\s*\*/`, contains `Sitemap:`, and contains
 `new URL("sitemap-index.xml", METADATA.site_url).href` — i.e.
@@ -733,7 +735,7 @@ diff /tmp/plan005-after-robots.rules /tmp/plan005-after-configs.rules
 ```bash
 pnpm check && pnpm test
 ```
-→ `0 errors`; `Tests  32 passed (32)`.
+→ `0 errors`; `Tests  49 passed (49)`.
 
 ### Step 5: Delete `jsx.d.ts` and `tsconfig.eslint.json`
 
@@ -762,7 +764,7 @@ identical. If any *new* diagnostic appears, stop — see STOP conditions.
 ```bash
 pnpm eslint && pnpm test
 ```
-→ exit 0 (pre-existing warnings only); `Tests  32 passed (32)`.
+→ exit 0 with **0 problems**; `Tests  49 passed (49)`.
 
 ### Step 6: Delete the orphaned resume PDF
 
@@ -790,7 +792,7 @@ find dist -iname "*.pdf"
 ```bash
 pnpm test
 ```
-→ `Tests  32 passed (32)` (plan 001 asserts `dist/resume.pdf` exists).
+→ `Tests  49 passed (49)` (plan 001 asserts `dist/resume.pdf` exists).
 
 ### Step 7: Collapse the triplicated font stack
 
@@ -843,7 +845,7 @@ If the diff shows any *other* changed rule, or if the `body` rule lost its
 ```bash
 pnpm check && pnpm eslint && pnpm test
 ```
-→ `0 errors`; exit 0; `Tests  32 passed (32)`.
+→ `0 errors`; exit 0; `Tests  49 passed (49)`.
 
 ### Step 8: Final gate and scope audit
 
@@ -858,7 +860,7 @@ git status --porcelain
 
 **Verify**:
 - `pnpm check` → `0 errors`
-- `pnpm test` → `Tests  32 passed (32)`
+- `pnpm test` → `Tests  49 passed (49)`
 - `pnpm build` → exit 0
 - `git status --porcelain` lists **only** the files named in "In scope" — nothing
   else, and no stray `/tmp` helper files inside the repo.
@@ -889,7 +891,7 @@ Beyond the suite, the **sorted-rule stylesheet diff** described in "Commands you
 will need" is this plan's primary evidence: it is what turns "I deleted 47 lines
 of config" into "I proved those 47 lines emitted nothing".
 
-Verification: `pnpm test` → `Test Files  3 passed (3)`, `Tests  32 passed (32)`.
+Verification: `pnpm test` → `Test Files  3 passed (3)`, `Tests  49 passed (49)`.
 
 ## Done criteria
 
@@ -898,7 +900,7 @@ Machine-checkable. ALL must hold:
 - [ ] `pnpm check` exits 0 and reports `0 errors`
 - [ ] `pnpm check 2>&1 | grep -E "ts\(6385\)|ts\(2322\)"` returns **no matches**
 - [ ] `pnpm eslint` exits 0
-- [ ] `pnpm test` exits 0 and reports `Tests  32 passed (32)`
+- [ ] `pnpm test` exits 0 and reports `Tests  49 passed (49)`
 - [ ] `pnpm build` exits 0
 - [ ] `wc -l uno.config.ts` → `9`
 - [ ] `grep -rn "presetUno\|presetWebFonts\|filesystem\|darkslate\|custom-hover\|auto-250\|4-minmax" uno.config.ts` returns **no matches**
@@ -920,7 +922,7 @@ Machine-checkable. ALL must hold:
 
 Stop and report back (do not improvise) if:
 
-- **`pnpm test` is not already 32/32 green before Step 2.** This plan's entire
+- **`pnpm test` is not already 49/49 green before Step 2.** This plan's entire
   safety argument is that the suite is green before and after. If it is red on
   arrival, plans 001–004 have not all landed, or something else is broken; that
   is not yours to fix.

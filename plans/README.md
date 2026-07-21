@@ -29,6 +29,11 @@ and update your row when done.
 | 005 | Delete dead configuration and template cruft | P2 | S | 004 | TODO (next) |
 | 006 | Replace astro-icon with UnoCSS presetIcons | P2 | S | 005 | TODO |
 | 007 | Correct the documentation and shipped metadata | P3 | S | 006 | TODO |
+| 008 | Serve the portrait at device resolution | P2 | XS | 002, 004 | **DONE** (`b14287d`) |
+
+Plan 008 was **not** produced by the audit — it was raised from a production
+PageSpeed Insights report on 2026-07-21 and executed the same day, out of numeric
+order, because it fixes a defect that was live. It is independent of 005–007.
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -138,6 +143,31 @@ Post-deploy verification against the pre-refactor production snapshot:
   `Button` swallows props, which is the defect. Mutating the `<button>` element
   directly turns it red correctly.
 
+- **008** merged as `b14287d` (PR #29). 49/49 green in both worktrees;
+  `pnpm eslint` now reports **0 problems**, down from 1 warning.
+  PageSpeed Insights had flagged the portrait under *"Serves images with low
+  resolution"* — displayed 275×275, served 275×275, expected 413×413 — while
+  `src/assets/me.webp` is 1000×1000. The `<Image>` call emitted one candidate and
+  no `srcset`, so every DPR-2 screen painted a 275 px bitmap into a 550 px box.
+  `densities={[2]}` emits a 550×550 companion (20,860 B) beside the unchanged
+  275×275 original (8,892 B). **The 1x content hash did not change**, so DPR-1
+  visitors download byte-identical bytes; retina visitors pay +11,968 B and fetch
+  the 2x candidate *instead of*, not in addition to, the 1x.
+  Preview-vs-production diff: **visible text byte-identical**, and exactly one
+  markup delta — the added `srcset` on that single `<img>`. Both candidates
+  verified live on the preview: `200 image/webp`, 275×275 and 550×550.
+  The new assertion was **mutation-tested three ways** (delete `densities`;
+  `densities={[4]}`, which upscales past the 1000 px source; assert `width * 3`),
+  each turning exactly that test red. The second is the load-bearing one:
+  **Astro silently discards a density that would upscale the source**, so raising
+  the layout width past 500 px would delete the `srcset` and revert the fix with a
+  completely green build — which is why the test asserts *pixels* via `sharp`
+  rather than asserting markup.
+  *Tooling defect found in review*: `.scratchpad/prod-diff.py` split markup on
+  `"> <"`, but the built HTML is minified with no whitespace between tags, so the
+  whole 18 KB document stayed one line and every diff read "the entire document
+  changed". It now tokenises on `(<[^>]+>)`; prod-vs-prod self-tests as IDENTICAL.
+
 ## Dependency notes
 
 The chain is strictly linear, and deliberately so — this is a one-page site with
@@ -166,14 +196,15 @@ one maintainer, and every plan touches overlapping files. Each plan is merged to
 
 Measured in the spike, not estimated:
 
-| | before (`main`) | after | now (through 003) |
+| | before (`main`) | after | now (through 008) |
 |---|---|---|---|
 | direct dependencies | 23 | 16 | 20 |
 | client JS files | 6 | 0 | **0** |
 | client JS bytes | 106,861 | ~525, inline | **525, inline** |
 | Netlify SSR function | 2.4 MB | none | **none** |
 | `pnpm audit` critical / high | 1 / 12 | 0 / 6, all dev-only | — |
-| automated tests | 0 | 32+ | **48** |
+| automated tests | 0 | 32+ | **49** |
+| `pnpm eslint` problems | 2 | 0 | **0** |
 
 The spike measured the client-JS baseline as 95,031 bytes; re-measured against
 the current lockfile it is **106,861** across the same 6 files (the spike
