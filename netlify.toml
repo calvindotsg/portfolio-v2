@@ -1,0 +1,6 @@
+# Pinned in the repo so the deploy pipeline runs the same gates a developer does.
+# `pnpm test` builds the site itself (see tests/setup/build.ts globalSetup), so
+# this is one build that also gates on typechecking and the assertion suite.
+[build]
+  command = "pnpm check && pnpm test"
+  publish = "dist"
