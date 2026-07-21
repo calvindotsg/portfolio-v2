@@ -413,12 +413,15 @@ If `pnpm build` fails with `MissingSharp`, you skipped Step 2 — run it now.
 
 ### Step 5: Confirm `pnpm preview` works again
 
+NOTE: your harness blocks a bare foreground `sleep`. Poll with an `until` loop
+instead — it exits as soon as the server answers, so it is also faster:
+
 ```bash
 pnpm preview > /tmp/preview-002.log 2>&1 &
 PREVIEW_PID=$!
-sleep 5
+until curl -s -o /dev/null http://localhost:4321/ || ! kill -0 $PREVIEW_PID 2>/dev/null; do :; done
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:4321/
-kill $PREVIEW_PID
+kill $PREVIEW_PID 2>/dev/null
 grep -c "does not support the preview command" /tmp/preview-002.log
 ```
 

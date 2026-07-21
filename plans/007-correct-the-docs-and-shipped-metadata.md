@@ -543,11 +543,13 @@ to a claim you can verify, and report it.**
 
 Then prove the `pnpm preview` claim in 4b is true:
 
+NOTE: your harness blocks a bare foreground `sleep`. Poll with an `until` loop.
+
 ```bash
 pnpm build > /dev/null 2>&1
 pnpm preview > /tmp/astro-preview.log 2>&1 &
 PREVIEW_PID=$!
-sleep 8
+until curl -s -o /dev/null http://localhost:4321/ || ! kill -0 $PREVIEW_PID 2>/dev/null; do :; done
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:4321/
 kill $PREVIEW_PID 2>/dev/null
 ```
