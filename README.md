@@ -68,6 +68,16 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
    content (links, career, about, cycling goal, footer, SEO metadata) lives
    there.
 2. Modify the `site` and other relevant properties in `astro.config.mjs`.
+3. The goals' `current_progress` figures are the one exception: they are
+   bot-owned. A daily GitHub Actions run
+   (`.github/workflows/strava-progress.yml`) writes Strava's year-to-date ride
+   and run totals to `src/data/strava-progress.json`, which `constants.ts`
+   imports. Its only inputs are the `STRAVA_ATHLETE_ID` repository *variable*
+   and the `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and
+   `STRAVA_REFRESH_TOKEN` repository *secrets* — the script holds no
+   configuration of its own. To bump a figure by hand, edit that JSON rather
+   than `constants.ts`; `total_goal` stays in `constants.ts` and caps the
+   displayed figure.
 
 ## Testing
 

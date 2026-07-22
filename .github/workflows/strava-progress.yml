@@ -1,0 +1,45 @@
+name: strava-progress
+
+on:
+  schedule:
+    # 21:13 UTC = 05:13 SGT — after a full Singapore day; off the top of the
+    # hour to avoid GitHub's peak scheduling delays.
+    - cron: "13 21 * * *"
+  workflow_dispatch: {}   # manual runs, and re-enabling after auto-disable
+
+permissions:
+  contents: write
+
+# A manual run overlapping the cron would push the same file from two checkouts;
+# the second push is then rejected non-fast-forward. Never cancel in flight —
+# that could kill a run between its commit and its push.
+concurrency:
+  group: strava-progress
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch YTD totals and write src/data/strava-progress.json
+        # ubuntu-latest ships node >= 20 preinstalled (22.x on 24.04) —
+        # built-in fetch, zero deps, no setup-node needed.
+        env:
+          # Not a secret — the athlete id is public on the site's Strava links.
+          STRAVA_ATHLETE_ID: ${{ vars.STRAVA_ATHLETE_ID }}
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+        run: node scripts/fetch-strava-progress.mjs
+      - name: Commit and push only if the km values changed
+        run: |
+          if git diff --quiet -- src/data/strava-progress.json; then
+            echo "Progress unchanged; no commit, no deploy."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/strava-progress.json
+          git commit -m "$(node -e 'const p=require("./src/data/strava-progress.json"); console.log(`chore(goals): update Strava progress to ${p.cycling_km} km ride / ${p.running_km} km run`)')"
+          git push

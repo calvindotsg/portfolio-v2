@@ -1,3 +1,5 @@
+import stravaProgress from "../data/strava-progress.json"
+
 export const LINKS: {
     link: string
     logo: string
@@ -69,9 +71,17 @@ export type Goal = {
     measurable_unit: string
 }
 
-export const GOALS: Goal[] = [{
+/**
+ * A year that overshoots its target is clamped here rather than in the bot
+ * script, so `total_goal` below stays the single place the number is
+ * configured. `ProgressBar.astro` caps the bar at 100% for the same reason.
+ */
+export const clampToGoal = (progress: number, total_goal: number): number => Math.min(progress, total_goal)
+
+// current_progress is bot-owned — see .github/workflows/strava-progress.yml; edit the JSON, not this file, to bump it manually.
+const RAW_GOALS: Goal[] = [{
     total_goal: 5000,
-    current_progress: 2246.4,
+    current_progress: stravaProgress.cycling_km,
     progress_last_year: 1440.8,
     website_url: "https://www.strava.com/athletes/37641259/",
     goal_name: "Cycling",
@@ -80,7 +90,7 @@ export const GOALS: Goal[] = [{
     measurable_unit: "km"
 }, {
     total_goal: 1000,
-    current_progress: 138,
+    current_progress: stravaProgress.running_km,
     progress_last_year: null,
     website_url: "https://www.strava.com/athletes/37641259/",
     goal_name: "Running",
@@ -88,6 +98,11 @@ export const GOALS: Goal[] = [{
     cta_logo: "fa6-brands:strava",
     measurable_unit: "km"
 }]
+
+export const GOALS: Goal[] = RAW_GOALS.map((goal) => ({
+    ...goal,
+    current_progress: clampToGoal(goal.current_progress, goal.total_goal)
+}))
 
 export const WELCOME: {
     greeting_icon: string
