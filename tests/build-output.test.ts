@@ -188,4 +188,25 @@ describe("source hygiene", () => {
             }
         }
     });
+
+    it("gives every class token in the shipped HTML a rule in the stylesheet", () => {
+        // UnoCSS fails silently on unknown utilities and Astro drops nothing:
+        // a dead class ships as markup bytes with no effect. After plan 012
+        // every remaining token is load-bearing; this keeps it that way.
+        // The stylesheet escapes special chars in selectors (`.md\:pr-8`), so
+        // unescape before comparing.
+        const html = read("dist/index.html");
+        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
+        const css = read(`dist/_astro/${sheet}`);
+        const cssClasses = new Set(
+            [...css.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\(.)/g, "$1")),
+        );
+        const tokens = new Set(
+            [...html.matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/).filter(Boolean)),
+        );
+        expect(tokens.size, "the page must ship class tokens").toBeGreaterThan(50);
+        for (const token of tokens) {
+            expect(cssClasses.has(token), `class "${token}" has no rule in the stylesheet`).toBe(true);
+        }
+    });
 });

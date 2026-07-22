@@ -41,7 +41,7 @@ from `dist/index.html` and every class selector from `dist/_astro/*.css`):
 |---|---|---|
 | `card` | `src/components/Card/index.astro:12` | No rule in the stylesheet, no scoped style, no JS or test references it. Upstream relic. |
 | `group` | `src/components/Card/index.astro:12` | UnoCSS group marker; zero `group-*` variant classes exist anywhere in `src/`. The tilt effect that used it is gone. |
-| `perspective-1200` | `src/components/Card/index.astro:12` | Generates `perspective:1200px`, which only affects 3D-transformed children. No 3D transforms remain in the codebase (only 2D translate/scale). |
+| `perspective-1200` | `src/components/Card/index.astro:12` | Dead AS PERSPECTIVE — generates `perspective:1200px`, which only affects 3D-transformed children, and no 3D transforms remain (only 2D translate/scale). **BUT its stacking-context side effect was load-bearing**: the IntroCard portrait is `absolute … z-[-1]` at mobile and inside the Card's stacking context paints above the card background; without a stacking context on the Card, `z-index:-1` drops it BEHIND the background. Removal must therefore be paired with adding `isolate` on the Card div (see step 2) so the stacking context survives. Verified empirically at 375x667 — without the replacement the portrait vanishes from mobile. |
 | `justify-start` | `src/components/Card/index.astro:12` | `justify-content` on a `display:block` element (the div has no `flex`/`grid` utility) — no-op. |
 | `flex-none` | `src/components/Card/index.astro:12` | `flex:none` applies to flex items; every Card is a grid item of `main.grid`, never a flex item — no-op. |
 | `h-full` | `src/components/Card/index.astro:12` | Grid items stretch to their grid area by default (`align-items: stretch`); `height:100%` resolves to the same box in every breakpoint. Removal must be layout-verified (step 4). |
@@ -143,7 +143,22 @@ EOF
 
 1. `src/components/Card/index.astro:12`: delete the tokens `card`, `group`,
    `perspective-1200`, `justify-start`, `flex-none`, `h-full` from the div's
-   class attribute (leave every other token exactly as is).
+   class attribute (leave every other token exactly as is), AND add `isolate`
+   as the first token of the class list so `class={`isolate overflow-hidden
+   bg-[var(--card-background)] …`}`. Add the rationale as a `//` JS comment
+   in the frontmatter (the `---` block at the top of the file), NOT as an
+   HTML comment in the template body — HTML comments in the body ship in
+   `dist/index.html` (once per Card, ~8 copies), frontmatter comments do
+   not:
+
+   ```astro
+   ---
+   // `isolate` (first class token below) is load-bearing: the intro card's
+   // portrait is z-[-1] at mobile and must stack above this card's background;
+   // the old perspective-1200 provided that stacking context accidentally.
+   interface Props {
+   …
+   ```
 2. Same file, the h2: delete `z-20` (keep `text-xl font-bold m-0`).
 3. `src/components/Now.astro:10`: delete `z-20` from the h2.
 4. `src/pages/index.astro:17`: delete `sm:gap-2` from main's class list.
@@ -193,13 +208,18 @@ verify with the mutation in step 5.
 Two checks, both required.
 
 **4a — markup check (deterministic).** The only deltas this plan may produce
-in the built page are inside class attributes. Prove it: `git stash`, then
-`pnpm build`, save `cp dist/index.html /tmp/plan012-before.html`, then
-`git stash pop`, `pnpm build` again, and diff with class attributes stripped:
+in the built page are inside class attributes and the stylesheet content-hash
+filename in `<link rel="stylesheet">` (Astro re-hashes the CSS whenever it
+changes, and this plan changes it). The `isolate` rationale lives in the
+frontmatter `//` comment (step 2.1), which the build strips — it does NOT
+ship, so no HTML-comment stripping is needed here. Prove it: `git stash`,
+`pnpm build`, save `cp dist/index.html /tmp/plan012-before.html`, `git stash
+pop`, `pnpm build` again, then diff with class attributes stripped and the
+CSS filename normalised:
 
 ```bash
-diff <(sed 's/ class="[^"]*"//g' /tmp/plan012-before.html) \
-     <(sed 's/ class="[^"]*"//g' dist/index.html)
+diff <(sed -E 's/ class="[^"]*"//g; s#/_astro/index\.[A-Za-z0-9_-]+\.css#/_astro/index.HASH.css#g' /tmp/plan012-before.html) \
+     <(sed -E 's/ class="[^"]*"//g; s#/_astro/index\.[A-Za-z0-9_-]+\.css#/_astro/index.HASH.css#g' dist/index.html)
 ```
 
 **Verify**: empty diff.
@@ -225,10 +245,18 @@ sm pair). If `cmp` reports a difference, produce a pixel-diff bounding box
 dimensions with sub-pixel antialiasing noise is acceptable ONLY if the diff
 bounding box is empty at threshold 8/255; any real geometry shift is a STOP.
 
-**Verify**: both viewport pairs byte-identical, or diff-bounding-box empty.
-Report which outcome you got. If headless Chromium cannot run in your
-environment at all, STOP and report — do not skip the geometry check by
-restoring `h-full` or by declaring it safe untested.
+Note: `pnpm dlx playwright screenshot` has no `--reduced-motion` flag, so
+the Pulse indicator in the Now card (its continuous CSS ping animation)
+produces an expected small diff bounding box around the dot — at 1280x800
+approximately `(1152, 598)-(1170, 616)`. That bbox is allowed; anything
+larger or elsewhere is not.
+
+**Verify**: sm pair byte-identical or diff-bounding-box empty at threshold
+8/255; lg pair byte-identical or diff-bounding-box confined to the Pulse
+indicator (roughly the coordinates above). Report which outcome you got. If
+headless Chromium cannot run in your environment at all, STOP and report —
+do not skip the geometry check by restoring `h-full` or by declaring it safe
+untested.
 
 ### Step 5: mutation-test the tripwire
 
