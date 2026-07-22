@@ -1,17 +1,20 @@
 # Implementation Plans
 
-**Run 3 is in progress: plans 011–014 are TODO.** Runs 1–2 (plans 001–010)
-are DONE, merged, and live on https://calvin.sg; their files and the full
+**Nothing is executable right now.** Three runs are complete: plans 001–014
+are all DONE, merged, and live on https://calvin.sg. Their files and the full
 evidence log are archived in [`done/`](done/README.md).
 
-Run 3 (2026-07-22, audited at `4e15674`) has two mandated items from the
-maintainer (emoji→icons migration, unnecessary-UnoCSS-classes cleanup — plans
-011–012) plus a deep audit: nine read-only opus auditors, one opus skeptic
-per finding. The audit returned **3 findings, all skeptic-CONFIRMED, but two
-were the same defect** (the entrance-stagger off-by-one, reported by both the
-correctness and debt auditors) — net **2 surviving findings** (plans
-013–014). Six categories (security, performance, deps, DX, docs, direction)
-returned zero findings, which on this baseline is the correct outcome.
+Run 3 (2026-07-22, audited at `4e15674`, completed the same day) had two
+mandated items from the maintainer (emoji→icons migration,
+unnecessary-UnoCSS-classes cleanup — plans 011–012) plus a deep audit: nine
+read-only opus auditors, one opus skeptic per finding. The audit returned
+**3 findings, all skeptic-CONFIRMED, but two were the same defect** (the
+entrance-stagger off-by-one, reported by both the correctness and debt
+auditors) — net **2 surviving findings** (plans 013–014). Six categories
+(security, performance, deps, DX, docs, direction) returned zero findings,
+which on this baseline is the correct outcome. After run 3 the suite is **64
+assertions** and the shipped page contains zero emoji and zero dead class
+tokens (both now test-locked).
 
 Run 2's deep audit had returned 8 findings, of which the adversarial skeptic
 pass and advisor review left 2 worth acting on. Everything killed in any run
@@ -61,7 +64,7 @@ recreated.
 | 011 | Migrate every emoji to a UnoCSS presetIcons icon | P1 | M | — | **DONE** (`7950203`) |
 | 012 | Remove the no-op UnoCSS classes and lock the class↔rule pairing | P2 | S | 011 | **DONE** (`6f0e24c`) |
 | 013 | Fix the entrance-stagger off-by-one and lock the ladder to the card count | P2 | S | 012 | **DONE** (`8036d3c`) |
-| 014 | Assert the Now card and Career dates/company survive the render | P3 | S | 011 | TODO |
+| 014 | Assert the Now card and Career dates/company survive the render | P3 | S | 011 | **DONE** (`b7439e7`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -70,13 +73,18 @@ report mid-run and executed out of numeric order.
 
 ## Baseline: what this repo is now (verified at `f129245`, updated after run 2 at `1f06c27`, re-verified for run 3 at `4e15674`)
 
-Run-3 corrections to the table below, verified 2026-07-22 at `4e15674` (PRs
-#41–#42 and two content commits landed between runs): **tests are now 58
-assertions** (still 3 files; PRs #41/#42 added 5), `GOALS` has two entries
-(cycling + running), and `<main>` renders 8 direct children. Everything else
-in the table still holds — spot-checked: `pnpm check` 0 errors/2 hints,
-`pnpm eslint` clean, build green, 18 direct dependencies, zero external JS
-files, zero `<svg>`.
+Run-3 corrections to the table below (audit at `4e15674`, final state after
+plan 014's merge `b7439e7`): **tests are now 64 assertions** (still 3 files:
+58 at audit time after PRs #41/#42, +6 across plans 011–014), `GOALS` has two
+entries (cycling + running), and `<main>` renders 8 direct children.
+Everything else in the table still holds — spot-checked: `pnpm check` 0
+errors/2 hints, `pnpm eslint` clean, build green, 18 direct dependencies,
+zero external JS files, zero `<svg>`, and now zero emoji (test-locked).
+Page weight after run 3: `dist/index.html` 15,735 B raw / **3,533 B gzip**;
+the single stylesheet 24,138 B raw / **7,055 B gzip** (up ~1.1 KB gzip from
+run 2 — the 8 migrated icons each embed an SVG mask data-URI; the emoji they
+replaced were "free" glyphs from system fonts; accepted as the cost of the
+mandated migration).
 
 A fresh audit should start from these facts rather than re-deriving them, and
 should re-check any it intends to rely on.

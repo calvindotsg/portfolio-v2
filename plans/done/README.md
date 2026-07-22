@@ -411,3 +411,96 @@ The spike measured the client-JS baseline as 95,031 bytes; re-measured against
 the current lockfile it is **106,861** across the same 6 files (the spike
 worktree's `node_modules` resolved ~12% smaller). The post-003 inline figure is
 525 bytes measured on the shipped `dist/index.html`, not the spike's 539.
+
+---
+
+# Run 3 (2026-07-22): plans 011–014
+
+Audited at `4e15674`, all four plans merged the same day. Orchestrator on
+Fable, executors on Opus 4.8 in isolated worktrees, audit/skeptic subagents on
+opus via one Workflow pipeline (9 auditors → 3 findings → 3 skeptics, all
+CONFIRMED; CORRECT-01 ≡ DEBT-01 merged into plan 013).
+
+## Per-plan verification log
+
+### 011 — emoji → presetIcons icons (PR #44, squash `7950203`)
+
+- All 8 emoji sites migrated to `ri` icons; CAREER field renamed
+  `emoji`→`icon`; FOOTER split `{prefix, icon, suffix}`; WELCOME gained
+  `greeting_icon`; ThemeSwitcher's CSS-content emojis became literal sun/moon
+  spans toggled by `data-theme` (descendant selector outranks presetIcons'
+  `display:inline-block`).
+- Prose proved byte-identical modulo emoji programmatically (python string
+  equality on old vs prefix+suffix / stripped strings).
+- Mutation-tested twice with different mutations: executor reintroduced ❤️ in
+  FOOTER.prefix (exactly the emoji-lock test failed); reviewer reintroduced
+  🚴🏻 in `goal_logo` (emoji-lock + collection + safelist-rule tests failed).
+- Preview-vs-prod: visible text identical except emoji glyphs removed and the
+  sr-only "love"; all 7 markup delta sites predicted by the plan.
+- The `scale-x-[-1]` flip was dropped with evidence: both `ri:riding-line`
+  and `ri:run-line` face right (head circles at x=16 / x=13.5 of the
+  24-unit viewBox); the flip existed to mirror left-facing emoji.
+
+### 012 — no-op UnoCSS class removal (PR #46, squash `6f0e24c`)
+
+- Nine tokens removed: `card`, `group`, `perspective-1200`, `justify-start`,
+  `flex-none`, `h-full`, 2× `z-20`, `sm:gap-2`, bare `transform`
+  (IntroCard). Evidence per class from comparing built-HTML tokens against
+  stylesheet selectors plus CSS-spec reasoning.
+- **Executor STOP round**: the mandatory before/after screenshot check caught
+  the mobile portrait vanishing. The executor's diagnosis (UnoCSS
+  `--un-*`-defaults preflight collapsing without a bare `transform` class)
+  was **refuted by the reviewer's fresh rebuild** — the full
+  `*,:before,:after,::backdrop` preflight persists; the executor's evidence
+  was a grep substring artifact. The true cause: `perspective-1200` created a
+  stacking context that kept the `z-[-1]` portrait above the card's opaque
+  background. Fix: `isolate` replaces it (intent-revealing, same effect),
+  with a frontmatter comment; verified byte-identical 375×667 screenshots.
+  Round 2 moved that comment out of the template body (an HTML comment there
+  ships once per Card — 8 copies).
+- New class↔rule tripwire test (every class token in dist/index.html must
+  have a stylesheet rule), mutation-tested twice (`unstyled-probe` /
+  `orchestrator-probe`), each failing exactly the tripwire.
+- Preview-vs-prod: visible text identical; markup deltas confined to class
+  attributes.
+
+### 013 — entrance-stagger off-by-one (PR #49, squash `8036d3c`)
+
+- PR #41 grew `<main>` to 8 children; the delay ladder stopped at
+  `nth-child(7)`, so the footer animated with the hero. Added the
+  `nth-child(8) { 0.56s }` rung + a source-hygiene test pinning
+  max(ladder rung) ≥ main child count.
+- Mutation: deleting the tail rung fails the test with "8 children but ladder
+  stops at nth-child(7)". (Reviewer note: deleting a *middle* rung passes by
+  design — the test pins the tail, which is the observed regression class.)
+- Preview-vs-prod: text and markup identical (CSS-only change).
+
+### 014 — rendered coverage for Now/Career (PR #51, squash `b7439e7`)
+
+- Pure test additions: Career loop now asserts `start_date - end_date`,
+  company, and the company_url anchor; new test pins `NOW.description` to
+  body text (body-only matters: the string is a substring of
+  METADATA.description, which reaches only meta attributes).
+- Mutation-tested four ways (drop `<Now/>`, delete dates paragraph, break the
+  anchor href, hardcode the Now paragraph) — each failed exactly the covering
+  test.
+- Preview-vs-prod: identical (test-only change).
+
+## Run-3 outcome vs baseline
+
+| | before run 3 (`4e15674`) | after (`b7439e7`) |
+|---|---|---|
+| tests | 58 | **64** |
+| emoji in shipped page/CSS | 8 | **0** (test-locked) |
+| class tokens without a CSS rule | 2 (`card`, `group`) | **0** (test-locked) |
+| dead/no-op utility tokens | 9 | **0** |
+| entrance stagger coverage | 7 of 8 cards | **8 of 8** (test-locked) |
+| direct dependencies | 18 | 18 |
+| `pnpm audit` | 1 moderate (deliberate) | 1 moderate (unchanged) |
+| index.html gzip | ~3.6 KB | 3,533 B |
+| stylesheet gzip | ~5.9 KB | 7,055 B (+~1.1 KB: 8 icon mask data-URIs replacing font-provided emoji glyphs) |
+
+Deferred/unchanged, with reasons recorded in `plans/README.md`: the four
+run-3 near-findings (Goal CTA aria-label hardcodes "Strava", README's
+singular "cycling goal", llms.txt projects asymmetry, no browser test for the
+theme toggle) and all maintainer-owned items.
