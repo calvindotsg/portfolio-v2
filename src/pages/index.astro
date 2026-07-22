@@ -14,9 +14,13 @@ import {FOOTER, GOALS, METADATA} from "../lib/constants";
         description={METADATA.description}
 >
     <main
-            class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-6xl overflow-hidden relative w-full sm:p-4 sm:gap-2 md:grid-cols-2 md:gap-3 md:p-6 lg:h-screen lg:grid-rows-8 lg:grid-cols-4 lg:gap-4 lg:max-h-[800px]"
+            class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-6xl overflow-hidden relative w-full sm:p-4 sm:gap-2 md:grid-cols-2 md:gap-3 md:p-6 lg:h-screen lg:grid-rows-8 lg:grid-cols-4 lg:gap-4 lg:min-h-[736px] lg:max-h-[800px]"
     >
         <IntroCard/>
+        <!-- The lg grid is packed exactly 32/32 cells. Adding a goal card requires
+             re-balancing the lg row/col spans in IntroCard/AboutMe/Now, otherwise
+             auto-placement pushes Now into a zero-height implicit row and clips
+             its content (see PR #42). -->
         {GOALS.map((goal) => <Goal goal={goal}/>)}
         <AboutMe/>
         <Career/>
