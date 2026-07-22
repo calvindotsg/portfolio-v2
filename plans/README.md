@@ -2,7 +2,11 @@
 
 **Nothing is executable right now.** Three runs are complete: plans 001–014
 are all DONE, merged, and live on https://calvin.sg. Their files and the full
-evidence log are archived in [`done/`](done/README.md).
+evidence log are archived in [`done/`](done/README.md). Plan **015** is also
+DONE (`a4b419b`, 2026-07-22) — it came from the maintainer resolving DIRECT-01
+rather than from an audit run, and its file is still at
+[`015-automate-goal-progress-from-strava.md`](015-automate-goal-progress-from-strava.md)
+pending archival.
 
 Run 3 (2026-07-22, audited at `4e15674`, completed the same day) had two
 mandated items from the maintainer (emoji→icons migration,
@@ -25,15 +29,16 @@ audits anything. Read it first.
 
 ## If you are starting a new run
 
-- **Numbering continues at `015`.** The improve skill requires monotonic
+- **Numbering continues at `016`.** The improve skill requires monotonic
   numbering across runs — do not restart at 001. (*"If `plans/` already exists
   from a previous run, reconcile, don't duplicate: read `plans/README.md`, keep
   numbering monotonic, skip findings already planned or listed as rejected."*)
 - **Do not re-audit the refuted findings or re-propose CI** — see below. Six
   findings were killed by an adversarial skeptic pass with evidence; re-deriving
   them wastes a full audit cycle that has already been paid for once.
-- **The two "deliberately not planned" items are the maintainer's call**, not an
-  agent's. They are not oversights.
+- **The "deliberately not planned" item is the maintainer's call**, not an
+  agent's. It is not an oversight. (DIRECT-01, formerly the second, was resolved
+  by the maintainer on 2026-07-22 → plan 015.)
 - **Re-verify the baseline below before trusting it.** It was true at `f129245`.
   Every failure in the last run came from a plan believing something about the
   repo that had stopped being true — not from bad code.
@@ -65,6 +70,7 @@ recreated.
 | 012 | Remove the no-op UnoCSS classes and lock the class↔rule pairing | P2 | S | 011 | **DONE** (`6f0e24c`) |
 | 013 | Fix the entrance-stagger off-by-one and lock the ladder to the card count | P2 | S | 012 | **DONE** (`8036d3c`) |
 | 014 | Assert the Now card and Career dates/company survive the render | P3 | S | 011 | **DONE** (`b7439e7`) |
+| 015 | Automate goal progress from Strava | P2 | M | — | **DONE** (`a4b419b`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -80,6 +86,10 @@ entries (cycling + running), and `<main>` renders 8 direct children.
 Everything else in the table still holds — spot-checked: `pnpm check` 0
 errors/2 hints, `pnpm eslint` clean, build green, 18 direct dependencies,
 zero external JS files, zero `<svg>`, and now zero emoji (test-locked).
+Post-run-3 correction (plan 015, merged `a4b419b`): the suite is now **67
+assertions**, and the two `GOALS[].current_progress` values are bot-owned — a
+daily workflow writes `src/data/strava-progress.json`, so they are no longer
+hand-edited in `constants.ts` (`total_goal` and `progress_last_year` still are).
 Page weight after run 3: `dist/index.html` 15,735 B raw / **3,533 B gzip**;
 the single stylesheet 24,138 B raw / **7,055 B gzip** (up ~1.1 KB gzip from
 run 2 — the 8 migrated icons each embed an SVG mask data-URI; the emoji they
@@ -203,15 +213,20 @@ re-audited next run:
 
 ## Deliberately not planned
 
-Two direction findings survived vetting but are the maintainer's call, not an
-agent's:
+Two direction findings survived vetting as the maintainer's call, not an
+agent's. **DIRECT-01 has since been decided** (2026-07-22 → plan 015); it is
+kept below with its resolution so the reasoning is not re-derived. DIRECT-04
+remains open:
 
-- **DIRECT-01 — automate `GOAL.current_progress` from Strava.** 38 of the commits
-  touching `src/lib/constants.ts` are manual progress bumps, so the friction is
-  real. But a build-time Strava fetch needs OAuth refresh-token handling and
-  turns a static build into something that can fail on someone else's API, and
-  the number only refreshes when the site rebuilds. Worth a decision, not worth a
-  plan written without one.
+- **DIRECT-01 — resolved 2026-07-22, see plan 015.** The maintainer supplied the
+  decision this finding was waiting on: a daily GitHub Actions cron writes
+  Strava's YTD totals to a bot-owned `src/data/strava-progress.json` that
+  `constants.ts` imports, with a static refresh token in repo secrets and a
+  fail-loud posture (a Strava-side invalidation turns the run red and freezes the
+  number rather than self-healing). The objections above were addressed rather
+  than overruled: the fetch happens in CI, not at build time, so the static build
+  can still never fail on someone else's API — a bad or missing response simply
+  produces no commit.
 - **DIRECT-04 — stale time-bounded copy.** `ABOUT_ME.description` has advertised a
   "latest cycling challenge 1000km in 5 weeks" unchanged for 13 months, and it is
   live in production right now. It is a ten-second edit, but it is the owner's
