@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {GOALS, LINKS, METADATA} from "../src/lib/constants";
+import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
 
 /**
@@ -43,11 +43,33 @@ describe("dist/", () => {
         }
     });
 
+    /**
+     * Plan 011 migrated every emoji to presetIcons mask classes. This is the
+     * gate that keeps them out: emoji pictographs must never appear in the
+     * shipped page or stylesheet again (llms.txt is maintainer-owned prose and
+     * deliberately not scanned). FE0F is the emoji variation selector; the
+     * F000-block ranges cover pictographs, transport symbols and skin tones.
+     */
+    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+
+    it("ships no emoji in the page or stylesheet", () => {
+        expect(read("dist/index.html")).not.toMatch(EMOJI);
+        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"));
+        expect(read(`dist/_astro/${sheet}`)).not.toMatch(EMOJI);
+    });
+
     it("emits a usable CSS rule for every safelisted icon class", () => {
         const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"));
         expect(sheet, "dist/_astro must contain a stylesheet").toBeTruthy();
         const css = read(`dist/_astro/${sheet}`);
-        const wanted = new Set([...LINKS.map(({logo}) => iconClass(logo)), ...GOALS.map(({cta_logo}) => iconClass(cta_logo))]);
+        const wanted = new Set([
+            ...LINKS.map(({logo}) => iconClass(logo)),
+            ...GOALS.map(({cta_logo}) => iconClass(cta_logo)),
+            ...GOALS.map(({goal_logo}) => iconClass(goal_logo)),
+            ...CAREER.map(({icon}) => iconClass(icon)),
+            iconClass(WELCOME.greeting_icon),
+            iconClass(FOOTER.icon),
+        ]);
         for (const cls of wanted) {
             const rule = css.match(new RegExp(`\\.${cls}\\{([^}]*)\\}`))?.[1];
             expect(rule, `${cls} has no CSS rule — the safelist in uno.config.ts stopped matching`).toBeTruthy();

@@ -7,6 +7,7 @@ import IntroCard from "../components/IntroCard.astro";
 import AboutMe from "../components/AboutMe.astro";
 import Now from "../components/Now.astro";
 import {FOOTER, GOALS, METADATA} from "../lib/constants";
+import {iconClass} from "../lib/icons";
 ---
 
 <Layout
@@ -27,7 +28,7 @@ import {FOOTER, GOALS, METADATA} from "../lib/constants";
         <Now/>
         <Card colSpan="md:col-span-1" rowSpan="md:row-span-1">
             <p class="text-xs">
-                {FOOTER.footer}
+                {FOOTER.prefix} <span class={iconClass(FOOTER.icon)} aria-hidden="true"></span><span class="sr-only">love</span>{FOOTER.suffix}
             </p>
         </Card>
     </main>

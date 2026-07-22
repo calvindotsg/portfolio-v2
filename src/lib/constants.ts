@@ -23,7 +23,7 @@ export const CAREER: {
     end_date: string
     job_name: string
     start_date: string
-    emoji: string
+    icon: string
 }[] = [{
     company: "HeyMax",
     company_url: "https://www.heymax.ai",
@@ -34,7 +34,7 @@ export const CAREER: {
     end_date: "Present",
     job_name: "Founding Business Systems Analyst",
     start_date: "Aug 2023",
-    emoji: "🔧"
+    icon: "ri:tools-line"
 }, {
     company: "NCS Group",
     company_url: "https://www.ncs.co/en-sg/",
@@ -45,7 +45,7 @@ export const CAREER: {
     end_date: "Aug 2023",
     job_name: "Business Systems Analyst",
     start_date: "Jun 2022",
-    emoji: "🔎"
+    icon: "ri:search-line"
 }]
 
 export const ABOUT_ME: {
@@ -75,7 +75,7 @@ export const GOALS: Goal[] = [{
     progress_last_year: 1440.8,
     website_url: "https://www.strava.com/athletes/37641259/",
     goal_name: "Cycling",
-    goal_logo: "🚴🏻",
+    goal_logo: "ri:riding-line",
     cta_logo: "fa6-brands:strava",
     measurable_unit: "km"
 }, {
@@ -84,15 +84,17 @@ export const GOALS: Goal[] = [{
     progress_last_year: null,
     website_url: "https://www.strava.com/athletes/37641259/",
     goal_name: "Running",
-    goal_logo: "🏃🏻",
+    goal_logo: "ri:run-line",
     cta_logo: "fa6-brands:strava",
     measurable_unit: "km"
 }]
 
 export const WELCOME: {
+    greeting_icon: string
     description: string[]
 } = {
-    description: ["👋 Hi, I'm Calvin", "Business Systems Analyst.", "Road cyclist.", "Enthusiastic learner."]
+    greeting_icon: "ri:hand",
+    description: ["Hi, I'm Calvin", "Business Systems Analyst.", "Road cyclist.", "Enthusiastic learner."]
 }
 
 export const NOW: {
@@ -102,9 +104,13 @@ export const NOW: {
 }
 
 export const FOOTER: {
-    footer: string
+    prefix: string
+    icon: string
+    suffix: string
 } = {
-    footer: "Built with ❤️, more love to Astro template by Gianmarco"
+    prefix: "Built with",
+    icon: "ri:heart-fill",
+    suffix: ", more love to Astro template by Gianmarco"
 }
 
 export const METADATA: {

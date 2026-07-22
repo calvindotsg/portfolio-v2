@@ -87,7 +87,8 @@ describe("page content", () => {
     });
 
     it("renders the footer", () => {
-        expect(text).toContain(FOOTER.footer);
+        expect(text).toContain(FOOTER.prefix);
+        expect(text).toContain(FOOTER.suffix.replace(/^, /, ""));
     });
 
     it("renders one card per goal, with its figures", () => {
@@ -132,6 +133,20 @@ describe("page content", () => {
         expect(img?.getAttribute("width")).toBeTruthy();
         expect(img?.getAttribute("height")).toBeTruthy();
         expect(img?.getAttribute("alt")).toBeTruthy();
+    });
+
+    it("renders an aria-hidden icon for every icon migrated off emoji", () => {
+        const migrated = [
+            ...CAREER.map(({icon}) => iconClass(icon)),
+            ...GOALS.map(({goal_logo}) => iconClass(goal_logo)),
+            iconClass(WELCOME.greeting_icon),
+            iconClass(FOOTER.icon),
+        ];
+        for (const cls of migrated) {
+            const el = doc.querySelector(`span[class~="${cls}"]`);
+            expect(el, `no element carries the icon class ${cls}`).toBeTruthy();
+            expect(el?.getAttribute("aria-hidden"), `${cls} must be decorative`).toBe("true");
+        }
     });
 
     it("renders a decorative icon element for every configured icon", () => {

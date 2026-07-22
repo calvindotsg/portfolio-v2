@@ -1,16 +1,17 @@
 ---
 interface Props {
     title?: string;
+    titleIcon?: string;
     colSpan?: string;
     rowSpan?: string;
 }
 
-const {title, colSpan, rowSpan} = Astro.props;
+const {title, titleIcon, colSpan, rowSpan} = Astro.props;
 ---
 
 <div
         class={`card group overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] hover:border-[var(--accent)] flex-none h-full justify-start relative perspective-1200 w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
-    {title && <h2 class="text-xl font-bold m-0 z-20">{title}</h2>}
+    {title && <h2 class="text-xl font-bold m-0 z-20">{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
     <slot/>
 </div>
