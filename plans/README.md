@@ -60,7 +60,7 @@ recreated.
 | 010 | Harden the layout head: no-JS default theme, dead og:image fallback, social-tag assertions | P2 | S | — | **DONE** (`1f06c27`) |
 | 011 | Migrate every emoji to a UnoCSS presetIcons icon | P1 | M | — | **DONE** (`7950203`) |
 | 012 | Remove the no-op UnoCSS classes and lock the class↔rule pairing | P2 | S | 011 | **DONE** (`6f0e24c`) |
-| 013 | Fix the entrance-stagger off-by-one and lock the ladder to the card count | P2 | S | 012 | TODO |
+| 013 | Fix the entrance-stagger off-by-one and lock the ladder to the card count | P2 | S | 012 | **DONE** (`8036d3c`) |
 | 014 | Assert the Now card and Career dates/company survive the render | P3 | S | 011 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
