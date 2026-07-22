@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import {beforeAll, describe, expect, it} from "vitest";
 
 import Index from "../src/pages/index.astro";
-import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
+import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NOW, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
 
 let doc: Document;
@@ -83,7 +83,17 @@ describe("page content", () => {
         for (const job of CAREER) {
             expect(text).toContain(job.job_name);
             for (const line of job.description) expect(text).toContain(line);
+            expect(text).toContain(`${job.start_date} - ${job.end_date}`);
+            expect(text).toContain(job.company);
+            expect([...doc.querySelectorAll("a")].map((a) => a.getAttribute("href")), `${job.company} link`).toContain(job.company_url);
         }
+    });
+
+    it("renders the Now card's status line", () => {
+        // NOW.description is a substring of METADATA.description, which only
+        // reaches <meta content> attributes — `text` is body-only, so this
+        // fails if <Now/> is dropped from the page.
+        expect(text).toContain(NOW.description);
     });
 
     it("renders the footer", () => {
