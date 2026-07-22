@@ -10,6 +10,13 @@ on:
 permissions:
   contents: write
 
+# A manual run overlapping the cron would push the same file from two checkouts;
+# the second push is then rejected non-fast-forward. Never cancel in flight —
+# that could kill a run between its commit and its push.
+concurrency:
+  group: strava-progress
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest

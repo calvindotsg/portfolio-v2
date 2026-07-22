@@ -120,9 +120,13 @@ describe("page content", () => {
     it("renders an accessible progress bar per goal", () => {
         const bars = [...doc.querySelectorAll('[role="progressbar"]')];
         expect(bars.length, "one progressbar element per goal").toBe(GOALS.length);
-        for (const goal of GOALS) {
-            const bar = bars.find((b) => b.getAttribute("aria-valuenow") === String(goal.current_progress));
-            expect(bar, `a progressbar must carry aria-valuenow ${goal.current_progress}`).toBeTruthy();
+        GOALS.forEach((goal, i) => {
+            // Positional, not a lookup by aria-valuenow: the figures are
+            // bot-driven and can tie — Strava's YTD totals reset both goals to 0
+            // every 1 January — and a value-based find() then returns the first
+            // bar for both goals, failing the assertions below on the second.
+            const bar = bars[i];
+            expect(bar?.getAttribute("aria-valuenow"), `a progressbar must carry aria-valuenow ${goal.current_progress}`).toBe(String(goal.current_progress));
             expect(bar?.getAttribute("aria-valuemin")).toBe("0");
             expect(bar?.getAttribute("aria-valuemax"), "max is in km, not 100, so it must be the goal target").toBe(String(goal.total_goal));
             expect(bar?.getAttribute("aria-valuetext")).toBe(`${goal.current_progress} of ${goal.total_goal} ${goal.measurable_unit}`);
@@ -130,7 +134,7 @@ describe("page content", () => {
             const percent = Math.max(0, Math.min(100, (goal.current_progress / goal.total_goal) * 100));
             expect(bar?.querySelector(".progress-fill")?.getAttribute("style"), "the fill width must derive from the goal's own figures")
                 .toBe(`--progress: ${percent}%`);
-        }
+        });
     });
 
     it("renders an anchor for every configured link", () => {

@@ -84,4 +84,7 @@ The site is a fully static build deployed to Netlify:
 
 ## Memories
 
-- Any user configurable variable are implemented and configured in `src/lib/constants.ts`
+- Any user configurable variable belongs in one of exactly three places: a
+  GitHub repository secret, a GitHub repository variable, or
+  `src/lib/constants.ts`. Scripts and workflows hold no configuration of their
+  own — see README.md "Configuration".

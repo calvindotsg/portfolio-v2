@@ -99,7 +99,10 @@ fails the deploy and Netlify keeps serving the last good build.
   (`eslint.config.js:7`) is repo-wide `**/*.{js,astro}`, but neither glob
   matches a `.mjs` extension — the script is outside the gate twice over
   (path outside `src/`, extension outside the glob). lint-staged has the
-  same CLI glob (`package.json:40-44`), and `astro check` skips it
+  same CLI glob (`package.json:40-44`). Corollary the review corrected:
+  `pnpm check` still *parses* the file — a syntax error surfaces as ts(1005)
+  and fails the Netlify build — so the script sits outside the *lint* gate but
+  not outside the *build* gate. `astro check` does not type-check its contents
   (`allowJs: true` but `checkJs` unset). `.gitignore` is a plain blacklist
   touching neither `src/data/` nor `.github/`.
 - **Node is unpinned everywhere** (no `engines`, no `.nvmrc`, no
@@ -491,12 +494,22 @@ rendered-output assertions (`rendered-html.test.ts:104-134`) all read GOALS,
 which now reads the JSON — they gate every bot commit at Netlify deploy
 time. New: 3 tests (step 6), mutation-tested (step 7).
 
-Known benign edge, noted not fixed: `rendered-html.test.ts:124` locates each
-progressbar by `aria-valuenow` string match, so if both goals ever hold the
-same `current_progress` (e.g. both `0` on Jan 1 after Strava's YTD reset),
-`find()` returns the first bar for both goals and the `aria-valuemax` check
-at `:127` could fail spuriously for the second. If a January deploy fails
-that way, fix the test's bar-selection (scope by goal card), not the data.
+**Fixed during review, not deferred.** This was drafted as a "known benign
+edge"; the review panel proved it is neither benign nor spurious.
+`rendered-html.test.ts` located each progressbar by `aria-valuenow` string
+match. Once the figures are bot-driven they *will* tie — Strava's YTD resets
+both goals to 0 every 1 January — and `find()` then returns the Cycling bar
+for both goals, failing the `aria-valuemax` assertion. Because `netlify.toml`
+runs `pnpm check && pnpm test`, and the bot's commit reaches `main` before any
+gate runs, that fails **every** deploy of main (not just the bot's) until a
+human edits the test. Selection is now positional and asserts `aria-valuenow`
+rather than searching by it — verified passing at 0/0 and at live values, and
+still failing when `aria-valuenow` or `aria-valuemax` is mutated away.
+
+Known coverage gap, recorded not fixed: the script's `main()` is unexported and
+untested, so a ride/run field swap would pass the whole suite. No live defect
+(the shipped mapping is correct, verified by execution); covering it would mean
+refactoring `main()` for testability.
 
 ## Failure modes
 
@@ -510,6 +523,7 @@ that way, fix the test's bar-selection (scope by goal card), not the data.
 | Clamp/validation bug ships a bad value to main | Netlify build runs `pnpm check && pnpm test` → deploy fails, last good build keeps serving; deploys stay frozen until fixed | Fix the script (the step-6 tests are load-bearing for exactly this) |
 | Scheduled workflow auto-disabled (public repo, 60 days without repo activity — bot commits normally reset the timer, but a long no-exercise + no-push gap will not) | Number silently freezes, no red signal | Actions tab → re-enable, or run `workflow_dispatch` |
 | Scheduled workflow never armed because the repo is a fork (`state: disabled_fork`) | Cron never fires; number silently freezes; `workflow_dispatch` still works | Step 9's state check; `gh api -X PUT .../actions/workflows/<id>/enable` |
+| Bot push rejected non-fast-forward (a human commit, or an overlapping manual run, lands between checkout and push) | Run red, that day's update dropped | `concurrency: {group: strava-progress, cancel-in-progress: false}` prevents the self-collision; a human collision stays fail-loud and retries at the next cron |
 | Jan 1 YTD reset | Both values drop toward 0 — annual-goal semantics, expected | See the test-plan edge note |
 
 ## Done criteria
@@ -526,7 +540,7 @@ Machine-checkable. ALL must hold:
       goes against a temp re-serialization because `git diff` would be
       vacuously quiet while the JSON is still untracked.)
 - [ ] `.github/workflows/strava-progress.yml` exists with `permissions: contents: write`, the cron, and `workflow_dispatch`; the YAML-sanity command prints `OK`
-- [ ] All four step-7 mutations reported (fail-then-green)
+- [ ] All five step-7 mutations reported, including the two that survive
 - [ ] `git status` — no files outside the in-scope list modified
 - [ ] (post-merge, maintainer) one green `workflow_dispatch` run per step 9
 
@@ -549,8 +563,12 @@ Stop and report back (do not improvise) if:
 One revert commit restores the status quo: delete
 `.github/workflows/strava-progress.yml`, `scripts/fetch-strava-progress.mjs`
 and `src/data/strava-progress.json`, restore the two `current_progress`
-literals in `constants.ts` (copy the JSON's last values), and remove the
-step-6 describe block. No state lives anywhere else — secrets can stay set
+literals in `constants.ts` (copy the JSON's last values) and remove
+`clampToGoal`, the `RAW_GOALS`/`GOALS` split and the JSON import; remove the
+step-6 describe block **and its three import bindings** in
+`tests/constants.test.ts`; drop item 3 from README.md's Configuration section.
+KEEP the `rendered-html.test.ts` selector fix and the CLAUDE.md wording — both
+are independent improvements. No state lives anywhere else — secrets can stay set
 harmlessly or be removed with `gh secret delete`.
 
 ## plans/README.md updates (reviewer applies at acceptance — not the executor)
