@@ -67,7 +67,7 @@ export const GOAL: {
     cta_logo: string
     measurable_unit: string
 } = {
-    total_goal: 3000,
+    total_goal: 5000,
     current_progress: 2246.4,
     progress_last_year: 1440.8,
     website_url: "https://www.strava.com/athletes/37641259/",
