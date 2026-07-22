@@ -24,10 +24,10 @@ const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
         aria-valuetext={`${currentProgress} of ${totalGoal} ${unit}`}
 >
     <div
-            class="progress-fill h-full bg-[var(--shadow)] rounded-full px-2 box-border relative"
+            class="progress-fill h-full bg-[var(--shadow)] rounded-full px-2 box-border flex items-center justify-end"
             style={`--progress: ${percent}%`}
     >
-        <span aria-hidden="true" class={`${iconClass(goalLogo)} absolute right-6 top-1.5 translate-x-1/2 -translate-y-1/4 text-base`}></span>
+        <span aria-hidden="true" class={`${iconClass(goalLogo)} shrink-0 text-base`}></span>
     </div>
 </div>
 
