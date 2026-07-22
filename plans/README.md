@@ -58,7 +58,7 @@ recreated.
 | 008 | Serve the portrait at device resolution | P2 | XS | 002, 004 | **DONE** (`b14287d`) |
 | 009 | Refresh the lockfile in-range, clearing 9 of 10 audit advisories | P2 | S | — | **DONE** (`c00dd73`) |
 | 010 | Harden the layout head: no-JS default theme, dead og:image fallback, social-tag assertions | P2 | S | — | **DONE** (`1f06c27`) |
-| 011 | Migrate every emoji to a UnoCSS presetIcons icon | P1 | M | — | TODO |
+| 011 | Migrate every emoji to a UnoCSS presetIcons icon | P1 | M | — | **DONE** (`7950203`) |
 | 012 | Remove the no-op UnoCSS classes and lock the class↔rule pairing | P2 | S | 011 | TODO |
 | 013 | Fix the entrance-stagger off-by-one and lock the ladder to the card count | P2 | S | 012 | TODO |
 | 014 | Assert the Now card and Career dates/company survive the render | P3 | S | 011 | TODO |
