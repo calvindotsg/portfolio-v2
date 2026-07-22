@@ -57,16 +57,19 @@ export const ABOUT_ME: {
     ]
 }
 
-export const GOAL: {
+export type Goal = {
     total_goal: number
     current_progress: number
-    progress_last_year: number
+    /** null when there is no comparable figure — e.g. first year back at the sport */
+    progress_last_year: number | null
     website_url: string
     goal_name: string
     goal_logo: string
     cta_logo: string
     measurable_unit: string
-} = {
+}
+
+export const GOALS: Goal[] = [{
     total_goal: 5000,
     current_progress: 2246.4,
     progress_last_year: 1440.8,
@@ -75,7 +78,16 @@ export const GOAL: {
     goal_logo: "🚴🏻",
     cta_logo: "fa6-brands:strava",
     measurable_unit: "km"
-}
+}, {
+    total_goal: 1000,
+    current_progress: 138,
+    progress_last_year: null,
+    website_url: "https://www.strava.com/athletes/37641259/",
+    goal_name: "Running",
+    goal_logo: "🏃🏻",
+    cta_logo: "fa6-brands:strava",
+    measurable_unit: "km"
+}]
 
 export const WELCOME: {
     description: string[]
@@ -106,7 +118,7 @@ export const METADATA: {
     email_obfuscated: string
 } = {
     title: "Calvin - Business Systems Analyst | Road Cyclist | Enthusiastic Learner",
-    description: "Building things at a startup, probably cycling when you find me. Join my 3000km cycling goal this year.",
+    description: "Building things at a startup, probably cycling when you find me. Join my 5000km cycling and 1000km running goals this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
     image_url: "https://calvin.sg/preview.jpg",

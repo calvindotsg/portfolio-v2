@@ -1,29 +1,37 @@
 ---
 import Card from "./Card/index.astro";
-import {GOAL} from "../lib/constants";
+import type {Goal} from "../lib/constants";
 import Button from "./Button.astro";
 import {iconClass} from "../lib/icons";
 import ProgressBar from './ProgressBar.astro';
+
+interface Props {
+    goal: Goal;
+}
+
+const {goal} = Astro.props;
 ---
 
-<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${GOAL.goal_name} goal this year`>
+<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${goal.goal_name} goal this year`>
     <div class="flex justify-between w-full items-start mb-2">
         <div class="flex flex-col w-full px-3">
             <ProgressBar
-                         currentProgress={GOAL.current_progress}
-                         totalGoal={GOAL.total_goal}
-                         goalLogo={GOAL.goal_logo}
+                         currentProgress={goal.current_progress}
+                         totalGoal={goal.total_goal}
+                         goalLogo={goal.goal_logo}
+                         label=`${goal.goal_name} progress`
+                         unit={goal.measurable_unit}
             />
             <div class="mt-4 flex items-center justify-between text-xs font-light">
                 <!-- Left side text, stacked vertically -->
                 <div class="flex flex-col space-y-1">
-                    <span>{GOAL.current_progress} {GOAL.measurable_unit} of {GOAL.total_goal} {GOAL.measurable_unit}</span>
-                    <span>Last year's: {GOAL.progress_last_year} {GOAL.measurable_unit}</span>
+                    <span>{goal.current_progress} {goal.measurable_unit} of {goal.total_goal} {goal.measurable_unit}</span>
+                    <span>Last year's: {goal.progress_last_year !== null ? `${goal.progress_last_year} ${goal.measurable_unit}` : "–"}</span>
                 </div>
                 <!-- Right side button -->
-                <a href={GOAL.website_url} target="_blank" aria-label="Follow me link" class="ml-4">
+                <a href={goal.website_url} target="_blank" aria-label="Follow me link" class="ml-4">
                     <Button>
-                        <span class={iconClass(GOAL.cta_logo)} aria-hidden="true"></span>
+                        <span class={iconClass(goal.cta_logo)} aria-hidden="true"></span>
                         <span class="sr-only">Follow me</span>
                     </Button>
                 </a>

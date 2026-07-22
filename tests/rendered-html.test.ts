@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import {beforeAll, describe, expect, it} from "vitest";
 
 import Index from "../src/pages/index.astro";
-import {ABOUT_ME, CAREER, FOOTER, GOAL, LINKS, METADATA, WELCOME} from "../src/lib/constants";
+import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
 
 let doc: Document;
@@ -90,9 +90,30 @@ describe("page content", () => {
         expect(text).toContain(FOOTER.footer);
     });
 
-    it("renders the goal figures", () => {
-        expect(text).toContain(String(GOAL.current_progress));
-        expect(text).toContain(String(GOAL.total_goal));
+    it("renders one card per goal, with its figures", () => {
+        for (const goal of GOALS) {
+            expect(text).toContain(`My ${goal.goal_name} goal this year`);
+            expect(text).toContain(String(goal.current_progress));
+            expect(text).toContain(String(goal.total_goal));
+            if (goal.progress_last_year !== null) {
+                expect(text).toContain(String(goal.progress_last_year));
+            }
+        }
+        // A null progress_last_year renders as a dash, never as a literal "null".
+        expect(text).not.toContain("null");
+    });
+
+    it("renders an accessible progress bar per goal", () => {
+        const bars = [...doc.querySelectorAll('[role="progressbar"]')];
+        expect(bars.length, "one progressbar element per goal").toBe(GOALS.length);
+        const valuenows = bars.map((b) => b.getAttribute("aria-valuenow"));
+        for (const goal of GOALS) {
+            expect(valuenows).toContain(String(goal.current_progress));
+        }
+        for (const bar of bars) {
+            expect(bar.getAttribute("aria-label"), "progressbar needs an accessible name").toBeTruthy();
+            expect(bar.getAttribute("aria-valuemax"), "max is in km, not 100, so it must be explicit").toBeTruthy();
+        }
     });
 
     it("renders an anchor for every configured link", () => {
@@ -108,12 +129,12 @@ describe("page content", () => {
     });
 
     it("renders a decorative icon element for every configured icon", () => {
-        const wanted = [...LINKS.map(({logo}) => iconClass(logo)), iconClass(GOAL.cta_logo)];
+        const wanted = [...LINKS.map(({logo}) => iconClass(logo)), ...GOALS.map(({cta_logo}) => iconClass(cta_logo))];
         // Count *references*, not distinct classes. `fa6-brands:strava` is used
-        // twice — once in LINKS, once as GOAL.cta_logo — so 7 references collapse
-        // to 6 classes. Asserting per class lets querySelector return the first
-        // copy and leaves the second element, the Goal CTA icon, unchecked:
-        // deleting it outright kept the whole suite green.
+        // once in LINKS plus once per goal CTA, so the references collapse to
+        // fewer classes. Asserting per class lets querySelector return the first
+        // copy and leaves the later elements, the Goal CTA icons, unchecked:
+        // deleting one outright kept the whole suite green.
         const els = [...doc.querySelectorAll("span")]
             .filter((s) => wanted.includes(s.getAttribute("class") ?? ""));
         expect(els.length, "one icon element per configured icon reference").toBe(wanted.length);
