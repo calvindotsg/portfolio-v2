@@ -10,16 +10,24 @@
         aria-live="polite"
         class="theme-toggle flex justify-center items-center text-xl max-h-[40px] max-w-[60px] shadow-custom shadow-[var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] text-[var(--text)] px-5 py-1 border border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out bg-[var(--background)] cursor-pointer rounded-lg"
 >
+    <span class="i-ri-sun-line theme-icon-light" aria-hidden="true"></span>
+    <span class="i-ri-moon-line theme-icon-dark" aria-hidden="true"></span>
     <span class="sr-only">Toggle Theme</span>
 </button>
 
 <style is:global>
-    .theme-toggle::before {
-        content: "🔆";
+    /* data-theme is always "light" or "dark" (set pre-paint in BasicLayout);
+       the descendant selector outranks presetIcons' display:inline-block. */
+    .theme-toggle .theme-icon-dark {
+        display: none;
     }
 
-    :root[data-theme="dark"] .theme-toggle::before {
-        content: "🌙";
+    :root[data-theme="dark"] .theme-toggle .theme-icon-light {
+        display: none;
+    }
+
+    :root[data-theme="dark"] .theme-toggle .theme-icon-dark {
+        display: inline-block;
     }
 </style>
 

@@ -1,13 +1,15 @@
 ---
 import Card from "./Card/index.astro";
 import {CAREER} from "../lib/constants";
+import {iconClass} from "../lib/icons";
 ---
 
 {CAREER.map((job) => (
 <Card
         colSpan="md:col-span-1"
         rowSpan="md:row-span-6"
-        title=`${job.emoji} I'm a ${job.job_name}`
+        title=`I'm a ${job.job_name}`
+        titleIcon={iconClass(job.icon)}
 >
     <div class="flex flex-col gap-2">
         <ul class="text-sm font-light list-disc list-inside">

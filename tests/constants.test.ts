@@ -72,6 +72,7 @@ describe("GOALS", () => {
     it("names an icon from an installed iconify collection", () => {
         for (const goal of GOALS) {
             expect(ICON_COLLECTIONS, `${goal.goal_name} cta_logo`).toContain(goal.cta_logo.split(":")[0]);
+            expect(ICON_COLLECTIONS, `${goal.goal_name} goal_logo`).toContain(goal.goal_logo.split(":")[0]);
         }
     });
 
@@ -81,7 +82,7 @@ describe("GOALS", () => {
         }
     });
 
-    it("has a visible progress emoji and unit", () => {
+    it("has a visible progress icon and unit", () => {
         for (const goal of GOALS) {
             expect(goal.goal_logo, `${goal.goal_name} goal_logo`).not.toBe("");
             expect(goal.measurable_unit, `${goal.goal_name} measurable_unit`).not.toBe("");
@@ -101,6 +102,12 @@ describe("CAREER", () => {
             expect(job.start_date).toBeTruthy();
             expect(job.end_date).toBeTruthy();
             expect(job.description.length).toBeGreaterThan(0);
+        }
+    });
+
+    it("names a title icon from an installed iconify collection", () => {
+        for (const job of CAREER) {
+            expect(ICON_COLLECTIONS, `${job.company} icon`).toContain(job.icon.split(":")[0]);
         }
     });
 });
@@ -138,7 +145,7 @@ describe("prose blocks", () => {
         expect(WELCOME.description.length).toBeGreaterThan(0);
         expect(ABOUT_ME.description.length).toBeGreaterThan(0);
         expect(NOW.description.length).toBeGreaterThan(0);
-        expect(FOOTER.footer.length).toBeGreaterThan(0);
+        expect((FOOTER.prefix + FOOTER.suffix).length).toBeGreaterThan(0);
     });
 });
 
