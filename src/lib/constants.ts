@@ -28,11 +28,11 @@ export const CAREER: {
     company: "HeyMax",
     company_url: "https://www.heymax.ai",
     description: [
-        "Started as a community member, now an engineer turning your pain points into smiles",
-        "Built customer support from scratch as we grew to 5 figure weekly active users"
+        "Started as a community member, now an engineer turning your pain points into processes",
+        "Built customer support and ops from scratch, growing towards 6 figure weekly active users"
     ],
     end_date: "Present",
-    job_name: "Business Systems Analyst",
+    job_name: "Founding Business Systems Analyst",
     start_date: "Aug 2023",
     emoji: "🔧"
 }, {
