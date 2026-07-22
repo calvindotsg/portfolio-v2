@@ -1,23 +1,28 @@
 # Implementation Plans
 
-**Nothing is executable right now.** Two runs are complete: plans 001–008
-(run 1) and 009–010 (run 2) are all DONE, merged, and live on
-https://calvin.sg. Their files and the full evidence log are archived in
-[`done/`](done/README.md).
+**Run 3 is in progress: plans 011–014 are TODO.** Runs 1–2 (plans 001–010)
+are DONE, merged, and live on https://calvin.sg; their files and the full
+evidence log are archived in [`done/`](done/README.md).
 
-Run 2's deep audit fanned nine read-only auditors over the repo; they returned
-**8 findings, of which the adversarial skeptic pass and advisor review left 2
-worth acting on** — five categories (security, performance, DX, docs,
-direction) returned zero findings, which on this baseline is the correct
-outcome, not a failed audit. Everything killed is recorded below so it is not
-re-derived.
+Run 3 (2026-07-22, audited at `4e15674`) has two mandated items from the
+maintainer (emoji→icons migration, unnecessary-UnoCSS-classes cleanup — plans
+011–012) plus a deep audit: nine read-only opus auditors, one opus skeptic
+per finding. The audit returned **3 findings, all skeptic-CONFIRMED, but two
+were the same defect** (the entrance-stagger off-by-one, reported by both the
+correctness and debt auditors) — net **2 surviving findings** (plans
+013–014). Six categories (security, performance, deps, DX, docs, direction)
+returned zero findings, which on this baseline is the correct outcome.
+
+Run 2's deep audit had returned 8 findings, of which the adversarial skeptic
+pass and advisor review left 2 worth acting on. Everything killed in any run
+is recorded below so it is not re-derived.
 
 This file is the **living index**: the state a new `improve` run needs before it
 audits anything. Read it first.
 
 ## If you are starting a new run
 
-- **Numbering continues at `011`.** The improve skill requires monotonic
+- **Numbering continues at `015`.** The improve skill requires monotonic
   numbering across runs — do not restart at 001. (*"If `plans/` already exists
   from a previous run, reconcile, don't duplicate: read `plans/README.md`, keep
   numbering monotonic, skip findings already planned or listed as rejected."*)
@@ -53,13 +58,25 @@ recreated.
 | 008 | Serve the portrait at device resolution | P2 | XS | 002, 004 | **DONE** (`b14287d`) |
 | 009 | Refresh the lockfile in-range, clearing 9 of 10 audit advisories | P2 | S | — | **DONE** (`c00dd73`) |
 | 010 | Harden the layout head: no-JS default theme, dead og:image fallback, social-tag assertions | P2 | S | — | **DONE** (`1f06c27`) |
+| 011 | Migrate every emoji to a UnoCSS presetIcons icon | P1 | M | — | TODO |
+| 012 | Remove the no-op UnoCSS classes and lock the class↔rule pairing | P2 | S | 011 | TODO |
+| 013 | Fix the entrance-stagger off-by-one and lock the ladder to the card count | P2 | S | 012 | TODO |
+| 014 | Assert the Now card and Career dates/company survive the render | P3 | S | 011 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
 Plan 008 did not come from the audit — it was raised from a production PageSpeed
 report mid-run and executed out of numeric order.
 
-## Baseline: what this repo is now (verified at `f129245`, updated after run 2 at `1f06c27`)
+## Baseline: what this repo is now (verified at `f129245`, updated after run 2 at `1f06c27`, re-verified for run 3 at `4e15674`)
+
+Run-3 corrections to the table below, verified 2026-07-22 at `4e15674` (PRs
+#41–#42 and two content commits landed between runs): **tests are now 58
+assertions** (still 3 files; PRs #41/#42 added 5), `GOALS` has two entries
+(cycling + running), and `<main>` renders 8 direct children. Everything else
+in the table still holds — spot-checked: `pnpm check` 0 errors/2 hints,
+`pnpm eslint` clean, build green, 18 direct dependencies, zero external JS
+files, zero `<svg>`.
 
 A fresh audit should start from these facts rather than re-deriving them, and
 should re-check any it intends to rely on.
@@ -84,6 +101,30 @@ smaller* wins than the first one found, and should say so plainly when a finding
 is cosmetic.
 
 ## Findings considered and rejected
+
+### Run 3 (2026-07-22, audited at `4e15674`)
+
+The mandated UnoCSS-classes lead **reproduced with evidence** — nine dead or
+no-op class tokens, all relics of the upstream tilt effect deleted in plan
+003 (see plan 012 for the per-class evidence table). The audit's near-misses,
+recorded by the auditors themselves as not-findings — do not re-derive:
+
+- **Goal.astro's CTA `aria-label` hardcodes "Strava" while `cta_logo` is a
+  variable.** No bug today (both goals point at Strava); a future non-Strava
+  goal would mislabel its CTA. Maintainer-owned content surface; not planned.
+- **README.md:68 says "cycling goal" (singular)** vs the two-goal reality
+  after PR #41. One-word incompleteness; the same sentence points at
+  `constants.ts` where the running goal is visible, and CLAUDE.md is correct.
+  Taste-tier; not planned.
+- **`public/llms.txt` lists projects the site never shows** (surface
+  asymmetry). Proposing a projects section is the maintainer's call, and the
+  lg grid is packed exactly 32/32 (see the comment in `src/pages/index.astro`)
+  — adding a card has a real layout cost. Not planned.
+- **No browser-driven test for the theme toggle / localStorage round-trip.**
+  Adopting Playwright infrastructure for two lines of client JS on a static
+  one-pager is disproportionate; the SSR-only test posture is deliberate.
+- **CORRECT-01 and DEBT-01 were the same finding** (entrance-stagger
+  off-by-one) reported through two category lenses; merged into plan 013.
 
 ### Run 2 (2026-07-21, audited at `c8fe10f`)
 
