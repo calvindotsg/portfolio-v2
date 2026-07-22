@@ -1,12 +1,10 @@
 # Implementation Plans
 
 **Nothing is executable right now.** Three runs are complete: plans 001–014
-are all DONE, merged, and live on https://calvin.sg. Their files and the full
-evidence log are archived in [`done/`](done/README.md). Plan **015** is also
-DONE (`a4b419b`, 2026-07-22) — it came from the maintainer resolving DIRECT-01
-rather than from an audit run, and its file is still at
-[`015-automate-goal-progress-from-strava.md`](015-automate-goal-progress-from-strava.md)
-pending archival.
+are all DONE, merged, and live on https://calvin.sg, as is plan **015**, which
+came from the maintainer resolving DIRECT-01 rather than from an audit run.
+Every plan file and the full evidence log are archived in
+[`done/`](done/README.md).
 
 Run 3 (2026-07-22, audited at `4e15674`, completed the same day) had two
 mandated items from the maintainer (emoji→icons migration,
