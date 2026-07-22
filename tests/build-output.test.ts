@@ -189,6 +189,18 @@ describe("source hygiene", () => {
         }
     });
 
+    it("covers every card with an entrance-stagger delay rule", () => {
+        // PR #41 added an 8th <main> child while the delay ladder stopped at
+        // nth-child(7), so the footer animated on the same frame as the hero.
+        // The ladder is hand-written CSS; this is the lockstep check.
+        const layout = read("src/layouts/BasicLayout.astro");
+        const rungs = [...layout.matchAll(/nth-child\((\d+)\)\s*\{\s*animation-delay/g)].map((m) => Number(m[1]));
+        expect(rungs.length, "the entrance cascade must exist").toBeGreaterThan(0);
+        const cards = parseHTML(read("dist/index.html")).document.querySelector("main")?.children.length ?? 0;
+        expect(cards, "main must render cards").toBeGreaterThan(0);
+        expect(Math.max(...rungs), `main renders ${cards} children but the delay ladder stops at nth-child(${Math.max(...rungs)})`).toBeGreaterThanOrEqual(cards);
+    });
+
     it("gives every class token in the shipped HTML a rule in the stylesheet", () => {
         // UnoCSS fails silently on unknown utilities and Astro drops nothing:
         // a dead class ships as markup bytes with no effect. After plan 012
