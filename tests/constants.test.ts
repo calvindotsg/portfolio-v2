@@ -1,6 +1,8 @@
 import {describe, expect, it} from "vitest";
 
-import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NOW, WELCOME} from "../src/lib/constants";
+import {ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, LINKS, METADATA, NOW, WELCOME} from "../src/lib/constants";
+import stravaProgress from "../src/data/strava-progress.json";
+import {kmFromMeters} from "../scripts/fetch-strava-progress.mjs";
 
 /**
  * `src/lib/constants.ts` is the single source of truth for every piece of site
@@ -153,5 +155,38 @@ describe("NOW", () => {
     it("is a single string, so a second sentence cannot silently run together", () => {
         expect(typeof NOW.description).toBe("string");
         expect(Array.isArray(NOW.description)).toBe(false);
+    });
+});
+
+describe("strava progress wiring", () => {
+    it("feeds current_progress from the bot-owned JSON", () => {
+        const written = {Cycling: stravaProgress.cycling_km, Running: stravaProgress.running_km};
+        for (const goal of GOALS) {
+            const raw = written[goal.goal_name as keyof typeof written];
+            // Guards the JSON's shape: a renamed or dropped key arrives here as
+            // undefined, which would otherwise satisfy the comparison below.
+            expect(Number.isFinite(raw), `${goal.goal_name} km must be a finite number`).toBe(true);
+            expect(raw, goal.goal_name).toBeGreaterThanOrEqual(0);
+            // Compared through the clamp so an overshot year is not a test failure.
+            expect(goal.current_progress, goal.goal_name).toBe(clampToGoal(raw, goal.total_goal));
+        }
+    });
+
+    it("caps an overshot year at the goal, so total_goal is the only knob", () => {
+        // The bot writes raw km; the clamp lives next to total_goal rather
+        // than in the script, which holds no configuration of its own.
+        expect(clampToGoal(6000, 5000)).toBe(5000);
+        expect(clampToGoal(2246.4, 5000)).toBe(2246.4);
+        for (const goal of GOALS) {
+            expect(goal.current_progress, `${goal.goal_name}`).toBeLessThanOrEqual(goal.total_goal);
+        }
+    });
+
+    it("converts meters to km rounded to 1 decimal, and rejects garbage", () => {
+        expect(kmFromMeters(2246412.3, "ride")).toBe(2246.4);
+        expect(kmFromMeters(0, "ride")).toBe(0);
+        for (const bad of [undefined, null, NaN, Infinity, -1, "138"]) {
+            expect(() => kmFromMeters(bad, "ride"), String(bad)).toThrow();
+        }
     });
 });
