@@ -108,7 +108,7 @@ export const WELCOME: {
     greeting_icon: string
     description: string[]
 } = {
-    greeting_icon: "",
+    greeting_icon: null,
     description: ["Hi, I'm Calvin", "Business Systems Analyst.", "Road cyclist.", "Enthusiastic learner."]
 }
 
