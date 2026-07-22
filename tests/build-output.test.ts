@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {GOAL, LINKS, METADATA} from "../src/lib/constants";
+import {GOALS, LINKS, METADATA} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
 
 /**
@@ -47,7 +47,7 @@ describe("dist/", () => {
         const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"));
         expect(sheet, "dist/_astro must contain a stylesheet").toBeTruthy();
         const css = read(`dist/_astro/${sheet}`);
-        const wanted = new Set([...LINKS.map(({logo}) => iconClass(logo)), iconClass(GOAL.cta_logo)]);
+        const wanted = new Set([...LINKS.map(({logo}) => iconClass(logo)), ...GOALS.map(({cta_logo}) => iconClass(cta_logo))]);
         for (const cls of wanted) {
             const rule = css.match(new RegExp(`\\.${cls}\\{([^}]*)\\}`))?.[1];
             expect(rule, `${cls} has no CSS rule — the safelist in uno.config.ts stopped matching`).toBeTruthy();

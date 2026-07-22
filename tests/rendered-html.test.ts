@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import {beforeAll, describe, expect, it} from "vitest";
 
 import Index from "../src/pages/index.astro";
-import {ABOUT_ME, CAREER, FOOTER, GOAL, LINKS, METADATA, WELCOME} from "../src/lib/constants";
+import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
 
 let doc: Document;
@@ -90,9 +90,36 @@ describe("page content", () => {
         expect(text).toContain(FOOTER.footer);
     });
 
-    it("renders the goal figures", () => {
-        expect(text).toContain(String(GOAL.current_progress));
-        expect(text).toContain(String(GOAL.total_goal));
+    it("renders one card per goal, with its figures", () => {
+        for (const goal of GOALS) {
+            expect(text).toContain(`My ${goal.goal_name} goal this year`);
+            // Composed phrases, not bare numbers: "1000" alone also appears in
+            // ABOUT_ME prose, so a bare containment cannot fail for the card.
+            expect(text).toContain(`${goal.current_progress} ${goal.measurable_unit} of ${goal.total_goal} ${goal.measurable_unit}`);
+            if (goal.progress_last_year !== null) {
+                expect(text).toContain(`Last year's: ${goal.progress_last_year} ${goal.measurable_unit}`);
+            } else {
+                // null renders as a visible dash (with an sr-only explanation),
+                // never as a literal "null" or an empty figure.
+                expect(text).toContain("Last year's: –");
+            }
+        }
+    });
+
+    it("renders an accessible progress bar per goal", () => {
+        const bars = [...doc.querySelectorAll('[role="progressbar"]')];
+        expect(bars.length, "one progressbar element per goal").toBe(GOALS.length);
+        for (const goal of GOALS) {
+            const bar = bars.find((b) => b.getAttribute("aria-valuenow") === String(goal.current_progress));
+            expect(bar, `a progressbar must carry aria-valuenow ${goal.current_progress}`).toBeTruthy();
+            expect(bar?.getAttribute("aria-valuemin")).toBe("0");
+            expect(bar?.getAttribute("aria-valuemax"), "max is in km, not 100, so it must be the goal target").toBe(String(goal.total_goal));
+            expect(bar?.getAttribute("aria-valuetext")).toBe(`${goal.current_progress} of ${goal.total_goal} ${goal.measurable_unit}`);
+            expect(bar?.getAttribute("aria-label"), "progressbar needs an accessible name").toBeTruthy();
+            const percent = Math.max(0, Math.min(100, (goal.current_progress / goal.total_goal) * 100));
+            expect(bar?.querySelector(".progress-fill")?.getAttribute("style"), "the fill width must derive from the goal's own figures")
+                .toBe(`--progress: ${percent}%`);
+        }
     });
 
     it("renders an anchor for every configured link", () => {
@@ -108,12 +135,12 @@ describe("page content", () => {
     });
 
     it("renders a decorative icon element for every configured icon", () => {
-        const wanted = [...LINKS.map(({logo}) => iconClass(logo)), iconClass(GOAL.cta_logo)];
+        const wanted = [...LINKS.map(({logo}) => iconClass(logo)), ...GOALS.map(({cta_logo}) => iconClass(cta_logo))];
         // Count *references*, not distinct classes. `fa6-brands:strava` is used
-        // twice — once in LINKS, once as GOAL.cta_logo — so 7 references collapse
-        // to 6 classes. Asserting per class lets querySelector return the first
-        // copy and leaves the second element, the Goal CTA icon, unchecked:
-        // deleting it outright kept the whole suite green.
+        // once in LINKS plus once per goal CTA, so the references collapse to
+        // fewer classes. Asserting per class lets querySelector return the first
+        // copy and leaves the later elements, the Goal CTA icons, unchecked:
+        // deleting one outright kept the whole suite green.
         const els = [...doc.querySelectorAll("span")]
             .filter((s) => wanted.includes(s.getAttribute("class") ?? ""));
         expect(els.length, "one icon element per configured icon reference").toBe(wanted.length);

@@ -3,19 +3,29 @@ interface Props {
     currentProgress: number;
     totalGoal: number;
     goalLogo: string;
+    label: string;
+    unit: string;
 }
 
-const {currentProgress, totalGoal, goalLogo} = Astro.props;
+const {currentProgress, totalGoal, goalLogo, label, unit} = Astro.props;
 
 const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
 ---
 
-<div class="overflow-hidden bg-gray-300 rounded-full h-6 mt-4">
+<div
+        class="overflow-hidden bg-gray-300 rounded-full h-6 mt-4"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin="0"
+        aria-valuemax={totalGoal}
+        aria-valuenow={currentProgress}
+        aria-valuetext={`${currentProgress} of ${totalGoal} ${unit}`}
+>
     <div
             class="progress-fill h-full bg-[var(--shadow)] rounded-full px-2 box-border relative"
             style={`--progress: ${percent}%`}
     >
-        <span class="absolute right-6 top-1.5 translate-x-1/2 -translate-y-1/4 transform scale-x-[-1] text-base">
+        <span aria-hidden="true" class="absolute right-6 top-1.5 translate-x-1/2 -translate-y-1/4 transform scale-x-[-1] text-base">
             {goalLogo}
         </span>
     </div>
