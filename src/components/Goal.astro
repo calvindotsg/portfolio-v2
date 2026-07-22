@@ -26,10 +26,12 @@ const {goal} = Astro.props;
                 <!-- Left side text, stacked vertically -->
                 <div class="flex flex-col space-y-1">
                     <span>{goal.current_progress} {goal.measurable_unit} of {goal.total_goal} {goal.measurable_unit}</span>
-                    <span>Last year's: {goal.progress_last_year !== null ? `${goal.progress_last_year} ${goal.measurable_unit}` : "–"}</span>
+                    <span>Last year's: {goal.progress_last_year !== null
+                        ? `${goal.progress_last_year} ${goal.measurable_unit}`
+                        : <><span aria-hidden="true">–</span><span class="sr-only">first year back</span></>}</span>
                 </div>
                 <!-- Right side button -->
-                <a href={goal.website_url} target="_blank" aria-label="Follow me link" class="ml-4">
+                <a href={goal.website_url} target="_blank" aria-label={`Follow my ${goal.goal_name.toLowerCase()} on Strava`} class="ml-4">
                     <Button>
                         <span class={iconClass(goal.cta_logo)} aria-hidden="true"></span>
                         <span class="sr-only">Follow me</span>

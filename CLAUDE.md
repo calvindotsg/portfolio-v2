@@ -69,7 +69,7 @@ All site content is managed through `src/lib/constants.ts`:
 - `LINKS`: Social media and external links
 - `CAREER`: Professional experience
 - `ABOUT_ME`: Personal description
-- `GOAL`: Cycling progress tracking
+- `GOALS`: Goal progress tracking (cycling, running)
 - `WELCOME`: Hero section content  
 - `NOW`: Current status
 - `METADATA`: SEO and site metadata

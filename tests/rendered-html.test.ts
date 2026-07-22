@@ -93,26 +93,32 @@ describe("page content", () => {
     it("renders one card per goal, with its figures", () => {
         for (const goal of GOALS) {
             expect(text).toContain(`My ${goal.goal_name} goal this year`);
-            expect(text).toContain(String(goal.current_progress));
-            expect(text).toContain(String(goal.total_goal));
+            // Composed phrases, not bare numbers: "1000" alone also appears in
+            // ABOUT_ME prose, so a bare containment cannot fail for the card.
+            expect(text).toContain(`${goal.current_progress} ${goal.measurable_unit} of ${goal.total_goal} ${goal.measurable_unit}`);
             if (goal.progress_last_year !== null) {
-                expect(text).toContain(String(goal.progress_last_year));
+                expect(text).toContain(`Last year's: ${goal.progress_last_year} ${goal.measurable_unit}`);
+            } else {
+                // null renders as a visible dash (with an sr-only explanation),
+                // never as a literal "null" or an empty figure.
+                expect(text).toContain("Last year's: –");
             }
         }
-        // A null progress_last_year renders as a dash, never as a literal "null".
-        expect(text).not.toContain("null");
     });
 
     it("renders an accessible progress bar per goal", () => {
         const bars = [...doc.querySelectorAll('[role="progressbar"]')];
         expect(bars.length, "one progressbar element per goal").toBe(GOALS.length);
-        const valuenows = bars.map((b) => b.getAttribute("aria-valuenow"));
         for (const goal of GOALS) {
-            expect(valuenows).toContain(String(goal.current_progress));
-        }
-        for (const bar of bars) {
-            expect(bar.getAttribute("aria-label"), "progressbar needs an accessible name").toBeTruthy();
-            expect(bar.getAttribute("aria-valuemax"), "max is in km, not 100, so it must be explicit").toBeTruthy();
+            const bar = bars.find((b) => b.getAttribute("aria-valuenow") === String(goal.current_progress));
+            expect(bar, `a progressbar must carry aria-valuenow ${goal.current_progress}`).toBeTruthy();
+            expect(bar?.getAttribute("aria-valuemin")).toBe("0");
+            expect(bar?.getAttribute("aria-valuemax"), "max is in km, not 100, so it must be the goal target").toBe(String(goal.total_goal));
+            expect(bar?.getAttribute("aria-valuetext")).toBe(`${goal.current_progress} of ${goal.total_goal} ${goal.measurable_unit}`);
+            expect(bar?.getAttribute("aria-label"), "progressbar needs an accessible name").toBeTruthy();
+            const percent = Math.max(0, Math.min(100, (goal.current_progress / goal.total_goal) * 100));
+            expect(bar?.querySelector(".progress-fill")?.getAttribute("style"), "the fill width must derive from the goal's own figures")
+                .toBe(`--progress: ${percent}%`);
         }
     });
 

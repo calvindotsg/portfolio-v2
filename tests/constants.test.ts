@@ -80,6 +80,13 @@ describe("GOALS", () => {
             expect(goal.website_url, `${goal.goal_name} website_url`).toMatch(/^https:\/\//);
         }
     });
+
+    it("has a visible progress emoji and unit", () => {
+        for (const goal of GOALS) {
+            expect(goal.goal_logo, `${goal.goal_name} goal_logo`).not.toBe("");
+            expect(goal.measurable_unit, `${goal.goal_name} measurable_unit`).not.toBe("");
+        }
+    });
 });
 
 describe("CAREER", () => {
@@ -115,6 +122,14 @@ describe("METADATA", () => {
 
     it("does not expose a plain email address", () => {
         expect(METADATA.email_obfuscated).not.toMatch(/@/);
+    });
+
+    it("mentions each goal's target figure, so the description cannot drift from GOALS", () => {
+        // On origin/main the description advertised a 3000km goal while the
+        // card said 5000km — this exact drift shipped silently.
+        for (const goal of GOALS) {
+            expect(METADATA.description).toContain(`${goal.total_goal}${goal.measurable_unit}`);
+        }
     });
 });
 
