@@ -504,3 +504,111 @@ Deferred/unchanged, with reasons recorded in `plans/README.md`: the four
 run-3 near-findings (Goal CTA aria-label hardcodes "Strava", README's
 singular "cycling goal", llms.txt projects asymmetry, no browser test for the
 theme toggle) and all maintainer-owned items.
+
+# Plan 015 (2026-07-22): Strava goal automation (DIRECT-01)
+
+Not an audit finding. DIRECT-01 had sat in `../README.md` § "Deliberately not
+planned" across all three runs as *"worth a decision, not worth a plan written
+without one"*. The maintainer supplied the decision on 2026-07-22 after a
+research fan-out, and locked four choices: GitHub Actions cron (over a Netlify
+scheduled function + Blobs + build hook, and over a runtime client fetch);
+a static refresh token in repo secrets with a **fail-loud** posture; a
+bot-owned JSON as the data target; and no `fetched_at` field, since an
+always-changing key would degenerate commit-if-changed into a daily commit.
+
+## What shipped (PR #54, squash `a4b419b`)
+
+A daily workflow (`13 21 * * *` UTC = 05:13 SGT) refreshes a Strava token,
+reads `ytd_ride_totals.distance` / `ytd_run_totals.distance` from
+`/athletes/{id}/stats`, converts metres → km at 1 decimal, writes
+`src/data/strava-progress.json`, and commits **only if that file changed**.
+`constants.ts` imports it and clamps each value against its own `total_goal`.
+Replaces the 38 manual `current_progress` bumps. The site stays fully static —
+no runtime JS, no adapter, no functions.
+
+Mid-execution the maintainer issued a standing directive — *every*
+human-configurable value belongs in a repo secret, a repo variable, or
+`src/lib/constants.ts` — which invalidated the plan as drafted and forced a
+rework: the hardcoded athlete id became the `STRAVA_ATHLETE_ID` repo variable,
+and a `CAPS_KM` object mirroring `total_goal` was deleted outright by moving
+the clamp into `constants.ts`. Notably the duplicate had a lockstep test
+guarding it and was *still* wrong; the fix was to give the knob one home, not
+a better guard.
+
+## Verification log
+
+- **Ladder**: `pnpm check` 0 errors / 0 warnings / 2 hints; `pnpm eslint` exit
+  0; `pnpm test` 67 (baseline 64 + 3); `pnpm build` 1 page. Rendered HTML
+  byte-identical for the seeded values, proving the wiring behaviour-neutral.
+- **Byte-stability**: the seeded JSON matches the writer's exact serialisation
+  (`JSON.stringify(p, null, 4) + "\n"`), so an unchanged day produces a zero
+  diff. Later confirmed in production — the bot's first real commit changed
+  exactly one line.
+- **Mutations, 5 run**: over-goal JSON, `clampToGoal` losing `Math.min`, the
+  `GOALS` clamp projection removed, JSON key drift, and rounding dropped.
+  Two of the five **survive** and are recorded as accepted coverage gaps: the
+  clamp *application* cannot be exercised while both goals sit under target.
+  Their failure mode is loud, not silent — without the clamp an overshooting
+  year trips the pre-existing `[0, total_goal]` assertion and fails the deploy.
+- **Strava contract, settled empirically**: the script POSTs the token refresh
+  as `application/json` while Strava's docs show form-encoded. Probing both
+  encodings with deliberately-bogus credentials returned byte-identical
+  structured field errors (`{"resource":"Application","field":"client_id"}`),
+  which proves the body was parsed. The maintainer separately ran the
+  authenticated chain: `ytd_ride_km: 2246.449`, `ytd_run_km: 138.317`.
+
+## Review panel (23 agents, 17 findings: 5 confirmed / 9 downgraded / 3 refuted)
+
+Six finder dimensions, one adversarial reproduce-first skeptic per finding.
+**One major, converged on independently by four of the six dimensions**:
+`rendered-html.test.ts` located each progress bar by string-matching
+`aria-valuenow`. Safe while a human hand-edited two different numbers; a
+guaranteed annual outage once a bot writes them, because Strava's YTD resets
+both goals to 0 every 1 January and `find()` then returns the Cycling bar for
+both. Since the bot's commit reaches `main` *before* any gate runs, that would
+have failed **every** deploy of main — not just the bot's — until a human
+edited the test. The plan had called it a "known benign edge, noted not fixed".
+Fixed before merge: selection is now positional and asserts `aria-valuenow`
+rather than searching by it.
+
+A judge also proved the *obvious* form of that fix is a regression — keeping
+`expect(bar).toBeTruthy()` alongside positional selection makes it tautological
+— by deleting the attribute and watching the suite stay green. The assertion
+was replaced rather than left in place, then re-verified: 67/67 at live values
+**and** at `0/0`, still red under both attribute mutations. Also confirmed:
+a missing `concurrency:` group (added). Recorded not fixed: the writer's
+`main()` is unexported and untested, so a ride/run field swap would pass the
+suite — no live defect, and covering it means refactoring for testability.
+
+## Post-merge activation
+
+- Workflow registered `state: active`. The public-fork trap ("when a public
+  repository is forked, scheduled workflows are disabled by default") did
+  **not** bite: it governs workflows inherited at fork time, not ones added to
+  a fork whose Actions are already enabled.
+- First `workflow_dispatch`: green in 7s, logged
+  `Wrote cycling 2246.4 km, running 138.3 km`, committed `ede28fa`
+  (`chore(goals): update Strava progress to 2246.4 km ride / 138.3 km run`,
+  one line changed, authored by `github-actions[bot]`) and pushed.
+- The gated Netlify build then deployed it: `https://calvin.sg` served
+  `138.3 km of 1000 km` — a value existing only in the bot's commit, which is
+  the end-to-end proof that the gate passes on bot-written data.
+- Index follow-up merged separately as `1bb32f6` (PR #55).
+
+## Outcome vs baseline
+
+| | before (`b7439e7`) | after (`a4b419b` + first bot run) |
+|---|---|---|
+| tests | 64 | **67** |
+| `current_progress` maintenance | hand-edited (38 commits' worth) | **bot-owned**, daily |
+| configuration in scripts | — | **none** (repo variable + secrets + `constants.ts`) |
+| GitHub Actions workflows | 0 | 1 (`strava-progress`, `state: active`) |
+| runtime JS / adapter / functions | none | **unchanged: none** |
+| direct dependencies | 18 | 18 (writer script has zero deps) |
+
+Latent risks recorded in the plan, not acted on: if the Netlify account ever
+migrates off the legacy Free plan to credit billing, daily deploys need
+rethinking; if branch protection or a `netlify.toml` ignore rule is added, the
+bot pipeline silently breaks. Scheduled workflows on public repos also
+auto-disable after 60 days without repo activity — the bot's own commits reset
+that timer.
