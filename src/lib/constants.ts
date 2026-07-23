@@ -108,7 +108,7 @@ export const WELCOME: {
     greeting_icon: string
     description: string[]
 } = {
-    greeting_icon: "ri:open-arm-line,
+    greeting_icon: "ri:open-arm-line",
     description: ["Hi, I'm Calvin", "Business Systems Analyst.", "Road cyclist.", "Enthusiastic learner."]
 }
 
