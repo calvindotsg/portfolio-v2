@@ -205,13 +205,17 @@ describe("markup defects fixed by plan 004", () => {
         }
     });
 
-    it("labels every button from its own content, without an overriding aria-label", () => {
-        const buttons = [...doc.querySelectorAll("button")];
-        expect(buttons.length, "the page renders icon buttons").toBeGreaterThan(0);
+    it("labels every control from its own content, without an overriding aria-label", () => {
+        // Widened from `button` to every control: after the interactive-nesting
+        // fix only the theme toggle is a <button>, so a button-scoped query here
+        // would silently drop 8 of the 9 controls from this test's coverage.
+        const buttons = [...doc.querySelectorAll("a[href], button")];
+        expect(buttons.length, "the page renders icon controls").toBeGreaterThan(0);
         for (const button of buttons) {
             const srOnly = button.querySelector(".sr-only")?.textContent?.trim() ?? "";
             const ariaLabel = button.getAttribute("aria-label") ?? "";
-            expect(ariaLabel || srOnly, "every button needs an accessible name").not.toBe("");
+            const ownText = button.textContent?.trim() ?? "";
+            expect(ariaLabel || srOnly || ownText, "every control needs an accessible name").not.toBe("");
             // aria-label wins outright over content, so it must never replace a
             // *different* sr-only name — that silently downgrades the name
             // ("Github Profile" -> "Github"). Carrying both with identical text is
@@ -228,5 +232,49 @@ describe("markup defects fixed by plan 004", () => {
                 expect(img.hasAttribute("srcset"), "sizes is inert without srcset").toBe(true);
             }
         }
+    });
+});
+
+describe("control semantics", () => {
+    /**
+     * The `a` content model, per the HTML Standard: "Transparent, but there must
+     * be no interactive content descendant, `a` element descendant, or descendant
+     * with the tabindex attribute specified." This is that clause transcribed —
+     * the full interactive-content list, not a count — so it also catches a nested
+     * anchor, a stray tabindex, or a future input inside a link, and a partial fix
+     * still fails because it walks every anchor on the page.
+     */
+    const INTERACTIVE = "a[href], button, input, select, textarea, details, embed, iframe, label, audio[controls], video[controls], [tabindex]";
+
+    it("nests no interactive content inside an anchor", () => {
+        const offenders = [...doc.querySelectorAll("a")].flatMap((a) =>
+            [...a.querySelectorAll(INTERACTIVE)].map(
+                (child) => `<a href="${a.getAttribute("href")}"> contains <${child.tagName.toLowerCase()}>`,
+            ));
+        expect(offenders, "an anchor may not contain interactive content").toEqual([]);
+    });
+
+    it("puts the control surface on the navigating element itself", () => {
+        // The converse guard: unwrapping the button but leaving the anchor
+        // unstyled, or re-nesting a styled child inside it, both fail here.
+        // Deduplicated by URL on purpose — GOALS[].website_url is the same Strava
+        // URL as LINKS[3].link, so a per-href lookup would match the wrong element.
+        const targets = new Set([...LINKS.map(({link}) => link), ...GOALS.map(({website_url}) => website_url)]);
+        for (const href of targets) {
+            const controls = [...doc.querySelectorAll(`a[href="${href}"]`)]
+                .filter((a) => (a.getAttribute("class") ?? "").split(/\s+/).includes("control"));
+            expect(controls.length, `${href} must be a styled anchor, not a wrapper around one`).toBeGreaterThan(0);
+            for (const control of controls) {
+                expect(control.querySelector(".control, .control-compact"), `${href} must not wrap a second styled control`).toBeNull();
+            }
+        }
+    });
+
+    it("keeps the theme toggle the page's only button, since it acts rather than navigates", () => {
+        const buttons = [...doc.querySelectorAll("button")];
+        expect(buttons.map((b) => b.getAttribute("id")), "only the theme toggle performs an in-page action").toEqual(["theme-toggle"]);
+        expect(buttons[0].getAttribute("type"), "a bare button would submit a form if one is ever added").toBe("button");
+        expect(buttons[0].hasAttribute("href")).toBe(false);
+        expect((buttons[0].getAttribute("class") ?? "").split(/\s+/)).toContain("control-compact");
     });
 });

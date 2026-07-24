@@ -1,6 +1,5 @@
 ---
 import Card from "./Card/index.astro";
-import Button from "./Button.astro";
 import {LINKS, WELCOME, METADATA} from "../lib/constants";
 import {iconClass} from "../lib/icons";
 import ThemeSwitcher from "./ThemeSwitcher.astro";
@@ -17,11 +16,9 @@ import portfolioImage from '../assets/me.webp'
             </div>
             <div class="button-grid">
                 <ThemeSwitcher/>
-                {LINKS.map(({link, logo, name}) => (<a href={link} aria-label={name} target="_blank">
-                    <Button>
-                        <span class={iconClass(logo)} aria-hidden="true"></span>
-                        <span class="sr-only">{name} Profile</span>
-                    </Button>
+                {LINKS.map(({link, logo, name}) => (<a href={link} target="_blank" class="control">
+                    <span class={iconClass(logo)} aria-hidden="true"></span>
+                    <span class="sr-only">{name} Profile</span>
                 </a>))}
             </div>
         </div>
