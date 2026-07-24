@@ -77,6 +77,103 @@ describe("dist/", () => {
             expect(rule, `${cls} must carry a mask image`).toContain("--un-icon:url(");
         }
     });
+
+    /**
+     * WCAG 2.2 SC 1.4.11 wants 3:1 for graphical objects. The goal icon is a
+     * presetIcons mask painted with `background-color: currentColor`, so whatever
+     * `color` reaches the span IS the icon — and with no ink of its own it
+     * inherited --text, which is #FAFAFA in dark mode: 1.89:1 on the pink fill.
+     *
+     * Resolved from the BUILT stylesheet, never from source: a utility UnoCSS
+     * fails to generate ships no rule at all, and this has to go red when that
+     * happens. It reads no progress value, so the daily Strava commit to
+     * src/data/strava-progress.json cannot flip it.
+     */
+    const expandHex = (hex: string) => {
+        // The minifier shortens #111111 to #111 and unquotes [data-theme='dark'].
+        const h = hex.replace("#", "");
+        return `#${h.length === 3 ? [...h].map((c) => c + c).join("") : h}`;
+    };
+
+    const channel = (hex: string, at: number) => {
+        const v = parseInt(expandHex(hex).slice(at, at + 2), 16) / 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+
+    const luminance = (hex: string) =>
+        0.2126 * channel(hex, 1) + 0.7152 * channel(hex, 3) + 0.0722 * channel(hex, 5);
+
+    const contrast = (a: string, b: string) => {
+        const x = luminance(a);
+        const y = luminance(b);
+        return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+    };
+
+    it("paints the goal icon at 3:1 against the progress bar in both themes", () => {
+        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
+        const css = read(`dist/_astro/${sheet}`);
+
+        const themeTokens = (theme: string): Record<string, string> => {
+            const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
+            expect(block, `the ${theme} theme block must ship its color tokens`).toBeTruthy();
+            return Object.fromEntries(
+                [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], expandHex(m[2])]),
+            );
+        };
+
+        /** The hex a class list actually paints for `prop`, per the shipped rules. */
+        const paints = (classes: string | null | undefined, prop: string, tokens: Record<string, string>) => {
+            for (const token of classes?.split(/\s+/) ?? []) {
+                const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}{`;
+                const at = css.indexOf(selector);
+                if (at < 0) continue; // UnoCSS generated nothing for this token.
+                const body = css.slice(at + selector.length, css.indexOf("}", at));
+                const value = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+?)\\s*(?:;|$)`))?.[1];
+                const named = value?.match(/^var\((--[\w-]+)\)/)?.[1];
+                // bg-gray-300 ships as rgb(212 212 212 / var(--un-bg-opacity)).
+                const rgb = value?.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
+                const hex = named
+                    ? tokens[named]
+                    : rgb
+                        ? `#${rgb.slice(1).map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`
+                        : value?.match(/^#[0-9a-fA-F]{3,6}$/)?.[0];
+                // `color: inherit` on the icon rule resolves to nothing and falls through.
+                if (hex) return expandHex(hex);
+            }
+            return undefined;
+        };
+
+        const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
+        expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
+
+        for (const track of bars) {
+            const fill = track.querySelector(".progress-fill");
+            expect(fill, "each progress bar must render a fill").toBeTruthy();
+            for (const theme of ["light", "dark"]) {
+                const tokens = themeTokens(theme);
+                const trackBg = paints(track.getAttribute("class"), "background-color", tokens);
+                const fillBg = paints(fill?.getAttribute("class"), "background-color", tokens);
+                // No declared ink means the icon inherits --text from <body> — the defect itself.
+                const ink = paints(fill?.getAttribute("class"), "color", tokens)
+                    ?? paints(fill?.querySelector("span")?.getAttribute("class"), "color", tokens)
+                    ?? tokens["--text"];
+                expect(fillBg, `${theme}: the fill must paint a resolvable background`).toBeTruthy();
+                expect(trackBg, `${theme}: the track must paint a resolvable background`).toBeTruthy();
+                expect(ink, `${theme}: the icon must resolve an ink color`).toBeTruthy();
+
+                expect(
+                    contrast(ink!, fillBg!),
+                    `${theme}: icon ${ink} on fill ${fillBg} is ${contrast(ink!, fillBg!).toFixed(2)}:1 — SC 1.4.11 needs 3:1`,
+                ).toBeGreaterThanOrEqual(3);
+                // Under ~27px of fill the icon overhangs the fill's rounded cap onto
+                // the bare track, so it has to clear 3:1 against the track too.
+                expect(
+                    contrast(ink!, trackBg!),
+                    `${theme}: icon ${ink} overhanging onto track ${trackBg} is ${contrast(ink!, trackBg!).toFixed(2)}:1`,
+                ).toBeGreaterThanOrEqual(3);
+            }
+        }
+    });
 });
 
 /**

@@ -12,6 +12,12 @@ interface Props {
 const {currentProgress, totalGoal, goalLogo, label, unit} = Astro.props;
 
 const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
+
+/**
+ * The fill paints --shadow, a light pink in BOTH themes, so the icon on it takes
+ * --on-brand instead of inheriting --text — which is near-white in dark mode and
+ * left the icon at 1.89:1 against the fill (WCAG 2.2 SC 1.4.11 wants 3:1).
+ */
 ---
 
 <div
@@ -24,7 +30,7 @@ const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
         aria-valuetext={`${currentProgress} of ${totalGoal} ${unit}`}
 >
     <div
-            class="progress-fill h-full bg-[var(--shadow)] rounded-full px-2 box-border flex items-center justify-end"
+            class="progress-fill h-full bg-[var(--shadow)] text-[var(--on-brand)] rounded-full px-2 box-border flex items-center justify-end"
             style={`--progress: ${percent}%`}
     >
         <span aria-hidden="true" class={`${iconClass(goalLogo)} shrink-0 text-base`}></span>

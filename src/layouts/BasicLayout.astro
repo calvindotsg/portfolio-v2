@@ -100,6 +100,10 @@ const schema = {
         --shadow: #EC7981; /* primary-300 */
         --accent: #F3A3AA; /* primary-200 */
         --text: #0B0B0B; /* darkslate-900 */
+        /* Ink for content sitting ON a --shadow surface. Identical in both themes
+           on purpose: --shadow is a LIGHT pink in light AND dark, so inheriting
+           --text put a near-white icon on pink (1.89:1, WCAG 2.2 SC 1.4.11). */
+        --on-brand: #0B0B0B; /* darkslate-900 */
     }
 
     :root[data-theme='dark'] {
@@ -109,6 +113,7 @@ const schema = {
         --shadow: #F3A3AA; /* primary-200 */
         --accent: #F9CDD3; /* primary-100 */
         --text: #FAFAFA; /* grey-50 */
+        --on-brand: #0B0B0B; /* darkslate-900 — dark ink by design, see light */
     }
 
     .button-grid {
