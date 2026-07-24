@@ -14,6 +14,11 @@ export default defineConfig({
         iconClass(WELCOME.greeting_icon),
         iconClass(FOOTER.icon),
     ],
+    /** UnoCSS extracts from the text of `<style>` blocks too, so the declaration
+     *  `position: static` in IntroCard emits a utility rule for a class no
+     *  element wears. A comment can be reworded around; a real declaration
+     *  cannot, so the token is blocked instead. */
+    blocklist: ["static"],
     theme: {
         boxShadow: {custom: "2px 2px 0"},
         colors: {gray: {300: "#D4D4D4"}},
