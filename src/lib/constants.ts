@@ -80,21 +80,21 @@ export const clampToGoal = (progress: number, total_goal: number): number => Mat
 
 // current_progress is bot-owned — see .github/workflows/strava-progress.yml; edit the JSON, not this file, to bump it manually.
 const RAW_GOALS: Goal[] = [{
-    total_goal: 5000,
-    current_progress: stravaProgress.cycling_km,
-    progress_last_year: 1440.8,
-    website_url: "https://www.strava.com/athletes/37641259/",
-    goal_name: "Cycling",
-    goal_logo: "ri:riding-line",
-    cta_logo: "fa6-brands:strava",
-    measurable_unit: "km"
-}, {
     total_goal: 1000,
     current_progress: stravaProgress.running_km,
     progress_last_year: null,
     website_url: "https://www.strava.com/athletes/37641259/",
     goal_name: "Running",
     goal_logo: "ri:run-line",
+    cta_logo: "fa6-brands:strava",
+    measurable_unit: "km"
+}, {
+    total_goal: 5000,
+    current_progress: stravaProgress.cycling_km,
+    progress_last_year: 1440.8,
+    website_url: "https://www.strava.com/athletes/37641259/",
+    goal_name: "Cycling",
+    goal_logo: "ri:riding-line",
     cta_logo: "fa6-brands:strava",
     measurable_unit: "km"
 }]
