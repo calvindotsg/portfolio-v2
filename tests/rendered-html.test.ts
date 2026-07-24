@@ -205,13 +205,17 @@ describe("markup defects fixed by plan 004", () => {
         }
     });
 
-    it("labels every button from its own content, without an overriding aria-label", () => {
-        const buttons = [...doc.querySelectorAll("button")];
-        expect(buttons.length, "the page renders icon buttons").toBeGreaterThan(0);
+    it("labels every control from its own content, without an overriding aria-label", () => {
+        // Widened from `button` to every control: after the interactive-nesting
+        // fix only the theme toggle is a <button>, so a button-scoped query here
+        // would silently drop 8 of the 9 controls from this test's coverage.
+        const buttons = [...doc.querySelectorAll("a[href], button")];
+        expect(buttons.length, "the page renders icon controls").toBeGreaterThan(0);
         for (const button of buttons) {
             const srOnly = button.querySelector(".sr-only")?.textContent?.trim() ?? "";
             const ariaLabel = button.getAttribute("aria-label") ?? "";
-            expect(ariaLabel || srOnly, "every button needs an accessible name").not.toBe("");
+            const ownText = button.textContent?.trim() ?? "";
+            expect(ariaLabel || srOnly || ownText, "every control needs an accessible name").not.toBe("");
             // aria-label wins outright over content, so it must never replace a
             // *different* sr-only name — that silently downgrades the name
             // ("Github Profile" -> "Github"). Carrying both with identical text is
@@ -228,5 +232,88 @@ describe("markup defects fixed by plan 004", () => {
                 expect(img.hasAttribute("srcset"), "sizes is inert without srcset").toBe(true);
             }
         }
+    });
+});
+
+describe("control semantics", () => {
+    /**
+     * The `a` content model, per the HTML Standard: "Transparent, but there must
+     * be no interactive content descendant, `a` element descendant, or descendant
+     * with the tabindex attribute specified."
+     *
+     * This selector covers the cases this site can plausibly grow — a nested
+     * anchor, a stray tabindex, a future input or button inside a link — and it
+     * walks every anchor on the page, so a partial fix still fails. It is NOT the
+     * spec-complete list: the clause bars *any* `a` descendant (not only one with
+     * an href) and interactive content includes conditional cases (`img[usemap]`,
+     * `video`/`audio` without controls under some conditions) that are not here.
+     * Broaden it if one of those ever becomes reachable.
+     */
+    const INTERACTIVE = "a, button, input, select, textarea, details, embed, iframe, label, audio[controls], video[controls], [tabindex]";
+
+    it("nests no interactive content inside an anchor", () => {
+        const offenders = [...doc.querySelectorAll("a")].flatMap((a) =>
+            [...a.querySelectorAll(INTERACTIVE)].map(
+                (child) => `<a href="${a.getAttribute("href")}"> contains <${child.tagName.toLowerCase()}>`,
+            ));
+        expect(offenders, "an anchor may not contain interactive content").toEqual([]);
+    });
+
+    it("puts the control surface on the navigating element itself", () => {
+        // The converse guard: unwrapping the button but leaving the anchor
+        // unstyled, or re-nesting a styled child inside it, both fail here.
+        //
+        // One href can be shared by several entries — GOALS[0], GOALS[1] and
+        // LINKS[3] are all the same Strava URL — so this counts anchors per href
+        // and requires EVERY one of them to be styled. An earlier version
+        // deduplicated by URL and asserted `> 0`, which let one styled social
+        // link vouch for both goal CTAs and left them entirely unguarded.
+        const hrefs = [...LINKS.map(({link}) => link), ...GOALS.map(({website_url}) => website_url)];
+        for (const href of new Set(hrefs)) {
+            const anchors = [...doc.querySelectorAll(`a[href="${href}"]`)];
+            expect(anchors.length, `${href} needs one anchor per source entry`)
+                .toBe(hrefs.filter((h) => h === href).length);
+
+            const controls = anchors.filter((a) => (a.getAttribute("class") ?? "").split(/\s+/).includes("control"));
+            expect(controls.length, `every ${href} anchor must be a styled control, not a wrapper around one`)
+                .toBe(anchors.length);
+
+            for (const control of controls) {
+                expect(control.querySelector(".control, .control-compact"), `${href} must not wrap a second styled control`).toBeNull();
+            }
+        }
+    });
+
+    /**
+     * The naming mechanism is the whole reason the anchors' `aria-label`s were
+     * removed: on one element `aria-label` would override the `sr-only` span that
+     * this repo uses to name controls. So the sr-only text is now the sole
+     * accessible name, and nothing above asserts what it actually SAYS — a
+     * reworded span, or a reinstated aria-label, would change every announced
+     * name with the suite still green.
+     */
+    it("names every control from its sr-only text, matching constants.ts", () => {
+        const named = [...doc.querySelectorAll("a.control")].map((a) => ({
+            href: a.getAttribute("href"),
+            name: a.querySelector(".sr-only")?.textContent?.trim(),
+            label: a.getAttribute("aria-label"),
+        }));
+
+        expect(named.length, "one styled anchor per social link and goal CTA").toBe(LINKS.length + GOALS.length);
+        expect(named.every(({label}) => label === null), "an aria-label here would silently override the sr-only name").toBe(true);
+
+        const expected = [
+            ...LINKS.map(({name}) => `${name} Profile`),
+            ...GOALS.map(({goal_name}) => `Follow my ${goal_name.toLowerCase()} on Strava`),
+        ].sort();
+        expect(named.map(({name}) => name).sort(), "announced names must come from constants.ts").toEqual(expected);
+    });
+
+    it("keeps the theme toggle the page's only button, since it acts rather than navigates", () => {
+        const buttons = [...doc.querySelectorAll("button")];
+        expect(buttons.map((b) => b.getAttribute("id")), "only the theme toggle performs an in-page action").toEqual(["theme-toggle"]);
+        expect(buttons[0].getAttribute("type"), "a bare button would submit a form if one is ever added").toBe("button");
+        expect(buttons[0].hasAttribute("href")).toBe(false);
+        expect((buttons[0].getAttribute("class") ?? "").split(/\s+/)).toContain("control-compact");
     });
 });

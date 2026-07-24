@@ -1,6 +1,10 @@
 ---
 // The icon is chosen in CSS from the `data-theme` attribute that the inline
 // script in BasicLayout sets before first paint — so it never flashes wrong.
+//
+// This is the page's only true button: it runs a handler and has no URL. The
+// eight controls that navigate are plain anchors wearing the same surface —
+// `control-compact` and `control` are both defined in uno.config.ts.
 ---
 
 <button
@@ -8,7 +12,7 @@
         type="button"
         aria-label="Toggle Theme"
         aria-live="polite"
-        class="theme-toggle flex justify-center items-center text-xl max-h-[40px] max-w-[60px] shadow-custom shadow-[var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] text-[var(--text)] px-5 py-1 border border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out bg-[var(--background)] cursor-pointer rounded-lg"
+        class="theme-toggle control-compact"
 >
     <span class="i-ri-sun-line theme-icon-light" aria-hidden="true"></span>
     <span class="i-ri-moon-line theme-icon-dark" aria-hidden="true"></span>
