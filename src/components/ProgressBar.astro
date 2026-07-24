@@ -16,7 +16,8 @@ const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
 /**
  * The fill paints --shadow, a light pink in BOTH themes, so the icon on it takes
  * --on-brand instead of inheriting --text — which is near-white in dark mode and
- * left the icon at 1.89:1 against the fill (WCAG 2.2 SC 1.4.11 wants 3:1).
+ * left the icon at 1.89:1 against the fill. 3:1 is the bar SC 1.4.11 sets for
+ * graphical objects; we hold to it here even though the icon is aria-hidden.
  */
 ---
 

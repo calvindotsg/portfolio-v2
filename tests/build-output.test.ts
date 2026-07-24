@@ -79,10 +79,14 @@ describe("dist/", () => {
     });
 
     /**
-     * WCAG 2.2 SC 1.4.11 wants 3:1 for graphical objects. The goal icon is a
-     * presetIcons mask painted with `background-color: currentColor`, so whatever
-     * `color` reaches the span IS the icon — and with no ink of its own it
-     * inherited --text, which is #FAFAFA in dark mode: 1.89:1 on the pink fill.
+     * 3:1 is the bar SC 1.4.11 sets for graphical objects. Strict conformance is
+     * arguable here — the icon is aria-hidden and each card also names its sport in
+     * the heading — so treat 3:1 as the standard we hold, not as a citation: it is
+     * still the only visual cue on the bar itself.
+     *
+     * The icon is a presetIcons mask painted with `background-color: currentColor`,
+     * so whatever `color` reaches the span IS the icon — and with no ink of its own
+     * it inherited --text, which is #FAFAFA in dark mode: 1.89:1 on the pink fill.
      *
      * Resolved from the BUILT stylesheet, never from source: a utility UnoCSS
      * fails to generate ships no rule at all, and this has to go red when that
@@ -153,9 +157,13 @@ describe("dist/", () => {
                 const tokens = themeTokens(theme);
                 const trackBg = paints(track.getAttribute("class"), "background-color", tokens);
                 const fillBg = paints(fill?.getAttribute("class"), "background-color", tokens);
-                // No declared ink means the icon inherits --text from <body> — the defect itself.
-                const ink = paints(fill?.getAttribute("class"), "color", tokens)
-                    ?? paints(fill?.querySelector("span")?.getAttribute("class"), "color", tokens)
+                // Resolve in CASCADE order: an element's own `color` beats one inherited
+                // from its parent, so the span must be consulted BEFORE the fill. Reading
+                // the fill first would let an ink utility added to the span reintroduce
+                // the exact 1.89:1 defect with this test still green. Falling through both
+                // means the icon inherits --text from <body> — the original defect.
+                const ink = paints(fill?.querySelector("span")?.getAttribute("class"), "color", tokens)
+                    ?? paints(fill?.getAttribute("class"), "color", tokens)
                     ?? tokens["--text"];
                 expect(fillBg, `${theme}: the fill must paint a resolvable background`).toBeTruthy();
                 expect(trackBg, `${theme}: the track must paint a resolvable background`).toBeTruthy();
@@ -165,8 +173,10 @@ describe("dist/", () => {
                     contrast(ink!, fillBg!),
                     `${theme}: icon ${ink} on fill ${fillBg} is ${contrast(ink!, fillBg!).toFixed(2)}:1 — SC 1.4.11 needs 3:1`,
                 ).toBeGreaterThanOrEqual(3);
-                // Under ~27px of fill the icon overhangs the fill's rounded cap onto
-                // the bare track, so it has to clear 3:1 against the track too.
+                // Defensive, not a live case: the fill's left edge is coincident with the
+                // track's, so at low progress the icon is CLIPPED by the track's
+                // overflow-hidden rather than spilling onto bare grey. Asserted anyway so a
+                // future layout change that does expose the icon there cannot land silently.
                 expect(
                     contrast(ink!, trackBg!),
                     `${theme}: icon ${ink} overhanging onto track ${trackBg} is ${contrast(ink!, trackBg!).toFixed(2)}:1`,
