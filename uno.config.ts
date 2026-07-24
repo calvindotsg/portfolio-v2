@@ -14,6 +14,11 @@ export default defineConfig({
         iconClass(WELCOME.greeting_icon),
         iconClass(FOOTER.icon),
     ],
+    /** UnoCSS extracts from the text of `<style>` blocks too, so the declaration
+     *  `position: static` in IntroCard emits a utility rule for a class no
+     *  element wears. A comment can be reworded around; a real declaration
+     *  cannot, so the token is blocked instead. */
+    blocklist: ["static"],
     /**
      * The one styled control surface. Two different elements wear it: the eight
      * navigating controls are anchors, the theme toggle is a real button. It is a

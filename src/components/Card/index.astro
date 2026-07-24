@@ -1,7 +1,12 @@
 ---
-// `isolate` (first class token below) is load-bearing: the intro card's
-// portrait is z-[-1] at mobile and must stack above this card's background;
-// the old perspective-1200 provided that stacking context accidentally.
+// The first class token below is load-bearing: below the md breakpoint the
+// intro card's portrait and its scrim are both painted at a negative
+// z-index, and this stacking context is what keeps them above this card's
+// background instead of behind the page; the old perspective utility used to
+// provide it accidentally.
+// NB: UnoCSS scans .astro frontmatter, so never name a utility here that the
+// template does not actually use — it emits a real CSS rule for a class
+// nothing has. That is how the old perspective utility survived as dead CSS.
 interface Props {
     title?: string;
     titleIcon?: string;
