@@ -115,7 +115,7 @@ export const WELCOME: {
 export const NOW: {
     description: string
 } = {
-    description: "Building things at a startup, probably cycling when you find me"
+    description: "Building processes at a startup, probably running when you find me"
 }
 
 export const FOOTER: {
