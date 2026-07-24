@@ -11,11 +11,17 @@ import {describe, expect, it} from "vitest";
  *
  * These recompute WCAG 1.4.3 from the built stylesheet against the worst pixel
  * a photograph can contain — pure black under the light theme, pure white under
- * the dark one — so the guarantee holds for any future portrait, and then pin
- * the four structural properties the arithmetic silently assumes: that the
- * scrim covers the type block, that it paints above the portrait, that it
- * survives a browser without color-mix and forced-colors mode, and that none of
- * it escapes past the md breakpoint onto the desktop layout.
+ * the dark one — so the guarantee holds for any future portrait. They then pin
+ * the structural facts that arithmetic assumes: that the scrim is a child of the
+ * copy so it grows with it, that its six geometry numbers are the measured ones,
+ * that it paints above the portrait, that it survives a browser without
+ * color-mix and forced-colors mode, and that none of it escapes past md.
+ *
+ * Known limit, stated so nobody mistakes green for proof: vitest has no layout
+ * engine here (linkedom only), so nothing below actually computes whether the
+ * scrim's box covers the words. The geometry test pins the numbers that were
+ * validated by pixel measurement; it cannot re-derive them. Changing any of them
+ * means re-running the composited-background harness, not just this suite.
  */
 const sheet = () => {
     const f = readdirSync("dist/_astro").find((n) => n.endsWith(".css"))!;
@@ -116,6 +122,44 @@ describe("mobile hero legibility", () => {
     });
 
     /**
+     * DOM ancestry says the scrim belongs to the copy; it does not say the scrim
+     * COVERS it. That gap is not theoretical — a review panel mutated each of the
+     * six numbers below one at a time and the whole suite stayed green while the
+     * measured contrast fell to 1.00:1, i.e. the tagline became invisible, worse
+     * than the 2.75:1 that motivated this change. vitest has no layout engine
+     * (linkedom only), so coverage cannot be computed here; instead every number
+     * the 68% arithmetic silently assumes is pinned to the value that was
+     * validated by pixel measurement.
+     *
+     * These are not magic constants to be tuned by eye. If you change one, re-run
+     * the composited-background measurement at 360/390/430 in BOTH themes before
+     * updating the expectation — that harness is the only thing that can tell you
+     * whether the scrim still covers the words.
+     *
+     * The suite is the deploy gate (netlify.toml runs `pnpm check && pnpm test`),
+     * so a silent hole here ships straight to production.
+     */
+    it("pins the scrim geometry the 68% arithmetic depends on", () => {
+        const scrim = rule(sheet(), "intro-type[^{}]*:{1,2}after");
+        expect(scrim, "the scrim rule must ship").toBeTruthy();
+
+        // Reach the card's inner edges (its padding is 24px) and finish the
+        // downward fade below the last line of copy.
+        expect(scrim, "top must clear the card's padding").toMatch(/top:\s*-24px/);
+        expect(scrim, "left must clear the card's padding").toMatch(/left:\s*-24px/);
+        expect(scrim, "the box must extend below the copy for the fade").toMatch(/bottom:\s*-56px/);
+        expect(scrim, "24px left bleed + 52px right ramp").toMatch(/width:\s*calc\(100% \+ 76px\)/);
+
+        // The two mask stops are what actually shape the soft edges.
+        expect(scrim, "the downward fade must start 40px before the bottom")
+            .toMatch(/linear-gradient\([^)]*calc\(100% - 40px\)/);
+        expect(scrim, "the right ramp must start 44px before the right edge")
+            .toMatch(/linear-gradient\([^)]*calc\(100% - 44px\)/);
+        expect(scrim, "both edges must be cut by the mask, so they survive forced-colors")
+            .toMatch(/mask-composite:\s*intersect/);
+    });
+
+    /**
      * Both layers live behind the card's content on purpose, and the order
      * between them is the whole fix: scrim over portrait. Swap them and the
      * page still builds, still looks nearly right, and is unreadable again.
@@ -143,14 +187,19 @@ describe("mobile hero legibility", () => {
     it("survives a browser without color-mix and forced-colors mode", () => {
         const css = sheet();
 
-        const fallback = rule(atRule(css, /@supports\s+not\s*\(background:\s*color-mix/), "intro-type[^{}]*:{1,2}after");
+        const fallback = rule(atRule(css, /@supports\s+not\s*\(background(?:-color)?:\s*color-mix/), "intro-type[^{}]*:{1,2}after");
         expect(fallback, "a no-color-mix fallback scrim must ship").toBeTruthy();
         expect(fallback).toContain("var(--card-background)");
         expect(fallback, "the fallback must not depend on the feature it stands in for").not.toContain("color-mix");
 
         const forced = rule(atRule(css, /@media\s*\(forced-colors\s*:\s*active\)/), "intro-type[^{}]*:{1,2}after");
         expect(forced, "forced-colors mode must repaint the scrim").toBeTruthy();
-        expect(forced.toLowerCase(), "with an opaque system surface, not an author colour").toMatch(/background:\s*canvas/);
+        // Anchored: an unanchored /canvas/ also matches `canvastext`, the one system
+        // colour that would paint the scrim the same colour as the forced text.
+        expect(forced.toLowerCase(), "with an opaque system surface, not an author colour")
+            .toMatch(/background(?:-color)?:\s*canvas\s*(?:;|$)/);
+        expect(forced.toLowerCase(), "CanvasText would make the scrim the colour of the text")
+            .not.toMatch(/canvastext/);
     });
 
     /**

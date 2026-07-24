@@ -8,7 +8,7 @@ import {Image} from "astro:assets";
 import portfolioImage from '../assets/me.webp'
 
 /*
- * Mobile hero (below `md`), see the <style> block below.
+ * Mobile hero (below `md`), see the <style> rules at the foot of this file.
  *
  * The portrait bleeds off the card's right edge behind the type. Below `md` it
  * used to be painted at 70% opacity as a flat rectangle, which put mid-grey
@@ -26,8 +26,8 @@ import portfolioImage from '../assets/me.webp'
  *
  *   2. `.intro-type::after` is a scrim: it veils the photo *only* where the
  *      type sits, capping the photo's contribution behind the text at 32%.
- *      It is a pseudo-element of the type block, not a fixed-size overlay, so
- *      it tracks that block's real width and height — add or lengthen a
+ *      It is a pseudo-element of the copy column, not a fixed-size overlay,
+ *      so it tracks that column's real width and height — add or lengthen a
  *      WELCOME.description line and the protected area grows with it.
  *
  * Legibility is therefore arithmetic over the theme tokens, not a property of
@@ -73,24 +73,22 @@ import portfolioImage from '../assets/me.webp'
 </Card>
 
 <style>
-    /* Feathered edges, so the portrait dissolves into the card. */
+    /* Feathered edges, so the portrait dissolves into the card.
+       No -webkit- twins: this project's minifier de-duplicates prefixed
+       declarations against their unprefixed originals and drops them, so
+       authoring them shipped nothing. An engine without CSS masking simply
+       gets no mask — the seams return, but the type stays readable, because
+       contrast is the scrim's job and the scrim does not depend on this. */
     .portrait {
-        -webkit-mask-image:
-                linear-gradient(to right, transparent 0, #000 100px),
-                linear-gradient(to bottom, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
         mask-image:
                 linear-gradient(to right, transparent 0, #000 100px),
                 linear-gradient(to bottom, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
-        /* Intersect, so an edge is feathered if *either* gradient dims it.
-           Where this is unsupported the layers union instead: the seams come
-           back, but the text stays readable — the scrim below is what
-           guarantees contrast, and it is independent of this mask. */
-        -webkit-mask-composite: source-in;
+        /* Intersect, so an edge is feathered if *either* gradient dims it. */
         mask-composite: intersect;
     }
 
     .intro-type {
-        position: relative; /* containing block for the scrim; NOT a stacking
+        position: relative; /* containing box for the scrim; NOT a stacking
                                context (z-index stays auto), so the scrim's
                                z-index still resolves against the card. */
     }
@@ -99,7 +97,15 @@ import portfolioImage from '../assets/me.webp'
        the type at 32%, which holds 4.5:1 for *any* photo in either theme — the
        worst case is pure black under #0B0B0B text and pure white under #FAFAFA
        text, i.e. a value derived from the theme tokens rather than tuned to
-       today's pixels. It paints one layer above the portrait. */
+       today's pixels. It paints one layer above the portrait.
+
+       Both soft edges are cut by the MASK, not by the paint. That matters twice:
+       a background-image cannot be transitioned, so a gradient fill snapped to
+       the new theme while the card behind it crossfaded — a hard-edged panel
+       flashing over the copy on every theme toggle; and forced-colors forces
+       background-image off, which would have squared the right edge off there
+       too. As a flat background-color it crossfades with the card and the ramp
+       survives every mode. */
     .intro-type::after {
         content: "";
         position: absolute;
@@ -109,12 +115,12 @@ import portfolioImage from '../assets/me.webp'
         left: -24px;
         bottom: -56px; /* room for the downward fade to finish below the type */
         width: calc(100% + 76px); /* 24px left bleed + 52px right ramp */
-        background: linear-gradient(to right,
-        color-mix(in srgb, var(--background) 68%, transparent) 0 calc(100% - 44px),
-        transparent 100%);
-        /* Fade the scrim out downwards so it has no bottom edge of its own. */
-        -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent 100%);
-        mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent 100%);
+        background-color: color-mix(in srgb, var(--background) 68%, transparent);
+        transition: background-color 0.3s ease; /* match the card's crossfade */
+        mask-image:
+                linear-gradient(to bottom, #000 calc(100% - 40px), transparent 100%),
+                linear-gradient(to right, #000 calc(100% - 44px), transparent 100%);
+        mask-composite: intersect;
     }
 
     /* No color-mix() means the declaration above is dropped whole, which would
@@ -122,36 +128,33 @@ import portfolioImage from '../assets/me.webp'
        band of the card's own colour: the photo stops showing through behind the
        type on those browsers, but the type lands on the same surface as every
        other word on the site. Legibility never depends on color-mix support. */
-    @supports not (background: color-mix(in srgb, #000 50%, transparent)) {
+    @supports not (background-color: color-mix(in srgb, #000 50%, transparent)) {
         .intro-type::after {
-            background: linear-gradient(to right,
-            var(--card-background) 0 calc(100% - 44px),
-            transparent 100%);
+            background-color: var(--card-background);
         }
     }
 
-    /* Forced-colors mode forces background-image to none, which would delete the
-       scrim entirely — and images are exempt from colour forcing, so the type
-       would land straight on the photograph. Repaint it as an opaque system
-       surface so forced CanvasText sits on forced Canvas. */
+    /* Forced-colors mode: images are exempt from colour forcing, so without an
+       opaque surface the type would land straight on the photograph. Repaint it
+       so forced CanvasText sits on forced Canvas. The mask still applies here,
+       so the right edge stays soft rather than cutting through the portrait. */
     @media (forced-colors: active) {
         .intro-type::after {
-            background: Canvas;
+            background-color: Canvas;
         }
     }
 
     /* Mirrors UnoCSS's `md` breakpoint: desktop keeps the in-flow portrait. */
     @media (min-width: 768px) {
         .portrait {
-            -webkit-mask-image: none;
             mask-image: none;
         }
 
         .intro-type {
-            /* Not merely cosmetic: a positioned block paints in a later phase
+            /* Not merely cosmetic: a positioned element paints in a later phase
                than an in-flow one. Where the md grid squeezes this card the
                last tagline line already overlaps the button row, and leaving
-               this `relative` flips which of the two paints on top. */
+               this positioned flips which of the two paints on top. */
             position: static;
         }
 
