@@ -33,14 +33,21 @@ export default defineConfig({
      * `--un-shadow-color` is never defined — a separate, pre-existing bug. The
      * ordering is what keeps this change neutral once that bug is repaired.)
      *
-     * `inline-block` and `w-max` on `control` are load-bearing, not decoration.
-     * An anchor is UA `inline`, and as a `.button-grid` item it blockifies and
-     * would STRETCH to its column — up to 4.4px wider than the button it replaces,
-     * which is also what makes Lighthouse's target-size audit fail. Deleting
-     * either token is a visual regression no test in this repo can catch.
-     * `control-compact` omits `w-max` on purpose: the toggle must keep stretching
-     * under its own `max-w-[60px]` cap, or its width would follow the sun/moon
-     * mask width and differ between themes.
+     * `w-max` on `control` IS load-bearing, and no test in this repo catches its
+     * removal. Both call sites make the anchor a grid/flex item, so it blockifies
+     * and stretches to its track: dropping `w-max` widens controls by up to 5.0px
+     * (worst at 320-390px, the commonest phone widths), which is the same stretch
+     * that made Lighthouse's target-size audit fail before this change.
+     *
+     * `inline-block` beside it is defensive only — measured inert at both current
+     * call sites, since each blockifies the anchor anyway. Kept so the shortcut
+     * stays correct if a control is ever used outside a grid or flex container;
+     * do not cite it as load-bearing.
+     *
+     * `control-compact` omits `w-max` because it would be a no-op: the toggle's
+     * max-content width (2x20px padding + 2px border + an 18px icon) is exactly
+     * its own `max-w-[60px]` cap. Both theme icons measure 18px, so the width is
+     * 60.00px in every theme and at every width either way.
      */
     shortcuts: {
         "control-surface": "text-xl px-5 text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[var(--shadow)] shadow-custom active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",

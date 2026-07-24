@@ -239,12 +239,17 @@ describe("control semantics", () => {
     /**
      * The `a` content model, per the HTML Standard: "Transparent, but there must
      * be no interactive content descendant, `a` element descendant, or descendant
-     * with the tabindex attribute specified." This is that clause transcribed —
-     * the full interactive-content list, not a count — so it also catches a nested
-     * anchor, a stray tabindex, or a future input inside a link, and a partial fix
-     * still fails because it walks every anchor on the page.
+     * with the tabindex attribute specified."
+     *
+     * This selector covers the cases this site can plausibly grow — a nested
+     * anchor, a stray tabindex, a future input or button inside a link — and it
+     * walks every anchor on the page, so a partial fix still fails. It is NOT the
+     * spec-complete list: the clause bars *any* `a` descendant (not only one with
+     * an href) and interactive content includes conditional cases (`img[usemap]`,
+     * `video`/`audio` without controls under some conditions) that are not here.
+     * Broaden it if one of those ever becomes reachable.
      */
-    const INTERACTIVE = "a[href], button, input, select, textarea, details, embed, iframe, label, audio[controls], video[controls], [tabindex]";
+    const INTERACTIVE = "a, button, input, select, textarea, details, embed, iframe, label, audio[controls], video[controls], [tabindex]";
 
     it("nests no interactive content inside an anchor", () => {
         const offenders = [...doc.querySelectorAll("a")].flatMap((a) =>
@@ -257,17 +262,51 @@ describe("control semantics", () => {
     it("puts the control surface on the navigating element itself", () => {
         // The converse guard: unwrapping the button but leaving the anchor
         // unstyled, or re-nesting a styled child inside it, both fail here.
-        // Deduplicated by URL on purpose — GOALS[].website_url is the same Strava
-        // URL as LINKS[3].link, so a per-href lookup would match the wrong element.
-        const targets = new Set([...LINKS.map(({link}) => link), ...GOALS.map(({website_url}) => website_url)]);
-        for (const href of targets) {
-            const controls = [...doc.querySelectorAll(`a[href="${href}"]`)]
-                .filter((a) => (a.getAttribute("class") ?? "").split(/\s+/).includes("control"));
-            expect(controls.length, `${href} must be a styled anchor, not a wrapper around one`).toBeGreaterThan(0);
+        //
+        // One href can be shared by several entries — GOALS[0], GOALS[1] and
+        // LINKS[3] are all the same Strava URL — so this counts anchors per href
+        // and requires EVERY one of them to be styled. An earlier version
+        // deduplicated by URL and asserted `> 0`, which let one styled social
+        // link vouch for both goal CTAs and left them entirely unguarded.
+        const hrefs = [...LINKS.map(({link}) => link), ...GOALS.map(({website_url}) => website_url)];
+        for (const href of new Set(hrefs)) {
+            const anchors = [...doc.querySelectorAll(`a[href="${href}"]`)];
+            expect(anchors.length, `${href} needs one anchor per source entry`)
+                .toBe(hrefs.filter((h) => h === href).length);
+
+            const controls = anchors.filter((a) => (a.getAttribute("class") ?? "").split(/\s+/).includes("control"));
+            expect(controls.length, `every ${href} anchor must be a styled control, not a wrapper around one`)
+                .toBe(anchors.length);
+
             for (const control of controls) {
                 expect(control.querySelector(".control, .control-compact"), `${href} must not wrap a second styled control`).toBeNull();
             }
         }
+    });
+
+    /**
+     * The naming mechanism is the whole reason the anchors' `aria-label`s were
+     * removed: on one element `aria-label` would override the `sr-only` span that
+     * this repo uses to name controls. So the sr-only text is now the sole
+     * accessible name, and nothing above asserts what it actually SAYS — a
+     * reworded span, or a reinstated aria-label, would change every announced
+     * name with the suite still green.
+     */
+    it("names every control from its sr-only text, matching constants.ts", () => {
+        const named = [...doc.querySelectorAll("a.control")].map((a) => ({
+            href: a.getAttribute("href"),
+            name: a.querySelector(".sr-only")?.textContent?.trim(),
+            label: a.getAttribute("aria-label"),
+        }));
+
+        expect(named.length, "one styled anchor per social link and goal CTA").toBe(LINKS.length + GOALS.length);
+        expect(named.every(({label}) => label === null), "an aria-label here would silently override the sr-only name").toBe(true);
+
+        const expected = [
+            ...LINKS.map(({name}) => `${name} Profile`),
+            ...GOALS.map(({goal_name}) => `Follow my ${goal_name.toLowerCase()} on Strava`),
+        ].sort();
+        expect(named.map(({name}) => name).sort(), "announced names must come from constants.ts").toEqual(expected);
     });
 
     it("keeps the theme toggle the page's only button, since it acts rather than navigates", () => {
