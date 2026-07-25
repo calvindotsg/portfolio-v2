@@ -134,7 +134,7 @@ describe("dist/", () => {
                 const body = css.slice(at + selector.length, css.indexOf("}", at));
                 const value = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+?)\\s*(?:;|$)`))?.[1];
                 const named = value?.match(/^var\((--[\w-]+)\)/)?.[1];
-                // bg-gray-300 ships as rgb(212 212 212 / var(--un-bg-opacity)).
+                // A palette colour ships as rgb(r g b / var(--un-bg-opacity)).
                 const rgb = value?.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
                 const hex = named
                     ? tokens[named]
@@ -173,15 +173,151 @@ describe("dist/", () => {
                     contrast(ink!, fillBg!),
                     `${theme}: icon ${ink} on fill ${fillBg} is ${contrast(ink!, fillBg!).toFixed(2)}:1 — SC 1.4.11 needs 3:1`,
                 ).toBeGreaterThanOrEqual(3);
-                // Defensive, not a live case: the fill's left edge is coincident with the
-                // track's, so at low progress the icon is CLIPPED by the track's
-                // overflow-hidden rather than spilling onto bare grey. Asserted anyway so a
-                // future layout change that does expose the icon there cannot land silently.
-                expect(
-                    contrast(ink!, trackBg!),
-                    `${theme}: icon ${ink} overhanging onto track ${trackBg} is ${contrast(ink!, trackBg!).toFixed(2)}:1`,
-                ).toBeGreaterThanOrEqual(3);
             }
+        }
+    });
+
+    /**
+     * This replaces an assertion that the icon cleared 3:1 against the TRACK as
+     * well as the fill. That was never a live case — the note it carried said so
+     * — and it is not satisfiable: the ink is chosen to read on the fill, the
+     * fill flips polarity between themes, and the only way to make one ink clear
+     * both regions is to drive the track toward the opposite pole from its own
+     * card. Doing that in light mode makes the *unfilled* remainder the loudest
+     * thing on the card, which is the defect this palette exists to fix.
+     *
+     * What actually kept the icon off the track is structural, so that is what
+     * the next test asserts. These are the three ratios that are real: the
+     * marked region must dominate, the two regions must be distinguishable from
+     * each other, and the track must stay quiet against its card.
+     */
+    it("keeps the bar's polarity: the filled region reads as the mark", () => {
+        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
+        const css = read(`dist/_astro/${sheet}`);
+        const tokens = (theme: string) => {
+            const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
+            expect(block, `the ${theme} theme block must ship its color tokens`).toBeTruthy();
+            return Object.fromEntries(
+                [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], expandHex(m[2])]),
+            );
+        };
+
+        for (const theme of ["light", "dark"]) {
+            const t = tokens(theme);
+            for (const name of ["--progress-fill", "--progress-track", "--card-background"]) {
+                expect(t[name], `${theme} must define ${name}`).toBeTruthy();
+            }
+            const fillVsCard = contrast(t["--progress-fill"], t["--card-background"]);
+            const trackVsCard = contrast(t["--progress-track"], t["--card-background"]);
+
+            // Dominance. A ratio gate alone certifies a bar painted backwards:
+            // whichever region stands further from the card is the one a reader
+            // takes for the mark, so the FILL has to be that region.
+            expect(
+                fillVsCard,
+                `${theme}: fill ${fillVsCard.toFixed(2)}:1 vs card must exceed track ${trackVsCard.toFixed(2)}:1 — otherwise the empty part reads as full`,
+            ).toBeGreaterThan(trackVsCard);
+            // Quiet channel: the track is ground, not a second mark.
+            expect(
+                trackVsCard,
+                `${theme}: track is ${trackVsCard.toFixed(2)}:1 against its card — too loud for the unmarked region`,
+            ).toBeLessThanOrEqual(2);
+            // And the boundary between them still has to be findable.
+            const fillVsTrack = contrast(t["--progress-fill"], t["--progress-track"]);
+            expect(fillVsTrack, `${theme}: fill against track is ${fillVsTrack.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+        }
+    });
+
+    it("clips the goal icon inside the fill instead of letting it paint on the track", () => {
+        // The structural reason the ink never has to read on the track: the icon
+        // is a child of the fill; `justify-end` pushes overflow past the START
+        // edge; and that edge is coincident with the track's, which hides it.
+        // Drop any one of the three and a narrow bar paints the icon on bare
+        // track at a ratio no palette here can hold.
+        const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
+        expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
+        for (const track of bars) {
+            expect((track.getAttribute("class") ?? "").split(/\s+/), "the track must clip its overflow")
+                .toContain("overflow-hidden");
+
+            const fill = track.querySelector(".progress-fill")!;
+            expect((fill.getAttribute("class") ?? "").split(/\s+/), "overflow must spill past the clipped start edge, not into the track")
+                .toContain("justify-end");
+
+            const icons = [...track.querySelectorAll("span")];
+            expect(icons.length, "the bar renders exactly one glyph").toBe(1);
+            expect(fill.contains(icons[0]), "the glyph must live inside the fill, not beside it").toBe(true);
+        }
+    });
+});
+
+/**
+ * The controls' offset plate was invisible from the day the surface was written:
+ * presetWind3 expands a geometry-only shadow to
+ * `--un-shadow: <offsets> var(--un-shadow-color)` with NO fallback, nothing on
+ * the page ever defines `--un-shadow-color`, and an unresolvable var makes the
+ * whole `box-shadow` invalid at computed-value time — so it computed to `none`.
+ * The portrait escaped because its shadow was written as one complete arbitrary
+ * value, which emits `var(--un-shadow-color, <colour>)`.
+ *
+ * A rendered-colour test cannot see this (there is no browser here) and a class
+ * test cannot either (the classes were present the whole time). So this asserts
+ * the mechanism: every offset plate must ship a resolvable colour.
+ */
+describe("the offset plate actually paints", () => {
+    const PLATED = [".control", ".control-compact", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
+
+    /** The `--un-shadow` value the built sheet gives `selector`. */
+    const plate = (css: string, selector: string) => {
+        const at = css.indexOf(`${selector}{`);
+        expect(at, `${selector} must ship a rule`).toBeGreaterThanOrEqual(0);
+        const body = css.slice(at + selector.length + 1, css.indexOf("}", at));
+        const shadow = body.match(/--un-shadow:\s*([^;]+)/)?.[1];
+        expect(shadow, `${selector} must declare an offset plate`).toBeTruthy();
+        return shadow!;
+    };
+
+    const sheet = () => {
+        const file = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
+        return read(`dist/_astro/${file}`);
+    };
+
+    /**
+     * Asserting only "has a colour" is not enough — there are two ways to write
+     * this shortcut wrong and each produces a different dead value:
+     *
+     *   2px 2px 0 var(--un-shadow-color)      geometry utility, no fallback
+     *   var(--shadow)                         colour utility, no geometry
+     *
+     * Both compute to `box-shadow: none`, and a test that checked for either
+     * one alone waves the other through — the second slipped past a first draft
+     * of this test. So match the whole shape instead: offsets, then a colour
+     * lookup that carries a fallback. This is coupled to presetWind3's emit
+     * format on purpose; if that format changes this fails loudly rather than
+     * quietly certifying a shadow nobody can see.
+     */
+    const COMPLETE_PLATE = /^(?:(?:-?[\d.]+(?:px|r?em)|0)\s+){2,4}var\(--un-shadow-color,.+\)$/;
+
+    it("gives every plated rule a complete, resolvable shadow value", () => {
+        const css = sheet();
+        for (const selector of PLATED) {
+            const shadow = plate(css, selector);
+            expect(
+                COMPLETE_PLATE.test(shadow),
+                `${selector} ships "--un-shadow: ${shadow}" — that is not offsets plus a colour with a fallback, so it computes to box-shadow: none`,
+            ).toBe(true);
+        }
+    });
+
+    it("paints the plate from the theme token, so it re-tones with the theme", () => {
+        const css = sheet();
+        for (const selector of PLATED) {
+            expect(plate(css, selector), `${selector} must cast the plate in --shadow, not a hard-coded colour`)
+                .toContain("var(--shadow)");
+        }
+        for (const theme of ["light", "dark"]) {
+            const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
+            expect(block, `${theme} must define --shadow for the plate to resolve`).toMatch(/--shadow:\s*#[0-9a-fA-F]{3,6}/);
         }
     });
 });

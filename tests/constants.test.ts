@@ -34,6 +34,29 @@ describe("LINKS", () => {
     it("has a unique name per entry", () => {
         expect(new Set(LINKS.map((l) => l.name)).size).toBe(LINKS.length);
     });
+
+    /**
+     * `name` is announced verbatim (IntroCard renders it into the sr-only span
+     * and the icon is aria-hidden), so it has to describe what the link reaches.
+     * Only an entry pointing at somebody's account page is a profile; the
+     * résumé is a root-relative document and calling it one is the defect this
+     * encodes. Keyed on the URL shape rather than on the résumé's own name, so
+     * a second document added to LINKS is caught too.
+     */
+    it("calls no entry a profile unless it leads to one", () => {
+        for (const {link, name} of LINKS) {
+            if (/^\//.test(link)) {
+                expect(name.toLowerCase(), `${link} is a document on this site, not a profile`)
+                    .not.toContain("profile");
+            }
+        }
+    });
+
+    it("names every entry with something announceable", () => {
+        for (const {link, name} of LINKS) {
+            expect(name.trim(), `${link} needs a non-empty accessible name`).not.toBe("");
+        }
+    });
 });
 
 describe("GOALS", () => {

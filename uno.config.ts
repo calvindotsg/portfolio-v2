@@ -30,13 +30,18 @@ export default defineConfig({
      * metric lives in the variant rather than in the surface: no two conflicting
      * utilities land on one element, so nothing here depends on emit order.
      *
-     * `shadow-[var(--shadow)]` is listed BEFORE `shadow-custom` deliberately. As
-     * separate classes the sheet emits `.shadow-[var(--shadow)]` first and
-     * `.shadow-custom` wins `--un-shadow`; a shortcut collapses to ONE rule where
-     * the LAST-listed utility wins instead. This order reproduces today's winner.
-     * (Both forms currently compute to `box-shadow: none`, because
-     * `--un-shadow-color` is never defined — a separate, pre-existing bug. The
-     * ordering is what keeps this change neutral once that bug is repaired.)
+     * The offset plate is written as ONE complete arbitrary value — offsets,
+     * blur and colour together. Splitting it into a geometry utility and a
+     * colour-only one is what made the plate invisible for as long as it
+     * existed: presetWind3 expands the geometry to
+     * `--un-shadow: 2px 2px 0 var(--un-shadow-color)` with no fallback, and a
+     * colour-only arbitrary shadow does not define `--un-shadow-color`, so the
+     * whole declaration was invalid at computed-value time and the controls
+     * rendered flat. A complete value emits its own fallback and survives. The
+     * portrait always did this and always cast its plate; the controls did not.
+     *
+     * `active:shadow-none` still wins: it sets the same `--un-shadow` variable
+     * from a `:active` selector, which outranks the shortcut's own rule.
      *
      * `w-max` on `control` IS load-bearing, and no test in this repo catches its
      * removal. Both call sites make the anchor a grid/flex item, so it blockifies
@@ -55,13 +60,9 @@ export default defineConfig({
      * 60.00px in every theme and at every width either way.
      */
     shortcuts: {
-        "control-surface": "text-xl px-5 text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[var(--shadow)] shadow-custom active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
+        "control-surface": "text-xl px-5 text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
         "control": "control-surface inline-block w-max text-center py-2 max-h-[50px]",
         "control-compact": "control-surface inline-flex justify-center items-center py-1 max-h-[40px] max-w-[60px]",
-    },
-    theme: {
-        boxShadow: {custom: "2px 2px 0"},
-        colors: {gray: {300: "#D4D4D4"}},
     },
     presets: [
         presetWind3(),

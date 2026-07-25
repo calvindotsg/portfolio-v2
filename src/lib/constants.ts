@@ -1,21 +1,29 @@
 import stravaProgress from "../data/strava-progress.json"
 
+/**
+ * `name` is the control's whole accessible name, announced verbatim — the icon
+ * beside it is aria-hidden, so this string is all a screen reader gets. It used
+ * to be a bare noun that the template suffixed with " Profile", which is why the
+ * résumé link announced as "Resume Profile": a PDF is not a profile, and the
+ * suffix lived in markup where nobody editing this file could see it.
+ */
 export const LINKS: {
     link: string
     logo: string
     name: string
 }[] = [{
-    link: "https://github.com/calvindotsg/", logo: "fa6-brands:github", name: "Github"
+    link: "https://github.com/calvindotsg/", logo: "fa6-brands:github", name: "Github Profile"
 }, {
-    link: "https://www.linkedin.com/in/calvin-loh/", logo: "fa6-brands:linkedin", name: "LinkedIn"
+    link: "https://www.linkedin.com/in/calvin-loh/", logo: "fa6-brands:linkedin", name: "LinkedIn Profile"
 }, {
-    link: "https://www.instagram.com/calvindotsg/", logo: "fa6-brands:instagram", name: "Instagram"
+    link: "https://www.instagram.com/calvindotsg/", logo: "fa6-brands:instagram", name: "Instagram Profile"
 }, {
-    link: "https://www.strava.com/athletes/37641259/", logo: "fa6-brands:strava", name: "Strava"
+    link: "https://www.strava.com/athletes/37641259/", logo: "fa6-brands:strava", name: "Strava Profile"
 }, {
-    link: "https://t.me/calvindotsg/", logo: "fa6-brands:telegram", name: "Telegram"
+    link: "https://t.me/calvindotsg/", logo: "fa6-brands:telegram", name: "Telegram Profile"
 }, {
-    link: "/resume.pdf", logo: "ri:file-pdf-2-line", name: "Resume"
+    // "View", not "Download": the file opens in a tab rather than saving.
+    link: "/resume.pdf", logo: "ri:file-pdf-2-line", name: "View résumé (PDF)"
 },];
 
 export const CAREER: {

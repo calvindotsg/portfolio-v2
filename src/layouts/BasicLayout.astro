@@ -92,18 +92,42 @@ const schema = {
         font-weight: 700 !important;
     }
 
-    /* Theme Variables */
+    /* Theme Variables
+     *
+     * Four roles, deliberately separate tokens even where two of them resolve to
+     * the same hex today:
+     *
+     *   --shadow          the offset plate cast by the portrait and the controls
+     *   --accent          the interactive affordance: control border, hover ink
+     *   --progress-fill   the *marked* region of a progress bar
+     *   --progress-track  the unmarked remainder of that bar
+     *
+     * The bar used to paint --shadow, so re-toning the plate silently re-toned
+     * the data. Two colours matching in this palette is a coincidence of this
+     * palette, not a constraint — collapsing them would rebuild that coupling
+     * under a different name.
+     *
+     * POLARITY FOLLOWS THE SURFACE. The filled region is the figure and the
+     * track is the ground, so --progress-fill flips with the theme (deep on
+     * light, pale on dark) while --progress-track stays a quiet channel about
+     * 1.5:1 from its card. Do NOT "improve" the bar by darkening the track in
+     * light mode: that makes the *unfilled* remainder the strongest mark on the
+     * card and inverts what the bar reports.
+     *
+     * --on-brand is the ink for content sitting ON --progress-fill, so it flips
+     * with the fill. It is not a fixed dark: a dark icon on the light-mode fill
+     * would be 2.77:1, the same class of failure it was introduced to fix.
+     */
     :root[data-theme='light'] {
         --background: #FAFAFA; /* grey-50 */
         --card-background: #F5F5F5; /* grey-100 */
         --card-border: #E5E5E5; /* grey-200 */
-        --shadow: #EC7981; /* primary-300 */
-        --accent: #F3A3AA; /* primary-200 */
+        --shadow: #A82334; /* primary-600 */
+        --accent: #A82334; /* primary-600 */
         --text: #0B0B0B; /* darkslate-900 */
-        /* Ink for content sitting ON a --shadow surface. Identical in both themes
-           on purpose: --shadow is a LIGHT pink in light AND dark, so inheriting
-           --text put a near-white icon on pink (1.89:1, WCAG 2.2 SC 1.4.11). */
-        --on-brand: #0B0B0B; /* darkslate-900 */
+        --progress-fill: #A82334; /* primary-600 */
+        --progress-track: #E3B3B8; /* primary-150 */
+        --on-brand: #FAFAFA; /* grey-50 — light ink, the fill is deep here */
     }
 
     :root[data-theme='dark'] {
@@ -113,7 +137,9 @@ const schema = {
         --shadow: #F3A3AA; /* primary-200 */
         --accent: #F9CDD3; /* primary-100 */
         --text: #FAFAFA; /* grey-50 */
-        --on-brand: #0B0B0B; /* darkslate-900 — dark ink by design, see light */
+        --progress-fill: #F9CDD3; /* primary-100 */
+        --progress-track: #462F32; /* primary-800 */
+        --on-brand: #0B0B0B; /* darkslate-900 — dark ink, the fill is pale here */
     }
 
     .button-grid {
