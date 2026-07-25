@@ -406,6 +406,78 @@ describe("the offset plate actually paints", () => {
 });
 
 /**
+ * The converse of the existing "no class without a rule" gate: no RULE without a
+ * wearer. UnoCSS extracts from every word of a source file, including prose in
+ * `.astro` frontmatter comments, so an ordinary English word that happens to be
+ * a utility name ships a real CSS rule for a class no element has. It has cost
+ * this repo twice: a dead `perspective` rule that survived a cleanup because it
+ * was named in a comment, and — while writing the change this test ships with —
+ * a `flex-grow` rule emitted by the word "grow" in a paragraph explaining why a
+ * hover style was removed. Both were invisible to every other gate.
+ *
+ * Comparing against the class tokens actually worn in dist/index.html is the
+ * only check that sees it, because the defect is a rule with no corresponding
+ * markup rather than markup with no corresponding rule.
+ */
+describe("the stylesheet ships no rule nobody wears", () => {
+    /**
+     * A ratchet, not a clean sweep. These six predate this gate and cost about
+     * 180 bytes uncompressed between them; each comes from ordinary text UnoCSS
+     * happens to read as a class, and two of them come from Calvin's own copy in
+     * constants.ts, so they will recur whenever he writes an English sentence:
+     *
+     *   ease, transition   `transition: background-color 0.3s ease` in <style> blocks
+     *   inline             `is:inline` on the theme script, plus prose about it
+     *   inline-block       `display: inline-block` in ThemeSwitcher's <style>
+     *   me                 the `me.webp` import path and the "About me" heading
+     *   my                 "my latest cycling challenge", "My Running goal", …
+     *
+     * They are recorded rather than fixed because the fixes are unrelated to this
+     * change and each has a cost: blocklisting a real utility means a future
+     * author writing it as a class silently gets nothing, which is how `static`
+     * already behaves here. The gate's job is to stop the list growing.
+     */
+    const KNOWN_ORPHANS = ["ease", "inline", "inline-block", "me", "my", "transition"];
+
+    it("emits a class rule only for classes the page actually uses", () => {
+        const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+        const worn = new Set(
+            [...read("dist/index.html").matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)),
+        );
+
+        // Every selector the sheet defines, split on commas, with the leading
+        // class token extracted. Non-class selectors (`body`, `:root[…]`,
+        // `main > *`, keyframe stops) are not this test's business.
+        const orphans = new Set<string>();
+        for (const m of css.matchAll(/(^|[{}])([^{}@]+)\{/g)) {
+            for (const selector of m[2].split(",")) {
+                const cls = selector.trim().match(/^\.((?:\\.|[\w-])+)/)?.[1];
+                if (!cls) continue;
+                const token = cls.replace(/\\(.)/g, "$1");
+                if (!worn.has(token) && !KNOWN_ORPHANS.includes(token)) orphans.add(token);
+            }
+        }
+        expect(
+            [...orphans].sort(),
+            "these classes have a CSS rule but no element — usually a utility name written as an ordinary word in a comment",
+        ).toEqual([]);
+    });
+
+    it("still needs every entry on the known-orphan list, so the list cannot rot", () => {
+        // Without this, a token fixed at source stays on the list forever and
+        // quietly re-opens the hole it was excusing.
+        const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+        for (const token of KNOWN_ORPHANS) {
+            const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}`;
+            expect(
+                css.includes(`${selector}{`) || css.includes(`${selector},`),
+                `${token} no longer ships a rule — remove it from KNOWN_ORPHANS`,
+            ).toBe(true);
+        }
+    });
+});
+
+/**
  * These assertions only became possible once `output: "static"` replaced the
  * Netlify SSR adapter (plan 002). Before that, `pnpm build` emitted no
  * `dist/index.html` at all — the page lived inside a 2.4 MB serverless function.

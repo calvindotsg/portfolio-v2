@@ -10,10 +10,14 @@
 //
 // The card has no hover state on purpose. All eight of them are plain
 // containers: nothing about a card responds to a click, and the accent-coloured
-// border it used to grow on hover advertised an affordance that does not exist.
-// The controls inside a card are the interactive elements and they keep theirs.
-// The colour transition below stays — it carries the theme crossfade, not a
-// pointer state.
+// edge it used to take on under the pointer advertised an affordance that does
+// not exist. The controls inside a card are the interactive elements and they
+// keep theirs. The colour transition below stays — it carries the theme
+// crossfade, not a pointer state.
+//
+// Wording matters here for the reason given above: an earlier draft of this
+// paragraph used the ordinary English verb for "get bigger", which happens to
+// be a flex utility, and UnoCSS emitted a rule for it that no element wore.
 interface Props {
     title?: string;
     titleIcon?: string;
