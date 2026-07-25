@@ -113,40 +113,64 @@ describe("dist/", () => {
         return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
     };
 
+    /** The built stylesheet. Read lazily: the build runs in vitest's globalSetup. */
+    const sheet = () => read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+
+    const themeTokens = (css: string, theme: string): Record<string, string> => {
+        const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
+        expect(block, `the ${theme} theme block must ship its color tokens`).toBeTruthy();
+        return Object.fromEntries(
+            [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], expandHex(m[2])]),
+        );
+    };
+
+    /**
+     * What a class list actually paints for `prop`, per the shipped rules —
+     * both the resolved hex and the custom property it came through.
+     *
+     * Everything downstream resolves through the ELEMENT's classes rather than
+     * through a token name, and that is the point: a token can be re-toned
+     * perfectly while the element quietly paints a different one.
+     */
+    const painted = (css: string, classes: string | null | undefined, prop: string, tokens: Record<string, string>) => {
+        for (const token of classes?.split(/\s+/) ?? []) {
+            const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}{`;
+            const at = css.indexOf(selector);
+            if (at < 0) continue; // UnoCSS generated nothing for this token.
+            const body = css.slice(at + selector.length, css.indexOf("}", at));
+            const value = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+?)\\s*(?:;|$)`))?.[1];
+            const named = value?.match(/^var\((--[\w-]+)\)/)?.[1];
+            // A palette colour ships as rgb(r g b / var(--un-bg-opacity)).
+            const rgb = value?.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
+            const hex = named
+                ? tokens[named]
+                : rgb
+                    ? `#${rgb.slice(1).map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`
+                    : value?.match(/^#[0-9a-fA-F]{3,6}$/)?.[0];
+            // `color: inherit` on the icon rule resolves to nothing and falls through.
+            if (hex) return {hex: expandHex(hex), via: named};
+        }
+        return undefined;
+    };
+
+    const paints = (css: string, classes: string | null | undefined, prop: string, tokens: Record<string, string>) =>
+        painted(css, classes, prop, tokens)?.hex;
+
+    /** The raw value a class list resolves for `prop`, per the shipped rules. */
+    const decl = (css: string, classes: string | null | undefined, prop: string) => {
+        for (const token of classes?.split(/\s+/) ?? []) {
+            const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}{`;
+            const at = css.indexOf(selector);
+            if (at < 0) continue;
+            const body = css.slice(at + selector.length, css.indexOf("}", at));
+            const value = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+?)\\s*(?:;|$)`))?.[1];
+            if (value) return value;
+        }
+        return undefined;
+    };
+
     it("paints the goal icon at 3:1 against the progress bar in both themes", () => {
-        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
-        const css = read(`dist/_astro/${sheet}`);
-
-        const themeTokens = (theme: string): Record<string, string> => {
-            const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
-            expect(block, `the ${theme} theme block must ship its color tokens`).toBeTruthy();
-            return Object.fromEntries(
-                [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], expandHex(m[2])]),
-            );
-        };
-
-        /** The hex a class list actually paints for `prop`, per the shipped rules. */
-        const paints = (classes: string | null | undefined, prop: string, tokens: Record<string, string>) => {
-            for (const token of classes?.split(/\s+/) ?? []) {
-                const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}{`;
-                const at = css.indexOf(selector);
-                if (at < 0) continue; // UnoCSS generated nothing for this token.
-                const body = css.slice(at + selector.length, css.indexOf("}", at));
-                const value = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+?)\\s*(?:;|$)`))?.[1];
-                const named = value?.match(/^var\((--[\w-]+)\)/)?.[1];
-                // bg-gray-300 ships as rgb(212 212 212 / var(--un-bg-opacity)).
-                const rgb = value?.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
-                const hex = named
-                    ? tokens[named]
-                    : rgb
-                        ? `#${rgb.slice(1).map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`
-                        : value?.match(/^#[0-9a-fA-F]{3,6}$/)?.[0];
-                // `color: inherit` on the icon rule resolves to nothing and falls through.
-                if (hex) return expandHex(hex);
-            }
-            return undefined;
-        };
-
+        const css = sheet();
         const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
         expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
 
@@ -154,16 +178,16 @@ describe("dist/", () => {
             const fill = track.querySelector(".progress-fill");
             expect(fill, "each progress bar must render a fill").toBeTruthy();
             for (const theme of ["light", "dark"]) {
-                const tokens = themeTokens(theme);
-                const trackBg = paints(track.getAttribute("class"), "background-color", tokens);
-                const fillBg = paints(fill?.getAttribute("class"), "background-color", tokens);
+                const tokens = themeTokens(css, theme);
+                const trackBg = paints(css, track.getAttribute("class"), "background-color", tokens);
+                const fillBg = paints(css, fill?.getAttribute("class"), "background-color", tokens);
                 // Resolve in CASCADE order: an element's own `color` beats one inherited
                 // from its parent, so the span must be consulted BEFORE the fill. Reading
                 // the fill first would let an ink utility added to the span reintroduce
                 // the exact 1.89:1 defect with this test still green. Falling through both
                 // means the icon inherits --text from <body> — the original defect.
-                const ink = paints(fill?.querySelector("span")?.getAttribute("class"), "color", tokens)
-                    ?? paints(fill?.getAttribute("class"), "color", tokens)
+                const ink = paints(css, fill?.querySelector("span")?.getAttribute("class"), "color", tokens)
+                    ?? paints(css, fill?.getAttribute("class"), "color", tokens)
                     ?? tokens["--text"];
                 expect(fillBg, `${theme}: the fill must paint a resolvable background`).toBeTruthy();
                 expect(trackBg, `${theme}: the track must paint a resolvable background`).toBeTruthy();
@@ -173,15 +197,409 @@ describe("dist/", () => {
                     contrast(ink!, fillBg!),
                     `${theme}: icon ${ink} on fill ${fillBg} is ${contrast(ink!, fillBg!).toFixed(2)}:1 — SC 1.4.11 needs 3:1`,
                 ).toBeGreaterThanOrEqual(3);
-                // Defensive, not a live case: the fill's left edge is coincident with the
-                // track's, so at low progress the icon is CLIPPED by the track's
-                // overflow-hidden rather than spilling onto bare grey. Asserted anyway so a
-                // future layout change that does expose the icon there cannot land silently.
-                expect(
-                    contrast(ink!, trackBg!),
-                    `${theme}: icon ${ink} overhanging onto track ${trackBg} is ${contrast(ink!, trackBg!).toFixed(2)}:1`,
-                ).toBeGreaterThanOrEqual(3);
             }
+        }
+    });
+
+    /**
+     * This replaces an assertion that the icon cleared 3:1 against the TRACK as
+     * well as the fill. That was never a live case — the note it carried said so
+     * — and it is not satisfiable: the ink is chosen to read on the fill, the
+     * fill flips polarity between themes, and the only way to make one ink clear
+     * both regions is to drive the track toward the opposite pole from its own
+     * card. Doing that in light mode makes the *unfilled* remainder the loudest
+     * thing on the card, which is the defect this palette exists to fix.
+     *
+     * What actually kept the icon off the track is structural, so that is what
+     * the next test asserts. These are the three ratios that are real: the
+     * marked region must dominate, the two regions must be distinguishable from
+     * each other, and the track must stay quiet against its card.
+     */
+    it("keeps the bar's polarity: the filled region reads as the mark", () => {
+        const css = sheet();
+        const doc = parseHTML(read("dist/index.html")).document;
+        const bars = [...doc.querySelectorAll('[role="progressbar"]')];
+        expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
+
+        for (const bar of bars) {
+            const fill = bar.querySelector(".progress-fill")!;
+            // The surface the bar is judged against is the card it sits on, found
+            // by walking up rather than named, so a layout change cannot leave
+            // this comparing the bar to a card it is no longer inside.
+            let card = bar.parentElement;
+            while (card && !painted(css, card.getAttribute("class"), "background-color", themeTokens(css, "light"))) {
+                card = card.parentElement;
+            }
+            expect(card, "the bar must sit on an element that paints a surface").toBeTruthy();
+
+            for (const theme of ["light", "dark"]) {
+                const t = themeTokens(css, theme);
+                const track = painted(css, bar.getAttribute("class"), "background-color", t)!;
+                const mark = painted(css, fill.getAttribute("class"), "background-color", t)!;
+                const surface = painted(css, card!.getAttribute("class"), "background-color", t)!;
+
+                // The bar's colours must be the bar's OWN. It used to paint
+                // --shadow, so re-toning the portrait's offset plate silently
+                // re-toned the data; a ratio check cannot see that coupling,
+                // because the borrowed colour can happen to measure fine.
+                expect(mark.via, `${theme}: the fill paints ${mark.via} — the bar must own its fill colour`).toBe("--progress-fill");
+                expect(track.via, `${theme}: the track paints ${track.via} — the bar must own its track colour`).toBe("--progress-track");
+
+                const fillVsCard = contrast(mark.hex, surface.hex);
+                const trackVsCard = contrast(track.hex, surface.hex);
+
+                // Dominance. A ratio gate alone certifies a bar painted backwards:
+                // whichever region stands further from the card is the one a reader
+                // takes for the mark, so the FILL has to be that region.
+                expect(
+                    fillVsCard,
+                    `${theme}: fill ${mark.hex} at ${fillVsCard.toFixed(2)}:1 vs card must exceed track ${track.hex} at ${trackVsCard.toFixed(2)}:1 — otherwise the empty part reads as full`,
+                ).toBeGreaterThan(trackVsCard);
+                // Quiet channel: the track is ground, not a second mark.
+                expect(
+                    trackVsCard,
+                    `${theme}: track is ${trackVsCard.toFixed(2)}:1 against its card — too loud for the unmarked region`,
+                ).toBeLessThanOrEqual(2);
+                // And the boundary between them still has to be findable.
+                const fillVsTrack = contrast(mark.hex, track.hex);
+                expect(fillVsTrack, `${theme}: fill against track is ${fillVsTrack.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+            }
+        }
+    });
+
+    /**
+     * --accent is the control's border and its hover ink, both non-text
+     * graphics, so 3:1 against the surface they sit on. It shipped at 1.89:1 in
+     * light mode for as long as the palette existed: hovering a control turned
+     * its icon #F3A3AA on a #FAFAFA field. Nothing caught it because neither the
+     * border nor the icon is text, and no contrast checker looks at either.
+     */
+    it("holds the control's accent at 3:1 against the surface it sits on", () => {
+        const css = sheet();
+        for (const theme of ["light", "dark"]) {
+            const t = themeTokens(css, theme);
+            const ratio = contrast(t["--accent"], t["--background"]);
+            expect(
+                ratio,
+                `${theme}: accent ${t["--accent"]} on ${t["--background"]} is ${ratio.toFixed(2)}:1 — the control border and its hover icon need 3:1`,
+            ).toBeGreaterThanOrEqual(3);
+        }
+    });
+
+    /**
+     * The Now card's live dot is a non-text status graphic, so SC 1.4.11 asks
+     * 3:1 of it against the card it sits on. It went unmeasured for as long as
+     * it existed because it borrowed --shadow, a token whose own job (a
+     * decorative offset plate) carries no such requirement — at #EC7981 it sat
+     * at 2.53:1 and nobody was looking. Splitting --status-live off is what
+     * makes this assertable; pinning `.via` is what stops a future re-coupling
+     * from quietly reintroducing the same blind spot.
+     */
+    it("holds the live status dot at 3:1 against the card it sits on", () => {
+        const css = sheet();
+        const doc = parseHTML(read("dist/index.html")).document;
+        const dot = doc.querySelector('[class*="status-live"]');
+        expect(dot, "the Now card must render a live indicator").toBeTruthy();
+
+        let card = dot!.parentElement;
+        while (card && !painted(css, card.getAttribute("class"), "background-color", themeTokens(css, "light"))) {
+            card = card.parentElement;
+        }
+        expect(card, "the dot must sit on an element that paints a surface").toBeTruthy();
+
+        for (const theme of ["light", "dark"]) {
+            const t = themeTokens(css, theme);
+            const ink = painted(css, dot!.getAttribute("class"), "background-color", t)!;
+            const surface = painted(css, card!.getAttribute("class"), "background-color", t)!;
+            expect(ink?.via, `${theme}: the dot paints ${ink?.via} — the indicator must own its colour`).toBe("--status-live");
+            const ratio = contrast(ink.hex, surface.hex);
+            expect(
+                ratio,
+                `${theme}: live dot ${ink.hex} on ${surface.hex} is ${ratio.toFixed(2)}:1 — a status indicator needs 3:1`,
+            ).toBeGreaterThanOrEqual(3);
+        }
+    });
+
+    it("clips the goal icon inside the fill instead of letting it paint on the track", () => {
+        // The structural reason the ink never has to read on the track: the glyph
+        // lives inside the fill and the FILL clips to itself, so overflow in any
+        // direction, under any display/justify/direction, is cut at the fill's
+        // own painted edge and can never land on bare track.
+        //
+        // Resolved out of the built stylesheet, not from the class token: a
+        // utility UnoCSS fails to emit must go red here. An earlier version of
+        // this test asserted the token `justify-end` instead, which made the
+        // guard depend on `flex` — a token it never checked. Removing `flex`
+        // left the suite green while putting 8px of the glyph on bare track at
+        // 1.76:1 (light) and 1.61:1 (dark).
+        const css = sheet();
+        const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
+        expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
+        for (const track of bars) {
+            const fill = track.querySelector(".progress-fill")!;
+            expect(
+                decl(css, fill.getAttribute("class"), "overflow"),
+                "the fill must clip its own overflow — that is what keeps the glyph off the track under any layout",
+            ).toBe("hidden");
+            expect(
+                decl(css, track.getAttribute("class"), "overflow"),
+                "the track clips too, so a fill wider than its box cannot escape the bar",
+            ).toBe("hidden");
+
+            const icons = [...track.querySelectorAll("span")];
+            expect(icons.length, "the bar renders exactly one glyph").toBe(1);
+            expect(fill.contains(icons[0]), "the glyph must live inside the fill, not beside it").toBe(true);
+        }
+    });
+
+    it("keeps the glyph riding the fill's leading edge", () => {
+        // A second, separate claim: the clip above guarantees the glyph is never
+        // on the track, but not that it sits where the design puts it. Without
+        // `flex` the glyph would be clipped away entirely at low progress rather
+        // than marking the leading edge.
+        const css = sheet();
+        for (const track of [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')]) {
+            const classes = track.querySelector(".progress-fill")!.getAttribute("class");
+            expect(decl(css, classes, "display"), "the fill lays its glyph out as a flex item").toMatch(/^(inline-)?flex$/);
+            expect(decl(css, classes, "justify-content"), "the glyph rides the leading edge").toBe("flex-end");
+        }
+    });
+});
+
+/**
+ * The controls' offset plate was invisible from the day the surface was written:
+ * presetWind3 expands a geometry-only shadow to
+ * `--un-shadow: <offsets> var(--un-shadow-color)` with NO fallback, nothing on
+ * the page ever defines `--un-shadow-color`, and an unresolvable var makes the
+ * whole `box-shadow` invalid at computed-value time — so it computed to `none`.
+ * The portrait escaped because its shadow was written as one complete arbitrary
+ * value, which emits `var(--un-shadow-color, <colour>)`.
+ *
+ * A rendered-colour test cannot see this (there is no browser here) and a class
+ * test cannot either (the classes were present the whole time). So this asserts
+ * the mechanism: every offset plate must ship a resolvable colour.
+ */
+/**
+ * A hover style is a promise that something happens if you click. The eight
+ * bento cards are plain containers — nothing about one responds to a pointer —
+ * and they nonetheless grew an accent border on hover, which reads as "this is
+ * a link" to anyone with a mouse and means nothing to anyone without one.
+ *
+ * Written against every hover rule in the sheet rather than against the card,
+ * so the same mistake on a future element is caught too.
+ */
+describe("hover styles promise only interactions that exist", () => {
+    const INTERACTIVE = new Set(["a", "button", "input", "select", "textarea", "summary", "label"]);
+
+    it("applies no hover rule to an element that cannot be interacted with", () => {
+        const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+
+        // Match on SELECTORS, not class tokens. An earlier version only
+        // recognised `.token:hover`, so an Astro scoped <style> — the idiomatic
+        // form in this repo, ProgressBar already ships one — could put the accent
+        // border back on all eight cards as `div[data-astro-cid-…]:hover` with
+        // the suite green. Verified: that mutation now goes red.
+        //
+        // A chunk between two `}` is `<at-rule preamble>{<selector list>{<decls>`,
+        // so the selector list is always the penultimate `{`-separated part.
+        const hovered = css
+            .split("}")
+            .flatMap((chunk) => {
+                const parts = chunk.split("{");
+                return parts.length < 2 ? [] : parts[parts.length - 2].split(",");
+            })
+            .map((s) => s.trim())
+            // Only real state pseudo-classes. `\:hover` inside an escaped UnoCSS
+            // token (`.md\:hover\:border-…`) is part of the class NAME, and
+            // stripping it blindly yields a selector linkedom cannot parse —
+            // which would fail the build on a legitimate hover utility.
+            .filter((s) => /(?<!\\):hover(?![\w-])/.test(s))
+            .map((s) => s.replace(/(?<!\\)::?[\w-]+(?:\([^)]*\))?/g, ""));
+        expect(hovered.length, "the sheet must ship at least one hover rule — the controls have one").toBeGreaterThan(0);
+
+        const doc = parseHTML(read("dist/index.html")).document;
+        const offenders: string[] = [];
+        const matched = new Set<Element>();
+        // Deliberately not wrapped in try/catch: a selector this cannot parse
+        // must go red and be handled, because swallowing the throw is exactly
+        // how this guard would become unable to fail.
+        for (const selector of hovered) {
+            for (const el of doc.querySelectorAll(selector)) matched.add(el as Element);
+        }
+        for (const el of matched) {
+            const worn = el.getAttribute("class") || `<${el.tagName.toLowerCase()}>`;
+            let node: Element | null = el;
+            let interactive = false;
+            while (node && !interactive) {
+                interactive = INTERACTIVE.has(node.tagName.toLowerCase()) || node.hasAttribute("tabindex");
+                node = node.parentElement;
+            }
+            if (!interactive) offenders.push(`<${el.tagName.toLowerCase()}> wears ${worn}`);
+        }
+        expect(offenders, "a hover style here advertises an affordance that does not exist").toEqual([]);
+    });
+});
+
+describe("the offset plate actually paints", () => {
+    const PLATED = [".control", ".control-compact", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
+
+    /** The `--un-shadow` value the built sheet gives `selector`. */
+    const plate = (css: string, selector: string) => {
+        const at = css.indexOf(`${selector}{`);
+        expect(at, `${selector} must ship a rule`).toBeGreaterThanOrEqual(0);
+        const body = css.slice(at + selector.length + 1, css.indexOf("}", at));
+        const shadow = body.match(/--un-shadow:\s*([^;]+)/)?.[1];
+        expect(shadow, `${selector} must declare an offset plate`).toBeTruthy();
+        return shadow!;
+    };
+
+    const sheet = () => {
+        const file = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
+        return read(`dist/_astro/${file}`);
+    };
+
+    /**
+     * Check the VALUE, not the shape. There are four ways to write this shortcut
+     * so that nothing is painted, and each earlier draft of this test caught
+     * only some of them:
+     *
+     *   2px 2px 0 var(--un-shadow-color)   geometry utility, no fallback — the
+     *                                      ORIGINAL bug; unresolvable var makes
+     *                                      the whole declaration invalid
+     *   var(--shadow)                      colour utility, no geometry — also
+     *                                      not a valid box-shadow
+     *   2px 2px -1px var(…)                negative blur; invalid, drops to none
+     *   0 0 0 var(…)                       valid CSS that paints entirely behind
+     *                                      the border box, i.e. invisible
+     *
+     * The last two pass any regex that only asks "offsets, then a colour with a
+     * fallback", which is what a review panel caught here. Parsing the numbers
+     * is barely more code and is the difference between a gate and a comment.
+     *
+     * Zero offsets are only fatal together with zero spread — a spread-only
+     * plate is legitimate — so the condition is x === 0 && y === 0 && spread === 0,
+     * not "the offsets are non-zero".
+     *
+     * This stays a stylesheet parse rather than a browser assertion on purpose:
+     * `netlify.toml` runs `pnpm test` as the deploy gate, and putting playwright
+     * and a chromium download inside a zero-client-JS static site's production
+     * build is a worse trade than coupling to presetWind3's emit format.
+     */
+    const LEN = String.raw`(-?[\d.]+)(?:px|r?em)?`;
+    const COMPLETE_PLATE = new RegExp(
+        `^${LEN}\\s+${LEN}(?:\\s+${LEN})?(?:\\s+${LEN})?\\s+var\\(--un-shadow-color,\\s*(.+)\\)$`,
+    );
+
+    /** Why this plate paints nothing, or "" if it does. */
+    const dead = (shadow: string) => {
+        const m = shadow.match(COMPLETE_PLATE);
+        if (!m) return "that is not offsets plus a colour with a fallback, so it computes to box-shadow: none";
+        const [x, y, blur, spread] = [m[1], m[2], m[3], m[4]].map((v) => (v === undefined ? 0 : Number(v)));
+        if (blur < 0 || spread < 0) return "blur and spread may not be negative — the declaration is invalid and drops to none";
+        if (x === 0 && y === 0 && spread === 0) return "a zero-offset, zero-spread plate hides entirely behind the border box";
+        return "";
+    };
+
+    it("gives every plated rule a complete, resolvable, visible shadow value", () => {
+        const css = sheet();
+        for (const selector of PLATED) {
+            const shadow = plate(css, selector);
+            expect(dead(shadow), `${selector} ships "--un-shadow: ${shadow}" — ${dead(shadow)}`).toBe("");
+        }
+    });
+
+    it("paints the plate from the theme token, so it re-tones with the theme", () => {
+        const css = sheet();
+        for (const selector of PLATED) {
+            expect(plate(css, selector), `${selector} must cast the plate in --shadow, not a hard-coded colour`)
+                .toContain("var(--shadow)");
+        }
+        for (const theme of ["light", "dark"]) {
+            const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
+            expect(block, `${theme} must define --shadow for the plate to resolve`).toMatch(/--shadow:\s*#[0-9a-fA-F]{3,6}/);
+        }
+    });
+});
+
+/**
+ * The converse of the existing "no class without a rule" gate: no RULE without a
+ * wearer. UnoCSS extracts from every word of a source file, including prose in
+ * `.astro` frontmatter comments, so an ordinary English word that happens to be
+ * a utility name ships a real CSS rule for a class no element has. It has cost
+ * this repo twice: a dead `perspective` rule that survived a cleanup because it
+ * was named in a comment, and — while writing the change this test ships with —
+ * a `flex-grow` rule emitted by the word "grow" in a paragraph explaining why a
+ * hover style was removed. Both were invisible to every other gate.
+ *
+ * Comparing against the class tokens actually worn in dist/index.html is the
+ * only check that sees it, because the defect is a rule with no corresponding
+ * markup rather than markup with no corresponding rule.
+ */
+describe("the stylesheet ships no rule nobody wears", () => {
+    /**
+     * A ratchet, not a clean sweep. These six predate this gate; each comes from
+     * ordinary text UnoCSS happens to read as a class name:
+     *
+     *   transition    `transition: …` declarations in <style> blocks
+     *   ease          same, though this one is NOT a dead rule — it is a
+     *                 redundant selector riding the live `.ease,.ease-in-out{…}`,
+     *                 so it costs nothing but still has no wearer of its own
+     *   inline        `is:inline` on the theme script, plus prose about it
+     *   inline-block  `display: inline-block` in ThemeSwitcher's <style>
+     *   me            the `me.webp` import path and the "About me" heading
+     *   my            template prose — "Follow my running on Strava", "My Running goal"
+     *
+     * Recorded rather than fixed: the fixes are unrelated to this change, and
+     * blocklisting a real utility means a future author writing it as a class
+     * silently gets nothing, which is how `static` already behaves here.
+     *
+     * KNOWN COST, stated so nobody is surprised by it: `pnpm test` is the Netlify
+     * deploy gate, and UnoCSS reads English. Editing prose in an .astro file can
+     * turn the deploy red — appending ", visible to all" to an sr-only string
+     * emits `.visible`. That is a real trade, accepted because the gate has
+     * already caught three dead rules this change would otherwise have shipped
+     * (`grow`, `container`, and a reversed-row utility, all from comments written
+     * while fixing the previous one). The failure names the token; the fix is a
+     * one-word reword, or a `blocklist` entry in uno.config.ts when the word
+     * cannot be avoided. Note constants.ts prose is NOT scanned, so Calvin's own
+     * copy cannot trip this — only text inside .astro files.
+     */
+    const KNOWN_ORPHANS = ["ease", "inline", "inline-block", "me", "my", "transition"];
+
+    it("emits a class rule only for classes the page actually uses", () => {
+        const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+        const worn = new Set(
+            [...read("dist/index.html").matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)),
+        );
+
+        // Every selector the sheet defines, split on commas, with the leading
+        // class token extracted. Non-class selectors (`body`, `:root[…]`,
+        // `main > *`, keyframe stops) are not this test's business.
+        const orphans = new Set<string>();
+        for (const m of css.matchAll(/(^|[{}])([^{}@]+)\{/g)) {
+            for (const selector of m[2].split(",")) {
+                const cls = selector.trim().match(/^\.((?:\\.|[\w-])+)/)?.[1];
+                if (!cls) continue;
+                const token = cls.replace(/\\(.)/g, "$1");
+                if (!worn.has(token) && !KNOWN_ORPHANS.includes(token)) orphans.add(token);
+            }
+        }
+        expect(
+            [...orphans].sort(),
+            "these classes have a CSS rule but no element — almost always a utility name written as an ordinary English word in .astro text. Reword it, or add it to `blocklist` in uno.config.ts if the word cannot be avoided",
+        ).toEqual([]);
+    });
+
+    it("still needs every entry on the known-orphan list, so the list cannot rot", () => {
+        // Without this, a token fixed at source stays on the list forever and
+        // quietly re-opens the hole it was excusing.
+        const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+        for (const token of KNOWN_ORPHANS) {
+            const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}`;
+            expect(
+                css.includes(`${selector}{`) || css.includes(`${selector},`),
+                `${token} no longer ships a rule — remove it from KNOWN_ORPHANS`,
+            ).toBe(true);
         }
     });
 });

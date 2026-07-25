@@ -7,6 +7,17 @@
 // NB: UnoCSS scans .astro frontmatter, so never name a utility here that the
 // template does not actually use — it emits a real CSS rule for a class
 // nothing has. That is how the old perspective utility survived as dead CSS.
+//
+// The card has no hover state on purpose. All eight of them are plain
+// containers: nothing about a card responds to a click, and the accent-coloured
+// edge it used to take on under the pointer advertised an affordance that does
+// not exist. The controls inside a card are the interactive elements and they
+// keep theirs. The colour transition below stays — it carries the theme
+// crossfade, not a pointer state.
+//
+// Wording matters here for the reason given above: an earlier draft of this
+// paragraph used the ordinary English verb for "get bigger", which happens to
+// be a flex utility, and UnoCSS emitted a rule for it that no element wore.
 interface Props {
     title?: string;
     titleIcon?: string;
@@ -18,7 +29,7 @@ const {title, titleIcon, colSpan, rowSpan} = Astro.props;
 ---
 
 <div
-        class={`isolate overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] hover:border-[var(--accent)] relative w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
+        class={`isolate overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] relative w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
     {title && <h2 class="text-xl font-bold m-0">{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
     <slot/>

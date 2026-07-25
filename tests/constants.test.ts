@@ -34,6 +34,33 @@ describe("LINKS", () => {
     it("has a unique name per entry", () => {
         expect(new Set(LINKS.map((l) => l.name)).size).toBe(LINKS.length);
     });
+
+    /**
+     * `name` is announced verbatim (IntroCard renders it into the sr-only span
+     * and the icon is aria-hidden), so it has to describe what the link reaches.
+     * A document is not a profile, and calling the résumé one is the defect this
+     * encodes.
+     *
+     * Keyed on the FILE EXTENSION, not on a leading slash. The earlier version
+     * asked whether the URL was root-relative, which silently stopped applying
+     * the moment the same PDF moved to an absolute URL — a hosting change, not a
+     * content change, would have re-admitted "Resume Profile".
+     */
+    const DOCUMENT = /\.(pdf|docx?|pptx?|xlsx?|csv|txt|epub)(\?|#|$)/i;
+
+    it("calls no entry a profile unless it leads to one", () => {
+        const documents = LINKS.filter(({link}) => DOCUMENT.test(link));
+        expect(documents.length, "LINKS must still contain the résumé, or this test guards nothing").toBeGreaterThan(0);
+        for (const {link, name} of documents) {
+            expect(name.toLowerCase(), `${link} is a document, not somebody's profile`).not.toContain("profile");
+        }
+    });
+
+    it("names every entry with something announceable", () => {
+        for (const {link, name} of LINKS) {
+            expect(name.trim(), `${link} needs a non-empty accessible name`).not.toBe("");
+        }
+    });
 });
 
 describe("GOALS", () => {

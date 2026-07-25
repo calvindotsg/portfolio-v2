@@ -303,7 +303,9 @@ describe("control semantics", () => {
         expect(named.every(({label}) => label === null), "an aria-label here would silently override the sr-only name").toBe(true);
 
         const expected = [
-            ...LINKS.map(({name}) => `${name} Profile`),
+            // Verbatim: the template no longer decorates the name. The old
+            // `${name} Profile` was itself the defect — it called a PDF a profile.
+            ...LINKS.map(({name}) => name),
             ...GOALS.map(({goal_name}) => `Follow my ${goal_name.toLowerCase()} on Strava`),
         ].sort();
         expect(named.map(({name}) => name).sort(), "announced names must come from constants.ts").toEqual(expected);

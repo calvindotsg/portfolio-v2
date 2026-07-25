@@ -14,15 +14,36 @@ const {currentProgress, totalGoal, goalLogo, label, unit} = Astro.props;
 const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
 
 /**
- * The fill paints --shadow, a light pink in BOTH themes, so the icon on it takes
- * --on-brand instead of inheriting --text — which is near-white in dark mode and
- * left the icon at 1.89:1 against the fill. 3:1 is the bar SC 1.4.11 sets for
- * graphical objects; we hold to it here even though the icon is aria-hidden.
+ * The bar owns its two colours (--progress-fill, --progress-track) rather than
+ * borrowing --shadow and a grey from the UnoCSS palette. That was the defect:
+ * one shared #D4D4D4 track served both themes, and in dark mode it stood at
+ * 12.09:1 against its card while the fill managed 9.08:1 — the *empty* part of
+ * the bar was the strongest mark on it, so the bar read backwards. See
+ * BasicLayout for the polarity rule the two tokens now encode.
+ *
+ * The icon takes --on-brand rather than inheriting --text, which is near-white
+ * in dark mode and left it at 1.89:1 on the fill. 3:1 is the bar SC 1.4.11 sets
+ * for graphical objects; we hold to it even though the icon is aria-hidden.
+ *
+ * The fill clips its OWN overflow, and that is what keeps the icon off the
+ * track at low progress — not a contrast ratio between the ink and the track,
+ * which no palette can hold while the ink is chosen to read on the fill.
+ *
+ * An earlier version leaned on the glyph spilling past the fill's start edge,
+ * which is coincident with the track's, so the track's own clipping caught it.
+ * True, but it silently depended on the fill laying its child out as a flex
+ * item — without that, the end-justification is inert and the spill goes the
+ * other way, onto bare track at 1.76:1 — and equally on nobody reversing the
+ * row direction, switching to RTL, or changing the display type. Clipping to
+ * the fill survives all of those.
+ *
+ * Utility names are deliberately not written literally anywhere in this file's
+ * prose: UnoCSS reads comments and emits a rule for anything that parses as one.
  */
 ---
 
 <div
-        class="overflow-hidden bg-gray-300 rounded-full h-6 mt-4"
+        class="overflow-hidden bg-[var(--progress-track)] rounded-full h-6 mt-4"
         role="progressbar"
         aria-label={label}
         aria-valuemin="0"
@@ -31,7 +52,7 @@ const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
         aria-valuetext={`${currentProgress} of ${totalGoal} ${unit}`}
 >
     <div
-            class="progress-fill h-full bg-[var(--shadow)] text-[var(--on-brand)] rounded-full px-2 box-border flex items-center justify-end"
+            class="progress-fill overflow-hidden h-full bg-[var(--progress-fill)] text-[var(--on-brand)] rounded-full px-2 box-border flex items-center justify-end"
             style={`--progress: ${percent}%`}
     >
         <span aria-hidden="true" class={`${iconClass(goalLogo)} shrink-0 text-base`}></span>
