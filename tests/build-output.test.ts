@@ -113,40 +113,51 @@ describe("dist/", () => {
         return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
     };
 
+    /** The built stylesheet. Read lazily: the build runs in vitest's globalSetup. */
+    const sheet = () => read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+
+    const themeTokens = (css: string, theme: string): Record<string, string> => {
+        const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
+        expect(block, `the ${theme} theme block must ship its color tokens`).toBeTruthy();
+        return Object.fromEntries(
+            [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], expandHex(m[2])]),
+        );
+    };
+
+    /**
+     * What a class list actually paints for `prop`, per the shipped rules —
+     * both the resolved hex and the custom property it came through.
+     *
+     * Everything downstream resolves through the ELEMENT's classes rather than
+     * through a token name, and that is the point: a token can be re-toned
+     * perfectly while the element quietly paints a different one.
+     */
+    const painted = (css: string, classes: string | null | undefined, prop: string, tokens: Record<string, string>) => {
+        for (const token of classes?.split(/\s+/) ?? []) {
+            const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}{`;
+            const at = css.indexOf(selector);
+            if (at < 0) continue; // UnoCSS generated nothing for this token.
+            const body = css.slice(at + selector.length, css.indexOf("}", at));
+            const value = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+?)\\s*(?:;|$)`))?.[1];
+            const named = value?.match(/^var\((--[\w-]+)\)/)?.[1];
+            // A palette colour ships as rgb(r g b / var(--un-bg-opacity)).
+            const rgb = value?.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
+            const hex = named
+                ? tokens[named]
+                : rgb
+                    ? `#${rgb.slice(1).map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`
+                    : value?.match(/^#[0-9a-fA-F]{3,6}$/)?.[0];
+            // `color: inherit` on the icon rule resolves to nothing and falls through.
+            if (hex) return {hex: expandHex(hex), via: named};
+        }
+        return undefined;
+    };
+
+    const paints = (css: string, classes: string | null | undefined, prop: string, tokens: Record<string, string>) =>
+        painted(css, classes, prop, tokens)?.hex;
+
     it("paints the goal icon at 3:1 against the progress bar in both themes", () => {
-        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
-        const css = read(`dist/_astro/${sheet}`);
-
-        const themeTokens = (theme: string): Record<string, string> => {
-            const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
-            expect(block, `the ${theme} theme block must ship its color tokens`).toBeTruthy();
-            return Object.fromEntries(
-                [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], expandHex(m[2])]),
-            );
-        };
-
-        /** The hex a class list actually paints for `prop`, per the shipped rules. */
-        const paints = (classes: string | null | undefined, prop: string, tokens: Record<string, string>) => {
-            for (const token of classes?.split(/\s+/) ?? []) {
-                const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}{`;
-                const at = css.indexOf(selector);
-                if (at < 0) continue; // UnoCSS generated nothing for this token.
-                const body = css.slice(at + selector.length, css.indexOf("}", at));
-                const value = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+?)\\s*(?:;|$)`))?.[1];
-                const named = value?.match(/^var\((--[\w-]+)\)/)?.[1];
-                // A palette colour ships as rgb(r g b / var(--un-bg-opacity)).
-                const rgb = value?.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
-                const hex = named
-                    ? tokens[named]
-                    : rgb
-                        ? `#${rgb.slice(1).map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`
-                        : value?.match(/^#[0-9a-fA-F]{3,6}$/)?.[0];
-                // `color: inherit` on the icon rule resolves to nothing and falls through.
-                if (hex) return expandHex(hex);
-            }
-            return undefined;
-        };
-
+        const css = sheet();
         const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
         expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
 
@@ -154,16 +165,16 @@ describe("dist/", () => {
             const fill = track.querySelector(".progress-fill");
             expect(fill, "each progress bar must render a fill").toBeTruthy();
             for (const theme of ["light", "dark"]) {
-                const tokens = themeTokens(theme);
-                const trackBg = paints(track.getAttribute("class"), "background-color", tokens);
-                const fillBg = paints(fill?.getAttribute("class"), "background-color", tokens);
+                const tokens = themeTokens(css, theme);
+                const trackBg = paints(css, track.getAttribute("class"), "background-color", tokens);
+                const fillBg = paints(css, fill?.getAttribute("class"), "background-color", tokens);
                 // Resolve in CASCADE order: an element's own `color` beats one inherited
                 // from its parent, so the span must be consulted BEFORE the fill. Reading
                 // the fill first would let an ink utility added to the span reintroduce
                 // the exact 1.89:1 defect with this test still green. Falling through both
                 // means the icon inherits --text from <body> — the original defect.
-                const ink = paints(fill?.querySelector("span")?.getAttribute("class"), "color", tokens)
-                    ?? paints(fill?.getAttribute("class"), "color", tokens)
+                const ink = paints(css, fill?.querySelector("span")?.getAttribute("class"), "color", tokens)
+                    ?? paints(css, fill?.getAttribute("class"), "color", tokens)
                     ?? tokens["--text"];
                 expect(fillBg, `${theme}: the fill must paint a resolvable background`).toBeTruthy();
                 expect(trackBg, `${theme}: the track must paint a resolvable background`).toBeTruthy();
@@ -192,39 +203,73 @@ describe("dist/", () => {
      * each other, and the track must stay quiet against its card.
      */
     it("keeps the bar's polarity: the filled region reads as the mark", () => {
-        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
-        const css = read(`dist/_astro/${sheet}`);
-        const tokens = (theme: string) => {
-            const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
-            expect(block, `the ${theme} theme block must ship its color tokens`).toBeTruthy();
-            return Object.fromEntries(
-                [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], expandHex(m[2])]),
-            );
-        };
+        const css = sheet();
+        const doc = parseHTML(read("dist/index.html")).document;
+        const bars = [...doc.querySelectorAll('[role="progressbar"]')];
+        expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
 
-        for (const theme of ["light", "dark"]) {
-            const t = tokens(theme);
-            for (const name of ["--progress-fill", "--progress-track", "--card-background"]) {
-                expect(t[name], `${theme} must define ${name}`).toBeTruthy();
+        for (const bar of bars) {
+            const fill = bar.querySelector(".progress-fill")!;
+            // The surface the bar is judged against is the card it sits on, found
+            // by walking up rather than named, so a layout change cannot leave
+            // this comparing the bar to a card it is no longer inside.
+            let card = bar.parentElement;
+            while (card && !painted(css, card.getAttribute("class"), "background-color", themeTokens(css, "light"))) {
+                card = card.parentElement;
             }
-            const fillVsCard = contrast(t["--progress-fill"], t["--card-background"]);
-            const trackVsCard = contrast(t["--progress-track"], t["--card-background"]);
+            expect(card, "the bar must sit on an element that paints a surface").toBeTruthy();
 
-            // Dominance. A ratio gate alone certifies a bar painted backwards:
-            // whichever region stands further from the card is the one a reader
-            // takes for the mark, so the FILL has to be that region.
+            for (const theme of ["light", "dark"]) {
+                const t = themeTokens(css, theme);
+                const track = painted(css, bar.getAttribute("class"), "background-color", t)!;
+                const mark = painted(css, fill.getAttribute("class"), "background-color", t)!;
+                const surface = painted(css, card!.getAttribute("class"), "background-color", t)!;
+
+                // The bar's colours must be the bar's OWN. It used to paint
+                // --shadow, so re-toning the portrait's offset plate silently
+                // re-toned the data; a ratio check cannot see that coupling,
+                // because the borrowed colour can happen to measure fine.
+                expect(mark.via, `${theme}: the fill paints ${mark.via} — the bar must own its fill colour`).toBe("--progress-fill");
+                expect(track.via, `${theme}: the track paints ${track.via} — the bar must own its track colour`).toBe("--progress-track");
+
+                const fillVsCard = contrast(mark.hex, surface.hex);
+                const trackVsCard = contrast(track.hex, surface.hex);
+
+                // Dominance. A ratio gate alone certifies a bar painted backwards:
+                // whichever region stands further from the card is the one a reader
+                // takes for the mark, so the FILL has to be that region.
+                expect(
+                    fillVsCard,
+                    `${theme}: fill ${mark.hex} at ${fillVsCard.toFixed(2)}:1 vs card must exceed track ${track.hex} at ${trackVsCard.toFixed(2)}:1 — otherwise the empty part reads as full`,
+                ).toBeGreaterThan(trackVsCard);
+                // Quiet channel: the track is ground, not a second mark.
+                expect(
+                    trackVsCard,
+                    `${theme}: track is ${trackVsCard.toFixed(2)}:1 against its card — too loud for the unmarked region`,
+                ).toBeLessThanOrEqual(2);
+                // And the boundary between them still has to be findable.
+                const fillVsTrack = contrast(mark.hex, track.hex);
+                expect(fillVsTrack, `${theme}: fill against track is ${fillVsTrack.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+            }
+        }
+    });
+
+    /**
+     * --accent is the control's border and its hover ink, both non-text
+     * graphics, so 3:1 against the surface they sit on. It shipped at 1.89:1 in
+     * light mode for as long as the palette existed: hovering a control turned
+     * its icon #F3A3AA on a #FAFAFA field. Nothing caught it because the border
+     * and the icon are the only things wearing --accent and neither is text.
+     */
+    it("holds the control's accent at 3:1 against the surface it sits on", () => {
+        const css = sheet();
+        for (const theme of ["light", "dark"]) {
+            const t = themeTokens(css, theme);
+            const ratio = contrast(t["--accent"], t["--background"]);
             expect(
-                fillVsCard,
-                `${theme}: fill ${fillVsCard.toFixed(2)}:1 vs card must exceed track ${trackVsCard.toFixed(2)}:1 — otherwise the empty part reads as full`,
-            ).toBeGreaterThan(trackVsCard);
-            // Quiet channel: the track is ground, not a second mark.
-            expect(
-                trackVsCard,
-                `${theme}: track is ${trackVsCard.toFixed(2)}:1 against its card — too loud for the unmarked region`,
-            ).toBeLessThanOrEqual(2);
-            // And the boundary between them still has to be findable.
-            const fillVsTrack = contrast(t["--progress-fill"], t["--progress-track"]);
-            expect(fillVsTrack, `${theme}: fill against track is ${fillVsTrack.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+                ratio,
+                `${theme}: accent ${t["--accent"]} on ${t["--background"]} is ${ratio.toFixed(2)}:1 — the control border and its hover icon need 3:1`,
+            ).toBeGreaterThanOrEqual(3);
         }
     });
 
@@ -264,6 +309,44 @@ describe("dist/", () => {
  * test cannot either (the classes were present the whole time). So this asserts
  * the mechanism: every offset plate must ship a resolvable colour.
  */
+/**
+ * A hover style is a promise that something happens if you click. The eight
+ * bento cards are plain containers — nothing about one responds to a pointer —
+ * and they nonetheless grew an accent border on hover, which reads as "this is
+ * a link" to anyone with a mouse and means nothing to anyone without one.
+ *
+ * Written against every hover rule in the sheet rather than against the card,
+ * so the same mistake on a future element is caught too.
+ */
+describe("hover styles promise only interactions that exist", () => {
+    const INTERACTIVE = new Set(["a", "button", "input", "select", "textarea", "summary", "label"]);
+
+    it("applies no hover rule to an element that cannot be interacted with", () => {
+        const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+        // `.control:hover` and `.hover\:border-\[…\]:hover` alike; unescape to the
+        // class token an element would actually wear.
+        const hovered = new Set(
+            [...css.matchAll(/\.((?:\\.|[^{},:\s\\])+):hover/g)].map((m) => m[1].replace(/\\(.)/g, "$1")),
+        );
+        expect(hovered.size, "the sheet must ship at least one hover rule — the controls have one").toBeGreaterThan(0);
+
+        const doc = parseHTML(read("dist/index.html")).document;
+        const offenders: string[] = [];
+        for (const el of [...doc.querySelectorAll("[class]")]) {
+            const worn = (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => hovered.has(c));
+            if (worn.length === 0) continue;
+            let node: Element | null = el;
+            let interactive = false;
+            while (node && !interactive) {
+                interactive = INTERACTIVE.has(node.tagName.toLowerCase()) || node.hasAttribute("tabindex");
+                node = node.parentElement;
+            }
+            if (!interactive) offenders.push(`<${el.tagName.toLowerCase()}> wears ${worn.join(" ")}`);
+        }
+        expect(offenders, "a hover style here advertises an affordance that does not exist").toEqual([]);
+    });
+});
+
 describe("the offset plate actually paints", () => {
     const PLATED = [".control", ".control-compact", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
 
