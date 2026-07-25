@@ -43,6 +43,16 @@ export default defineConfig({
      * `active:shadow-none` still wins: it sets the same `--un-shadow` variable
      * from a `:active` selector, which outranks the shortcut's own rule.
      *
+     * box-shadow is deliberately OUTSIDE the colour transition, so the plate
+     * snaps rather than fading. Two reasons, both measured. Press/release
+     * symmetry: the press state and its 3px offset are both instant, and adding
+     * box-shadow to the transition list makes the plate re-inflate over 300ms
+     * after the button has already sprung back — on every click of all nine
+     * plated elements. And it would buy nothing during a theme change anyway:
+     * the card behind sweeps through mid-grey, so at the midpoint the border
+     * sits at 1.01:1 and the label at 1.31:1 whatever the plate does. The plate
+     * is not the outlier there.
+     *
      * `w-max` on `control` IS load-bearing, and no test in this repo catches its
      * removal. Both call sites make the anchor a grid/flex item, so it blockifies
      * and stretches to its track: dropping `w-max` widens controls by up to 5.0px

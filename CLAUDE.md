@@ -51,13 +51,15 @@ preview is byte-identical to what Netlify serves.
 - **Site Config**: Main site configuration in `astro.config.mjs` (site URL, integrations)
 
 ### Styling System
-- **UnoCSS**: Atomic CSS with custom theme configuration in `uno.config.ts`
-- **Theme Support**: dark/light mode via CSS custom properties defined in
-  `src/layouts/BasicLayout.astro`; the active theme is written to
-  `<html data-theme>` by an inline `<script is:inline>` in `<head>` before first
-  paint
-- **Custom Design System**: theme tokens (colors, shadows) defined in
-  `uno.config.ts`
+- **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
+  `blocklist`, the `control-surface` shortcut (including the offset-plate
+  shadow) and the presets — there is no `theme` key, so no colour or shadow
+  tokens live there
+- **Theme Support**: dark/light mode via CSS custom properties on
+  `:root[data-theme]` in `src/layouts/BasicLayout.astro`; that block's header
+  comment defines each token's role and the progress-bar polarity rule — read it
+  before changing a colour. The active theme is written to `<html data-theme>`
+  by an inline `<script is:inline>` in `<head>` before first paint
 
 ### Layout Hierarchy
 - `src/layouts/BasicLayout.astro` wraps the single page `src/pages/index.astro`

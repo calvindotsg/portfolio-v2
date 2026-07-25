@@ -94,13 +94,15 @@ const schema = {
 
     /* Theme Variables
      *
-     * Four roles, deliberately separate tokens even where two of them resolve to
-     * the same hex today:
+     * Six roles, deliberately separate tokens even where several of them resolve
+     * to the same hex today:
      *
      *   --shadow          the offset plate cast by the portrait and the controls
      *   --accent          the interactive affordance: control border, hover ink
      *   --progress-fill   the *marked* region of a progress bar
      *   --progress-track  the unmarked remainder of that bar
+     *   --status-live     the Now card's live indicator dot
+     *   --status-halo     that dot's decorative pulsing halo
      *
      * The bar used to paint --shadow, so re-toning the plate silently re-toned
      * the data. Two colours matching in this palette is a coincidence of this
@@ -127,6 +129,8 @@ const schema = {
         --text: #0B0B0B; /* darkslate-900 */
         --progress-fill: #A82334; /* primary-600 */
         --progress-track: #E3B3B8; /* primary-150 */
+        --status-live: #A82334; /* primary-600 */
+        --status-halo: #A82334; /* primary-600 */
         --on-brand: #FAFAFA; /* grey-50 — light ink, the fill is deep here */
     }
 
@@ -139,6 +143,8 @@ const schema = {
         --text: #FAFAFA; /* grey-50 */
         --progress-fill: #F9CDD3; /* primary-100 */
         --progress-track: #462F32; /* primary-800 */
+        --status-live: #F3A3AA; /* primary-200 */
+        --status-halo: #F9CDD3; /* primary-100 */
         --on-brand: #0B0B0B; /* darkslate-900 — dark ink, the fill is pale here */
     }
 

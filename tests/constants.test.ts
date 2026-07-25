@@ -38,17 +38,21 @@ describe("LINKS", () => {
     /**
      * `name` is announced verbatim (IntroCard renders it into the sr-only span
      * and the icon is aria-hidden), so it has to describe what the link reaches.
-     * Only an entry pointing at somebody's account page is a profile; the
-     * résumé is a root-relative document and calling it one is the defect this
-     * encodes. Keyed on the URL shape rather than on the résumé's own name, so
-     * a second document added to LINKS is caught too.
+     * A document is not a profile, and calling the résumé one is the defect this
+     * encodes.
+     *
+     * Keyed on the FILE EXTENSION, not on a leading slash. The earlier version
+     * asked whether the URL was root-relative, which silently stopped applying
+     * the moment the same PDF moved to an absolute URL — a hosting change, not a
+     * content change, would have re-admitted "Resume Profile".
      */
+    const DOCUMENT = /\.(pdf|docx?|pptx?|xlsx?|csv|txt|epub)(\?|#|$)/i;
+
     it("calls no entry a profile unless it leads to one", () => {
-        for (const {link, name} of LINKS) {
-            if (/^\//.test(link)) {
-                expect(name.toLowerCase(), `${link} is a document on this site, not a profile`)
-                    .not.toContain("profile");
-            }
+        const documents = LINKS.filter(({link}) => DOCUMENT.test(link));
+        expect(documents.length, "LINKS must still contain the résumé, or this test guards nothing").toBeGreaterThan(0);
+        for (const {link, name} of documents) {
+            expect(name.toLowerCase(), `${link} is a document, not somebody's profile`).not.toContain("profile");
         }
     });
 

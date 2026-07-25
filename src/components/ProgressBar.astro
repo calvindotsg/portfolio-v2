@@ -25,11 +25,20 @@ const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
  * in dark mode and left it at 1.89:1 on the fill. 3:1 is the bar SC 1.4.11 sets
  * for graphical objects; we hold to it even though the icon is aria-hidden.
  *
- * The icon is a child of the fill and the fill's left edge is coincident with
- * the track's, so `justify-end` pushes any overflow past the start edge, where
- * the track's `overflow-hidden` clips it. That is what keeps the icon off the
+ * The fill clips its OWN overflow, and that is what keeps the icon off the
  * track at low progress — not a contrast ratio between the ink and the track,
  * which no palette can hold while the ink is chosen to read on the fill.
+ *
+ * An earlier version leaned on the glyph spilling past the fill's start edge,
+ * which is coincident with the track's, so the track's own clipping caught it.
+ * True, but it silently depended on the fill laying its child out as a flex
+ * item — without that, the end-justification is inert and the spill goes the
+ * other way, onto bare track at 1.76:1 — and equally on nobody reversing the
+ * row direction, switching to RTL, or changing the display type. Clipping to
+ * the fill survives all of those.
+ *
+ * Utility names are deliberately not written literally anywhere in this file's
+ * prose: UnoCSS reads comments and emits a rule for anything that parses as one.
  */
 ---
 
@@ -43,7 +52,7 @@ const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
         aria-valuetext={`${currentProgress} of ${totalGoal} ${unit}`}
 >
     <div
-            class="progress-fill h-full bg-[var(--progress-fill)] text-[var(--on-brand)] rounded-full px-2 box-border flex items-center justify-end"
+            class="progress-fill overflow-hidden h-full bg-[var(--progress-fill)] text-[var(--on-brand)] rounded-full px-2 box-border flex items-center justify-end"
             style={`--progress: ${percent}%`}
     >
         <span aria-hidden="true" class={`${iconClass(goalLogo)} shrink-0 text-base`}></span>

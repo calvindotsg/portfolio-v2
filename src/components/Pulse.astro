@@ -1,6 +1,23 @@
+---
+/**
+ * The Now card's live indicator: a dot with a pulsing halo.
+ *
+ * It has its own two tokens rather than borrowing the offset plate's and the
+ * control accent's, which is what it did until the palette change. That was the
+ * same defect the progress bar had — re-toning the plate silently re-toned an
+ * unrelated piece of meaning — and it was load-bearing in a way nobody had
+ * noticed: the dot is a non-text status graphic, and at the old --shadow it sat
+ * at 2.53:1 against the Now card, i.e. a shipping SC 1.4.11 failure. Splitting
+ * the tokens is what lets a test hold it at 3:1 without pinning the plate.
+ *
+ * The halo carries no information the dot does not; it is decorative and
+ * animated, so it is not gated.
+ */
+---
+
 <span class="relative flex h-3 w-3">
   <span
-          class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-75"
+          class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--status-halo)] opacity-75"
   ></span>
-  <span class="relative inline-flex rounded-full h-3 w-3 bg-[var(--shadow)]"></span>
+  <span class="relative inline-flex rounded-full h-3 w-3 bg-[var(--status-live)]"></span>
 </span>

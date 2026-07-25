@@ -156,6 +156,19 @@ describe("dist/", () => {
     const paints = (css: string, classes: string | null | undefined, prop: string, tokens: Record<string, string>) =>
         painted(css, classes, prop, tokens)?.hex;
 
+    /** The raw value a class list resolves for `prop`, per the shipped rules. */
+    const decl = (css: string, classes: string | null | undefined, prop: string) => {
+        for (const token of classes?.split(/\s+/) ?? []) {
+            const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}{`;
+            const at = css.indexOf(selector);
+            if (at < 0) continue;
+            const body = css.slice(at + selector.length, css.indexOf("}", at));
+            const value = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+?)\\s*(?:;|$)`))?.[1];
+            if (value) return value;
+        }
+        return undefined;
+    };
+
     it("paints the goal icon at 3:1 against the progress bar in both themes", () => {
         const css = sheet();
         const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
@@ -258,8 +271,8 @@ describe("dist/", () => {
      * --accent is the control's border and its hover ink, both non-text
      * graphics, so 3:1 against the surface they sit on. It shipped at 1.89:1 in
      * light mode for as long as the palette existed: hovering a control turned
-     * its icon #F3A3AA on a #FAFAFA field. Nothing caught it because the border
-     * and the icon are the only things wearing --accent and neither is text.
+     * its icon #F3A3AA on a #FAFAFA field. Nothing caught it because neither the
+     * border nor the icon is text, and no contrast checker looks at either.
      */
     it("holds the control's accent at 3:1 against the surface it sits on", () => {
         const css = sheet();
@@ -273,25 +286,82 @@ describe("dist/", () => {
         }
     });
 
+    /**
+     * The Now card's live dot is a non-text status graphic, so SC 1.4.11 asks
+     * 3:1 of it against the card it sits on. It went unmeasured for as long as
+     * it existed because it borrowed --shadow, a token whose own job (a
+     * decorative offset plate) carries no such requirement — at #EC7981 it sat
+     * at 2.53:1 and nobody was looking. Splitting --status-live off is what
+     * makes this assertable; pinning `.via` is what stops a future re-coupling
+     * from quietly reintroducing the same blind spot.
+     */
+    it("holds the live status dot at 3:1 against the card it sits on", () => {
+        const css = sheet();
+        const doc = parseHTML(read("dist/index.html")).document;
+        const dot = doc.querySelector('[class*="status-live"]');
+        expect(dot, "the Now card must render a live indicator").toBeTruthy();
+
+        let card = dot!.parentElement;
+        while (card && !painted(css, card.getAttribute("class"), "background-color", themeTokens(css, "light"))) {
+            card = card.parentElement;
+        }
+        expect(card, "the dot must sit on an element that paints a surface").toBeTruthy();
+
+        for (const theme of ["light", "dark"]) {
+            const t = themeTokens(css, theme);
+            const ink = painted(css, dot!.getAttribute("class"), "background-color", t)!;
+            const surface = painted(css, card!.getAttribute("class"), "background-color", t)!;
+            expect(ink?.via, `${theme}: the dot paints ${ink?.via} — the indicator must own its colour`).toBe("--status-live");
+            const ratio = contrast(ink.hex, surface.hex);
+            expect(
+                ratio,
+                `${theme}: live dot ${ink.hex} on ${surface.hex} is ${ratio.toFixed(2)}:1 — a status indicator needs 3:1`,
+            ).toBeGreaterThanOrEqual(3);
+        }
+    });
+
     it("clips the goal icon inside the fill instead of letting it paint on the track", () => {
-        // The structural reason the ink never has to read on the track: the icon
-        // is a child of the fill; `justify-end` pushes overflow past the START
-        // edge; and that edge is coincident with the track's, which hides it.
-        // Drop any one of the three and a narrow bar paints the icon on bare
-        // track at a ratio no palette here can hold.
+        // The structural reason the ink never has to read on the track: the glyph
+        // lives inside the fill and the FILL clips to itself, so overflow in any
+        // direction, under any display/justify/direction, is cut at the fill's
+        // own painted edge and can never land on bare track.
+        //
+        // Resolved out of the built stylesheet, not from the class token: a
+        // utility UnoCSS fails to emit must go red here. An earlier version of
+        // this test asserted the token `justify-end` instead, which made the
+        // guard depend on `flex` — a token it never checked. Removing `flex`
+        // left the suite green while putting 8px of the glyph on bare track at
+        // 1.76:1 (light) and 1.61:1 (dark).
+        const css = sheet();
         const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
         expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
         for (const track of bars) {
-            expect((track.getAttribute("class") ?? "").split(/\s+/), "the track must clip its overflow")
-                .toContain("overflow-hidden");
-
             const fill = track.querySelector(".progress-fill")!;
-            expect((fill.getAttribute("class") ?? "").split(/\s+/), "overflow must spill past the clipped start edge, not into the track")
-                .toContain("justify-end");
+            expect(
+                decl(css, fill.getAttribute("class"), "overflow"),
+                "the fill must clip its own overflow — that is what keeps the glyph off the track under any layout",
+            ).toBe("hidden");
+            expect(
+                decl(css, track.getAttribute("class"), "overflow"),
+                "the track clips too, so a fill wider than its box cannot escape the bar",
+            ).toBe("hidden");
 
             const icons = [...track.querySelectorAll("span")];
             expect(icons.length, "the bar renders exactly one glyph").toBe(1);
             expect(fill.contains(icons[0]), "the glyph must live inside the fill, not beside it").toBe(true);
+        }
+    });
+
+    it("keeps the glyph riding the fill's leading edge", () => {
+        // A second, separate claim: the clip above guarantees the glyph is never
+        // on the track, but not that it sits where the design puts it. Without
+        // `flex` the glyph would be clipped away entirely at low progress rather
+        // than marking the leading edge.
+        const css = sheet();
+        for (const track of [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')]) {
+            const classes = track.querySelector(".progress-fill")!.getAttribute("class");
+            expect(decl(css, classes, "display"), "the fill lays its glyph out as a flex item").toMatch(/^(inline-)?flex$/);
+            expect(decl(css, classes, "justify-content"), "the glyph rides the leading edge").toBe("flex-end");
         }
     });
 });
@@ -323,25 +393,48 @@ describe("hover styles promise only interactions that exist", () => {
 
     it("applies no hover rule to an element that cannot be interacted with", () => {
         const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
-        // `.control:hover` and `.hover\:border-\[…\]:hover` alike; unescape to the
-        // class token an element would actually wear.
-        const hovered = new Set(
-            [...css.matchAll(/\.((?:\\.|[^{},:\s\\])+):hover/g)].map((m) => m[1].replace(/\\(.)/g, "$1")),
-        );
-        expect(hovered.size, "the sheet must ship at least one hover rule — the controls have one").toBeGreaterThan(0);
+
+        // Match on SELECTORS, not class tokens. An earlier version only
+        // recognised `.token:hover`, so an Astro scoped <style> — the idiomatic
+        // form in this repo, ProgressBar already ships one — could put the accent
+        // border back on all eight cards as `div[data-astro-cid-…]:hover` with
+        // the suite green. Verified: that mutation now goes red.
+        //
+        // A chunk between two `}` is `<at-rule preamble>{<selector list>{<decls>`,
+        // so the selector list is always the penultimate `{`-separated part.
+        const hovered = css
+            .split("}")
+            .flatMap((chunk) => {
+                const parts = chunk.split("{");
+                return parts.length < 2 ? [] : parts[parts.length - 2].split(",");
+            })
+            .map((s) => s.trim())
+            // Only real state pseudo-classes. `\:hover` inside an escaped UnoCSS
+            // token (`.md\:hover\:border-…`) is part of the class NAME, and
+            // stripping it blindly yields a selector linkedom cannot parse —
+            // which would fail the build on a legitimate hover utility.
+            .filter((s) => /(?<!\\):hover(?![\w-])/.test(s))
+            .map((s) => s.replace(/(?<!\\)::?[\w-]+(?:\([^)]*\))?/g, ""));
+        expect(hovered.length, "the sheet must ship at least one hover rule — the controls have one").toBeGreaterThan(0);
 
         const doc = parseHTML(read("dist/index.html")).document;
         const offenders: string[] = [];
-        for (const el of [...doc.querySelectorAll("[class]")]) {
-            const worn = (el.getAttribute("class") ?? "").split(/\s+/).filter((c) => hovered.has(c));
-            if (worn.length === 0) continue;
+        const matched = new Set<Element>();
+        // Deliberately not wrapped in try/catch: a selector this cannot parse
+        // must go red and be handled, because swallowing the throw is exactly
+        // how this guard would become unable to fail.
+        for (const selector of hovered) {
+            for (const el of doc.querySelectorAll(selector)) matched.add(el as Element);
+        }
+        for (const el of matched) {
+            const worn = el.getAttribute("class") || `<${el.tagName.toLowerCase()}>`;
             let node: Element | null = el;
             let interactive = false;
             while (node && !interactive) {
                 interactive = INTERACTIVE.has(node.tagName.toLowerCase()) || node.hasAttribute("tabindex");
                 node = node.parentElement;
             }
-            if (!interactive) offenders.push(`<${el.tagName.toLowerCase()}> wears ${worn.join(" ")}`);
+            if (!interactive) offenders.push(`<${el.tagName.toLowerCase()}> wears ${worn}`);
         }
         expect(offenders, "a hover style here advertises an affordance that does not exist").toEqual([]);
     });
@@ -366,29 +459,52 @@ describe("the offset plate actually paints", () => {
     };
 
     /**
-     * Asserting only "has a colour" is not enough — there are two ways to write
-     * this shortcut wrong and each produces a different dead value:
+     * Check the VALUE, not the shape. There are four ways to write this shortcut
+     * so that nothing is painted, and each earlier draft of this test caught
+     * only some of them:
      *
-     *   2px 2px 0 var(--un-shadow-color)      geometry utility, no fallback
-     *   var(--shadow)                         colour utility, no geometry
+     *   2px 2px 0 var(--un-shadow-color)   geometry utility, no fallback — the
+     *                                      ORIGINAL bug; unresolvable var makes
+     *                                      the whole declaration invalid
+     *   var(--shadow)                      colour utility, no geometry — also
+     *                                      not a valid box-shadow
+     *   2px 2px -1px var(…)                negative blur; invalid, drops to none
+     *   0 0 0 var(…)                       valid CSS that paints entirely behind
+     *                                      the border box, i.e. invisible
      *
-     * Both compute to `box-shadow: none`, and a test that checked for either
-     * one alone waves the other through — the second slipped past a first draft
-     * of this test. So match the whole shape instead: offsets, then a colour
-     * lookup that carries a fallback. This is coupled to presetWind3's emit
-     * format on purpose; if that format changes this fails loudly rather than
-     * quietly certifying a shadow nobody can see.
+     * The last two pass any regex that only asks "offsets, then a colour with a
+     * fallback", which is what a review panel caught here. Parsing the numbers
+     * is barely more code and is the difference between a gate and a comment.
+     *
+     * Zero offsets are only fatal together with zero spread — a spread-only
+     * plate is legitimate — so the condition is x === 0 && y === 0 && spread === 0,
+     * not "the offsets are non-zero".
+     *
+     * This stays a stylesheet parse rather than a browser assertion on purpose:
+     * `netlify.toml` runs `pnpm test` as the deploy gate, and putting playwright
+     * and a chromium download inside a zero-client-JS static site's production
+     * build is a worse trade than coupling to presetWind3's emit format.
      */
-    const COMPLETE_PLATE = /^(?:(?:-?[\d.]+(?:px|r?em)|0)\s+){2,4}var\(--un-shadow-color,.+\)$/;
+    const LEN = String.raw`(-?[\d.]+)(?:px|r?em)?`;
+    const COMPLETE_PLATE = new RegExp(
+        `^${LEN}\\s+${LEN}(?:\\s+${LEN})?(?:\\s+${LEN})?\\s+var\\(--un-shadow-color,\\s*(.+)\\)$`,
+    );
 
-    it("gives every plated rule a complete, resolvable shadow value", () => {
+    /** Why this plate paints nothing, or "" if it does. */
+    const dead = (shadow: string) => {
+        const m = shadow.match(COMPLETE_PLATE);
+        if (!m) return "that is not offsets plus a colour with a fallback, so it computes to box-shadow: none";
+        const [x, y, blur, spread] = [m[1], m[2], m[3], m[4]].map((v) => (v === undefined ? 0 : Number(v)));
+        if (blur < 0 || spread < 0) return "blur and spread may not be negative — the declaration is invalid and drops to none";
+        if (x === 0 && y === 0 && spread === 0) return "a zero-offset, zero-spread plate hides entirely behind the border box";
+        return "";
+    };
+
+    it("gives every plated rule a complete, resolvable, visible shadow value", () => {
         const css = sheet();
         for (const selector of PLATED) {
             const shadow = plate(css, selector);
-            expect(
-                COMPLETE_PLATE.test(shadow),
-                `${selector} ships "--un-shadow: ${shadow}" — that is not offsets plus a colour with a fallback, so it computes to box-shadow: none`,
-            ).toBe(true);
+            expect(dead(shadow), `${selector} ships "--un-shadow: ${shadow}" — ${dead(shadow)}`).toBe("");
         }
     });
 
@@ -421,21 +537,32 @@ describe("the offset plate actually paints", () => {
  */
 describe("the stylesheet ships no rule nobody wears", () => {
     /**
-     * A ratchet, not a clean sweep. These six predate this gate and cost about
-     * 180 bytes uncompressed between them; each comes from ordinary text UnoCSS
-     * happens to read as a class, and two of them come from Calvin's own copy in
-     * constants.ts, so they will recur whenever he writes an English sentence:
+     * A ratchet, not a clean sweep. These six predate this gate; each comes from
+     * ordinary text UnoCSS happens to read as a class name:
      *
-     *   ease, transition   `transition: background-color 0.3s ease` in <style> blocks
-     *   inline             `is:inline` on the theme script, plus prose about it
-     *   inline-block       `display: inline-block` in ThemeSwitcher's <style>
-     *   me                 the `me.webp` import path and the "About me" heading
-     *   my                 "my latest cycling challenge", "My Running goal", …
+     *   transition    `transition: …` declarations in <style> blocks
+     *   ease          same, though this one is NOT a dead rule — it is a
+     *                 redundant selector riding the live `.ease,.ease-in-out{…}`,
+     *                 so it costs nothing but still has no wearer of its own
+     *   inline        `is:inline` on the theme script, plus prose about it
+     *   inline-block  `display: inline-block` in ThemeSwitcher's <style>
+     *   me            the `me.webp` import path and the "About me" heading
+     *   my            template prose — "Follow my running on Strava", "My Running goal"
      *
-     * They are recorded rather than fixed because the fixes are unrelated to this
-     * change and each has a cost: blocklisting a real utility means a future
-     * author writing it as a class silently gets nothing, which is how `static`
-     * already behaves here. The gate's job is to stop the list growing.
+     * Recorded rather than fixed: the fixes are unrelated to this change, and
+     * blocklisting a real utility means a future author writing it as a class
+     * silently gets nothing, which is how `static` already behaves here.
+     *
+     * KNOWN COST, stated so nobody is surprised by it: `pnpm test` is the Netlify
+     * deploy gate, and UnoCSS reads English. Editing prose in an .astro file can
+     * turn the deploy red — appending ", visible to all" to an sr-only string
+     * emits `.visible`. That is a real trade, accepted because the gate has
+     * already caught three dead rules this change would otherwise have shipped
+     * (`grow`, `container`, and a reversed-row utility, all from comments written
+     * while fixing the previous one). The failure names the token; the fix is a
+     * one-word reword, or a `blocklist` entry in uno.config.ts when the word
+     * cannot be avoided. Note constants.ts prose is NOT scanned, so Calvin's own
+     * copy cannot trip this — only text inside .astro files.
      */
     const KNOWN_ORPHANS = ["ease", "inline", "inline-block", "me", "my", "transition"];
 
@@ -459,7 +586,7 @@ describe("the stylesheet ships no rule nobody wears", () => {
         }
         expect(
             [...orphans].sort(),
-            "these classes have a CSS rule but no element — usually a utility name written as an ordinary word in a comment",
+            "these classes have a CSS rule but no element — almost always a utility name written as an ordinary English word in .astro text. Reword it, or add it to `blocklist` in uno.config.ts if the word cannot be avoided",
         ).toEqual([]);
     });
 
