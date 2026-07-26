@@ -47,14 +47,17 @@ const {title, description} = Astro.props;
  *
  * It also fixes the large breakpoint, which the exact height broke as well, and
  * an earlier version of this comment wrongly claimed it left untouched. <main>
- * carries a 736px floor of its own, so on a shorter viewport the exact-height
- * body could not contain it; because the body centres its children, the overflow
- * was split top and bottom and the top half sat above the scroll origin, where
- * no scrolling reaches. Measured on production: 94px of the first card
- * unreachable at 1024x500, 69 at 550, 44 at 600, 19 at 650, none from 700 up,
- * and the same at every width from 1024 to 1920 — a function of height alone. It
- * is a laptop-sized bug, not an edge case. Zero unreachable at all of those now.
- * Above 736px tall the large-breakpoint geometry is unchanged, rect for rect.
+ * carries a minimum height of its own at that breakpoint (index.astro owns the
+ * number — do not copy it here, it moves), so on a viewport shorter than that
+ * minimum the exact-height body could not contain it; because the body centres
+ * its children, the overflow was split top and bottom and the top half sat above
+ * the scroll origin, where no scrolling reaches. Measured on production against
+ * the value in force then: 94px of the first card unreachable at 1024x500, 69 at
+ * 550, 44 at 600, 19 at 650, none from 700 up, and the same at every width from
+ * 1024 to 1920 — a function of height alone. A laptop-sized bug, not an edge
+ * case. Zero unreachable at all of those now.
+ * At or above that minimum the large-breakpoint geometry is unchanged, rect for
+ * rect.
  *
  * tests/page-fit.test.ts pins it. Utility names are described rather than
  * spelled here on purpose: UnoCSS scans this file, so writing one would emit a

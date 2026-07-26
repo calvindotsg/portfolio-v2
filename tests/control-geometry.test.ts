@@ -235,7 +235,15 @@ describe("every styled control is one declared box", () => {
             "display", "flex", "flex-shrink", "flex-basis", "flex-grow", "aspect-ratio", "font-size", "zoom",
             // `box-sizing` belongs here for the same reason a declared width does:
             // border-box and content-box give one declaration two rendered boxes.
-            "scale", "box-sizing",
+            "box-sizing",
+            // `scale` and `zoom` are kept as a net for HAND-WRITTEN CSS only, and
+            // are dead against anything UnoCSS emits: generating from this config
+            // shows `scale-125`, `scale-[2]` and `zoom-150` all compile to
+            // `transform`, never to a bare `scale` or `zoom` longhand. `rotate` and
+            // `translate` are deliberately NOT here — they compile the same way, so
+            // adding them would repeat the mistake while catching nothing, and
+            // neither changes a box's size anyway. Scaling is handled below.
+            "scale", "zoom",
         ];
 
         /**

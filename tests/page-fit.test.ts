@@ -113,13 +113,24 @@ describe("the page may grow taller than the viewport", () => {
      * that is what this matches.
      */
     const isDefiniteSize = (value: string | undefined) => {
-        if (!value) return false;
+        if (value === undefined) return false;
         const v = value.trim().toLowerCase();
-        // Keywords that leave the box free to size to its content.
-        if (/^(auto|none|inherit|initial|unset|revert|revert-layer|fit-content|max-content|min-content|stretch|-webkit-fill-available)$/.test(v)) return false;
-        // A bare zero is definite too, and collapses the box entirely.
-        if (/^0$/.test(v)) return true;
-        return /[\d.]+\s*(px|r?em|ex|ch|cap|ic|lh|rlh|v[hw]|dv[hw]|sv[hw]|lv[hw]|v(?:min|max)|dv(?:min|max)|sv(?:min|max)|lv(?:min|max)|cm|mm|q|in|pc|pt|%)/.test(v);
+        if (v === "") return false;
+        // INVERTED on purpose: everything is definite except the keywords that
+        // leave a box free to size to its content. Enumerating units instead was
+        // tried and leaks by construction — a list containing `dvh` and `vh` still
+        // let `100dvb`, `100vb` and `50vi` through green, and CSS keeps adding
+        // units. This way a value nobody anticipated is treated as capping, which
+        // is the safe direction: the cost of a false positive is one deliberate
+        // keyword added here, and the cost of a false negative is shipping the
+        // defect through a green deploy gate.
+        //
+        // `auto` and `none` must stay exempt for a second reason beyond being
+        // correct: the preflight ships `img,video{height:auto}` and
+        // `::-webkit-inner-spin-button{height:auto}`, and a pseudo-element
+        // selector reduces to `*`, which reaches <body> and <main>. Keying on
+        // "is the property declared at all" reds the clean build for that reason.
+        return !/^(auto|none|inherit|initial|unset|revert|revert-layer|fit-content|max-content|min-content|stretch|-webkit-fill-available)$/.test(v);
     };
 
     const body = document.body;
@@ -149,18 +160,31 @@ describe("the page may grow taller than the viewport", () => {
         // And it must be gated at the breakpoint where the grid starts, not below
         // it: on a phone the page is one column and a 100vh floor there would
         // stretch the last card for no reason.
-        // Gated at the medium breakpoint EXACTLY, in both directions. Below it the
-        // page is one column and a viewport floor would stretch the last card for
-        // no reason; above it the floor stops covering the range the defect lived
-        // in. An earlier version asserted only `>= 768`, which is one-sided —
-        // moving the floor to the large breakpoint left the whole md range with no
-        // floor at all and the suite green.
+        // Two bounds, and they belong at different scopes.
+        //
+        // PER RULE, a lower bound: no floor may reach below the medium breakpoint,
+        // where the page is one column and a viewport floor would stretch the last
+        // card for no reason.
         const MD = 768;
         for (const {r} of floors) {
             const gate = minWidthOf(r);
             expect(gate, `the body height floor in "${r.at || "top level"}" must be width-gated`).not.toBeNull();
-            expect(gate!, `the body height floor must start exactly at the medium breakpoint (${MD}px): below it the page is one column, and above it the md range loses its floor`).toBe(MD);
+            expect(gate!, "the body height floor must not apply below the medium breakpoint").toBeGreaterThanOrEqual(MD);
         }
+
+        // ACROSS THE SET, an upper bound: some floor must start AT the medium
+        // breakpoint, so the whole md range is covered. The per-rule check alone
+        // is one-sided — moving the only floor to the large breakpoint left every
+        // md viewport with no floor at all and the suite green.
+        //
+        // Asserted on the set rather than per rule on purpose: per rule it also
+        // forbids a redundant second floor at a higher breakpoint, which renders
+        // identically to one floor and is not a defect.
+        const gates = floors.map(({r}) => minWidthOf(r)!).filter((g) => g !== null);
+        expect(
+            Math.min(...gates),
+            `a body height floor must start exactly at the medium breakpoint (${MD}px), or the md range — where the clipping was — has no floor; found floors gated at ${JSON.stringify(gates)}`,
+        ).toBe(MD);
 
         // The rule walker must actually reach the elements, or every negative
         // assertion below passes for the wrong reason.
