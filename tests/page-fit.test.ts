@@ -276,7 +276,9 @@ describe("the page may grow taller than the viewport", () => {
         // neighbours. The cards' clipping is load-bearing besides — the intro
         // portrait bleeds 72px past the card's right edge by design and that
         // clipping is what shapes it. Cards must clip; the layout must fit.
-        const cards = [...document.querySelectorAll("main > *")];
+        // Every card at any depth — one column is wrapped in a layout box, and a
+        // wrapper is not a card and does not need to clip.
+        const cards = [...document.querySelectorAll("main [data-card]")];
         expect(cards.length, "no cards found").toBeGreaterThan(0);
         for (const card of cards) {
             const clips = rulesMatching(card).some((r) => /\b(hidden|clip)\b/.test(decl(r.body, "overflow") ?? ""));

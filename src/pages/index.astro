@@ -43,10 +43,20 @@ import {iconClass} from "../lib/icons";
              re-balancing the lg row/col spans in IntroCard/AboutMe/Now, otherwise
              auto-placement pushes Now into a zero-height implicit row and clips
              its content (see PR #42). -->
-        {GOALS.map((goal) => <Goal goal={goal}/>)}
+        <!-- The right-hand column is its own stack, and it has to be. Grid rows are
+             shared across every column, so the height of these three cards' rows is
+             decided by the intro and role cards beside them, not by their own
+             content: sized to content inside a shared row template they sat 74px and
+             53px apart. As one grid item holding its own column, they stack at the
+             page gap and the leftover collects once, under the last of them.
+             Below lg the wrapper is display:contents, so these three are direct grid
+             items exactly as before and the smaller layouts are untouched. -->
+        <div class="contents lg:flex lg:flex-col lg:gap-4 lg:col-start-4 lg:row-start-1 lg:row-span-8">
+            {GOALS.map((goal) => <Goal goal={goal}/>)}
+            <Now/>
+        </div>
         <AboutMe/>
         <Career/>
-        <Now/>
         <Card colSpan="md:col-span-1" rowSpan="md:row-span-1">
             <p class="text-xs">
                 {FOOTER.prefix} <span class="text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}

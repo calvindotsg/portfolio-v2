@@ -18,19 +18,95 @@
 // Wording matters here for the reason given above: an earlier draft of this
 // paragraph used the ordinary English verb for "get bigger", which happens to
 // be a flex utility, and UnoCSS emitted a rule for it that no element wore.
+//
+// WHY A CARD SIZES TO ITS CONTENT AND NEVER TO ITS GRID AREA.
+//
+// At the large breakpoint the page's rows have a set height, so a card's area is
+// taller than its content, and a grid item stretches to fill its area by default.
+// The difference showed up as an empty band under the last line a reader can see.
+// Measured at 1440x900 from that last line down to the card's INNER edge — its
+// content box, so the 24px of padding every card has below that is not counted:
+// running goal 63px, cycling goal 63px, NCS role 111px, HeyMax role 43px,
+// about-me 24px. Against the outer padding edge each figure is 24px larger.
+//
+// Those bands cannot be pooled and spent somewhere useful, because they sit in
+// different columns — which is also why re-spanning does not remove them. Take the
+// right-hand column, the one the report was about. Its three cards want 206, 206
+// and 170px; a row there costs 92px including its gap, so each of them needs three
+// rows, and that is nine rows for the eight the column has. It is over-subscribed
+// already, which is why Now ends 2px into its own bottom padding and the footer
+// 5px. Cutting a goal card to two rows gives it 168px and slices 29px off the last
+// line, inside the clipping this card does — measured, not predicted.
+//
+// Reclaiming the two empty rows that the role cards' six-row spans create does not
+// help either, it hurts: those rows' 32px of gaps go back into the eight real rows,
+// every row grows to 80px, and the goal band gets WORSE, 63px to 75px.
+//
+// The 92px is the reference viewport's, not a constant. `main` takes the viewport
+// height, capped at 800px over a 736px floor, so rows are 76px only from a 800px
+// viewport up; at 768px tall they are 72px and a row costs 88px, and at the floor
+// 68px and 84px. The argument holds at each — the column is over-subscribed by
+// integer spans at every one of them — but the arithmetic has to be re-run, not
+// quoted, if these spans ever change.
+//
+// So the card stops stretching instead. It takes its content's height and sits at
+// the top of its area, which leaves the body directly under the heading where it
+// belongs. The freed height does not become a gap between cards: the right-hand
+// column is wrapped in its own stack in index.astro precisely so those three sit
+// at the page gap and the leftover collects once, beneath the last of them. The
+// cost, chosen by the maintainer over leaving the band alone and over splitting it
+// above and below the body, is that a column's cards no longer end on a shared
+// bottom edge — the unused height pools at the foot of each column instead.
+//
+// The block-size cap is the other half and it is not decoration. Three cards want
+// slightly MORE than their area — the intro card by 5px, Now by 2px, the footer by
+// 6px — and without the cap they would extend past it and eat the gap below.
+// A percentage cap resolves against the grid area, which is definite only where
+// the rows have a set height, so this clamps at the large breakpoint and does
+// nothing at the smaller ones, where rows already size to their content. That is
+// exactly the wanted split: those three cards keep the geometry they ship with
+// today, to the pixel, and the five roomy ones shrink.
+//
+// Below 1024px there is nothing to fix. Rows there size to their content, so no
+// card is stretched and no band exists — except one: between 768px and 1023px the
+// NCS role card shares a six-row span with the taller HeyMax card and was pulled
+// to 332px for 254px of content. The same two tokens fix that instance too.
+//
+// ONE CARD OPTS OUT, and it is the only card that had no band to begin with: the
+// intro card, whose figure was 1.5px. It is the exception for a mechanical reason,
+// not a cosmetic one. Its inner column asks for its full height as a percentage,
+// and a percentage needs a parent whose height is already decided. While the card
+// stretched, the row decided it. A card sized to its own content has no decided
+// height for that percentage to resolve against, so the column falls back to its
+// content — the portrait's intrinsic height — and pushes past the cap: measured
+// 5.5px of the portrait sheared off at 1024x600, where the page sits on its 736px
+// floor and the rows are at their shortest. Letting this one card go on stretching
+// is a smaller change than rebuilding how the intro card distributes its own two
+// halves, and it costs nothing, because a card with no spare height has nothing to
+// hand back. Anything else added to this page should NOT take the exemption.
+// THE HEADING OWNS THE SPACE BELOW IT, and it owns it here so that every titled
+// card gets the same amount. It did not before: measured at 1440x900 from the
+// heading's bottom to the top of the first thing under it, the goal cards had 16px
+// — supplied by the progress bar's own top margin, which is why they looked right —
+// while about-me and both role cards had 1px and read as cramped. The margin moved
+// onto the heading and came off the bar; keeping both would double the goal cards'
+// gap to 32px.
 interface Props {
     title?: string;
     titleIcon?: string;
     colSpan?: string;
     rowSpan?: string;
+    /** Keep filling the grid area instead of sizing to content. See above — the intro card only. */
+    fillsArea?: boolean;
 }
 
-const {title, titleIcon, colSpan, rowSpan} = Astro.props;
+const {title, titleIcon, colSpan, rowSpan, fillsArea} = Astro.props;
 ---
 
 <div
-        class={`isolate overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] relative w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
+        data-card
+        class={`isolate ${fillsArea ? "" : "self-start max-h-full"} overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] relative w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
-    {title && <h2 class="text-xl font-bold m-0">{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
+    {title && <h2 class="text-xl font-bold mt-0 mb-4">{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
     <slot/>
 </div>
