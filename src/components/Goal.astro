@@ -31,7 +31,7 @@ const {goal} = Astro.props;
                 </div>
                 <!-- Right side link -->
                 <a href={goal.website_url} target="_blank" class="control ml-4">
-                    <span class={iconClass(goal.cta_logo)} aria-hidden="true"></span>
+                    <span class={`${iconClass(goal.cta_logo)} shrink-0`} aria-hidden="true"></span>
                     <span class="sr-only">{`Follow my ${goal.goal_name.toLowerCase()} on Strava`}</span>
                 </a>
             </div>

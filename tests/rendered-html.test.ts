@@ -170,8 +170,13 @@ describe("page content", () => {
         // fewer classes. Asserting per class lets querySelector return the first
         // copy and leaves the later elements, the Goal CTA icons, unchecked:
         // deleting one outright kept the whole suite green.
+        // Matched on class TOKENS, not on the whole attribute. The earlier
+        // exact-string form silently forbade an icon span from carrying any
+        // second utility, so giving the icons `shrink-0` — which is what keeps a
+        // control from squeezing its icon — read as "every icon element has
+        // disappeared" rather than as the one-token change it was.
         const els = [...doc.querySelectorAll("span")]
-            .filter((s) => wanted.includes(s.getAttribute("class") ?? ""));
+            .filter((s) => (s.getAttribute("class") ?? "").split(/\s+/).some((token) => wanted.includes(token)));
         expect(els.length, "one icon element per configured icon reference").toBe(wanted.length);
         for (const cls of wanted) {
             expect(doc.querySelector(`span[class~="${cls}"]`), `no element carries the icon class ${cls}`).toBeTruthy();
@@ -279,7 +284,7 @@ describe("control semantics", () => {
                 .toBe(anchors.length);
 
             for (const control of controls) {
-                expect(control.querySelector(".control, .control-compact"), `${href} must not wrap a second styled control`).toBeNull();
+                expect(control.querySelector(".control"), `${href} must not wrap a second styled control`).toBeNull();
             }
         }
     });
@@ -316,6 +321,10 @@ describe("control semantics", () => {
         expect(buttons.map((b) => b.getAttribute("id")), "only the theme toggle performs an in-page action").toEqual(["theme-toggle"]);
         expect(buttons[0].getAttribute("type"), "a bare button would submit a form if one is ever added").toBe("button");
         expect(buttons[0].hasAttribute("href")).toBe(false);
-        expect((buttons[0].getAttribute("class") ?? "").split(/\s+/)).toContain("control-compact");
+        // The toggle wears the SAME styled-control class as the eight anchors.
+        // It used to wear a narrower variant of its own, which is what made it
+        // the one control that was a different size; this assertion is what stops
+        // a second variant being reintroduced for it.
+        expect((buttons[0].getAttribute("class") ?? "").split(/\s+/)).toContain("control");
     });
 });

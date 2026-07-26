@@ -3,8 +3,13 @@
 // script in BasicLayout sets before first paint — so it never flashes wrong.
 //
 // This is the page's only true button: it runs a handler and has no URL. The
-// eight controls that navigate are plain anchors wearing the same surface —
-// `control-compact` and `control` are both defined in uno.config.ts.
+// eight controls that navigate are plain anchors wearing the same `control`
+// class, which is defined in uno.config.ts. This button used to wear a second,
+// narrower variant of that class, which is what made it the odd one out; the
+// variant no longer exists, so nothing here may reintroduce a box metric of its
+// own. Name no retired class in this comment either — .astro frontmatter IS
+// scanned for class names, so a token written here alone emits a rule with no
+// wearer and the orphan-rule test fails the build.
 ---
 
 <button
@@ -12,10 +17,10 @@
         type="button"
         aria-label="Toggle Theme"
         aria-live="polite"
-        class="theme-toggle control-compact"
+        class="theme-toggle control"
 >
-    <span class="i-ri-sun-line theme-icon-light" aria-hidden="true"></span>
-    <span class="i-ri-moon-line theme-icon-dark" aria-hidden="true"></span>
+    <span class="i-ri-sun-line theme-icon-light shrink-0" aria-hidden="true"></span>
+    <span class="i-ri-moon-line theme-icon-dark shrink-0" aria-hidden="true"></span>
     <span class="sr-only">Toggle Theme</span>
 </button>
 

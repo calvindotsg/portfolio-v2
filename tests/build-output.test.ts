@@ -441,7 +441,10 @@ describe("hover styles promise only interactions that exist", () => {
 });
 
 describe("the offset plate actually paints", () => {
-    const PLATED = [".control", ".control-compact", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
+    // One entry per plated SELECTOR, not per plated element: `.control` is worn
+    // by all nine controls (it was two classes until they were unified, and the
+    // toggle's narrower variant was the reason they were not one size).
+    const PLATED = [".control", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
 
     /** The `--un-shadow` value the built sheet gives `selector`. */
     const plate = (css: string, selector: string) => {
