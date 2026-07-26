@@ -140,7 +140,7 @@ export default defineConfig({
      * button that shipped before, so that nothing shrank when the sizes were
      * unified. A 48px square is a one-token change (`w-[48px]`) and was built and
      * measured — all nine controls land 48.000 x 48.000, icons undeformed, tracks
-     * 48px, all 108 assertions green, no clipping at any width.
+     * 48px, the whole suite green, no clipping at any width.
      *
      * The two are accessibility-EQUIVALENT, which is the part worth recording:
      * both clear SC 2.5.8 (AA, 24px) and SC 2.5.5 (AAA, 44px) on bounding-box

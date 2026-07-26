@@ -540,8 +540,11 @@ describe("the offset plate actually paints", () => {
  */
 describe("the stylesheet ships no rule nobody wears", () => {
     /**
-     * A ratchet, not a clean sweep. These six predate this gate; each comes from
-     * ordinary text UnoCSS happens to read as a class name:
+     * A ratchet, not a clean sweep. The entries below predate this gate; each
+     * comes from ordinary text UnoCSS happens to read as a class name. Deliberately
+     * not counted in this sentence — the list shrinks whenever prose changes (`my`
+     * came off it in this very change), and a number here would be stale the moment
+     * it did:
      *
      *   transition    `transition: …` declarations in <style> blocks
      *   ease          same, though this one is NOT a dead rule — it is a

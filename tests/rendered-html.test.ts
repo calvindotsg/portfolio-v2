@@ -369,6 +369,52 @@ describe("control semantics", () => {
         ).toEqual([]);
     });
 
+    it("gives anchors that share an accessible name the same destination", () => {
+        // The converse of the assertion above, and it is not redundant with it.
+        // That one collapses anchors by href and forbids divergent names, so it
+        // cannot see the opposite drift: re-literalling ONE goal's `website_url`
+        // leaves two anchors still sharing the old href with one name — which
+        // satisfies both that assertion and its non-vacuity guard — while a third
+        // anchor announces "Strava Profile" and navigates somewhere else entirely.
+        // A visitor gets a CTA that lies about where it goes, and this is the pair
+        // of assertions that makes name and destination a bijection rather than
+        // one implication.
+        const named = [...doc.querySelectorAll("a[href]")]
+            .map((a) => ({
+                href: a.getAttribute("href")!,
+                name: a.querySelector(".sr-only")?.textContent?.trim()
+                    || a.getAttribute("aria-label")?.trim()
+                    || a.textContent?.trim().replace(/\s+/g, " ")
+                    || "",
+            }))
+            .filter(({name}) => name !== "");
+
+        const byName = new Map<string, Set<string>>();
+        for (const {name, href} of named) {
+            if (!byName.has(name)) byName.set(name, new Set());
+            byName.get(name)!.add(href);
+        }
+
+        // Non-vacuity: some name must actually be worn by more than one anchor, or
+        // this polices nothing. Counted over the anchors, not over the grouped
+        // hrefs — a name on three anchors that agree collapses to ONE href, so
+        // checking the set size here would call the real case vacuous.
+        const sharedNames = [...byName.keys()]
+            .filter((n) => named.filter(({name}) => name === n).length > 1);
+        expect(
+            sharedNames.length,
+            "no accessible name is worn by more than one anchor — this assertion has nothing to police",
+        ).toBeGreaterThan(0);
+
+        const divergent = [...byName.entries()]
+            .filter(([, hrefs]) => hrefs.size > 1)
+            .map(([name, hrefs]) => `"${name}" navigates to ${[...hrefs].join(" and ")}`);
+        expect(
+            divergent,
+            "one name, one destination: three controls announce the Strava profile and the URL has exactly one home in constants.ts, so a name pointing at two URLs means that home was bypassed",
+        ).toEqual([]);
+    });
+
     it("keeps the theme toggle the page's only button, since it acts rather than navigates", () => {
         const buttons = [...doc.querySelectorAll("button")];
         expect(buttons.map((b) => b.getAttribute("id")), "only the theme toggle performs an in-page action").toEqual(["theme-toggle"]);

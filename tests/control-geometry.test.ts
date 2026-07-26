@@ -3,7 +3,7 @@ import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
 import {GOALS, LINKS} from "../src/lib/constants";
-import {decl, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
+import {decl, isKeyframeStep, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * The nine styled controls must all be ONE box.
@@ -232,15 +232,55 @@ describe("every styled control is one declared box", () => {
             "padding", "padding-left", "padding-right", "padding-top", "padding-bottom",
             "padding-inline", "padding-inline-start", "padding-inline-end", "padding-block",
             "border-width", "border-left-width", "border-right-width", "border-top-width", "border-bottom-width",
-            "display", "flex", "flex-shrink", "flex-basis", "flex-grow", "aspect-ratio", "font-size", "zoom", "scale",
+            "display", "flex", "flex-shrink", "flex-basis", "flex-grow", "aspect-ratio", "font-size", "zoom",
+            // `box-sizing` belongs here for the same reason a declared width does:
+            // border-box and content-box give one declaration two rendered boxes.
+            "scale", "box-sizing",
         ];
+
+        /**
+         * Whether a rule scales a control, which no property name can answer.
+         *
+         * `scale` is in the list above and never fires, because UnoCSS compiles
+         * `scale-125` to a `transform`, not to the `scale` longhand. But adding
+         * `transform` to the list is wrong too, and measurably so: the emitted
+         * `transform` VALUE for `scale-125` is byte-identical to the one for the
+         * control's own `:active` press affordance — both are UnoCSS's full
+         * composite string, `translateX(var(--un-translate-x)) … scaleX(var(--un-scale-x))
+         * scaleY(var(--un-scale-y)) …`. Listing `transform` therefore reds the
+         * suite on a 3px press translate that changes no box at all.
+         *
+         * What actually differs is the custom property the utility sets, so that
+         * is what this reads: `--un-scale-*` bound to anything but 1. The second
+         * clause catches a hand-written `transform: scale(2)` in a scoped
+         * `<style>`, which goes through no custom property — the negative
+         * lookahead is what keeps the composite string from matching itself.
+         */
+        const scalesTheBox = (body: string) => {
+            const viaVar = (["--un-scale-x", "--un-scale-y", "--un-scale-z"] as const)
+                .some((v) => {
+                    const d = decl(body, v);
+                    return d !== undefined && parseFloat(d) !== 1;
+                });
+            const literal = /(?:^|[^-\w])(?:scale[XYZ]?|scale3d|matrix3d?)\s*\(\s*(?!var\(\s*--un-scale)/
+                .test(decl(body, "transform") ?? "");
+            return viaVar || literal;
+        };
         const canonical = new Set(controlClasses.map((c) => canonicalRule(c)));
         const controls = new Set(controlElements());
         const offenders: string[] = [];
 
         for (const rule of rules) {
             if (canonical.has(rule)) continue;
+            // A `@keyframes` step's "selector" is an offset, not a selector. The
+            // `/[.#[]/` filter below rejects `from`, `to` and `100%` by accident
+            // rather than by design, and a FRACTIONAL stop defeats it — `33.3%`
+            // contains a dot, so it reaches querySelectorAll and throws
+            // `Unmatched selector: %`. That is a false red on the deploy gate,
+            // caused by adding perfectly legal CSS, so the skip is explicit.
+            if (isKeyframeStep(rule)) continue;
             const declared = BOX_PROPS.filter((p) => decl(rule.body, p) !== undefined);
+            if (scalesTheBox(rule.body)) declared.push("transform (scaling)");
             if (!declared.length) continue;
             for (const selector of rule.selectors) {
                 // Only specific selectors: the preflight's universal and

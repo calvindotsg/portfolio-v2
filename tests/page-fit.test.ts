@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {decl, isKeyframeStep, isMaxWidthGated, minWidthOf, parseRules, structuralSelector} from "./helpers/css";
+import {appliesBelow, decl, isKeyframeStep, minWidthOf, parseRules, structuralSelector} from "./helpers/css";
 
 /**
  * The page must be allowed to be taller than the viewport.
@@ -49,7 +49,10 @@ import {decl, isKeyframeStep, isMaxWidthGated, minWidthOf, parseRules, structura
  * Definiteness is the invariant, not the unit it is written in: an earlier
  * revision of this file policed only viewport-relative values, and an exact
  * `height: 900px` alongside the floor walked straight through it and put 102.45px
- * of clipping back on the intro card at 108/108 green. See `isDefiniteSize`.
+ * of clipping back on the intro card with the whole suite green — see
+ * `isDefiniteSize`, and `appliesBelow` for the same mistake made about how a rule
+ * is gated rather than what it declares.
+ *
  * These are therefore assertions about the cascade, and the numbers in the prose
  * above are PINNED from browser measurement, not derived. The harness that
  * produced them (a CDP driver sweeping widths, viewport heights, themes and root
@@ -95,7 +98,7 @@ describe("the page may grow taller than the viewport", () => {
      * values, which let the defect straight back in: keeping the floor and
      * adding an exact `height: 900px` beside it reproduced the original symptom
      * — 37 overflowing elements at 768x600 and 102.45px sheared off the intro
-     * card's second row of controls — with all 108 assertions green. What
+     * card's second row of controls — with the whole suite green. What
      * compresses the grid is *definiteness*, not the unit it is written in, so
      * that is what this matches.
      */
@@ -174,9 +177,12 @@ describe("the page may grow taller than the viewport", () => {
         // <main> at md reproduces the original defect exactly; this is what
         // catches that.
         const offenders = rulesMatching(main).flatMap((r) => {
-            if (isMaxWidthGated(r)) return [];
+            // Anything that can reach a viewport narrower than lg is in scope,
+            // however it is gated. See `appliesBelow` — the predicate this
+            // replaced excluded any rule carrying a max-width condition, which
+            // let a lock scoped to exactly the md range through untested.
+            if (!appliesBelow(r, LG)) return [];
             const gate = minWidthOf(r);
-            if (gate !== null && gate >= LG) return [];
             return (["height", "max-height", "block-size", "max-block-size"] as const)
                 .flatMap((prop) => {
                     const value = decl(r.body, prop);
@@ -194,9 +200,8 @@ describe("the page may grow taller than the viewport", () => {
         // fraction rows in a container shorter than the content clips just as
         // effectively as an exact body height, and no assertion above would see it.
         const offenders = rulesMatching(main).flatMap((r) => {
-            if (isMaxWidthGated(r)) return [];
+            if (!appliesBelow(r, LG)) return [];
             const gate = minWidthOf(r);
-            if (gate !== null && gate >= LG) return [];
             const value = decl(r.body, "grid-template-rows");
             return value ? [`${describeRule(r, "grid-template-rows", value)} — gated at ${gate ?? "no width"}`] : [];
         });

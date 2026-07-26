@@ -92,7 +92,7 @@ Later maintainer-direct fixes (PRs #57–#60 and the control-geometry fix) have
 landed without updating the numbers above, so treat **every assertion count AND
 every page-weight figure in this file as unverified** — including the run-3
 stylesheet figures in the paragraph below, which no longer match a build of the
-revision they claim to describe. Read counts from `pnpm test`: **108** as of the
+revision they claim to describe. Read counts from `pnpm test`: **109** as of the
 control-geometry, page-fit and Strava-naming fixes, across **6** files
 (`tests/control-geometry.test.ts` and `tests/page-fit.test.ts` are new;
 `tests/helpers/css.ts` is a shared non-test module and is not counted). It was

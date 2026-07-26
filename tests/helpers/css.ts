@@ -153,12 +153,28 @@ export function minWidthOf(rule: Rule): number | null {
 }
 
 /**
- * True when the rule is gated to apply only at or below some width — a
- * `max-width` / `width<=` query. Such a rule cannot be responsible for desktop
- * layout, so callers exclude it rather than treating it as ungated.
+ * True when the rule can take effect at any viewport narrower than `width`.
+ *
+ * This replaced an `isMaxWidthGated` predicate that asked whether a rule carried
+ * *any* `max-width` condition and excluded it if so. That was the wrong question
+ * and it left a hole big enough to drive the original defect back through: UnoCSS
+ * compiles a range variant to NESTED queries, so a lock scoped to exactly the
+ * medium range emits
+ *
+ *     @media (width<=1023.9px){@media (width>=768px){ … height:100vh }}
+ *
+ * which the old predicate saw as "max-width gated, cannot matter" and skipped
+ * entirely. Measured consequence on `<main>`: 37 overflowing elements and
+ * 102.45px sheared off the intro card's second row of controls at 768x900, with
+ * the whole suite green.
+ *
+ * Only the LOWER bound decides this, which is why no `max-width` is consulted. A
+ * rule whose lower bound is below `width` applies somewhere below it, whatever
+ * upper bound it also carries; a rule whose lower bound is at or above `width`
+ * cannot. An ungated rule has a lower bound of 0 and so always qualifies.
  */
-export function isMaxWidthGated(rule: Rule): boolean {
-    return /max-width:\s*[\d.]+px/.test(rule.at) || /width\s*<=\s*[\d.]+px/.test(rule.at);
+export function appliesBelow(rule: Rule, width: number): boolean {
+    return (minWidthOf(rule) ?? 0) < width;
 }
 
 /**
