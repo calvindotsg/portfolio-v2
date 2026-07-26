@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest";
 
-import {ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, LINKS, METADATA, NOW, WELCOME} from "../src/lib/constants";
+import {ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, LINKS, METADATA, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {kmFromMeters} from "../scripts/fetch-strava-progress.mjs";
 
@@ -100,14 +100,23 @@ describe("GOALS", () => {
 
     it("names an icon from an installed iconify collection", () => {
         for (const goal of GOALS) {
-            expect(ICON_COLLECTIONS, `${goal.goal_name} cta_logo`).toContain(goal.cta_logo.split(":")[0]);
             expect(ICON_COLLECTIONS, `${goal.goal_name} goal_logo`).toContain(goal.goal_logo.split(":")[0]);
         }
     });
 
-    it("links to an absolute tracking URL", () => {
+    /**
+     * A goal card no longer links out. It carried a call to action beside its
+     * numbers, as did the other card, and both pointed at the same Strava profile
+     * the intro card's social link already reaches — a destination a logged-out
+     * visitor cannot see. So there is no `website_url`, `cta_label` or `cta_logo`
+     * here, and this asserts their absence rather than leaving three fields that a
+     * future editor would fill in expecting them to render.
+     */
+    it("carries no call-to-action fields, since a goal card no longer links out", () => {
         for (const goal of GOALS) {
-            expect(goal.website_url, `${goal.goal_name} website_url`).toMatch(/^https:\/\//);
+            for (const dead of ["website_url", "cta_label", "cta_logo"]) {
+                expect(goal, `${goal.goal_name} ${dead} would be read by nothing`).not.toHaveProperty(dead);
+            }
         }
     });
 
@@ -116,6 +125,39 @@ describe("GOALS", () => {
             expect(goal.goal_logo, `${goal.goal_name} goal_logo`).not.toBe("");
             expect(goal.measurable_unit, `${goal.goal_name} measurable_unit`).not.toBe("");
         }
+    });
+});
+
+describe("THEME_TOGGLE", () => {
+    /**
+     * The toggle has no visible text and its icons are decorative, so this string is
+     * the whole of what a screen reader gets for it.
+     */
+    it("is announceable", () => {
+        expect(THEME_TOGGLE.name.trim(), "the name is announced verbatim").not.toBe("");
+    });
+
+    /**
+     * Coupled to English on purpose, because the alternative is a silent inversion.
+     * The name is read together with `aria-pressed`, which the toggle sets true when
+     * the DARK theme is active — so the name has to be the dark one. Renaming it to
+     * "Light theme" would leave every structural assertion satisfied while the button
+     * announced precisely the opposite of the truth, which is worse than the
+     * stateless "Toggle Theme" this replaced. Nothing but the word can catch that.
+     */
+    it("names the theme its pressed state means, so the polarity cannot invert unnoticed", () => {
+        expect(THEME_TOGGLE.name.toLowerCase(), "aria-pressed is true when dark is active").toContain("dark");
+        expect(THEME_TOGGLE.name.toLowerCase(), "naming the other theme would invert what pressed means").not.toContain("light");
+    });
+
+    /**
+     * A control carrying a pressed state must keep ONE name across both states —
+     * WAI-ARIA's toggle-button guidance offers a changing name as the alternative to
+     * that state, not an addition to it. A name phrased as an action is the tell that
+     * someone has started down the other road while the state is still in place.
+     */
+    it("names a state rather than an action, since the state is what changes", () => {
+        expect(THEME_TOGGLE.name.toLowerCase(), "a name that changes and a pressed state contradict each other").not.toMatch(/^(switch|toggle|change|turn|enable|activate)\b/);
     });
 });
 

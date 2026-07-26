@@ -8,7 +8,6 @@ export default defineConfig({
      *  sees them literally in source — every configured icon is safelisted here. */
     safelist: [
         ...LINKS.map((l) => iconClass(l.logo)),
-        ...GOALS.map((g) => iconClass(g.cta_logo)),
         ...GOALS.map((g) => iconClass(g.goal_logo)),
         ...CAREER.map((c) => iconClass(c.icon)),
         iconClass(WELCOME.greeting_icon),
@@ -20,12 +19,19 @@ export default defineConfig({
      *  cannot, so the token is blocked instead. */
     blocklist: ["static"],
     /**
-     * The one styled control. Nine elements wear it: eight navigating anchors
-     * (six social links in the intro card, two goal CTAs) and the theme toggle,
-     * which is a real button. It is a class and not a component because those
-     * elements legitimately differ — only the look is shared, and a component
-     * that picks the caller's element is how a `button` ended up illegally
-     * nested inside an `a` in the first place.
+     * The one styled control. Seven elements wear it: the six social-link anchors
+     * in the intro card, and the theme toggle, which is a real button. It is a
+     * class and not a component because those elements legitimately differ — only
+     * the look is shared, and a component that picks the caller's element is how a
+     * `button` ended up illegally nested inside an `a` in the first place.
+     *
+     * It was nine until the two goal cards' calls to action were removed: both
+     * pointed at the same Strava profile the intro card's social link already
+     * reaches, and a logged-out visitor meets a login wall there. Every measured
+     * figure below was taken when there were nine, and the numbers are still the
+     * numbers — the box is declared, so it does not depend on how many elements
+     * wear it. Read "nine" in the history below as "the nine that then existed",
+     * not as a count to re-derive.
      *
      * There used to be a `control-surface` base plus `control` and
      * `control-compact` box variants, and the two variants disagreed about every
@@ -131,12 +137,17 @@ export default defineConfig({
      * (a 44px square, for comparison, has room for 2px of content beside the old
      * `px-5`, which is why that number was rejected).
      *
-     * `shrink-0` on the surface is NOT belt-and-braces: the two goal CTAs are flex
-     * items, flex-shrink outranks a declared width, and they measured 47.80px at
-     * lg with the width already in place.
+     * `shrink-0` on the surface was NOT belt-and-braces when it was added, and it
+     * is worth keeping now that the case which proved it has gone: the two goal
+     * CTAs were flex items, flex-shrink outranks a declared width, and they
+     * measured 47.80px at lg with the width already in place. Nothing wearing this
+     * class is a flex item today — all seven are direct children of `.button-grid`
+     * and therefore grid items — so the token is currently inert. It stays because the next
+     * control to be dropped into a flex row would silently lose the box otherwise,
+     * and because the failure it prevents is invisible until measured.
      *
-     * The icon spans carry `shrink-0` at all three call sites rather than relying
-     * on there being slack. It costs one already-emitted rule and it is what stops
+     * The icon spans carry `shrink-0` at both call sites rather than relying on
+     * there being slack. It costs one already-emitted rule and it is what stops
      * mechanism 3 above from ever recurring on a future wider icon.
      *
      * WHY 64 WIDE AND NOT A 48 SQUARE — asked and deliberately answered "leave

@@ -64,7 +64,6 @@ describe("dist/", () => {
         const css = read(`dist/_astro/${sheet}`);
         const wanted = new Set([
             ...LINKS.map(({logo}) => iconClass(logo)),
-            ...GOALS.map(({cta_logo}) => iconClass(cta_logo)),
             ...GOALS.map(({goal_logo}) => iconClass(goal_logo)),
             ...CAREER.map(({icon}) => iconClass(icon)),
             iconClass(WELCOME.greeting_icon),
@@ -123,6 +122,36 @@ describe("dist/", () => {
             [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], expandHex(m[2])]),
         );
     };
+
+    /**
+     * The footer heart's ink, read from the shipped stylesheet in both themes.
+     *
+     * Two failures this catches, both silent. Deleting `--brand-ink` from a theme
+     * block leaves the heart's rule emitted and the class worn, but `color:
+     * var(--brand-ink)` with nothing behind it is invalid at computed-value time —
+     * and `color` inherits, so the glyph quietly goes back to the body text colour
+     * with the markup still perfect. And re-toning the token far enough to stop
+     * reading as ink would pass any structural assertion.
+     *
+     * Measured as text (4.5:1) rather than as a graphic (3:1): the glyph stands in
+     * for the word "love", which the `sr-only` span beside it supplies, so it is
+     * prose that happens to be drawn.
+     */
+    it("gives the footer heart ink that reads as text on its card, in both themes", () => {
+        const css = sheet();
+        for (const theme of ["light", "dark"]) {
+            const t = themeTokens(css, theme);
+            const ink = t["--brand-ink"];
+            expect(ink, `${theme}: --brand-ink must be defined, or the heart silently inherits the body text colour`).toBeTruthy();
+            const card = t["--card-background"];
+            expect(card, `${theme}: --card-background must be defined`).toBeTruthy();
+            const ratio = contrast(ink, card);
+            expect(
+                ratio,
+                `${theme}: heart ink ${ink} is ${ratio.toFixed(3)}:1 on its card ${card} — it stands in for a word, so it is held to the text floor`,
+            ).toBeGreaterThanOrEqual(4.5);
+        }
+    });
 
     /**
      * What a class list actually paints for `prop`, per the shipped rules —
@@ -441,9 +470,9 @@ describe("hover styles promise only interactions that exist", () => {
 });
 
 describe("the offset plate actually paints", () => {
-    // One entry per plated SELECTOR, not per plated element: `.control` is worn
-    // by all nine controls (it was two classes until they were unified, and the
-    // toggle's narrower variant was the reason they were not one size).
+    // One entry per plated SELECTOR, not per plated element: `.control` is worn by
+    // every control (it was two classes until they were unified, and the toggle's
+    // narrower variant was the reason they were not one size).
     const PLATED = [".control", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
 
     /** The `--un-shadow` value the built sheet gives `selector`. */
@@ -648,6 +677,36 @@ describe("dist/index.html is prerendered", () => {
         // Every color token is defined under :root[data-theme=…]; without this
         // attribute a visitor whose JS never runs gets unstyled, transparent cards.
         expect(doc().querySelector("html")?.getAttribute("data-theme")).toBe("light");
+    });
+
+    /**
+     * The toggle's pressed state is the one thing on this page that a script has to
+     * keep true, and the server cannot do it: the pre-paint script in BasicLayout
+     * runs before the button exists, so a visitor who prefers dark is served
+     * `aria-pressed="false"` and the toggle's own deferred script is what corrects
+     * it. Delete that line and the attribute becomes a lie for exactly the visitors
+     * who did not accept the default — with the markup, the suite and the rendered
+     * page all still looking right.
+     *
+     * Asserted against the shipped bundle rather than the source because that is
+     * where the line has to survive minification. Kept to the attribute name, not
+     * the surrounding syntax, so a rename of the local variables does not read as a
+     * regression. Verified in Chrome for real: a stored and a system dark preference
+     * both arrive with `pressed: true`, and a click round-trips true/false.
+     */
+    it("ships a script that keeps the toggle's pressed state true after first paint", () => {
+        const html = read("dist/index.html");
+        const modules = [...html.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+        expect(modules.length, "the toggle's behaviour ships as an inline module script").toBeGreaterThan(0);
+        const syncing = modules.filter((s) => s.includes("aria-pressed"));
+        expect(
+            syncing.length,
+            "no shipped script writes aria-pressed — the state cannot follow the theme",
+        ).toBeGreaterThan(0);
+        // It must both READ the theme and WRITE the attribute, or it can only ever
+        // repeat the server's guess.
+        expect(syncing.some((s) => s.includes("dataset.theme") || s.includes("data-theme")),
+            "the script must derive the state from the theme it is reporting").toBe(true);
     });
 
     it("emits the social-preview tags unfurls depend on", () => {

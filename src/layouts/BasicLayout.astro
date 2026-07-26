@@ -150,7 +150,7 @@ const schema = {
 
     /* Theme Variables
      *
-     * Six roles, deliberately separate tokens even where several of them resolve
+     * Seven roles, deliberately separate tokens even where several of them resolve
      * to the same hex today:
      *
      *   --shadow          the offset plate cast by the portrait and the controls
@@ -159,6 +159,24 @@ const schema = {
      *   --progress-track  the unmarked remainder of that bar
      *   --status-live     the Now card's live indicator dot
      *   --status-halo     that dot's decorative pulsing halo
+     *   --brand-ink       a brand-coloured glyph standing in for a word in prose
+     *
+     * --brand-ink is worn by exactly one thing, the footer heart, and it is NOT
+     * --accent even though the two match in light mode. --accent is the
+     * interactive affordance, and nothing about that heart responds to a pointer
+     * or a key; re-toning what a control does on hover must not re-tone a word in
+     * a sentence. That is the same coupling --progress-fill was split out to
+     * break, so reaching for --accent here would rebuild it under a new name.
+     * It is not --status-live either: that reports a live state, and a heart in
+     * "Built with <heart>" reports nothing — it IS the word, which is why the
+     * span beside it supplies "love" for a screen reader.
+     *
+     * Being a word rather than an ornament is also why it is toned as ink and
+     * measured as text: 6.52:1 on the light card, 9.08:1 on the dark one, both
+     * clear of the 4.5:1 that 12px prose asks for. And it follows the surface the
+     * way --progress-fill does, deep on light and pale on dark, so the mark stays
+     * a shade of the same brand red in both themes instead of inverting into a
+     * different colour.
      *
      * The bar used to paint --shadow, so re-toning the plate silently re-toned
      * the data. Two colours matching in this palette is a coincidence of this
@@ -187,6 +205,7 @@ const schema = {
         --progress-track: #E3B3B8; /* primary-150 */
         --status-live: #A82334; /* primary-600 */
         --status-halo: #A82334; /* primary-600 */
+        --brand-ink: #A82334; /* primary-600 — 6.52:1 on the card */
         --on-brand: #FAFAFA; /* grey-50 — light ink, the fill is deep here */
     }
 
@@ -201,6 +220,7 @@ const schema = {
         --progress-track: #462F32; /* primary-800 */
         --status-live: #F3A3AA; /* primary-200 */
         --status-halo: #F9CDD3; /* primary-100 */
+        --brand-ink: #F3A3AA; /* primary-200 — 9.08:1 on the card */
         --on-brand: #0B0B0B; /* darkslate-900 — dark ink, the fill is pale here */
     }
 

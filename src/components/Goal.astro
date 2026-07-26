@@ -1,12 +1,23 @@
 ---
 import Card from "./Card/index.astro";
 import type {Goal} from "../lib/constants";
-import {iconClass} from "../lib/icons";
 import ProgressBar from './ProgressBar.astro';
 
 interface Props {
     goal: Goal;
 }
+
+// This card reports a figure and offers no way out to the service the figure came
+// from. It used to carry a styled control beside its numbers, as did the other goal
+// card, and both went to the same Strava profile the intro card's social link
+// already reaches — three of the page's nine controls spent on one destination that
+// a logged-out visitor meets a login wall at. See the note on the Strava URL in
+// constants.ts before adding a per-goal link back; there is no per-sport URL to
+// point one at.
+//
+// The row below therefore holds a single child. Its distribution utility went with
+// the control, because with one child it can only ever resolve to the start edge
+// and a token that cannot change anything reads as a constraint that does.
 
 const {goal} = Astro.props;
 ---
@@ -21,19 +32,13 @@ const {goal} = Astro.props;
                          label=`${goal.goal_name} progress`
                          unit={goal.measurable_unit}
             />
-            <div class="mt-4 flex items-center justify-between text-xs font-light">
-                <!-- Left side text, stacked vertically -->
+            <div class="mt-4 flex items-center text-xs font-light">
                 <div class="flex flex-col space-y-1">
                     <span>{goal.current_progress} {goal.measurable_unit} of {goal.total_goal} {goal.measurable_unit}</span>
                     <span>Last year's: {goal.progress_last_year !== null
                         ? `${goal.progress_last_year} ${goal.measurable_unit}`
                         : <><span aria-hidden="true">–</span><span class="sr-only">first year back</span></>}</span>
                 </div>
-                <!-- Right side link -->
-                <a href={goal.website_url} target="_blank" class="control ml-4">
-                    <span class={`${iconClass(goal.cta_logo)} shrink-0`} aria-hidden="true"></span>
-                    <span class="sr-only">{goal.cta_label}</span>
-                </a>
             </div>
         </div>
     </div>
