@@ -441,7 +441,10 @@ describe("hover styles promise only interactions that exist", () => {
 });
 
 describe("the offset plate actually paints", () => {
-    const PLATED = [".control", ".control-compact", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
+    // One entry per plated SELECTOR, not per plated element: `.control` is worn
+    // by all nine controls (it was two classes until they were unified, and the
+    // toggle's narrower variant was the reason they were not one size).
+    const PLATED = [".control", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
 
     /** The `--un-shadow` value the built sheet gives `selector`. */
     const plate = (css: string, selector: string) => {
@@ -537,8 +540,11 @@ describe("the offset plate actually paints", () => {
  */
 describe("the stylesheet ships no rule nobody wears", () => {
     /**
-     * A ratchet, not a clean sweep. These six predate this gate; each comes from
-     * ordinary text UnoCSS happens to read as a class name:
+     * A ratchet, not a clean sweep. The entries below predate this gate; each
+     * comes from ordinary text UnoCSS happens to read as a class name. Deliberately
+     * not counted in this sentence — the list shrinks whenever prose changes (`my`
+     * came off it in this very change), and a number here would be stale the moment
+     * it did:
      *
      *   transition    `transition: …` declarations in <style> blocks
      *   ease          same, though this one is NOT a dead rule — it is a
@@ -564,7 +570,13 @@ describe("the stylesheet ships no rule nobody wears", () => {
      * cannot be avoided. Note constants.ts prose is NOT scanned, so Calvin's own
      * copy cannot trip this — only text inside .astro files.
      */
-    const KNOWN_ORPHANS = ["ease", "inline", "inline-block", "me", "my", "transition"];
+    // `my` came off this list when the goal CTA's sr-only name stopped being
+    // built from a sentence ("Follow my running on Strava") and became the shared
+    // label in constants.ts — that removed the last lowercase "my" from any .astro
+    // file, so the rule stopped being emitted and the guard below demanded the
+    // entry go. `me` survives it: "About me" is still a card title. Exactly the
+    // rot this pair of assertions exists to prevent.
+    const KNOWN_ORPHANS = ["ease", "inline", "inline-block", "me", "transition"];
 
     it("emits a class rule only for classes the page actually uses", () => {
         const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);

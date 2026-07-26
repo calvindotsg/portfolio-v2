@@ -52,9 +52,10 @@ preview is byte-identical to what Netlify serves.
 
 ### Styling System
 - **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
-  `blocklist`, the `control-surface` shortcut (including the offset-plate
-  shadow) and the presets — there is no `theme` key, so no colour or shadow
-  tokens live there
+  `blocklist`, the single `control` shortcut (the styled control's whole box,
+  including the offset-plate shadow — all nine controls wear it, and it
+  deliberately has no variants) and the presets — there is no `theme` key, so no
+  colour or shadow tokens live there
 - **Theme Support**: dark/light mode via CSS custom properties on
   `:root[data-theme]` in `src/layouts/BasicLayout.astro`; that block's header
   comment defines each token's role and the progress-bar polarity rule — read it

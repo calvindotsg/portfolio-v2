@@ -88,6 +88,49 @@ Post-run-3 correction (plan 015, merged `a4b419b`): the suite is now **67
 assertions**, and the two `GOALS[].current_progress` values are bot-owned — a
 daily workflow writes `src/data/strava-progress.json`, so they are no longer
 hand-edited in `constants.ts` (`total_goal` and `progress_last_year` still are).
+Later maintainer-direct fixes (PRs #57–#60 and the control-geometry fix) have
+landed without updating the numbers above, so treat **every assertion count AND
+every page-weight figure in this file as unverified** — including the run-3
+stylesheet figures in the paragraph below, which no longer match a build of the
+revision they claim to describe. Read counts from `pnpm test`: **109** as of the
+control-geometry, page-fit and Strava-naming fixes, across **6** files
+(`tests/control-geometry.test.ts` and `tests/page-fit.test.ts` are new;
+`tests/helpers/css.ts` is a shared non-test module and is not counted). It was
+already 91 before those fixes, i.e. the "67" above went stale independently of
+them. Neither consumed a plan number — both came straight from the maintainer and
+were implemented and verified in one session, so numbering still continues at
+`016`. What they changed: the nine styled controls are one declared 64x48 box and
+the second `control` variant is gone; `<body>`'s viewport height became a
+*minimum* rather than an exact height, which had been compressing the two-column
+grid between 768px and 1023px until four of the eight cards clipped content that
+no scrollbar could reach (98.45px off the intro card at 768x900, measured against
+each card's padding box; pre-existing since before the control work). The same
+lock broke the large breakpoint too, which the first pass missed: `main` carries a
+736px floor, so on a shorter viewport the exact-height body could not contain it
+and the centring pushed the overflow above the scroll origin — 44px of the first
+card unreachable at 1024x600, 94px at 1024x500, at every width up to 1920. Both
+ranges are clean now. Also in this change: the Strava URL, which had been written
+out three times in
+`constants.ts` with three different accessible names attached, is now one
+`STRAVA` constant, so the three controls pointing at it announce one name; and
+`public/preview.jpg` was regenerated from the current build (it had still been
+showing the pre-icon-migration emoji greeting). The 64x48 control box was
+deliberately left as it is rather than squared off to 48x48 — both clear WCAG
+2.5.5 AAA, so that choice is aesthetic and the reasoning is recorded in
+`uno.config.ts`. Page weight **over the wire**, deploy
+preview 61 against production, both served `content-encoding: br` (confirmed, not
+assumed), five samples each and all five identical on both origins: stylesheet
+6,842 → 6,738 B (**−104**), markup 3,244 → 3,360 B (**+116**), net **+12 B**.
+Read that net as *neutral rather than a cost*, because production's compressed
+markup measured **3,277 B** earlier the same day and 3,244 B later for
+byte-identical content on an unchanged `main` — a 33 B cross-session swing in the
+stored artifact, wider than the delta being reported. The stylesheet's −104 B is
+outside that band and is attributable: the sheet lost five selectors and gained
+one. Local `gzip -9` of the same builds disagrees in both magnitude and, on the
+markup component, direction — brotli compresses the added class tokens far worse
+than gzip — which is why only the transfer number is quoted here, and why a
+single sample of it is not enough.
+
 Page weight after run 3: `dist/index.html` 15,735 B raw / **3,533 B gzip**;
 the single stylesheet 24,138 B raw / **7,055 B gzip** (up ~1.1 KB gzip from
 run 2 — the 8 migrated icons each embed an SVG mask data-URI; the emoji they
@@ -118,6 +161,25 @@ is cosmetic.
 
 ## Findings considered and rejected
 
+### PR #61 review (2026-07-26, uniform controls / md height lock / one Strava name)
+
+Out of scope for that PR, which covered the controls' box, the page's height and
+the Strava naming. Recorded so they are not rediscovered as new:
+
+- **The theme toggle announces no state.** It carries `aria-live="polite"`, but
+  everything inside it that changes on activation is `aria-hidden` (the sun and
+  moon spans, swapped by CSS `display`), and its only text node never changes —
+  so the live region has nothing to announce, and there is no `aria-pressed` or
+  state-bearing name either. A screen-reader user activates it, the page repaints,
+  and nothing is said; re-reading the button still gives "Toggle Theme, button".
+  Verified against Chrome's own AX tree. Pre-existing and untouched by #61, which
+  changed only the button's class. The fix is a real decision, not a typo — drop
+  the inert `aria-live`, or make the state real with a per-theme accessible name —
+  and it changes announced copy, so it is the maintainer's call.
+- **`aria-label="Toggle Theme"` and an `sr-only` span with the same text both sit
+  on that button.** AccName takes the `aria-label`, so the span is inert. Harmless
+  today because the two strings agree; it is a trap if either is ever edited alone.
+
 ### Run 3 (2026-07-22, audited at `4e15674`)
 
 The mandated UnoCSS-classes lead **reproduced with evidence** — nine dead or
@@ -125,9 +187,13 @@ no-op class tokens, all relics of the upstream tilt effect deleted in plan
 003 (see plan 012 for the per-class evidence table). The audit's near-misses,
 recorded by the auditors themselves as not-findings — do not re-derive:
 
-- **Goal.astro's CTA `aria-label` hardcodes "Strava" while `cta_logo` is a
-  variable.** No bug today (both goals point at Strava); a future non-Strava
-  goal would mislabel its CTA. Maintainer-owned content surface; not planned.
+- **Goal.astro's CTA name hardcodes "Strava" while `cta_logo` is a variable.**
+  No bug today (both goals point at Strava); a future non-Strava goal would
+  mislabel its CTA. Maintainer-owned content surface; not planned. **Resolved
+  since, as a side effect of the Strava-naming fix** — the name is now
+  `GOALS[].cta_label` in `constants.ts` and `Goal.astro` renders it, so the
+  label follows the destination. (The finding named `aria-label`; the element
+  was always an `sr-only` span.)
 - **README.md:68 says "cycling goal" (singular)** vs the two-goal reality
   after PR #41. One-word incompleteness; the same sentence points at
   `constants.ts` where the running goal is visible, and CLAUDE.md is correct.

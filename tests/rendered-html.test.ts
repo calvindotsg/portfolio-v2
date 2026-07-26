@@ -170,8 +170,13 @@ describe("page content", () => {
         // fewer classes. Asserting per class lets querySelector return the first
         // copy and leaves the later elements, the Goal CTA icons, unchecked:
         // deleting one outright kept the whole suite green.
+        // Matched on class TOKENS, not on the whole attribute. The earlier
+        // exact-string form silently forbade an icon span from carrying any
+        // second utility, so giving the icons `shrink-0` — which is what keeps a
+        // control from squeezing its icon — read as "every icon element has
+        // disappeared" rather than as the one-token change it was.
         const els = [...doc.querySelectorAll("span")]
-            .filter((s) => wanted.includes(s.getAttribute("class") ?? ""));
+            .filter((s) => (s.getAttribute("class") ?? "").split(/\s+/).some((token) => wanted.includes(token)));
         expect(els.length, "one icon element per configured icon reference").toBe(wanted.length);
         for (const cls of wanted) {
             expect(doc.querySelector(`span[class~="${cls}"]`), `no element carries the icon class ${cls}`).toBeTruthy();
@@ -279,7 +284,7 @@ describe("control semantics", () => {
                 .toBe(anchors.length);
 
             for (const control of controls) {
-                expect(control.querySelector(".control, .control-compact"), `${href} must not wrap a second styled control`).toBeNull();
+                expect(control.querySelector(".control"), `${href} must not wrap a second styled control`).toBeNull();
             }
         }
     });
@@ -306,9 +311,115 @@ describe("control semantics", () => {
             // Verbatim: the template no longer decorates the name. The old
             // `${name} Profile` was itself the defect — it called a PDF a profile.
             ...LINKS.map(({name}) => name),
-            ...GOALS.map(({goal_name}) => `Follow my ${goal_name.toLowerCase()} on Strava`),
+            ...GOALS.map(({cta_label}) => cta_label),
         ].sort();
         expect(named.map(({name}) => name).sort(), "announced names must come from constants.ts").toEqual(expected);
+    });
+
+    /**
+     * Anchors that go to the same place must announce the same name.
+     *
+     * Three controls point at one Strava URL — the social link and both goal CTAs
+     * — and they used to announce "Strava Profile", "Follow my running on Strava"
+     * and "Follow my cycling on Strava". Nothing was broken by that: SC 3.2.4
+     * Consistent Identification is scoped to a *set* of web pages and this site is
+     * a single page, and each name did state its own purpose, so 2.4.4 and 2.4.9
+     * were satisfied too. It was the best practice that was missed — Understanding
+     * 2.4.4 ("a best practice for links with the same destination to have
+     * consistent text"), Understanding 2.4.9 (so the names still make sense in the
+     * flat links list a screen reader can pull up), and GOV.UK's editorial rule
+     * ("if you have more than one link to the same page, use identical link text
+     * or similar link text that conveys the same meaning").
+     *
+     * Asserted as an invariant over the rendered page rather than against the
+     * literal string, so it keeps holding when the name changes, and so a future
+     * goal that genuinely points elsewhere is free to name itself differently. The
+     * shared `STRAVA` constant in `constants.ts` is what makes it true; this is
+     * what notices if someone hand-writes a fourth name beside it.
+     */
+    it("gives anchors that share a destination the same accessible name", () => {
+        const byHref = new Map<string, Set<string>>();
+        for (const a of doc.querySelectorAll("a[href]")) {
+            const href = a.getAttribute("href")!;
+            // The accessible name as computed here: sr-only text, or aria-label,
+            // or the visible text. Anchors elsewhere on the page (the career
+            // employers, the footer credit) are named by their own text and are
+            // covered by the same rule.
+            // Ordered as accname-1.2 resolves it: aria-label (step 2C) outranks
+            // the element's own content, which is where an sr-only span lives.
+            // The two agree on every anchor of this page today — Chrome's own
+            // computation was diffed against this — but writing the inverted
+            // order leaves a test that disagrees with a screen reader the moment
+            // an aria-label and an sr-only span coexist and differ.
+            const name = a.getAttribute("aria-label")?.trim()
+                || a.querySelector(".sr-only")?.textContent?.trim()
+                || a.textContent?.trim().replace(/\s+/g, " ")
+                || "";
+            if (!byHref.has(href)) byHref.set(href, new Set());
+            byHref.get(href)!.add(name);
+        }
+
+        // Non-vacuity: there must actually BE a repeated destination to police.
+        // Without this the assertion passes on a page where every href is unique,
+        // and would keep passing if the three Strava anchors were renamed apart.
+        const repeated = [...byHref.keys()].filter((href) =>
+            doc.querySelectorAll(`a[href="${href}"]`).length > 1);
+        expect(repeated.length, "no href appears more than once — this assertion has nothing to police").toBeGreaterThan(0);
+
+        const divergent = [...byHref.entries()]
+            .filter(([, names]) => names.size > 1)
+            .map(([href, names]) => `${href} is announced as ${[...names].map((n) => `"${n}"`).join(" and ")}`);
+        expect(
+            divergent,
+            "one destination, one name: a screen reader user pulling up the page's links list sees one entry per anchor, and several names for one URL read as several places",
+        ).toEqual([]);
+    });
+
+    it("gives anchors that share an accessible name the same destination", () => {
+        // The converse of the assertion above, and it is not redundant with it.
+        // That one collapses anchors by href and forbids divergent names, so it
+        // cannot see the opposite drift: re-literalling ONE goal's `website_url`
+        // leaves two anchors still sharing the old href with one name — which
+        // satisfies both that assertion and its non-vacuity guard — while a third
+        // anchor announces "Strava Profile" and navigates somewhere else entirely.
+        // A visitor gets a CTA that lies about where it goes, and this is the pair
+        // of assertions that makes name and destination a bijection rather than
+        // one implication.
+        const named = [...doc.querySelectorAll("a[href]")]
+            .map((a) => ({
+                href: a.getAttribute("href")!,
+                // Same precedence as above: aria-label first, per accname-1.2.
+                name: a.getAttribute("aria-label")?.trim()
+                    || a.querySelector(".sr-only")?.textContent?.trim()
+                    || a.textContent?.trim().replace(/\s+/g, " ")
+                    || "",
+            }))
+            .filter(({name}) => name !== "");
+
+        const byName = new Map<string, Set<string>>();
+        for (const {name, href} of named) {
+            if (!byName.has(name)) byName.set(name, new Set());
+            byName.get(name)!.add(href);
+        }
+
+        // Non-vacuity: some name must actually be worn by more than one anchor, or
+        // this polices nothing. Counted over the anchors, not over the grouped
+        // hrefs — a name on three anchors that agree collapses to ONE href, so
+        // checking the set size here would call the real case vacuous.
+        const sharedNames = [...byName.keys()]
+            .filter((n) => named.filter(({name}) => name === n).length > 1);
+        expect(
+            sharedNames.length,
+            "no accessible name is worn by more than one anchor — this assertion has nothing to police",
+        ).toBeGreaterThan(0);
+
+        const divergent = [...byName.entries()]
+            .filter(([, hrefs]) => hrefs.size > 1)
+            .map(([name, hrefs]) => `"${name}" navigates to ${[...hrefs].join(" and ")}`);
+        expect(
+            divergent,
+            "one name, one destination: three controls announce the Strava profile and the URL has exactly one home in constants.ts, so a name pointing at two URLs means that home was bypassed",
+        ).toEqual([]);
     });
 
     it("keeps the theme toggle the page's only button, since it acts rather than navigates", () => {
@@ -316,6 +427,10 @@ describe("control semantics", () => {
         expect(buttons.map((b) => b.getAttribute("id")), "only the theme toggle performs an in-page action").toEqual(["theme-toggle"]);
         expect(buttons[0].getAttribute("type"), "a bare button would submit a form if one is ever added").toBe("button");
         expect(buttons[0].hasAttribute("href")).toBe(false);
-        expect((buttons[0].getAttribute("class") ?? "").split(/\s+/)).toContain("control-compact");
+        // The toggle wears the SAME styled-control class as the eight anchors.
+        // It used to wear a narrower variant of its own, which is what made it
+        // the one control that was a different size; this assertion is what stops
+        // a second variant being reintroduced for it.
+        expect((buttons[0].getAttribute("class") ?? "").split(/\s+/)).toContain("control");
     });
 });
