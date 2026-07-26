@@ -7,6 +7,34 @@ interface Props {
 }
 
 const {title, description} = Astro.props;
+
+/*
+ * The body's height floor below is a MINIMUM, deliberately, and the distinction
+ * is load-bearing. It used to be an exact viewport height from the medium
+ * breakpoint up, which locked the page to 100vh a full breakpoint below where
+ * the single-screen bento layout is actually defined — that contract lives on
+ * <main> in index.astro and is written against the large breakpoint only.
+ *
+ * Between 768px and 1023px the grid is just two columns, so the same content is
+ * roughly 1160px tall. Against an exact 100vh body the implicit `auto` rows were
+ * compressed to fit the viewport and every card's own clipping ate the
+ * remainder: at 768x900 six cards lost content, worst case ~100px — the intro
+ * card's entire row of controls, the "last year's" line of each goal card, and
+ * the final line of the Now card. Nothing scrolled, because the body was exactly
+ * as tall as the viewport, so the loss was silent and unrecoverable rather than
+ * merely below the fold.
+ *
+ * A floor fixes that without touching the large-breakpoint layout: the body
+ * still stretches to the full viewport, so the centring below still centres,
+ * and <main> is still capped there. Where content genuinely needs more room the
+ * page now grows and scrolls instead of clipping. Keep this a floor — restoring
+ * an exact height reintroduces the defect at every viewport shorter than the
+ * content.
+ *
+ * tests/page-fit.test.ts pins it. Utility names are described rather than
+ * spelled here on purpose: UnoCSS scans this file, so writing one would emit a
+ * real CSS rule that no element wears.
+ */
 const image = `${Astro.url.origin}/preview.jpg`;
 
 const schema = {
@@ -72,7 +100,7 @@ const schema = {
     </script>
 </head>
 <body
-        class="bg-[var(--background)] md:h-screen flex flex-col justify-center items-center"
+        class="bg-[var(--background)] md:min-h-screen flex flex-col justify-center items-center"
 >
 <slot/>
 </body>

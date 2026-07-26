@@ -3,6 +3,7 @@ import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
 import {GOALS, LINKS} from "../src/lib/constants";
+import {decl, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * The nine styled controls must all be ONE box.
@@ -50,60 +51,14 @@ describe("every styled control is one declared box", () => {
     const {document} = parseHTML(html);
 
     /**
-     * Split the minified sheet into rules, keeping at-rule depth AND the at-rule
-     * prelude so a failure can name the media query it came from. `build-output`'s
-     * `decl()` helper is attribute-order-based and at-rule-blind, so it can answer
-     * with a rule from inside a media query — not good enough here.
+     * The sheet split into rules, keeping at-rule depth AND the prelude so a
+     * failure can name the media query it came from. `build-output`'s `decl()`
+     * helper is attribute-order-based and at-rule-blind, so it can answer with a
+     * rule from inside a media query — not good enough here. Shared with
+     * `page-fit.test.ts` via `helpers/css`: both need to walk the whole cascade,
+     * and the pseudo-stripper in particular is too subtle to keep two copies of.
      */
-    type Rule = {selectors: string[], body: string, nested: boolean, at: string};
-    const rules: Rule[] = [];
-    {
-        let i = 0, prelude = "", atStack: string[] = [];
-        while (i < css.length) {
-            const ch = css[i];
-            if (ch === "{") {
-                const head = prelude.trim();
-                prelude = "";
-                if (head.startsWith("@")) {
-                    atStack.push(head);
-                    i++;
-                    continue;
-                }
-                let depth = 1, j = i + 1;
-                while (j < css.length && depth > 0) {
-                    if (css[j] === "{") depth++;
-                    else if (css[j] === "}") depth--;
-                    j++;
-                }
-                rules.push({
-                    selectors: head.split(",").map((s) => s.trim()).filter(Boolean),
-                    body: css.slice(i + 1, j - 1),
-                    nested: atStack.length > 0,
-                    at: atStack.join(" "),
-                });
-                i = j;
-                continue;
-            }
-            if (ch === "}") {
-                atStack.pop();
-                prelude = "";
-                i++;
-                continue;
-            }
-            prelude += ch;
-            i++;
-        }
-    }
-
-    const decl = (body: string, prop: string) =>
-        body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim();
-
-    const px = (value: string | undefined) => {
-        if (!value) return null;
-        const m = value.match(/^(-?[\d.]+)(px|rem)$/);
-        if (!m) return null;
-        return parseFloat(m[1]) * (m[2] === "rem" ? 16 : 1);
-    };
+    const rules: Rule[] = parseRules(css);
 
     /** Horizontal padding in px, whichever spelling the sheet used. UnoCSS emits
      *  `px-*` as padding-left/right longhands, never the shorthand — an earlier
@@ -165,45 +120,6 @@ describe("every styled control is one declared box", () => {
 
     const controlElements = () =>
         [...document.querySelectorAll(controlClasses.map((c) => `.${c}`).join(","))];
-
-    /**
-     * A selector reduced to what decides WHICH elements it can reach: state and
-     * pseudo-element parts removed, so `.control:hover` and `.control` are the same
-     * subject. Paren-balanced, because the preflight ships
-     * `[hidden]:where(:not([hidden=until-found]))` and a non-nesting strip leaves an
-     * unbalanced `)` that the selector engine rejects. A compound that was nothing
-     * BUT a pseudo becomes `*` — `.space-y-1>:not([hidden])~:not([hidden])` has to
-     * reduce to `.space-y-1>*~*`, not to a dangling pair of combinators. `\:` inside
-     * an escaped UnoCSS token is part of the class name and must survive.
-     */
-    const structuralSelector = (selector: string): string => {
-        let out = "";
-        for (let i = 0; i < selector.length;) {
-            const ch = selector[i];
-            if (ch === "\\") {
-                out += selector.slice(i, i + 2);
-                i += 2;
-                continue;
-            }
-            if (ch === ":") {
-                i++;
-                if (selector[i] === ":") i++;
-                while (i < selector.length && /[\w-]/.test(selector[i])) i++;
-                if (selector[i] === "(") {
-                    let depth = 0;
-                    do {
-                        if (selector[i] === "(") depth++;
-                        else if (selector[i] === ")") depth--;
-                        i++;
-                    } while (i < selector.length && depth > 0);
-                }
-                continue;
-            }
-            out += ch;
-            i++;
-        }
-        return out.replace(/(^|[>+~]\s*)(?=[>+~]|$)/g, "$1*").trim();
-    };
 
     const iconSpansOf = (control: Element) =>
         [...control.querySelectorAll("span")]
