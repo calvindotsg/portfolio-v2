@@ -139,7 +139,7 @@ mandated migration).
 
 **One Strava link, brand-ink heart, toggle state (2026-07-26, maintainer-direct,
 no plan number — numbering still continues at `016`).** Four changes, suite
-**109 → 118** across the same 6 files:
+**109 → 120** across the same 6 files:
 
 1. **The two goal cards' calls to action are gone**, leaving the intro card's
    social link as the site's only Strava control. Both pointed at the same profile
