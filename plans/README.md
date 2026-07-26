@@ -162,9 +162,13 @@ no-op class tokens, all relics of the upstream tilt effect deleted in plan
 003 (see plan 012 for the per-class evidence table). The audit's near-misses,
 recorded by the auditors themselves as not-findings — do not re-derive:
 
-- **Goal.astro's CTA `aria-label` hardcodes "Strava" while `cta_logo` is a
-  variable.** No bug today (both goals point at Strava); a future non-Strava
-  goal would mislabel its CTA. Maintainer-owned content surface; not planned.
+- **Goal.astro's CTA name hardcodes "Strava" while `cta_logo` is a variable.**
+  No bug today (both goals point at Strava); a future non-Strava goal would
+  mislabel its CTA. Maintainer-owned content surface; not planned. **Resolved
+  since, as a side effect of the Strava-naming fix** — the name is now
+  `GOALS[].cta_label` in `constants.ts` and `Goal.astro` renders it, so the
+  label follows the destination. (The finding named `aria-label`; the element
+  was always an `sr-only` span.)
 - **README.md:68 says "cycling goal" (singular)** vs the two-goal reality
   after PR #41. One-word incompleteness; the same sentence points at
   `constants.ts` where the running goal is visible, and CLAUDE.md is correct.
