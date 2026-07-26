@@ -109,6 +109,30 @@ describe("every styled control is one declared box", () => {
         return parseFloat(m[1]) * (m[2] === "rem" ? 16 : 1);
     };
 
+    /**
+     * Horizontal padding in px, whichever spelling the sheet used. This has to
+     * cover the longhands: UnoCSS emits `px-6` as `padding-left`/`padding-right`,
+     * not as the `padding` shorthand, and an earlier version of this file read
+     * only the shorthand — a mutation adding horizontal padding left a 14px
+     * content box for a 20px icon and this file stayed green.
+     */
+    const horizontalPadding = (body: string): number => {
+        const one = (prop: string) => px(decl(body, prop));
+        const shorthand = decl(body, "padding");
+        const fromShorthand = shorthand
+            ? (() => {
+                const parts = shorthand.trim().split(/\s+/).map((p) => px(p));
+                return parts.length > 1 ? parts[1] : parts[0];
+            })()
+            : null;
+        const candidates = [
+            one("padding-left"), one("padding-right"),
+            one("padding-inline"), one("padding-inline-start"), one("padding-inline-end"),
+            fromShorthand,
+        ].filter((n): n is number => n !== null);
+        return candidates.length ? Math.max(...candidates) : 0;
+    };
+
     const boxOf = (cls: string) => {
         const r = rules.find((rule) => !rule.nested && rule.selectors.includes(`.${cls}`))!;
         return {
@@ -118,7 +142,7 @@ describe("every styled control is one declared box", () => {
             height: decl(r.body, "height"),
             maxWidth: decl(r.body, "max-width"),
             maxHeight: decl(r.body, "max-height"),
-            padding: decl(r.body, "padding"),
+            padding: horizontalPadding(r.body),
             borderWidth: decl(r.body, "border-width"),
             fontSize: decl(r.body, "font-size"),
             display: decl(r.body, "display"),
@@ -153,7 +177,7 @@ describe("every styled control is one declared box", () => {
 
     it("gives every control the same box", () => {
         const boxes = controlClasses.map(boxOf);
-        const tuples = new Set(boxes.map((b) => `${b.width}/${b.height}/${b.padding ?? "0"}/${b.borderWidth ?? "0"}/${b.fontSize}`));
+        const tuples = new Set(boxes.map((b) => `${b.width}/${b.height}/${b.padding}/${b.borderWidth ?? "0"}/${b.fontSize}`));
         expect(
             [...tuples],
             `${boxes.length} control classes resolve ${tuples.size} different boxes — a second variant is how the toggle ended up 6px shorter than the anchors`,
@@ -182,9 +206,7 @@ describe("every styled control is one declared box", () => {
             // includes padding and border.
             const fontPx = px(box.fontSize) ?? 16;
             const border = px(box.borderWidth) ?? 0;
-            const pad = box.padding ? (box.padding.trim().split(/\s+/).map((p) => px(p) ?? 0)) : [0];
-            const sidePad = pad.length > 1 ? pad[1] : pad[0];
-            const content = px(box.width)! - 2 * border - 2 * sidePad;
+            const content = px(box.width)! - 2 * border - 2 * box.padding;
 
             const widestIconEm = Math.max(...rules
                 .filter((r) => !r.nested && r.selectors.some((s) => /^\.i-/.test(s)))
