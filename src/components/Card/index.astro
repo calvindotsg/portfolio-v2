@@ -91,6 +91,24 @@
 // while about-me and both role cards had 1px and read as cramped. The margin moved
 // onto the heading and came off the bar; keeping both would double the goal cards'
 // gap to 32px.
+//
+// That space is an ABSOLUTE length, for the same reason the control box is one
+// (uno.config.ts): a card's height comes from the page rows and does not scale with
+// the root font-size, while every card clips, so anything inside it that DOES scale
+// with the text is simply cut off. A review panel measured the cost of the relative
+// spelling and it is real: with a 1rem gap this page loses content at a root size of
+// 17 where the previous revision loses none — about-me's last line, 8 of those
+// units at 1024x800, and 3.5 across six wider viewports at root 18. Pinning the gap
+// does not remove that (the space itself is what the card cannot afford) but it
+// stops the deficit widening: measured loss at root 17 / 18 / 20 / 22 / 24 goes
+// 8 / 3.5 / 14 / 230 / 480 with the relative spelling and 7 / 1.5 / 10 / 200 / 440
+// with this one — identical at the default size, better at every size above it.
+//
+// The real fix is not available here. A card cannot get taller because the lg grid
+// is height-capped, so the page would have to stop being single-screen when the text
+// is enlarged — a design decision, not a bug fix, and one the maintainer has not
+// been asked. Do not "fix" this by shrinking the gap back: the cramped reading it
+// corrects was reported.
 interface Props {
     title?: string;
     titleIcon?: string;
@@ -107,6 +125,6 @@ const {title, titleIcon, colSpan, rowSpan, fillsArea} = Astro.props;
         data-card
         class={`isolate ${fillsArea ? "" : "self-start max-h-full"} overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] relative w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
-    {title && <h2 class="text-xl font-bold mt-0 mb-4">{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
+    {title && <h2 class="text-xl font-bold mt-0 mb-[16px]">{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
     <slot/>
 </div>
