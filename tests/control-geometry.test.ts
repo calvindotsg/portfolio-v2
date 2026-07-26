@@ -8,58 +8,67 @@ import {GOALS, LINKS} from "../src/lib/constants";
  * The nine styled controls must all be ONE box.
  *
  * They were not, for as long as the surface existed: the eight anchors rendered
- * at five different widths (57.00, 59.59, 61.39, 62.00 px) because nothing
+ * at four different widths (57.00, 59.59, 61.40, 62.00 px) because nothing
  * declared a width and `presetIcons` emits each icon at its artwork's aspect
  * ratio, so the icon's proportions leaked into the button's; and the theme
  * toggle rendered 60 x 40 from a second class whose max-width was below its own
- * content width, which squashed its 1em icon to 18px. Nothing in the suite read
- * a single box metric of any control, so the whole defect class was invisible to
- * it — `uno.config.ts` said as much in a comment.
+ * content width, which squashed its 1em icon to 18px. Five distinct boxes over
+ * nine elements. Nothing in the suite read a single box metric of any control, so
+ * the whole defect class was invisible to it — `uno.config.ts` said as much.
  *
- * WHAT THIS FILE CANNOT PROVE, stated so nobody trusts it further than it goes.
- * There is no layout engine here (linkedom parses, it does not lay out), so
- * nothing below measures a rendered box. It reads the DECLARATIONS and checks
- * they are self-consistent and absolute. It therefore cannot see: a control
- * shrunk below its declared width by a flex parent (`flex-shrink` — which really
- * did shrink the two goal CTAs to 47.80px at lg until the surface was pinned, and
- * is why `flex-shrink: 0` is asserted here rather than assumed); grid track
- * sizing; whether a card clips a control; or anything about a rendered pixel.
- * Browser measurement at 320/390/640/768/1024/1440 in both themes is the other
- * half of this and is not optional.
+ * THE CENTRAL INVARIANT, and the reason this file is shaped the way it is:
+ * **exactly one rule in the whole stylesheet may declare a control's box, and it
+ * is the top-level control rule.** An earlier version of this file asserted only
+ * that that one rule was self-consistent, and a skeptic pass defeated it five
+ * ways with the suite green every time — `md:w-max md:px-5` in the shortcut (a
+ * media-query rule the parser skipped, reproducing the ragged 57/59.59/61.40/62
+ * widths bit-for-bit above 768px), `h-16` added to the toggle ELEMENT, a scoped
+ * `<style>` sizing `button.theme-toggle`, `w-2.5` on an icon span, and `hidden`
+ * on the goal CTAs' icons. Policing one rule is not the same as policing the box;
+ * the cascade has more than one way in, so the assertions below walk every rule
+ * that matches a control at any at-rule depth.
  *
- * It is deliberately written to name NO class of its own. The control set is
- * discovered from the surface's own signature — the offset plate plus the accent
- * border — so a renamed class is still covered, and a SECOND divergent variant
- * (exactly how this defect happened) is caught by the uniformity assertion
- * rather than slipping past a hard-coded list.
+ * WHAT THIS FILE STILL CANNOT PROVE, stated so nobody trusts it further than it
+ * goes. There is no layout engine (linkedom parses, it does not lay out), so
+ * nothing here measures a rendered box. It therefore cannot see: a control shrunk
+ * below its declared width by a flex parent (`flex-shrink` — which really did
+ * shrink the two goal CTAs to 47.80px at lg, and is why `flex-shrink: 0` is
+ * asserted rather than assumed); grid track sizing; a control clipped by an
+ * ancestor's `overflow-hidden` (the cards all clip, and they do shear the controls
+ * under text-only zoom — see the box-in-px rationale in `uno.config.ts`); or
+ * anything about a rendered pixel. Browser measurement across breakpoints, themes
+ * and root font-sizes is the other half of this and is not optional.
+ *
+ * It names NO control class of its own: the set is discovered from the surface's
+ * own signature — the offset plate plus the accent border — so a rename stays
+ * covered and a second divergent variant is caught rather than skipped.
  */
 describe("every styled control is one declared box", () => {
     const read = (p: string) => readFileSync(p, "utf8");
     const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
     const html = read("dist/index.html");
+    const {document} = parseHTML(html);
 
     /**
-     * Split the minified sheet into top-level rules, tracking at-rule depth so a
-     * `@media` body is never mistaken for a top-level rule. `build-output.test.ts`
-     * has a `decl()` helper, but it is attribute-order-based and at-rule-blind, so
-     * it can answer with a rule from inside a media query — not good enough for a
-     * geometry assertion.
+     * Split the minified sheet into rules, keeping at-rule depth AND the at-rule
+     * prelude so a failure can name the media query it came from. `build-output`'s
+     * `decl()` helper is attribute-order-based and at-rule-blind, so it can answer
+     * with a rule from inside a media query — not good enough here.
      */
-    type Rule = {selectors: string[], body: string, nested: boolean};
+    type Rule = {selectors: string[], body: string, nested: boolean, at: string};
     const rules: Rule[] = [];
     {
-        let i = 0, prelude = "", atDepth = 0;
+        let i = 0, prelude = "", atStack: string[] = [];
         while (i < css.length) {
             const ch = css[i];
             if (ch === "{") {
                 const head = prelude.trim();
                 prelude = "";
                 if (head.startsWith("@")) {
-                    atDepth++;
+                    atStack.push(head);
                     i++;
                     continue;
                 }
-                // Body runs to the matching close brace.
                 let depth = 1, j = i + 1;
                 while (j < css.length && depth > 0) {
                     if (css[j] === "{") depth++;
@@ -67,15 +76,16 @@ describe("every styled control is one declared box", () => {
                     j++;
                 }
                 rules.push({
-                    selectors: head.split(",").map((s) => s.trim()),
+                    selectors: head.split(",").map((s) => s.trim()).filter(Boolean),
                     body: css.slice(i + 1, j - 1),
-                    nested: atDepth > 0,
+                    nested: atStack.length > 0,
+                    at: atStack.join(" "),
                 });
                 i = j;
                 continue;
             }
             if (ch === "}") {
-                if (atDepth > 0) atDepth--;
+                atStack.pop();
                 prelude = "";
                 i++;
                 continue;
@@ -88,20 +98,6 @@ describe("every styled control is one declared box", () => {
     const decl = (body: string, prop: string) =>
         body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim();
 
-    /** The surface signature: an offset plate whose colour resolves, on an accent border. */
-    const isControlRule = (r: Rule) =>
-        !r.nested
-        && /--un-shadow:\s*2px 2px 0/.test(r.body)
-        && /border-color:\s*var\(--accent\)/.test(r.body);
-
-    const controlClasses = [...new Set(
-        rules.filter(isControlRule)
-            .flatMap((r) => r.selectors)
-            .map((s) => s.match(/^\.((?:\\.|[\w-])+)$/)?.[1])
-            .filter((s): s is string => Boolean(s))
-            .map((s) => s.replace(/\\(.)/g, "$1")),
-    )];
-
     const px = (value: string | undefined) => {
         if (!value) return null;
         const m = value.match(/^(-?[\d.]+)(px|rem)$/);
@@ -109,13 +105,9 @@ describe("every styled control is one declared box", () => {
         return parseFloat(m[1]) * (m[2] === "rem" ? 16 : 1);
     };
 
-    /**
-     * Horizontal padding in px, whichever spelling the sheet used. This has to
-     * cover the longhands: UnoCSS emits `px-6` as `padding-left`/`padding-right`,
-     * not as the `padding` shorthand, and an earlier version of this file read
-     * only the shorthand — a mutation adding horizontal padding left a 14px
-     * content box for a 20px icon and this file stayed green.
-     */
+    /** Horizontal padding in px, whichever spelling the sheet used. UnoCSS emits
+     *  `px-*` as padding-left/right longhands, never the shorthand — an earlier
+     *  version read only the shorthand and scored a 14px content box as 62px. */
     const horizontalPadding = (body: string): number => {
         const one = (prop: string) => px(decl(body, prop));
         const shorthand = decl(body, "padding");
@@ -133,11 +125,29 @@ describe("every styled control is one declared box", () => {
         return candidates.length ? Math.max(...candidates) : 0;
     };
 
+    /** The surface signature: an offset plate whose colour resolves, on an accent border. */
+    const isControlRule = (r: Rule) =>
+        !r.nested
+        && /--un-shadow:\s*2px 2px 0/.test(r.body)
+        && /border-color:\s*var\(--accent\)/.test(r.body);
+
+    const classOf = (selector: string) =>
+        selector.match(/^\.((?:\\.|[\w-])+)$/)?.[1]?.replace(/\\(.)/g, "$1");
+
+    const controlClasses = [...new Set(
+        rules.filter(isControlRule)
+            .flatMap((r) => r.selectors)
+            .map(classOf)
+            .filter((s): s is string => Boolean(s)),
+    )];
+
+    const canonicalRule = (cls: string) =>
+        rules.find((r) => !r.nested && r.selectors.includes(`.${cls}`))!;
+
     const boxOf = (cls: string) => {
-        const r = rules.find((rule) => !rule.nested && rule.selectors.includes(`.${cls}`))!;
+        const r = canonicalRule(cls);
         return {
             cls,
-            body: r.body,
             width: decl(r.body, "width"),
             height: decl(r.body, "height"),
             maxWidth: decl(r.body, "max-width"),
@@ -153,14 +163,60 @@ describe("every styled control is one declared box", () => {
         };
     };
 
+    const controlElements = () =>
+        [...document.querySelectorAll(controlClasses.map((c) => `.${c}`).join(","))];
+
+    /**
+     * A selector reduced to what decides WHICH elements it can reach: state and
+     * pseudo-element parts removed, so `.control:hover` and `.control` are the same
+     * subject. Paren-balanced, because the preflight ships
+     * `[hidden]:where(:not([hidden=until-found]))` and a non-nesting strip leaves an
+     * unbalanced `)` that the selector engine rejects. A compound that was nothing
+     * BUT a pseudo becomes `*` — `.space-y-1>:not([hidden])~:not([hidden])` has to
+     * reduce to `.space-y-1>*~*`, not to a dangling pair of combinators. `\:` inside
+     * an escaped UnoCSS token is part of the class name and must survive.
+     */
+    const structuralSelector = (selector: string): string => {
+        let out = "";
+        for (let i = 0; i < selector.length;) {
+            const ch = selector[i];
+            if (ch === "\\") {
+                out += selector.slice(i, i + 2);
+                i += 2;
+                continue;
+            }
+            if (ch === ":") {
+                i++;
+                if (selector[i] === ":") i++;
+                while (i < selector.length && /[\w-]/.test(selector[i])) i++;
+                if (selector[i] === "(") {
+                    let depth = 0;
+                    do {
+                        if (selector[i] === "(") depth++;
+                        else if (selector[i] === ")") depth--;
+                        i++;
+                    } while (i < selector.length && depth > 0);
+                }
+                continue;
+            }
+            out += ch;
+            i++;
+        }
+        return out.replace(/(^|[>+~]\s*)(?=[>+~]|$)/g, "$1*").trim();
+    };
+
+    const iconSpansOf = (control: Element) =>
+        [...control.querySelectorAll("span")]
+            .filter((s) => (s.getAttribute("class") ?? "").split(/\s+/).some((t) => /^i-/.test(t)));
+
     it("finds the control surface at all, so the assertions below are not vacuous", () => {
-        // If the signature ever stops matching, every other test here would pass
-        // trivially over an empty set. This is the guard against that.
         expect(controlClasses.length, "no rule carries the offset-plate + accent-border signature").toBeGreaterThan(0);
         const worn = new Set([...html.matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)));
         for (const cls of controlClasses) {
             expect(worn.has(cls), `.${cls} is styled as a control but no element wears it`).toBe(true);
         }
+        expect(controlElements().length, "one control per social link, goal CTA and the theme toggle")
+            .toBe(LINKS.length + GOALS.length + 1);
     });
 
     it("declares an absolute width and height, rather than capping a content-sized box", () => {
@@ -186,70 +242,129 @@ describe("every styled control is one declared box", () => {
 
     it("meets the enhanced target size on both axes", () => {
         // WCAG 2.2 SC 2.5.5 Target Size (Enhanced, AAA) is 44x44 CSS px; SC 2.5.8
-        // (Minimum, AA) asks only 24x24 and was never the binding constraint here,
-        // because the anchors already shipped at 46px tall. 48px additionally
-        // clears the 48-CSS-px finger that Lighthouse's tap-target audit uses.
+        // (Minimum, AA) asks only 24x24 and was never binding here, because the
+        // anchors already shipped 46px tall. 48px additionally clears the 48-CSS-px
+        // finger Lighthouse's tap-target audit uses.
         for (const box of controlClasses.map(boxOf)) {
             expect(px(box.width)!, `.${box.cls} is ${box.width} wide`).toBeGreaterThanOrEqual(44);
             expect(px(box.height)!, `.${box.cls} is ${box.height} tall`).toBeGreaterThanOrEqual(44);
         }
     });
 
-    it("centres its icon with the container, and never squeezes it", () => {
+    it("centres its icon with the container, and leaves room for the largest one", () => {
+        // A fixed reference, NOT the sheet's own widest icon: an earlier version
+        // took the yardstick from the same rules it was checking, so shrinking
+        // every icon shrank the yardstick with it and a 45% global shrink passed.
+        // presetIcons' contract for these collections is height 1em with width
+        // <= 1em (the artwork's aspect ratio), so 1em is the reference.
+        const ICON_REFERENCE_EM = 1;
+
         for (const box of controlClasses.map(boxOf)) {
             expect(box.display, `.${box.cls} must lay its icon out, not rely on text alignment`).toMatch(/^(inline-)?(flex|grid)$/);
             const centred = box.placeItems === "center" || (box.justify === "center" && box.align === "center");
             expect(centred, `.${box.cls} must centre on both axes (got justify=${box.justify}, align=${box.align})`).toBe(true);
 
-            // The content box must hold the widest icon outright. `box-sizing:
-            // border-box` is set by the preflight, so the declared width already
-            // includes padding and border.
             const fontPx = px(box.fontSize) ?? 16;
             const border = px(box.borderWidth) ?? 0;
             const content = px(box.width)! - 2 * border - 2 * box.padding;
-
-            const widestIconEm = Math.max(...rules
-                .filter((r) => !r.nested && r.selectors.some((s) => /^\.i-/.test(s)))
-                .map((r) => parseFloat(decl(r.body, "width")?.match(/^([\d.]+)em$/)?.[1] ?? "0")));
-            expect(widestIconEm, "no icon rule declares an em width — the parser has drifted").toBeGreaterThan(0);
             expect(
                 content,
-                `.${box.cls} has ${content}px of content box for a ${widestIconEm}em (${widestIconEm * fontPx}px) icon`,
-            ).toBeGreaterThanOrEqual(widestIconEm * fontPx);
+                `.${box.cls} leaves ${content}px of content box for a ${ICON_REFERENCE_EM}em (${ICON_REFERENCE_EM * fontPx}px) icon`,
+            ).toBeGreaterThanOrEqual(ICON_REFERENCE_EM * fontPx);
+            expect(fontPx * ICON_REFERENCE_EM, `.${box.cls} renders its icon at ${fontPx * ICON_REFERENCE_EM}px — too small to read`).toBeGreaterThanOrEqual(16);
         }
     });
 
-    it("pins the box and the icon against a flex parent", () => {
-        // The goal CTAs sit in a flex row, where flex-shrink outranks a declared
-        // width: they measured 47.80px at lg with the width already declared.
+    it("keeps every icon utility at its declared aspect, height 1em", () => {
+        // Guards the icon side of the contract the assertion above relies on, and
+        // catches a presetIcons `scale`/`customizations` change that shrinks every
+        // glyph uniformly (aspect preserved, so no other assertion here notices).
+        const iconRules = rules.filter((r) => !r.nested && r.selectors.some((s) => /^\.i-/.test(s)));
+        expect(iconRules.length, "no icon utilities in the sheet — the parser has drifted").toBeGreaterThan(0);
+        for (const r of iconRules) {
+            const w = decl(r.body, "width"), h = decl(r.body, "height");
+            expect(h, `${r.selectors[0]} must be 1em tall`).toBe("1em");
+            const em = parseFloat(w?.match(/^([\d.]+)em$/)?.[1] ?? "0");
+            expect(em, `${r.selectors[0]} width ${w} must be an em fraction of at most 1`).toBeGreaterThan(0);
+            expect(em, `${r.selectors[0]} width ${w} must not exceed 1em`).toBeLessThanOrEqual(1);
+        }
+    });
+
+    it("pins the box against a flex parent", () => {
         for (const box of controlClasses.map(boxOf)) {
             expect(box.flexShrink, `.${box.cls} must not be shrinkable below its declared width`).toBe("0");
         }
+    });
 
-        const {document} = parseHTML(html);
-        const shrinkProof = new Set(rules
-            .filter((r) => !r.nested && /flex-shrink:\s*0/.test(r.body))
-            .flatMap((r) => r.selectors)
-            .map((s) => s.match(/^\.((?:\\.|[\w-])+)$/)?.[1])
-            .filter((s): s is string => Boolean(s))
-            .map((s) => s.replace(/\\(.)/g, "$1")));
+    /**
+     * The assertion the five defeating mutations all needed. Every rule in the
+     * sheet that MATCHES a control element — at any at-rule depth, from any source
+     * including an Astro scoped `<style>` — must leave the box alone. Only the one
+     * canonical control rule may declare it.
+     */
+    it("lets no other rule anywhere in the sheet touch a control's box", () => {
+        const BOX_PROPS = [
+            "width", "height", "min-width", "min-height", "max-width", "max-height",
+            "padding", "padding-left", "padding-right", "padding-top", "padding-bottom",
+            "padding-inline", "padding-inline-start", "padding-inline-end", "padding-block",
+            "border-width", "border-left-width", "border-right-width", "border-top-width", "border-bottom-width",
+            "display", "flex", "flex-shrink", "flex-basis", "flex-grow", "aspect-ratio", "font-size", "zoom", "scale",
+        ];
+        const canonical = new Set(controlClasses.map((c) => canonicalRule(c)));
+        const controls = new Set(controlElements());
+        const offenders: string[] = [];
 
-        const controls = [...document.querySelectorAll(controlClasses.map((c) => `.${c}`).join(","))];
-        expect(controls.length, "one control per social link, goal CTA and the theme toggle")
-            .toBe(LINKS.length + GOALS.length + 1);
-
-        for (const control of controls) {
-            const icons = [...control.querySelectorAll("span")]
-                .filter((s) => /(^|\s)i-/.test(s.getAttribute("class") ?? ""));
-            expect(icons.length, "every control renders at least one icon span").toBeGreaterThan(0);
-            for (const icon of icons) {
-                const tokens = (icon.getAttribute("class") ?? "").split(/\s+/);
-                expect(
-                    tokens.some((t) => shrinkProof.has(t)),
-                    `${tokens.join(" ")} may be squeezed by its control — pin it, as the toggle's 1em icon rendered at 18px without this`,
-                ).toBe(true);
+        for (const rule of rules) {
+            if (canonical.has(rule)) continue;
+            const declared = BOX_PROPS.filter((p) => decl(rule.body, p) !== undefined);
+            if (!declared.length) continue;
+            for (const selector of rule.selectors) {
+                // Only specific selectors: the preflight's universal and
+                // element-only reset rules legitimately set padding and
+                // border-width on everything.
+                if (!/[.#[]/.test(selector)) continue;
+                const structural = structuralSelector(selector);
+                if (!structural) continue;
+                // Deliberately not wrapped in try/catch: a selector this cannot
+                // parse must go red and be handled, because swallowing the throw
+                // is how this guard would become unable to fail.
+                for (const el of document.querySelectorAll(structural)) {
+                    if (!controls.has(el as Element)) continue;
+                    offenders.push(`${rule.at ? rule.at + " " : ""}${selector} {${declared.join(", ")}} matches <${(el as Element).tagName.toLowerCase()} class="${(el as Element).getAttribute("class")}">`);
+                }
             }
         }
+        expect(
+            [...new Set(offenders)],
+            "only the control shortcut may declare a control's box — a media-query variant, an extra utility on the element, or a scoped <style> all reintroduce the ragged sizes with every other assertion here still green",
+        ).toEqual([]);
+    });
+
+    /**
+     * Same argument one level down. An icon span carries its glyph, its pin, and
+     * (for the toggle) the class that swaps it per theme — nothing else. An
+     * allowlist rather than a property scan, because `w-2.5` and `hidden` both
+     * defeated the property-free version, and the theme-icon rules legitimately
+     * set `display` on these very spans.
+     */
+    it("lets no utility resize or hide a control's icon", () => {
+        const ALLOWED = /^(i-[\w-]+|shrink-0|theme-icon-(light|dark))$/;
+        const offenders: string[] = [];
+        for (const control of controlElements()) {
+            const icons = iconSpansOf(control);
+            expect(icons.length, `a control renders no icon span: ${control.getAttribute("class")}`).toBeGreaterThan(0);
+            for (const icon of icons) {
+                const tokens = (icon.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
+                expect(tokens.some((t) => t === "shrink-0"), `${tokens.join(" ")} must be pinned, as the toggle's 1em icon rendered at 18px without it`).toBe(true);
+                for (const token of tokens) {
+                    if (!ALLOWED.test(token)) offenders.push(`${token} (on ${tokens.join(" ")})`);
+                }
+            }
+        }
+        expect(
+            [...new Set(offenders)],
+            "an icon span may carry only its glyph utility, shrink-0, and the theme-icon selector — anything else can resize or hide the glyph with the box still measuring correctly",
+        ).toEqual([]);
     });
 
     it("lets the button grid take its track width from the control", () => {

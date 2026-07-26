@@ -29,15 +29,17 @@ export default defineConfig({
      *
      * There used to be a `control-surface` base plus `control` and
      * `control-compact` box variants, and the two variants disagreed about every
-     * box metric: the anchors rendered 57–62 x 46 (five different widths) and the
-     * toggle 60 x 40. Three separate mechanisms produced that, all of them now
-     * gone:
+     * box metric: the anchors rendered four different widths across 57–62 at 46
+     * tall, and the toggle 60 x 40 — five distinct boxes over nine elements.
+     * Three separate mechanisms produced that, all of them now gone:
      *
      *   1. Nothing declared a width. `w-max` plus horizontal padding made each
      *      button `42px + its icon's width`, and presetIcons emits each icon at
      *      the ARTWORK's aspect ratio — 0.75em for strava, 0.88em for
-     *      linkedin/instagram, 0.97em for github/telegram, 1em for the two Remix
-     *      icons. So the icon's proportions leaked into the button's.
+     *      linkedin/instagram, 0.97em for github/telegram, and 1em for all three
+     *      Remix icons (sun, moon, and the résumé PDF glyph, which is why that
+     *      link was the widest anchor at 62.00px). So the icon's proportions
+     *      leaked into the button's.
      *   2. `max-h-[40px]` on the compact variant, not its padding, is what made
      *      the toggle 6px shorter. Both call sites make the control a grid or
      *      flex item, so its height came from stretching, and the vertical
@@ -50,20 +52,40 @@ export default defineConfig({
      *      the cap was deforming it.
      *
      * So the box is now DECLARED rather than capped, once, for every control:
-     * `w-16 h-12` is 64 x 48px, which is 2px larger on each axis than the widest
-     * button that used to ship, so nothing shrank. Both numbers are rem, and the
-     * old caps were px against rem contents — `max-h-[50px]` began clipping the
-     * anchors at any root font-size above 17.45px, i.e. text-only zoom broke them
-     * before this change. 48px also clears the 48-CSS-pixel finger Lighthouse's
+     * 64 x 48px, which is 2px larger on each axis than the widest button that used
+     * to ship, so nothing shrank. 48px clears the 48-CSS-pixel finger Lighthouse's
      * tap-target audit uses, where 46px was merely escaping report because its
      * neighbours were far enough away, and it clears WCAG 2.2 SC 2.5.5's 44x44
      * (SC 2.5.8's 24x24 floor was never the binding constraint here).
      *
+     * The box is in PX, deliberately, and a rem box was tried first and measured
+     * worse. The cards' heights come from the lg page grid and do NOT grow with
+     * the root font-size, and every card clips (`overflow-hidden` on Card), so a
+     * control that grows under text-only zoom is simply sheared off. `h-12` — 3rem
+     * — grows to 60px at a 20px root and the bottom control row loses 16px to the
+     * card edge at 1440x900, where the old build lost nothing. Measured worst
+     * bottom shear at 1440x900, old build / 3rem box / this 48px box: root 20px
+     * 0 / 16.0 / 0; root 22px 25.5 / 57.5 / 21.5; root 24px 55 / 99 / 51. The px
+     * box is the only one of the three that never does worse than what shipped
+     * before, at any root size.
+     *
+     * What the old build did here was accidental: `max-h-[50px]` let the anchors
+     * grow to 50px and then stopped them, which is why they survived zoom. Do not
+     * read this as "px good, rem bad" — the real defect is that a card cannot grow
+     * with its contents, and until that changes a growing control only buys a
+     * clipped one. Residual shear above a 22px root is that same pre-existing
+     * defect, now marginally smaller than before.
+     *
      * Two things follow from declaring the box, and both are load-bearing:
      * the icon has to be centred by the CONTAINER, because `text-center` cannot
      * centre anything in an inline-block whose content box equals its content;
-     * and `w-max` had to be REMOVED rather than overridden, because inside a
-     * shortcut it beats a width utility in either authoring order.
+     * and `w-max` had to be REMOVED rather than out-ordered. Within one shortcut
+     * UnoCSS emits BOTH conflicting declarations in authoring order and the LAST
+     * one wins by the cascade (the minifier then drops the dead one) — so
+     * `w-16 w-max` really does resolve to max-content, and only the reverse order
+     * looks like the width surviving. An earlier draft of this comment claimed the
+     * width could never win; it can, and that is exactly why the token has to be
+     * absent rather than merely early.
      *
      * `.button-grid` deliberately keeps `auto` tracks (BasicLayout). Now that
      * every item is one size the tracks are equal without being told, so the
@@ -103,6 +125,10 @@ export default defineConfig({
      * (a 44px square, for comparison, has room for 2px of content beside the old
      * `px-5`, which is why that number was rejected).
      *
+     * `shrink-0` on the surface is NOT belt-and-braces: the two goal CTAs are flex
+     * items, flex-shrink outranks a declared width, and they measured 47.80px at
+     * lg with the width already in place.
+     *
      * The icon spans carry `shrink-0` at all three call sites rather than relying
      * on there being slack. It costs one already-emitted rule and it is what stops
      * mechanism 3 above from ever recurring on a future wider icon.
@@ -114,7 +140,7 @@ export default defineConfig({
      * backstop if that ever changes.
      */
     shortcuts: {
-        "control": "text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
+        "control": "text-xl w-[64px] h-[48px] shrink-0 inline-flex justify-center items-center text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
     },
     presets: [
         presetWind3(),
