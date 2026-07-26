@@ -88,6 +88,20 @@ Post-run-3 correction (plan 015, merged `a4b419b`): the suite is now **67
 assertions**, and the two `GOALS[].current_progress` values are bot-owned — a
 daily workflow writes `src/data/strava-progress.json`, so they are no longer
 hand-edited in `constants.ts` (`total_goal` and `progress_last_year` still are).
+Later maintainer-direct fixes (PRs #57–#60 and the control-geometry fix) have
+landed without updating the count above, so treat **every assertion count in
+this file as unverified** and read it from `pnpm test`: it is **98** as of the
+control-geometry fix, across **5** files (`tests/control-geometry.test.ts` is
+new). It was already 91 before that fix, i.e. the "67" above went stale
+independently of it. That fix consumed **no plan number** — it came straight
+from the maintainer and was implemented and verified in one session, so
+numbering still continues at `016`. What it changed: the nine styled controls
+are one declared 64x48 box, the second `control` variant is gone, and
+`public/preview.jpg` was regenerated from the current build (it had still been
+showing the pre-icon-migration emoji greeting). Its page weight effect is a net
+**−40 B gzip** — the stylesheet lost 50 B with the retired variant, the markup
+gained 10 B for the icon-pinning tokens.
+
 Page weight after run 3: `dist/index.html` 15,735 B raw / **3,533 B gzip**;
 the single stylesheet 24,138 B raw / **7,055 B gzip** (up ~1.1 KB gzip from
 run 2 — the 8 migrated icons each embed an SVG mask data-URI; the emoji they
