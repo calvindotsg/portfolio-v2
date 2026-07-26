@@ -92,8 +92,8 @@ Later maintainer-direct fixes (PRs #57–#60 and the control-geometry fix) have
 landed without updating the numbers above, so treat **every assertion count AND
 every page-weight figure in this file as unverified** — including the run-3
 stylesheet figures in the paragraph below, which no longer match a build of the
-revision they claim to describe. Read counts from `pnpm test`: **107** as of the
-control-geometry and page-fit fixes, across **6** files
+revision they claim to describe. Read counts from `pnpm test`: **108** as of the
+control-geometry, page-fit and Strava-naming fixes, across **6** files
 (`tests/control-geometry.test.ts` and `tests/page-fit.test.ts` are new;
 `tests/helpers/css.ts` is a shared non-test module and is not counted). It was
 already 91 before those fixes, i.e. the "67" above went stale independently of
@@ -104,14 +104,26 @@ the second `control` variant is gone; `<body>`'s viewport height became a
 *minimum* rather than an exact height, which had been compressing the two-column
 grid between 768px and 1023px until six of eight cards clipped content that no
 scrollbar could reach (worst 98px at 768x900, pre-existing since before the
-control work); and `public/preview.jpg` was regenerated from the current build
-(it had still been showing the pre-icon-migration emoji greeting). Page weight **over the wire**, deploy
+control work); the Strava URL, which had been written out three times in
+`constants.ts` with three different accessible names attached, is now one
+`STRAVA` constant, so the three controls pointing at it announce one name; and
+`public/preview.jpg` was regenerated from the current build (it had still been
+showing the pre-icon-migration emoji greeting). The 64x48 control box was
+deliberately left as it is rather than squared off to 48x48 — both clear WCAG
+2.5.5 AAA, so that choice is aesthetic and the reasoning is recorded in
+`uno.config.ts`. Page weight **over the wire**, deploy
 preview 61 against production, both served `content-encoding: br` (confirmed, not
-assumed): stylesheet 6,842 → 6,741 B (**−101**), markup 3,277 → 3,368 B
-(**+91**), net **−10 B** — effectively neutral. Local `gzip -9` of the same two
-builds reads −46 / +11 / net −35 B, and the default gzip level reads net −37 B;
-the three disagree because brotli compresses the added markup tokens far worse
-than gzip does, which is why the transfer number is the one to quote.
+assumed), five samples each and all five identical on both origins: stylesheet
+6,842 → 6,738 B (**−104**), markup 3,244 → 3,360 B (**+116**), net **+12 B**.
+Read that net as *neutral rather than a cost*, because production's compressed
+markup measured **3,277 B** earlier the same day and 3,244 B later for
+byte-identical content on an unchanged `main` — a 33 B cross-session swing in the
+stored artifact, wider than the delta being reported. The stylesheet's −104 B is
+outside that band and is attributable: the sheet lost five selectors and gained
+one. Local `gzip -9` of the same builds disagrees in both magnitude and, on the
+markup component, direction — brotli compresses the added class tokens far worse
+than gzip — which is why only the transfer number is quoted here, and why a
+single sample of it is not enough.
 
 Page weight after run 3: `dist/index.html` 15,735 B raw / **3,533 B gzip**;
 the single stylesheet 24,138 B raw / **7,055 B gzip** (up ~1.1 KB gzip from
