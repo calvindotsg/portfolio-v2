@@ -161,6 +161,25 @@ is cosmetic.
 
 ## Findings considered and rejected
 
+### PR #61 review (2026-07-26, uniform controls / md height lock / one Strava name)
+
+Out of scope for that PR, which covered the controls' box, the page's height and
+the Strava naming. Recorded so they are not rediscovered as new:
+
+- **The theme toggle announces no state.** It carries `aria-live="polite"`, but
+  everything inside it that changes on activation is `aria-hidden` (the sun and
+  moon spans, swapped by CSS `display`), and its only text node never changes —
+  so the live region has nothing to announce, and there is no `aria-pressed` or
+  state-bearing name either. A screen-reader user activates it, the page repaints,
+  and nothing is said; re-reading the button still gives "Toggle Theme, button".
+  Verified against Chrome's own AX tree. Pre-existing and untouched by #61, which
+  changed only the button's class. The fix is a real decision, not a typo — drop
+  the inert `aria-live`, or make the state real with a per-theme accessible name —
+  and it changes announced copy, so it is the maintainer's call.
+- **`aria-label="Toggle Theme"` and an `sr-only` span with the same text both sit
+  on that button.** AccName takes the `aria-label`, so the span is inert. Harmless
+  today because the two strings agree; it is a trap if either is ever edited alone.
+
 ### Run 3 (2026-07-22, audited at `4e15674`)
 
 The mandated UnoCSS-classes lead **reproduced with evidence** — nine dead or

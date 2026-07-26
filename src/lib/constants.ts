@@ -29,9 +29,20 @@ import stravaProgress from "../data/strava-progress.json"
  * three controls are icon-only: the name is `sr-only`, so nothing about the
  * page's appearance depends on it and there is no sighted-scanning cost to trade.
  *
- * `tests/rendered-html.test.ts` asserts the invariant rather than the string:
- * anchors that share an href share an accessible name. A future goal that points
- * somewhere else is free to name itself differently.
+ * `tests/rendered-html.test.ts` asserts the invariant rather than the string, in
+ * both directions: anchors that share an href share an accessible name, and
+ * anchors that share a name share an href. A future goal that points somewhere
+ * else is free to name itself differently.
+ *
+ * THE ATHLETE ID HAS A SECOND HOME, and no test can tie them together. The id in
+ * the URL below is also the `STRAVA_ATHLETE_ID` repository *variable* that
+ * `scripts/fetch-strava-progress.mjs` reads to fetch the km figures (see
+ * README.md's Configuration section). Both are sanctioned homes under the
+ * three-homes rule, but they hold the same value for different purposes: this one
+ * decides where a visitor lands, that one decides whose kilometres are shown.
+ * Changing Strava accounts means editing BOTH — update only the variable and the
+ * bot will publish the new athlete's distances while all three controls keep
+ * linking to the old profile, which no build or test would notice.
  *
  * Worth knowing before adding a per-activity link: Strava has no public per-sport
  * URL for an athlete. `?activity_type=Run` and `?activity_type=Ride` serve the

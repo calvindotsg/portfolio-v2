@@ -345,8 +345,14 @@ describe("control semantics", () => {
             // or the visible text. Anchors elsewhere on the page (the career
             // employers, the footer credit) are named by their own text and are
             // covered by the same rule.
-            const name = a.querySelector(".sr-only")?.textContent?.trim()
-                || a.getAttribute("aria-label")?.trim()
+            // Ordered as accname-1.2 resolves it: aria-label (step 2C) outranks
+            // the element's own content, which is where an sr-only span lives.
+            // The two agree on every anchor of this page today — Chrome's own
+            // computation was diffed against this — but writing the inverted
+            // order leaves a test that disagrees with a screen reader the moment
+            // an aria-label and an sr-only span coexist and differ.
+            const name = a.getAttribute("aria-label")?.trim()
+                || a.querySelector(".sr-only")?.textContent?.trim()
                 || a.textContent?.trim().replace(/\s+/g, " ")
                 || "";
             if (!byHref.has(href)) byHref.set(href, new Set());
@@ -382,8 +388,9 @@ describe("control semantics", () => {
         const named = [...doc.querySelectorAll("a[href]")]
             .map((a) => ({
                 href: a.getAttribute("href")!,
-                name: a.querySelector(".sr-only")?.textContent?.trim()
-                    || a.getAttribute("aria-label")?.trim()
+                // Same precedence as above: aria-label first, per accname-1.2.
+                name: a.getAttribute("aria-label")?.trim()
+                    || a.querySelector(".sr-only")?.textContent?.trim()
                     || a.textContent?.trim().replace(/\s+/g, " ")
                     || "",
             }))
