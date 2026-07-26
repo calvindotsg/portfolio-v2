@@ -235,12 +235,24 @@ export default defineConfig({
          * "set extra CSS properties" section, with `middle` as the illustrative
          * value. The mechanism is taken from the docs; the value is measured.
          *
-         * It is applied to all fourteen icons and is provably inert on ten of
-         * them: `vertical-align` does not apply to flex items, and the six social
-         * links, both toggle glyphs and both progress-bar icons are flex items,
-         * already centred by their containers. Their rects are unchanged across 26
-         * viewport/theme/root-size configurations, which is the sweep the
-         * icon-alignment test's figures come from.
+         * It is applied to all fourteen icons and does nothing to ten of them: the
+         * six social links, both toggle glyphs and both progress-bar icons sit in
+         * flex containers, so they are BLOCKIFIED — their computed `display` is
+         * `block`, not the declared `inline-block`, verified by reading it off the
+         * live page — and `vertical-align` has no effect on a block-level box that
+         * is not in an inline formatting context. They are centred by their
+         * containers instead.
+         *
+         * Measured rather than argued from the spec, because the wording "does not
+         * apply to flex items" is loose enough to hide a mistake: forcing an absurd
+         * `-3em` onto every icon moves the four inline ones by 57px and 34px and
+         * leaves nine of the ten flex ones exactly where they were, relative to
+         * their own parent. The tenth is whichever toggle glyph the current theme
+         * hides, which is `display:none` and has no box to move at all — and note
+         * that measuring it ABSOLUTELY says all ten moved, because the reflow above
+         * them is real; a hidden element's all-zero rect at the viewport origin then
+         * fakes a shift in the relative measurement too. At the value actually
+         * shipped none of this arises: nothing on the page moves at all.
          *
          * One side effect to expect rather than rediscover: presetIcons writes
          * every extra property onto the inlined `<svg>` in the mask data URI as an

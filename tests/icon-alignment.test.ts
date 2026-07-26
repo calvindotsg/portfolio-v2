@@ -218,12 +218,14 @@ describe("an inline icon is centred on its text's cap band", () => {
      * The split the fix depends on, derived from the cascade rather than from a
      * list of tag names.
      *
-     * `vertical-align` has no effect on a flex item, so this one declaration is
-     * live on the icons their parent lays out inline and inert on the rest. That is
-     * not a caveat, it is the reason the fix can sit at the emission point and
-     * still be safe: the six social links, the two theme-toggle glyphs and the two
-     * progress-bar icons are all flex items, already centred by their containers,
-     * and their rects are unchanged across the whole sweep.
+     * An icon in a flex container is blockified — its computed `display` becomes
+     * `block` whatever the sheet declares — and `vertical-align` has no effect on a
+     * block-level box outside an inline formatting context. So this one declaration
+     * is live on the icons their parent lays out inline and does nothing to the
+     * rest. That is not a caveat, it is the reason the fix can sit at the emission
+     * point and still be safe: the six social links, the two theme-toggle glyphs
+     * and the two progress-bar icons are centred by their containers, and their
+     * rects are unchanged across the whole sweep.
      *
      * Hard-coding "h1, h2 and the paragraph" here would pass while saying nothing —
      * the property that matters is the parent's display, and that lives in the
