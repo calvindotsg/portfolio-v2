@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {decl, isKeyframeStep, parseRules, structuralSelector} from "./helpers/css";
+import {decl, isKeyframeStep, parseRules, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * An icon in a line of text is centred on that text's capitals.
@@ -20,16 +20,16 @@ import {decl, isKeyframeStep, parseRules, structuralSelector} from "./helpers/cs
  * were the same defect, so the fix is at the emission point (`uno.config.ts`)
  * rather than at the call sites, and this file's job is to keep it there.
  *
- * WHY THE ASSERTIONS ARE A WINDOW AND NOT AN EQUALITY. The ideal shift is
+ * WHY A RESIDUAL AND NOT AN EQUALITY. The ideal shift is
  * (1 - cap/em)/2, and cap/em is a property of whichever font actually paints. It
  * was measured here at 0.705 for the system face, 0.717 Helvetica and 0.716 Arial,
  * so the ideal spans 0.1415–0.1475em and no single constant is exactly right
- * everywhere. The shipped -0.145em is the midpoint of that span; across any cap
- * ratio in 0.68–0.73, which brackets every sans-serif in the declared stack, its
- * residual stays under a third of a pixel at 20px. Pinning the exact string would
- * therefore fail a legitimate re-tune, and pinning nothing would let the defect
- * back. The window below admits a correction of the same kind and rejects all four
- * alternatives that were built and measured against the live page:
+ * everywhere. The shipped -0.145em is the midpoint of that span. Pinning the exact
+ * string would fail a legitimate re-tune, and pinning nothing would let the defect
+ * back, so what is asserted instead is the residual: how far off cap-band centre
+ * the icon would sit on each face actually measured. That admits a correction of
+ * the same kind and rejects all four alternatives that were built and measured
+ * against the live page:
  *
  *   baseline / 0 / unset  the defect itself, 2.95px high
  *   middle                1.83px LOW — it centres on half the X-height, not the
@@ -42,10 +42,9 @@ import {decl, isKeyframeStep, parseRules, structuralSelector} from "./helpers/cs
  *                         computed -2.9541px against an ink-measured 2.954. Not
  *                         shipped because the `cap` unit needs Safari 16.4+, so
  *                         older browsers would keep the whole defect to buy 0.06px
- *                         in newer ones. A future change to this form is fine and
- *                         the window below deliberately does NOT admit it, because
- *                         it is not an em length — swapping to it should have to
- *                         come here and say so.
+ *                         in newer ones. A future change to this form is fine, and
+ *                         the em-length assertion deliberately does NOT admit it —
+ *                         swapping to it should have to come here and say so.
  *
  * WHAT THIS FILE CANNOT DO. linkedom parses, it does not lay out, so nothing here
  * re-measures an offset; the figures above come from a CDP sweep over 26
@@ -62,17 +61,33 @@ describe("an inline icon is centred on its text's cap band", () => {
     const rules = parseRules(css);
 
     /**
-     * The measured cap-height-to-em ratios of the faces this stack can resolve, and
-     * the window they imply. Both ends are wider than the measured span so that a
-     * re-tune for a face outside it still passes; the point of the bound is to
-     * exclude the alternatives above, all of which sit well outside.
+     * The cap-height-to-em ratios measured on this machine for the faces the
+     * declared stack can resolve: 0.705 for the system face that actually paints
+     * here, 0.717 Helvetica, 0.716 Arial. The Windows and Android members of the
+     * stack are not installed and so are deliberately not asserted about.
      */
-    const CAP_RATIO_RANGE = [0.68, 0.73] as const;
-    const IDEAL_EM = CAP_RATIO_RANGE.map((r) => (1 - r) / 2);
-    const [MIN_SHIFT, MAX_SHIFT] = [Math.min(...IDEAL_EM), Math.max(...IDEAL_EM)];
+    const MEASURED_CAP_RATIOS = [0.705, 0.716, 0.717] as const;
 
     /** The largest font size an icon is hosted at, for turning em into pixels. */
     const HOST_PX = 20;
+
+    /**
+     * How far off cap-band centre the icon may still sit, at the largest size it is
+     * hosted at, on any face measured above. A third of a pixel: below the device
+     * pixel that the defect reports at, and comfortably below perception.
+     *
+     * This single bound replaced a pair of assertions that disagreed with each
+     * other. The first admitted any shift between 0.135em and 0.16em — the ideals
+     * for a generous 0.68–0.73 cap-ratio bracket — while this one, applied over that
+     * same bracket, only admitted 0.143–0.152em. So the stated window was not the
+     * real one, and the mutation that exposed it was a legitimate re-tune to
+     * -0.14em, which the header claimed to allow and the suite rejected. A single
+     * constant cannot be within a third of a pixel of ideal across a 0.05 spread of
+     * cap ratios — the spread alone is half a pixel — so demanding it over the
+     * bracket, rather than over the faces actually measured, is a requirement no
+     * value can meet and an easy way to look precise while being wrong.
+     */
+    const TOLERANCE_PX = 0.34;
 
     /**
      * A length in em as a number, or null. Separate from the helper's `px()`
@@ -103,8 +118,11 @@ describe("an inline icon is centred on its text's cap band", () => {
     });
 
     it("finds an emitted rule for every icon class the page wears", () => {
-        // Non-vacuity for everything below: eight of these assertions are of the
-        // form "every icon rule does X", which an empty set passes.
+        // Non-vacuity for everything below: most of what follows is of the form
+        // "every icon rule does X", which an empty set passes for free. The page
+        // renders 14 icons wearing 14 distinct classes — no glyph is used twice — so
+        // the floor is set below that rather than at it, to leave room for a link or
+        // a goal being removed without this becoming the assertion that fails.
         expect(iconClassesInPage.length).toBeGreaterThanOrEqual(12);
         const unstyled = iconRules.filter((r) => r.matching.length === 0).map((r) => r.cls);
         expect(unstyled).toEqual([]);
@@ -117,46 +135,45 @@ describe("an inline icon is centred on its text's cap band", () => {
         expect(missing).toEqual([]);
     });
 
-    it("shifts the icon DOWN, by the half-leftover above the cap band", () => {
-        for (const {cls, matching} of iconRules) {
-            const declared = matching
-                .map((rule) => decl(rule.body, "vertical-align"))
-                .filter((v): v is string => v !== undefined);
+    /**
+     * The value that WINS for `prop` on an icon class. Last declared, since these
+     * are single-class selectors — equal specificity — and `parseRules` preserves
+     * sheet order. Asking whether SOME rule declares the right value would let a
+     * later rule quietly override it: the same hole `effectiveValue` closes in
+     * card-fill.test.ts, where the opposite of a clipping utility emitted 33 bytes
+     * after it and would have won.
+     */
+    const winning = (matching: Rule[], prop: string) => {
+        const declared = matching.map((rule) => decl(rule.body, prop)).filter((v): v is string => v !== undefined);
+        return declared[declared.length - 1];
+    };
 
-            // The last one declared wins: these are single-class selectors, so
-            // equal specificity, and `parseRules` preserves sheet order. Asking
-            // whether SOME rule declares the right value would let a later rule
-            // quietly override it — the same hole `effectiveValue` closes in
-            // card-fill.test.ts, where the opposite of a clipping utility emitted
-            // 33 bytes after it and would have won.
-            const effective = declared[declared.length - 1];
+    it("shifts the icon DOWN, by an em length so it tracks font-size", () => {
+        for (const {cls, matching} of iconRules) {
+            const effective = winning(matching, "vertical-align");
             const shift = em(effective);
 
             expect(shift, `${cls} declares vertical-align: ${effective}, which is not an em length. `
-                + `A keyword (baseline, middle, top) or a calc() is not admitted here — see this file's header.`).not.toBeNull();
-            // Negative is DOWN for vertical-align. A positive value would move the
-            // icon further above the cap line, i.e. make the reported defect worse.
+                + `A keyword (baseline, middle, top), a px length or a calc() is not admitted — see this file's header. `
+                + `The unit matters: the overhang is a fraction of the em, so it has to scale with the text.`).not.toBeNull();
+            // Negative is DOWN for vertical-align. A positive value moves the icon
+            // further above the cap line, i.e. makes the reported defect worse, so
+            // the direction is asserted separately from the magnitude.
             expect(-shift!, `${cls} shifts the icon by ${shift}em; it must move DOWN, so the value must be negative`)
                 .toBeGreaterThan(0);
-            expect(-shift!, `${cls} shifts by ${-shift!}em, outside the ${MIN_SHIFT}–${MAX_SHIFT}em window `
-                + `that centres a 1em box on a cap band of 0.68–0.73em`)
-                .toBeGreaterThanOrEqual(MIN_SHIFT);
-            expect(-shift!).toBeLessThanOrEqual(MAX_SHIFT);
         }
     });
 
-    it("leaves a residual under a third of a pixel at every font size on the page", () => {
-        const shifts = new Set(iconRules.map(({matching}) => {
-            const declared = matching.map((r) => decl(r.body, "vertical-align")).filter(Boolean) as string[];
-            return em(declared[declared.length - 1]);
-        }));
+    it("lands within a third of a pixel of cap-band centre on every measured face", () => {
+        const shifts = new Set(iconRules.map(({matching}) => em(winning(matching, "vertical-align"))));
         expect(shifts.size, "every icon should carry the SAME shift; a per-icon value would show as a split here").toBe(1);
 
         const shift = -[...shifts][0]!;
-        for (const capRatio of [0.68, 0.705, 0.717, 0.73]) {
+        for (const capRatio of MEASURED_CAP_RATIOS) {
             const residualPx = Math.abs((1 - capRatio) / 2 - shift) * HOST_PX;
-            expect(residualPx, `at cap ratio ${capRatio} the icon would sit ${residualPx.toFixed(2)}px off centre at ${HOST_PX}px`)
-                .toBeLessThan(0.34);
+            expect(residualPx, `on a face with cap/em ${capRatio} the icon would sit ${residualPx.toFixed(2)}px `
+                + `off cap-band centre at ${HOST_PX}px, over the ${TOLERANCE_PX}px this allows`)
+                .toBeLessThan(TOLERANCE_PX);
         }
     });
 
