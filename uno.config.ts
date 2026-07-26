@@ -133,6 +133,36 @@ export default defineConfig({
      * on there being slack. It costs one already-emitted rule and it is what stops
      * mechanism 3 above from ever recurring on a future wider icon.
      *
+     * WHY 64 WIDE AND NOT A 48 SQUARE — asked and deliberately answered "leave
+     * it", so the next person does not have to redo the research.
+     *
+     * 64 was never an aesthetic number: it was picked as 2px clear of the widest
+     * button that shipped before, so that nothing shrank when the sizes were
+     * unified. A 48px square is a one-token change (`w-[48px]`) and was built and
+     * measured — all nine controls land 48.000 x 48.000, icons undeformed, tracks
+     * 48px, all 108 assertions green, no clipping at any width.
+     *
+     * The two are accessibility-EQUIVALENT, which is the part worth recording:
+     * both clear SC 2.5.8 (AA, 24px) and SC 2.5.5 (AAA, 44px) on bounding-box
+     * measurement, and 48 lands exactly on Android's and Material's 48dp
+     * recommendation while clearing Apple's 44pt. Nothing in the HCI literature
+     * favours either aspect ratio — the one study that varies width and height
+     * independently (MacKenzie & Buxton, CHI '92) yields two co-equal models that
+     * disagree, and it explicitly rejects the "bigger total area is easier" model.
+     *
+     * The single geometric asymmetry, and it is thin: SC 2.5.8's size test asks
+     * whether a solid axis-aligned square can be inscribed in the target, and with
+     * `rounded-lg` (8px) a 48x48 box inscribes only 43.31px — 0.69px under the AAA
+     * number — where 64x48 inscribes 48. That construction is only stated under
+     * the 24px criterion, no shipping tool computes it, and both sizes clear 24 by
+     * a mile, so it is not a reason on its own. It just happens to lean the same
+     * way as leaving things alone.
+     *
+     * So the choice rests on grounds outside WCAG, i.e. it is purely aesthetic,
+     * and the wider-than-tall silhouette is the one that shipped. Flip the width
+     * token if the square is wanted; `public/preview.jpg` has to be regenerated
+     * with it, because it is both the README hero and the OG image.
+     *
      * Comments in THIS file are safe to write tokens in: the extraction pipeline
      * does not read the config (probed — a token planted in a config comment
      * emitted no rule). Inside `src/**` it does, including .astro frontmatter,

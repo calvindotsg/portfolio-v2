@@ -159,8 +159,16 @@ describe("every styled control is one declared box", () => {
     it("meets the enhanced target size on both axes", () => {
         // WCAG 2.2 SC 2.5.5 Target Size (Enhanced, AAA) is 44x44 CSS px; SC 2.5.8
         // (Minimum, AA) asks only 24x24 and was never binding here, because the
-        // anchors already shipped 46px tall. 48px additionally clears the 48-CSS-px
-        // finger Lighthouse's tap-target audit uses.
+        // anchors already shipped 46px tall. 48 also lands exactly on Android's and
+        // Material's 48dp recommendation and above Apple's 44pt.
+        //
+        // CORRECTION to an earlier version of this comment, which claimed 48px
+        // "clears the 48-CSS-px finger Lighthouse's tap-target audit uses": that
+        // audit no longer exists. `tap-targets`, with its `FINGER_SIZE_PX = 48`,
+        // was deleted in Lighthouse v12.0.0 (commit acfd1fb5ea, 2024-04-01) and
+        // replaced by the axe-backed `target-size` audit, which measures bounding
+        // rects against 24px. So no shipping tool checks 48 — the AAA number 44 is
+        // the only threshold above the AA minimum that any of this is measured on.
         for (const box of controlClasses.map(boxOf)) {
             expect(px(box.width)!, `.${box.cls} is ${box.width} wide`).toBeGreaterThanOrEqual(44);
             expect(px(box.height)!, `.${box.cls} is ${box.height} tall`).toBeGreaterThanOrEqual(44);

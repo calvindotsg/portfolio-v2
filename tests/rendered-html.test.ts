@@ -311,9 +311,62 @@ describe("control semantics", () => {
             // Verbatim: the template no longer decorates the name. The old
             // `${name} Profile` was itself the defect — it called a PDF a profile.
             ...LINKS.map(({name}) => name),
-            ...GOALS.map(({goal_name}) => `Follow my ${goal_name.toLowerCase()} on Strava`),
+            ...GOALS.map(({cta_label}) => cta_label),
         ].sort();
         expect(named.map(({name}) => name).sort(), "announced names must come from constants.ts").toEqual(expected);
+    });
+
+    /**
+     * Anchors that go to the same place must announce the same name.
+     *
+     * Three controls point at one Strava URL — the social link and both goal CTAs
+     * — and they used to announce "Strava Profile", "Follow my running on Strava"
+     * and "Follow my cycling on Strava". Nothing was broken by that: SC 3.2.4
+     * Consistent Identification is scoped to a *set* of web pages and this site is
+     * a single page, and each name did state its own purpose, so 2.4.4 and 2.4.9
+     * were satisfied too. It was the best practice that was missed — Understanding
+     * 2.4.4 ("a best practice for links with the same destination to have
+     * consistent text"), Understanding 2.4.9 (so the names still make sense in the
+     * flat links list a screen reader can pull up), and GOV.UK's editorial rule
+     * ("if you have more than one link to the same page, use identical link text
+     * or similar link text that conveys the same meaning").
+     *
+     * Asserted as an invariant over the rendered page rather than against the
+     * literal string, so it keeps holding when the name changes, and so a future
+     * goal that genuinely points elsewhere is free to name itself differently. The
+     * shared `STRAVA` constant in `constants.ts` is what makes it true; this is
+     * what notices if someone hand-writes a fourth name beside it.
+     */
+    it("gives anchors that share a destination the same accessible name", () => {
+        const byHref = new Map<string, Set<string>>();
+        for (const a of doc.querySelectorAll("a[href]")) {
+            const href = a.getAttribute("href")!;
+            // The accessible name as computed here: sr-only text, or aria-label,
+            // or the visible text. Anchors elsewhere on the page (the career
+            // employers, the footer credit) are named by their own text and are
+            // covered by the same rule.
+            const name = a.querySelector(".sr-only")?.textContent?.trim()
+                || a.getAttribute("aria-label")?.trim()
+                || a.textContent?.trim().replace(/\s+/g, " ")
+                || "";
+            if (!byHref.has(href)) byHref.set(href, new Set());
+            byHref.get(href)!.add(name);
+        }
+
+        // Non-vacuity: there must actually BE a repeated destination to police.
+        // Without this the assertion passes on a page where every href is unique,
+        // and would keep passing if the three Strava anchors were renamed apart.
+        const repeated = [...byHref.keys()].filter((href) =>
+            doc.querySelectorAll(`a[href="${href}"]`).length > 1);
+        expect(repeated.length, "no href appears more than once — this assertion has nothing to police").toBeGreaterThan(0);
+
+        const divergent = [...byHref.entries()]
+            .filter(([, names]) => names.size > 1)
+            .map(([href, names]) => `${href} is announced as ${[...names].map((n) => `"${n}"`).join(" and ")}`);
+        expect(
+            divergent,
+            "one destination, one name: a screen reader user pulling up the page's links list sees one entry per anchor, and several names for one URL read as several places",
+        ).toEqual([]);
     });
 
     it("keeps the theme toggle the page's only button, since it acts rather than navigates", () => {

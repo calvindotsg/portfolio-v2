@@ -92,15 +92,20 @@ Later maintainer-direct fixes (PRs #57–#60 and the control-geometry fix) have
 landed without updating the numbers above, so treat **every assertion count AND
 every page-weight figure in this file as unverified** — including the run-3
 stylesheet figures in the paragraph below, which no longer match a build of the
-revision they claim to describe. Read counts from `pnpm test`: **101** as of the
-control-geometry fix, across **5** files (`tests/control-geometry.test.ts` is
-new). It was already 91 before that fix, i.e. the "67" above went stale
-independently of it. That fix consumed **no plan number** — it came straight
-from the maintainer and was implemented and verified in one session, so
-numbering still continues at `016`. What it changed: the nine styled controls
-are one declared 64x48 box, the second `control` variant is gone, and
-`public/preview.jpg` was regenerated from the current build (it had still been
-showing the pre-icon-migration emoji greeting). Page weight **over the wire**, deploy
+revision they claim to describe. Read counts from `pnpm test`: **107** as of the
+control-geometry and page-fit fixes, across **6** files
+(`tests/control-geometry.test.ts` and `tests/page-fit.test.ts` are new;
+`tests/helpers/css.ts` is a shared non-test module and is not counted). It was
+already 91 before those fixes, i.e. the "67" above went stale independently of
+them. Neither consumed a plan number — both came straight from the maintainer and
+were implemented and verified in one session, so numbering still continues at
+`016`. What they changed: the nine styled controls are one declared 64x48 box and
+the second `control` variant is gone; `<body>`'s viewport height became a
+*minimum* rather than an exact height, which had been compressing the two-column
+grid between 768px and 1023px until six of eight cards clipped content that no
+scrollbar could reach (worst 98px at 768x900, pre-existing since before the
+control work); and `public/preview.jpg` was regenerated from the current build
+(it had still been showing the pre-icon-migration emoji greeting). Page weight **over the wire**, deploy
 preview 61 against production, both served `content-encoding: br` (confirmed, not
 assumed): stylesheet 6,842 → 6,741 B (**−101**), markup 3,277 → 3,368 B
 (**+91**), net **−10 B** — effectively neutral. Local `gzip -9` of the same two

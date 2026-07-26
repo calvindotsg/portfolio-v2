@@ -567,7 +567,13 @@ describe("the stylesheet ships no rule nobody wears", () => {
      * cannot be avoided. Note constants.ts prose is NOT scanned, so Calvin's own
      * copy cannot trip this — only text inside .astro files.
      */
-    const KNOWN_ORPHANS = ["ease", "inline", "inline-block", "me", "my", "transition"];
+    // `my` came off this list when the goal CTA's sr-only name stopped being
+    // built from a sentence ("Follow my running on Strava") and became the shared
+    // label in constants.ts — that removed the last lowercase "my" from any .astro
+    // file, so the rule stopped being emitted and the guard below demanded the
+    // entry go. `me` survives it: "About me" is still a card title. Exactly the
+    // rot this pair of assertions exists to prevent.
+    const KNOWN_ORPHANS = ["ease", "inline", "inline-block", "me", "transition"];
 
     it("emits a class rule only for classes the page actually uses", () => {
         const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
