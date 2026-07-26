@@ -45,7 +45,11 @@ import {decl, isKeyframeStep, isMaxWidthGated, minWidthOf, parseRules, structura
  * linkedom parses, it does not lay out — so nothing below measures a rendered box,
  * a compressed grid row, or a clipped word. It cannot recompute the 98px. What it
  * *can* do is police the structural precondition the defect needed: that the
- * outermost box be pinned to the viewport while its content is free to exceed it.
+ * outermost box be given a DEFINITE height — one its content cannot grow past.
+ * Definiteness is the invariant, not the unit it is written in: an earlier
+ * revision of this file policed only viewport-relative values, and an exact
+ * `height: 900px` alongside the floor walked straight through it and put 102.45px
+ * of clipping back on the intro card at 108/108 green. See `isDefiniteSize`.
  * These are therefore assertions about the cascade, and the numbers in the prose
  * above are PINNED from browser measurement, not derived. The harness that
  * produced them (a CDP driver sweeping widths, viewport heights, themes and root
@@ -73,9 +77,37 @@ describe("the page may grow taller than the viewport", () => {
             return [...document.querySelectorAll(structural)].includes(el as never);
         }));
 
-    /** A block-size value that ties the box to the viewport or its parent. */
+    /**
+     * A block-size value that ties the box to the viewport or its parent. Used
+     * only for the FLOOR, where being viewport-relative is the point: the floor
+     * exists so a short page still fills the screen, which a length cannot do.
+     */
     const isViewportBound = (value: string | undefined) =>
         Boolean(value) && /(?:^|[\s(])-?[\d.]+(?:vh|dvh|svh|lvh|%)/.test(value!);
+
+    /**
+     * A block-size value that makes the box DEFINITE, i.e. able to cap its
+     * content — any length or percentage, in any unit, at any depth inside
+     * `calc()`/`min()`/`max()`/`clamp()`.
+     *
+     * This is deliberately much wider than `isViewportBound`, and the width is
+     * the whole point. An earlier revision policed only viewport-relative
+     * values, which let the defect straight back in: keeping the floor and
+     * adding an exact `height: 900px` beside it reproduced the original symptom
+     * — 37 overflowing elements at 768x600 and 102.45px sheared off the intro
+     * card's second row of controls — with all 108 assertions green. What
+     * compresses the grid is *definiteness*, not the unit it is written in, so
+     * that is what this matches.
+     */
+    const isDefiniteSize = (value: string | undefined) => {
+        if (!value) return false;
+        const v = value.trim().toLowerCase();
+        // Keywords that leave the box free to size to its content.
+        if (/^(auto|none|inherit|initial|unset|revert|revert-layer|fit-content|max-content|min-content|stretch|-webkit-fill-available)$/.test(v)) return false;
+        // A bare zero is definite too, and collapses the box entirely.
+        if (/^0$/.test(v)) return true;
+        return /[\d.]+\s*(px|r?em|ex|ch|cap|ic|lh|rlh|v[hw]|dv[hw]|sv[hw]|lv[hw]|v(?:min|max)|dv(?:min|max)|sv(?:min|max)|lv(?:min|max)|cm|mm|q|in|pc|pt|%)/.test(v);
+    };
 
     const body = document.body;
     const main = document.querySelector("main")!;
@@ -124,13 +156,13 @@ describe("the page may grow taller than the viewport", () => {
             const found = (["height", "max-height", "block-size", "max-block-size"] as const)
                 .flatMap((prop) => {
                     const value = decl(r.body, prop);
-                    return isViewportBound(value) ? [describeRule(r, prop, value!)] : [];
+                    return isDefiniteSize(value) ? [describeRule(r, prop, value!)] : [];
                 });
             return found;
         });
         expect(
             [...new Set(offenders)],
-            "<body> must state a viewport-height MINIMUM and never an exact or maximum one: at 768-1023px the content is ~1160px tall, and an exact 100vh body compressed the grid's auto rows until six cards clipped, with no scrollbar to recover any of it",
+            "<body> must state a height MINIMUM and never a definite height or maximum, in any unit: at 768-1023px the content is ~1160px tall, and a body that cannot exceed the space it is given compressed the grid's auto rows until six cards clipped, with no scrollbar to recover any of it",
         ).toEqual([]);
     });
 
@@ -148,12 +180,12 @@ describe("the page may grow taller than the viewport", () => {
             return (["height", "max-height", "block-size", "max-block-size"] as const)
                 .flatMap((prop) => {
                     const value = decl(r.body, prop);
-                    return isViewportBound(value) ? [`${describeRule(r, prop, value!)} — gated at ${gate ?? "no width"}`] : [];
+                    return isDefiniteSize(value) ? [`${describeRule(r, prop, value!)} — gated at ${gate ?? "no width"}`] : [];
                 });
         });
         expect(
             [...new Set(offenders)],
-            `only the large breakpoint (>=${LG}px) may tie <main>'s height to the viewport; below it the grid is two columns and the content does not fit`,
+            `only the large breakpoint (>=${LG}px) may give <main> a definite height, in any unit; below it the grid is two columns and the content does not fit`,
         ).toEqual([]);
     });
 
