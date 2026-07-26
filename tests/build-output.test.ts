@@ -126,12 +126,20 @@ describe("dist/", () => {
     /**
      * The footer heart's ink, read from the shipped stylesheet in both themes.
      *
-     * Two failures this catches, both silent. Deleting `--brand-ink` from a theme
+     * Three failures this catches, all silent. Deleting `--brand-ink` from a theme
      * block leaves the heart's rule emitted and the class worn, but `color:
      * var(--brand-ink)` with nothing behind it is invalid at computed-value time —
      * and `color` inherits, so the glyph quietly goes back to the body text colour
-     * with the markup still perfect. And re-toning the token far enough to stop
-     * reading as ink would pass any structural assertion.
+     * with the markup still perfect. Re-toning the token far enough to stop reading
+     * as ink would pass any structural assertion. And pointing the glyph's wrapper at
+     * a DIFFERENT token would leave `--brand-ink` perfectly defined and perfectly
+     * contrasting while nothing on the page used it.
+     *
+     * That third one is why the ink is resolved THROUGH THE WEARER'S CLASSES rather
+     * than by looking the token up by name. An earlier version read
+     * `themeTokens(css)["--brand-ink"]` directly and so certified a hex that nothing
+     * was guaranteed to paint — the same shape as the 1.89:1 defect the palette work
+     * fixed, and the exact pattern `painted()` below exists to replace.
      *
      * Measured as text (4.5:1) rather than as a graphic (3:1): the glyph stands in
      * for the word "love", which the `sr-only` span beside it supplies, so it is
@@ -139,16 +147,29 @@ describe("dist/", () => {
      */
     it("gives the footer heart ink that reads as text on its card, in both themes", () => {
         const css = sheet();
+        const {document: page} = parseHTML(read("dist/index.html"));
+        const glyph = page.querySelector(`span[class~="${iconClass(FOOTER.icon)}"]`);
+        expect(glyph, "the footer must render the configured heart icon").toBeTruthy();
+
         for (const theme of ["light", "dark"]) {
             const t = themeTokens(css, theme);
-            const ink = t["--brand-ink"];
-            expect(ink, `${theme}: --brand-ink must be defined, or the heart silently inherits the body text colour`).toBeTruthy();
+
+            // Walk the glyph and its ancestors in cascade order and take the first
+            // element that actually paints a colour — that is the ink the glyph
+            // inherits, because its own rule is `color: inherit`.
+            let ink: ReturnType<typeof painted> = undefined;
+            for (let el: Element | null = glyph; el && !ink; el = el.parentElement) {
+                ink = painted(css, el.getAttribute("class"), "color", t);
+            }
+            expect(ink, `${theme}: nothing in the heart's ancestry paints a colour`).toBeTruthy();
+            expect(ink!.via, `${theme}: the heart paints ${ink!.via} — it must take its own token`).toBe("--brand-ink");
+
             const card = t["--card-background"];
             expect(card, `${theme}: --card-background must be defined`).toBeTruthy();
-            const ratio = contrast(ink, card);
+            const ratio = contrast(ink!.hex, card);
             expect(
                 ratio,
-                `${theme}: heart ink ${ink} is ${ratio.toFixed(3)}:1 on its card ${card} — it stands in for a word, so it is held to the text floor`,
+                `${theme}: heart ink ${ink!.hex} is ${ratio.toFixed(3)}:1 on its card ${card} — it stands in for a word, so it is held to the text floor`,
             ).toBeGreaterThanOrEqual(4.5);
         }
     });
@@ -740,7 +761,7 @@ describe("dist/index.html is prerendered", () => {
                 pressed: button.getAttribute("aria-pressed"),
             });
             const before = state();
-            button.dispatchEvent(new stub.defaultView.Event("click"));
+            button.dispatchEvent(new stub.defaultView!.Event("click"));
             return {before, after: state()};
         };
 

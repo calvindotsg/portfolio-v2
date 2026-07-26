@@ -139,7 +139,7 @@ mandated migration).
 
 **One Strava link, brand-ink heart, toggle state (2026-07-26, maintainer-direct,
 no plan number — numbering still continues at `016`).** Four changes, suite
-**109 → 120** across the same 6 files:
+**109 → 122** across the same 6 files:
 
 1. **The two goal cards' calls to action are gone**, leaving the intro card's
    social link as the site's only Strava control. Both pointed at the same profile
@@ -209,7 +209,7 @@ Out of scope for that PR, which covered the controls' box, the page's height and
 the Strava naming. Recorded so they are not rediscovered as new:
 
 **Both theme-toggle entries below are RESOLVED as of 2026-07-26** — see the
-"one Strava link, brand-ink heart, toggle state" change further down. Kept here
+"one Strava link, brand-ink heart, toggle state" change recorded above. Kept here
 because the reasoning for deferring them is what shaped the fix.
 
 - **The theme toggle announces no state.** It carries `aria-live="polite"`, but

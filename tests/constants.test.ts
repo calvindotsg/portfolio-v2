@@ -133,8 +133,21 @@ describe("THEME_TOGGLE", () => {
      * The toggle has no visible text and its icons are decorative, so this string is
      * the whole of what a screen reader gets for it.
      */
-    it("is announceable", () => {
+    /**
+     * Not "is non-empty" — that was strictly implied by the assertion below it, so it
+     * added a test to the count without adding a detectable failure. This is the one
+     * hazard in this space that nothing else catches: "Dark theme on" satisfies every
+     * other assertion here (it contains "dark", not "light", is not action-phrased) and
+     * would be announced as "Dark theme on, toggle button, pressed" — the state said
+     * twice, once by the name and once by `aria-pressed`, and contradicting itself as
+     * soon as it is not pressed.
+     */
+    it("leaves the state to aria-pressed instead of spelling it into the name", () => {
         expect(THEME_TOGGLE.name.trim(), "the name is announced verbatim").not.toBe("");
+        expect(
+            THEME_TOGGLE.name.toLowerCase(),
+            "the name says WHICH theme; aria-pressed says whether it is on",
+        ).not.toMatch(/\b(on|off|active|inactive|enabled|disabled|pressed|selected)\b/);
     });
 
     /**

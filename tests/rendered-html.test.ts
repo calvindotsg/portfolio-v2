@@ -25,15 +25,22 @@ beforeAll(async () => {
 
 /**
  * The accessible name of an anchor, resolved in the order accname-1.2 resolves it:
- * `aria-label` (step 2C) outranks the element's own content, which is where this
- * repo's `sr-only` naming span lives. The two agree on every anchor of this page
- * today — Chrome's own computation was diffed against this — but writing the
- * inverted order leaves a test that disagrees with a screen reader the moment an
- * aria-label and an sr-only span coexist and differ.
+ * `aria-label` (step 2C) outranks the element's own content. The two agree on every
+ * anchor of this page today — Chrome's own computation was diffed against this — but
+ * the inverted order leaves a test that disagrees with a screen reader the moment an
+ * aria-label and a naming span coexist and differ. The fixtures below pin BOTH
+ * directions of that precedence, because a review panel showed the page's own anchors
+ * cannot distinguish them: inverting these two branches left the suite green.
+ *
+ * There is deliberately no separate `.sr-only` branch. Name-from-content already
+ * concatenates every non-hidden descendant's text, so this repo's naming span is
+ * *included* by the content branch rather than needing one of its own — and a
+ * dedicated branch would be actively wrong, since accname computes
+ * `<a>visible <span class="sr-only">extra</span></a>` as "visible extra", not
+ * "extra". Two branches is the accname-correct shape as well as the simpler one.
  */
 const accessibleName = (a: Element): string =>
     a.getAttribute("aria-label")?.trim()
-    || a.querySelector(".sr-only")?.textContent?.trim()
     || a.textContent?.trim().replace(/\s+/g, " ")
     || "";
 
@@ -77,13 +84,13 @@ const namesWithSeveralDestinations = (d: Document): string[] => {
  * it on a fixture keeps the rule policed for the next anchor that shares a href or
  * a name, without pretending today's page is the proof.
  */
-const twoAnchors = (a: {href: string, name: string}, b: {href: string, name: string}): Document =>
-    parseHTML(
-        `<html><body>
-            <a href="${a.href}"><span class="sr-only">${a.name}</span></a>
-            <a href="${b.href}"><span class="sr-only">${b.name}</span></a>
-        </body></html>`,
-    ).document as unknown as Document;
+type Anchor = {href: string, name: string, label?: string};
+
+const twoAnchors = (a: Anchor, b: Anchor): Document => {
+    const one = ({href, name, label}: Anchor) =>
+        `<a href="${href}"${label === undefined ? "" : ` aria-label="${label}"`}><span class="sr-only">${name}</span></a>`;
+    return parseHTML(`<html><body>${one(a)}${one(b)}</body></html>`).document as unknown as Document;
+};
 
 describe("document head", () => {
     it("renders the configured title", () => {
@@ -278,7 +285,7 @@ describe("markup defects fixed by plan 004", () => {
     it("labels every control from its own content, without an overriding aria-label", () => {
         // Widened from `button` to every control: after the interactive-nesting
         // fix only the theme toggle is a <button>, so a button-scoped query here
-        // would silently drop 8 of the 9 controls from this test's coverage.
+        // would silently drop every navigating control from this test's coverage.
         const buttons = [...doc.querySelectorAll("a[href], button")];
         expect(buttons.length, "the page renders icon controls").toBeGreaterThan(0);
         for (const button of buttons) {
@@ -430,6 +437,34 @@ describe("control semantics", () => {
         expect(found[0]).toContain("/same");
     });
 
+    /**
+     * The two fixtures below pin the NAME RESOLUTION the checkers group by, which the
+     * fixture above cannot: its anchors are named only by content, so it reads the same
+     * under any branch order. A review panel inverted `accessibleName`'s precedence, and
+     * separately deleted each branch, with the whole suite green — the page's own anchors
+     * never exercise the aria-label branch because none of them carries one.
+     *
+     * Together they force the accname-1.2 order rather than merely describing it: an
+     * aria-label that differs must be visible to the checker, and a naming span that
+     * differs *underneath* an agreeing aria-label must not be, because the label wins
+     * outright and no screen reader would read the span.
+     */
+    it("resolves an anchor's name from aria-label ahead of its content", () => {
+        const found = destinationsWithSeveralNames(twoAnchors(
+            {href: "/same", name: "Agreed", label: "One label"},
+            {href: "/same", name: "Agreed", label: "Another label"},
+        ));
+        expect(found, "a differing aria-label is a differing name").toHaveLength(1);
+    });
+
+    it("ignores content when an aria-label overrides it", () => {
+        const found = destinationsWithSeveralNames(twoAnchors(
+            {href: "/same", name: "One span", label: "Agreed"},
+            {href: "/same", name: "Another span", label: "Agreed"},
+        ));
+        expect(found, "an aria-label wins outright, so the spans underneath cannot diverge the name").toEqual([]);
+    });
+
     it("gives anchors that share an accessible name the same destination", () => {
         expect(
             namesWithSeveralDestinations(doc),
@@ -453,9 +488,17 @@ describe("control semantics", () => {
      * noticing rather than something to discover from a diff.
      */
     it("links to Strava exactly once", () => {
-        const strava = [...doc.querySelectorAll("a[href]")]
+        // The name is DERIVED from constants.ts, not written here. An earlier version
+        // hard-coded "Strava Profile", which made renaming the link in its sanctioned
+        // single home red the deploy gate for a content edit that broke nothing — and
+        // the failure message claimed the value came from constants.ts when it did not.
+        const configured = LINKS.filter(({link}) => link.includes("strava.com"));
+        expect(configured, "constants.ts declares exactly one Strava control").toHaveLength(1);
+
+        const rendered = [...doc.querySelectorAll("a[href]")]
             .filter((a) => (a.getAttribute("href") ?? "").includes("strava.com"));
-        expect(strava.map((a) => accessibleName(a)), "one Strava control, named from constants.ts").toEqual(["Strava Profile"]);
+        expect(rendered.map((a) => accessibleName(a)), "one Strava control, named from constants.ts")
+            .toEqual(configured.map(({name}) => name));
     });
 
     it("keeps the theme toggle the page's only button, since it acts rather than navigates", () => {
@@ -532,11 +575,21 @@ describe("footer", () => {
         const tokensOf = (el: Element | null) => (el?.getAttribute("class") ?? "").split(/\s+/);
         expect(tokensOf(heart), "a colour utility on the glyph itself is order-dependent").not.toContain(INK);
 
-        const ancestors: Element[] = [];
-        for (let el = heart!.parentElement; el; el = el.parentElement) ancestors.push(el);
-        expect(
-            ancestors.some((el) => tokensOf(el).includes(INK)),
-            "some ancestor of the heart must set the brand-ink colour for it to inherit",
-        ).toBe(true);
+        // The glyph's OWN PARENT, not "some ancestor". A review panel showed that
+        // `ancestors.some(...)` is equally satisfied by the <p>, the card div, <main> or
+        // <body> — arrangements in which every character of the footer sentence turns
+        // brand red, not just the glyph, with this test green. Requiring the wrapper to
+        // paint nothing but the glyph is what makes the sentence's colour safe.
+        const inkEl = heart!.parentElement;
+        expect(tokensOf(inkEl), "the ink token belongs on the glyph's own wrapper").toContain(INK);
+
+        // Screen-reader-only descendants are exempt: they are never painted, so moving
+        // the "love" span inside the wrapper is visually identical and must stay legal.
+        const painted = [...inkEl!.childNodes]
+            .filter((n) => !(n.nodeType === 1 && (n as Element).classList.contains("sr-only")))
+            .map((n) => n.textContent ?? "")
+            .join("")
+            .trim();
+        expect(painted, "the ink wrapper must paint only the glyph, or the whole sentence is re-toned").toBe("");
     });
 });

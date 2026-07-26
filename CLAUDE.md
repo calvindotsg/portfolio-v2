@@ -53,7 +53,7 @@ preview is byte-identical to what Netlify serves.
 ### Styling System
 - **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
   `blocklist`, the single `control` shortcut (the styled control's whole box,
-  including the offset-plate shadow — all nine controls wear it, and it
+  including the offset-plate shadow — every styled control wears it, and it
   deliberately has no variants) and the presets — there is no `theme` key, so no
   colour or shadow tokens live there
 - **Theme Support**: dark/light mode via CSS custom properties on

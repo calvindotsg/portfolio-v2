@@ -15,9 +15,13 @@ interface Props {
 // constants.ts before adding a per-goal link back; there is no per-sport URL to
 // point one at.
 //
-// The row below therefore holds a single child. Its distribution utility went with
-// the control, because with one child it can only ever resolve to the start edge
-// and a token that cannot change anything reads as a constraint that does.
+// The figures row therefore holds a single child now, so the utility that used to
+// distribute it against the control went with the control: with one child it can only
+// ever resolve to the start edge, and a token that cannot change anything reads as a
+// constraint that does. That is a statement about THAT token, not a principle applied
+// to the file — other inert layout tokens remain here deliberately, because they are
+// load-bearing the moment a second child returns and this change did not touch the
+// lines they sit on.
 
 const {goal} = Astro.props;
 ---

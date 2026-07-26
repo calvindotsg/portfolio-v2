@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {GOALS, LINKS} from "../src/lib/constants";
+import {LINKS} from "../src/lib/constants";
 import {decl, isKeyframeStep, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
 
 /**
