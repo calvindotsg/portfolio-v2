@@ -53,10 +53,16 @@ export default defineConfig({
      *
      * So the box is now DECLARED rather than capped, once, for every control:
      * 64 x 48px, which is 2px larger on each axis than the widest button that used
-     * to ship, so nothing shrank. 48px clears the 48-CSS-pixel finger Lighthouse's
-     * tap-target audit uses, where 46px was merely escaping report because its
-     * neighbours were far enough away, and it clears WCAG 2.2 SC 2.5.5's 44x44
-     * (SC 2.5.8's 24x24 floor was never the binding constraint here).
+     * to ship, so nothing shrank. 48px clears WCAG 2.2 SC 2.5.5's 44x44 AAA
+     * target, which the 40px toggle was the one control to fail; SC 2.5.8's 24x24
+     * AA floor was never the binding constraint here, and 48px is also exactly
+     * Material's 48dp.
+     *
+     * An earlier version of this comment justified the 48 with "the 48-CSS-pixel
+     * finger Lighthouse's tap-target audit uses". Do not restore that: the
+     * tap-target audit was REMOVED in Lighthouse v12.0.0 (2024-04-01), so no
+     * automated tool ships a 48px check any more — axe's `target-size` measures
+     * 24px. The number stands on SC 2.5.5 and on nothing shrinking, not on a tool.
      *
      * The box is in PX, deliberately, and a rem box was tried first and measured
      * worse. The cards' heights come from the lg page grid and do NOT grow with

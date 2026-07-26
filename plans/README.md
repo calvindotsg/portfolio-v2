@@ -102,9 +102,15 @@ were implemented and verified in one session, so numbering still continues at
 `016`. What they changed: the nine styled controls are one declared 64x48 box and
 the second `control` variant is gone; `<body>`'s viewport height became a
 *minimum* rather than an exact height, which had been compressing the two-column
-grid between 768px and 1023px until six of eight cards clipped content that no
-scrollbar could reach (worst 98px at 768x900, pre-existing since before the
-control work); the Strava URL, which had been written out three times in
+grid between 768px and 1023px until four of the eight cards clipped content that
+no scrollbar could reach (98.45px off the intro card at 768x900, measured against
+each card's padding box; pre-existing since before the control work). The same
+lock broke the large breakpoint too, which the first pass missed: `main` carries a
+736px floor, so on a shorter viewport the exact-height body could not contain it
+and the centring pushed the overflow above the scroll origin — 44px of the first
+card unreachable at 1024x600, 94px at 1024x500, at every width up to 1920. Both
+ranges are clean now. Also in this change: the Strava URL, which had been written
+out three times in
 `constants.ts` with three different accessible names attached, is now one
 `STRAVA` constant, so the three controls pointing at it announce one name; and
 `public/preview.jpg` was regenerated from the current build (it had still been

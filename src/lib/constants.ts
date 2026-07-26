@@ -34,10 +34,12 @@ import stravaProgress from "../data/strava-progress.json"
  * somewhere else is free to name itself differently.
  *
  * Worth knowing before adding a per-activity link: Strava has no public per-sport
- * URL for an athlete. `?activity_type=Run` and `?activity_type=Ride` return
- * byte-identical pages, and every sport-scoped subpath redirects to /login. A
- * logged-out visitor gets a login wall either way, as they do for the LinkedIn
- * and Instagram links beside it.
+ * URL for an athlete. `?activity_type=Run` and `?activity_type=Ride` serve the
+ * same page — SHA-256 equal over 544,386 characters after normalising away the
+ * per-request tokens, so identical in content rather than literally byte-for-byte
+ * — and of 25 sport-scoped path shapes tried, every one either 404s or bounces to
+ * /login. A logged-out visitor gets a login wall either way, as they do for the
+ * LinkedIn and Instagram links beside it.
  */
 const STRAVA = {
     url: "https://www.strava.com/athletes/37641259/",

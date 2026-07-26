@@ -12,10 +12,20 @@ import {appliesBelow, decl, isKeyframeStep, minWidthOf, parseRules, structuralSe
  * on `<main>` against the LARGE breakpoint. Between 768px and 1023px the grid is
  * two columns, so the same content is about 1160px tall; the implicit `auto` rows
  * were compressed to fit the viewport instead, and every card's own
- * `overflow-hidden` ate the difference. Measured at 768x900: six of the eight
- * cards lost content, worst 98px on `a5c8a43` and 102px once the controls became
- * 2px taller — the intro card's entire second row of controls, the "last year's"
- * line of both goal cards, and the closing line of the Now card.
+ * `overflow-hidden` ate the difference. Measured on production at 768x900, each
+ * card's descendants against that card's own PADDING box: FOUR of the eight lost
+ * content — the intro card 98.45px (its entire second row of controls), the Now
+ * card 9.23px (the closing line of its copy), and each goal card 5.86px (the
+ * "last year's" line). The intro card's figure becomes 102.45px once the controls
+ * are 2px taller. From 800 to 1023px it is two cards, worst 76.13px falling to
+ * 62.58px; at 768x1024 it is one, 36.61px.
+ *
+ * An earlier revision of this comment said "six of the eight", which was wrong and
+ * is worth recording as a method failure rather than a typo: the six came from a
+ * `scrollHeight - clientHeight` probe, which over-reports because an inline-block
+ * icon inflates the scrollable-overflow rectangle. That instrument was retired
+ * for exactly this reason and its NUMBER was kept anyway. Retiring a measuring
+ * tool means re-deriving every figure it produced.
  *
  * The severity is in one detail that is easy to miss: the body was *exactly* as
  * tall as the viewport, so `document.scrollHeight` never exceeded it and the page
@@ -139,10 +149,17 @@ describe("the page may grow taller than the viewport", () => {
         // And it must be gated at the breakpoint where the grid starts, not below
         // it: on a phone the page is one column and a 100vh floor there would
         // stretch the last card for no reason.
+        // Gated at the medium breakpoint EXACTLY, in both directions. Below it the
+        // page is one column and a viewport floor would stretch the last card for
+        // no reason; above it the floor stops covering the range the defect lived
+        // in. An earlier version asserted only `>= 768`, which is one-sided —
+        // moving the floor to the large breakpoint left the whole md range with no
+        // floor at all and the suite green.
+        const MD = 768;
         for (const {r} of floors) {
             const gate = minWidthOf(r);
             expect(gate, `the body height floor in "${r.at || "top level"}" must be width-gated`).not.toBeNull();
-            expect(gate!, "the body height floor must not apply below the medium breakpoint").toBeGreaterThanOrEqual(768);
+            expect(gate!, `the body height floor must start exactly at the medium breakpoint (${MD}px): below it the page is one column, and above it the md range loses its floor`).toBe(MD);
         }
 
         // The rule walker must actually reach the elements, or every negative
@@ -165,7 +182,7 @@ describe("the page may grow taller than the viewport", () => {
         });
         expect(
             [...new Set(offenders)],
-            "<body> must state a height MINIMUM and never a definite height or maximum, in any unit: at 768-1023px the content is ~1160px tall, and a body that cannot exceed the space it is given compressed the grid's auto rows until six cards clipped, with no scrollbar to recover any of it",
+            "<body> must state a height MINIMUM and never a definite height or maximum, in any unit: at 768-1023px the content is ~1160px tall, and a body that cannot exceed the space it is given compressed the grid's auto rows until four of the eight cards clipped, with no scrollbar to recover any of it",
         ).toEqual([]);
     });
 

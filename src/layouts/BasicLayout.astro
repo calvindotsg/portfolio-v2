@@ -18,18 +18,43 @@ const {title, description} = Astro.props;
  * Between 768px and 1023px the grid is just two columns, so the same content is
  * roughly 1160px tall. Against an exact 100vh body the implicit `auto` rows were
  * compressed to fit the viewport and every card's own clipping ate the
- * remainder: at 768x900 six cards lost content, worst case ~100px — the intro
- * card's entire row of controls, the "last year's" line of each goal card, and
- * the final line of the Now card. Nothing scrolled, because the body was exactly
- * as tall as the viewport, so the loss was silent and unrecoverable rather than
- * merely below the fold.
+ * remainder: at 768x900 four of the eight cards lost content — the intro card
+ * 98.45px, its entire row of controls; the Now card 9.23px, the final line of its
+ * copy; and each goal card 5.86px, the "last year's" line. Two cards from 800 to
+ * 1023px, worst 76.13px down to 62.58px, and one at 768x1024 losing 36.61px.
+ * Measured against each card's padding box, which is what it clips to.
  *
- * A floor fixes that without touching the large-breakpoint layout: the body
- * still stretches to the full viewport, so the centring below still centres,
- * and <main> is still capped there. Where content genuinely needs more room the
- * page now grows and scrolls instead of clipping. Keep this a floor — restoring
- * an exact height reintroduces the defect at every viewport shorter than the
- * content.
+ * Nothing scrolled, because the body was exactly as tall as the viewport, so the
+ * loss was silent and unrecoverable rather than merely below the fold.
+ *
+ * A floor fixes that: the body still stretches to the full viewport, so the
+ * centring below still centres, and <main> is still capped at the large
+ * breakpoint. Where content genuinely needs more room the page now grows and
+ * scrolls instead of clipping. Keep this a floor — restoring an exact height
+ * reintroduces the defect at every viewport shorter than the content.
+ *
+ * "Grows instead of clipping" is about the PAGE, and it is not a promise that
+ * nothing anywhere can clip, because a fixed max-height on a box INSIDE a card
+ * still turns growth into clipping however tall the page is allowed to become.
+ * The intro card's copy column carries such a cap, and under text-only zoom at
+ * the narrowest medium width it still bites: at 768x900 the cards clipping go
+ * 4 -> 0 at a 16px root and 6 -> 0 at 20px, but at a 24px root one card still
+ * loses 48px of its control row, against seven cards and 241.5px before. Better
+ * by an order of magnitude, not zero. The residue is that inner cap, not this
+ * floor, and it is out of scope here — see the box-in-px rationale in
+ * uno.config.ts for why the controls are sized in px so they shear as little as
+ * possible when it does bite.
+ *
+ * It also fixes the large breakpoint, which the exact height broke as well, and
+ * an earlier version of this comment wrongly claimed it left untouched. <main>
+ * carries a 736px floor of its own, so on a shorter viewport the exact-height
+ * body could not contain it; because the body centres its children, the overflow
+ * was split top and bottom and the top half sat above the scroll origin, where
+ * no scrolling reaches. Measured on production: 94px of the first card
+ * unreachable at 1024x500, 69 at 550, 44 at 600, 19 at 650, none from 700 up,
+ * and the same at every width from 1024 to 1920 — a function of height alone. It
+ * is a laptop-sized bug, not an edge case. Zero unreachable at all of those now.
+ * Above 736px tall the large-breakpoint geometry is unchanged, rect for rect.
  *
  * tests/page-fit.test.ts pins it. Utility names are described rather than
  * spelled here on purpose: UnoCSS scans this file, so writing one would emit a
