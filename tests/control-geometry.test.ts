@@ -298,6 +298,25 @@ describe("every styled control is one declared box", () => {
                 }
             }
         }
+        // An inline `style` attribute is a route into the box that no amount of
+        // stylesheet reading can see, and it outranks every rule above. Cheap to
+        // close, so it is closed here rather than left as a documented limit.
+        for (const el of controls) {
+            const inline = (el as Element).getAttribute("style");
+            expect(
+                inline,
+                `<${(el as Element).tagName.toLowerCase()}> carries an inline style attribute (${inline}); it wins over the control rule and is invisible to every stylesheet assertion in this file`,
+            ).toBeNull();
+        }
+        for (const el of controls) {
+            for (const span of iconSpansOf(el as Element)) {
+                expect(
+                    span.getAttribute("style"),
+                    "a control's icon span carries an inline style attribute, which can deform the glyph inside a correctly-sized box",
+                ).toBeNull();
+            }
+        }
+
         expect(
             [...new Set(offenders)],
             "only the control shortcut may declare a control's box — a media-query variant, an extra utility on the element, or a scoped <style> all reintroduce the ragged sizes with every other assertion here still green",
