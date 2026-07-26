@@ -8,6 +8,27 @@ import AboutMe from "../components/AboutMe.astro";
 import Now from "../components/Now.astro";
 import {FOOTER, GOALS, METADATA} from "../lib/constants";
 import {iconClass} from "../lib/icons";
+
+/*
+ * The footer heart is toned from a theme token, and the token sits on a WRAPPER
+ * around the glyph rather than on the glyph itself. That is not decoration — it is
+ * the only arrangement that does not depend on the order UnoCSS happens to emit
+ * two rules in.
+ *
+ * An icon here is a mask box, and presetIcons gives its rule two declarations that
+ * matter: it paints with the current colour, and it sets the colour to the
+ * inherited one. Put a colour utility on the SAME element and the two rules both
+ * set colour at equal specificity — one class each — so the winner is whichever
+ * lands later in the stylesheet. It does today, by about nine kilobytes, and the
+ * heart renders correctly; nothing would notice if a future UnoCSS emitted them the
+ * other way round, and the glyph would silently go back to the body text colour with
+ * every test still green.
+ *
+ * On an ancestor there is no contest at all: the glyph's own rule inherits, which is
+ * exactly what it asks to do, and it inherits the token. ProgressBar.astro already
+ * does this — the ink token is on the fill, not on the icon inside it — so this is
+ * the established shape here rather than a new one.
+ */
 ---
 
 <Layout
@@ -28,7 +49,7 @@ import {iconClass} from "../lib/icons";
         <Now/>
         <Card colSpan="md:col-span-1" rowSpan="md:row-span-1">
             <p class="text-xs">
-                {FOOTER.prefix} <span class={iconClass(FOOTER.icon)} aria-hidden="true"></span><span class="sr-only">love</span>{FOOTER.suffix}
+                {FOOTER.prefix} <span class="text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}
             </p>
         </Card>
     </main>

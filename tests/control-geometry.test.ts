@@ -2,13 +2,16 @@ import {describe, expect, it} from "vitest";
 import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {GOALS, LINKS} from "../src/lib/constants";
+import {LINKS} from "../src/lib/constants";
 import {decl, isKeyframeStep, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
 
 /**
- * The nine styled controls must all be ONE box.
+ * Every styled control must be ONE box. There are seven today — six social-link
+ * anchors and the theme toggle; the figures below were measured when there were
+ * nine, before the two goal cards' calls to action were removed, and they are
+ * quoted as history rather than as a count to re-derive.
  *
- * They were not, for as long as the surface existed: the eight anchors rendered
+ * They were not one box, for as long as the surface existed: the eight anchors rendered
  * at four different widths (57.00, 59.59, 61.40, 62.00 px) because nothing
  * declared a width and `presetIcons` emits each icon at its artwork's aspect
  * ratio, so the icon's proportions leaked into the button's; and the theme
@@ -131,8 +134,8 @@ describe("every styled control is one declared box", () => {
         for (const cls of controlClasses) {
             expect(worn.has(cls), `.${cls} is styled as a control but no element wears it`).toBe(true);
         }
-        expect(controlElements().length, "one control per social link, goal CTA and the theme toggle")
-            .toBe(LINKS.length + GOALS.length + 1);
+        expect(controlElements().length, "one control per social link, plus the theme toggle")
+            .toBe(LINKS.length + 1);
     });
 
     it("declares an absolute width and height, rather than capping a content-sized box", () => {

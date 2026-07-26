@@ -81,9 +81,9 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 
    Note that the athlete id appears in two of the three sanctioned homes, for two
    different jobs: the `STRAVA_ATHLETE_ID` variable decides *whose kilometres* are
-   fetched, and the `STRAVA` constant in `constants.ts` decides *where the three
-   Strava controls link*. Changing accounts means editing both. Updating only the
-   variable publishes the new athlete's distances while the links still point at
+   fetched, and the `STRAVA_PROFILE_URL` constant in `constants.ts` decides *where
+   the site's Strava link goes*. Changing accounts means editing both. Updating only
+   the variable publishes the new athlete's distances while the link still points at
    the old profile, and nothing in the build or the suite can catch that.
 
 ## Testing

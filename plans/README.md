@@ -137,6 +137,48 @@ run 2 — the 8 migrated icons each embed an SVG mask data-URI; the emoji they
 replaced were "free" glyphs from system fonts; accepted as the cost of the
 mandated migration).
 
+**One Strava link, brand-ink heart, toggle state (2026-07-26, maintainer-direct,
+no plan number — numbering still continues at `016`).** Four changes, suite
+**109 → 122** across the same 6 files:
+
+1. **The two goal cards' calls to action are gone**, leaving the intro card's
+   social link as the site's only Strava control. Both pointed at the same profile
+   that link already reaches, and a logged-out visitor meets a login wall at it
+   either way — verified: 25 sport-scoped path shapes all 404 or redirect to
+   `/login`, and `?activity_type=Run` and `=Ride` serve the same page. `GOALS[]`
+   lost `website_url`, `cta_label` and `cta_logo` with them. This partly supersedes
+   the Strava-naming work described above: that made three controls announce one
+   name, and there is now one control to name. The paragraph above is left as
+   written because it records what that change did at the time.
+2. **The footer heart takes a new `--brand-ink` token** instead of inheriting the
+   body text colour — `#A82334` on light at 6.519:1, `#F3A3AA` on dark at 9.075:1,
+   both measured against the card background the glyph actually sits on. The token
+   sits on a wrapper around the glyph, not on the glyph: an icon's own rule sets
+   `color: inherit` at the same specificity as a colour utility, so on the same
+   element the winner is decided by emission order alone. `ProgressBar.astro`
+   already colours its icon from an ancestor for the same reason.
+3. **The theme toggle reports its state** via `aria-pressed`, kept in step by the
+   script that already existed, with one state-independent name in `constants.ts`.
+   The inert `aria-live` and the duplicate `aria-label` are gone. A per-theme
+   changing name was built first and rejected on measurement, not taste: WAI-ARIA
+   sanctions either but forbids both together, and Sarah Higley's screen-reader
+   survey found a name change announced in roughly half of reader/browser
+   combinations against `aria-pressed` in all of them. **Residual, deliberate:**
+   nothing announces at the moment of the press beyond what `aria-pressed` gives —
+   a real live region would need JS and an extra element, out of proportion here.
+4. **The athlete-id coupling note now lives in one place**, `README.md`'s
+   Configuration section, with a pointer beside the constant rather than a second
+   copy of the explanation.
+
+Two assertions changed shape rather than being deleted. The name↔destination
+bijection tests had non-vacuity guards satisfied *by* the three Strava anchors, so
+removing two of them made both guards unsatisfiable. Deleting the tests would have
+dropped the invariant; keeping the guards would have gone red for a reason
+unrelated to the rule. They now assert against the rendered page and take their
+evidence-of-working from a two-anchor fixture instead — a positive control rather
+than a coverage claim. A separate assertion pins the decision itself: the page
+links to Strava exactly once.
+
 A fresh audit should start from these facts rather than re-deriving them, and
 should re-check any it intends to rely on.
 
@@ -166,6 +208,10 @@ is cosmetic.
 Out of scope for that PR, which covered the controls' box, the page's height and
 the Strava naming. Recorded so they are not rediscovered as new:
 
+**Both theme-toggle entries below are RESOLVED as of 2026-07-26** — see the
+"one Strava link, brand-ink heart, toggle state" change recorded above. Kept here
+because the reasoning for deferring them is what shaped the fix.
+
 - **The theme toggle announces no state.** It carries `aria-live="polite"`, but
   everything inside it that changes on activation is `aria-hidden` (the sun and
   moon spans, swapped by CSS `display`), and its only text node never changes —
@@ -190,10 +236,11 @@ recorded by the auditors themselves as not-findings — do not re-derive:
 - **Goal.astro's CTA name hardcodes "Strava" while `cta_logo` is a variable.**
   No bug today (both goals point at Strava); a future non-Strava goal would
   mislabel its CTA. Maintainer-owned content surface; not planned. **Resolved
-  since, as a side effect of the Strava-naming fix** — the name is now
-  `GOALS[].cta_label` in `constants.ts` and `Goal.astro` renders it, so the
-  label follows the destination. (The finding named `aria-label`; the element
-  was always an `sr-only` span.)
+  since, twice over.** First as a side effect of the Strava-naming fix, which moved
+  the name into `GOALS[].cta_label` so it followed the destination; then
+  permanently on 2026-07-26, when the goal cards' CTAs were removed altogether and
+  that field went with them. There is no CTA left to mislabel. (The finding named
+  `aria-label`; the element was always an `sr-only` span.)
 - **README.md:68 says "cycling goal" (singular)** vs the two-goal reality
   after PR #41. One-word incompleteness; the same sentence points at
   `constants.ts` where the running goal is visible, and CLAUDE.md is correct.

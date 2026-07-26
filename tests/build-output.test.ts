@@ -64,7 +64,6 @@ describe("dist/", () => {
         const css = read(`dist/_astro/${sheet}`);
         const wanted = new Set([
             ...LINKS.map(({logo}) => iconClass(logo)),
-            ...GOALS.map(({cta_logo}) => iconClass(cta_logo)),
             ...GOALS.map(({goal_logo}) => iconClass(goal_logo)),
             ...CAREER.map(({icon}) => iconClass(icon)),
             iconClass(WELCOME.greeting_icon),
@@ -123,6 +122,57 @@ describe("dist/", () => {
             [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], expandHex(m[2])]),
         );
     };
+
+    /**
+     * The footer heart's ink, read from the shipped stylesheet in both themes.
+     *
+     * Three failures this catches, all silent. Deleting `--brand-ink` from a theme
+     * block leaves the heart's rule emitted and the class worn, but `color:
+     * var(--brand-ink)` with nothing behind it is invalid at computed-value time —
+     * and `color` inherits, so the glyph quietly goes back to the body text colour
+     * with the markup still perfect. Re-toning the token far enough to stop reading
+     * as ink would pass any structural assertion. And pointing the glyph's wrapper at
+     * a DIFFERENT token would leave `--brand-ink` perfectly defined and perfectly
+     * contrasting while nothing on the page used it.
+     *
+     * That third one is why the ink is resolved THROUGH THE WEARER'S CLASSES rather
+     * than by looking the token up by name. An earlier version read
+     * `themeTokens(css)["--brand-ink"]` directly and so certified a hex that nothing
+     * was guaranteed to paint — the same shape as the 1.89:1 defect the palette work
+     * fixed, and the exact pattern `painted()` below exists to replace.
+     *
+     * Measured as text (4.5:1) rather than as a graphic (3:1): the glyph stands in
+     * for the word "love", which the `sr-only` span beside it supplies, so it is
+     * prose that happens to be drawn.
+     */
+    it("gives the footer heart ink that reads as text on its card, in both themes", () => {
+        const css = sheet();
+        const {document: page} = parseHTML(read("dist/index.html"));
+        const glyph = page.querySelector(`span[class~="${iconClass(FOOTER.icon)}"]`);
+        expect(glyph, "the footer must render the configured heart icon").toBeTruthy();
+
+        for (const theme of ["light", "dark"]) {
+            const t = themeTokens(css, theme);
+
+            // Walk the glyph and its ancestors in cascade order and take the first
+            // element that actually paints a colour — that is the ink the glyph
+            // inherits, because its own rule is `color: inherit`.
+            let ink: ReturnType<typeof painted> = undefined;
+            for (let el: Element | null = glyph; el && !ink; el = el.parentElement) {
+                ink = painted(css, el.getAttribute("class"), "color", t);
+            }
+            expect(ink, `${theme}: nothing in the heart's ancestry paints a colour`).toBeTruthy();
+            expect(ink!.via, `${theme}: the heart paints ${ink!.via} — it must take its own token`).toBe("--brand-ink");
+
+            const card = t["--card-background"];
+            expect(card, `${theme}: --card-background must be defined`).toBeTruthy();
+            const ratio = contrast(ink!.hex, card);
+            expect(
+                ratio,
+                `${theme}: heart ink ${ink!.hex} is ${ratio.toFixed(3)}:1 on its card ${card} — it stands in for a word, so it is held to the text floor`,
+            ).toBeGreaterThanOrEqual(4.5);
+        }
+    });
 
     /**
      * What a class list actually paints for `prop`, per the shipped rules —
@@ -441,9 +491,9 @@ describe("hover styles promise only interactions that exist", () => {
 });
 
 describe("the offset plate actually paints", () => {
-    // One entry per plated SELECTOR, not per plated element: `.control` is worn
-    // by all nine controls (it was two classes until they were unified, and the
-    // toggle's narrower variant was the reason they were not one size).
+    // One entry per plated SELECTOR, not per plated element: `.control` is worn by
+    // every control (it was two classes until they were unified, and the toggle's
+    // narrower variant was the reason they were not one size).
     const PLATED = [".control", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
 
     /** The `--un-shadow` value the built sheet gives `selector`. */
@@ -648,6 +698,80 @@ describe("dist/index.html is prerendered", () => {
         // Every color token is defined under :root[data-theme=…]; without this
         // attribute a visitor whose JS never runs gets unstyled, transparent cards.
         expect(doc().querySelector("html")?.getAttribute("data-theme")).toBe("light");
+    });
+
+    /**
+     * The toggle's pressed state is the one thing on this page that a script has to
+     * keep true, and the server cannot do it: the pre-paint script in BasicLayout
+     * runs before the button exists, so a visitor who prefers dark is served
+     * `aria-pressed="false"` and the toggle's own deferred script is what corrects
+     * it. Delete that line and the attribute becomes a lie for exactly the visitors
+     * who did not accept the default — with the markup, the suite and the rendered
+     * page all still looking right.
+     *
+     * Asserted against the shipped bundle rather than the source, because that is
+     * where the line has to survive minification — and by EXECUTING it, not by
+     * grepping it. An earlier version of this test only looked for the strings
+     * `aria-pressed` and `dataset.theme` in the bundle, and a review panel defeated it
+     * three ways with the suite green: deleting the once-on-load call, hard-coding
+     * `"false"` while the click handler still read the theme, and replacing the whole
+     * script with one that writes a constant. All three ship a bundle containing both
+     * strings, and Chrome confirmed all three leave a dark-preferring visitor with
+     * `pressed: false` under an active dark theme — the exact inversion the paragraph
+     * above says this test protects against. No substring can express "reports the
+     * theme it is actually in".
+     *
+     * Both visitor directions are asserted, because a dark visitor alone would be
+     * satisfied by a script hard-coding `"true"` — the mirror of the bug being fixed.
+     */
+    it("ships a script that reports the toggle's state from the live theme", () => {
+        const html = read("dist/index.html");
+        const modules = [...html.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+        expect(modules.length, "the toggle's behaviour ships as an inline module script").toBeGreaterThan(0);
+        const syncing = modules.filter((s) => s.includes("aria-pressed"));
+        // Kept as the first assertion purely for its diagnosis: if nothing writes the
+        // attribute at all, this says so plainly rather than failing an execution below.
+        expect(
+            syncing.length,
+            "no shipped script writes aria-pressed — the state cannot follow the theme",
+        ).toBeGreaterThan(0);
+
+        /**
+         * Runs the shipped module against a stub document standing in for one visitor,
+         * and reports what the button ends up saying. `new Function` cannot evaluate a
+         * bundle containing real `import`/`export` statements, so if Astro ever stops
+         * inlining this script as bare statements the test fails loudly rather than
+         * passing silently — which is the direction to fail in.
+         */
+        const visit = (theme: string) => {
+            const {document: stub} = parseHTML(
+                `<html data-theme="${theme}"><body>
+                    <button id="theme-toggle" type="button" aria-pressed="false"></button>
+                </body></html>`,
+            );
+            const store = new Map<string, string>();
+            const storage = {
+                getItem: (k: string) => store.get(k) ?? null,
+                setItem: (k: string, v: string) => void store.set(k, v),
+            };
+            for (const src of syncing) new Function("document", "localStorage", src)(stub, storage);
+            const button = stub.querySelector("#theme-toggle")!;
+            const state = () => ({
+                theme: stub.querySelector("html")?.getAttribute("data-theme"),
+                pressed: button.getAttribute("aria-pressed"),
+            });
+            const before = state();
+            button.dispatchEvent(new stub.defaultView!.Event("click"));
+            return {before, after: state()};
+        };
+
+        const dark = visit("dark");
+        expect(dark.before.pressed, "a dark visitor's toggle must report pressed before any click").toBe("true");
+        expect(dark.after, "a click must move the theme and the reported state together").toEqual({theme: "light", pressed: "false"});
+
+        const light = visit("light");
+        expect(light.before.pressed, "a light visitor's toggle must report not-pressed").toBe("false");
+        expect(light.after, "a click must move the theme and the reported state together").toEqual({theme: "dark", pressed: "true"});
     });
 
     it("emits the social-preview tags unfurls depend on", () => {
