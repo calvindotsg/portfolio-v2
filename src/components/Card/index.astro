@@ -18,19 +18,155 @@
 // Wording matters here for the reason given above: an earlier draft of this
 // paragraph used the ordinary English verb for "get bigger", which happens to
 // be a flex utility, and UnoCSS emitted a rule for it that no element wore.
+//
+// WHY A CARD SIZES TO ITS CONTENT AND NEVER TO ITS GRID AREA.
+//
+// At the large breakpoint the page's rows have a set height, so a card's area is
+// taller than its content, and a grid item stretches to fill its area by default.
+// The difference showed up as an empty band under the last line a reader can see.
+// Measured at 1440x900 from that last line down to the card's INNER edge — its
+// content box, so the 24px of padding every card has below that is not counted:
+// running goal 63px, cycling goal 63px, NCS role 111px, HeyMax role 43px,
+// about-me 24px. Against the outer padding edge each figure is 24px larger.
+//
+// Those bands cannot be pooled and spent somewhere useful, because they sit in
+// different columns — which is also why re-spanning does not remove them. Take the
+// right-hand column, the one the report was about. Its three cards want 206, 206
+// and 170px; a row there costs 92px including its gap, so each of them needs three
+// rows, and that is nine rows for the eight the column has. It is over-subscribed
+// already, which is why Now ends 2px into its own bottom padding and the footer
+// 5px. Cutting a goal card to two rows gives it 168px and pushes its last line 29px
+// past that same inner edge — of which 5px falls outside the clip edge itself, at
+// the padding edge, and is the ink actually lost. Both figures are measured, not
+// predicted; quote 29px only against the content box, never as content loss.
+//
+// Reclaiming the two empty rows that the role cards' six-row spans create does not
+// help either, it hurts: those rows' 32px of gaps go back into the eight real rows,
+// every row grows to 80px, and the goal band gets WORSE, 63px to 75px.
+//
+// The 92px is the reference viewport's, not a constant, and not one of a short list
+// either: `main` takes the viewport height, capped at 800px over a 736px floor, and
+// its computed row template is ten tracks — the eight explicit ones plus two implicit
+// tracks at zero height — so nine gaps of 16px are spent and a row is
+// (clamp(736, viewport, 800) - 48 of padding - 144 of gaps) / 8. That is a continuum
+// from 68px at the floor to 76px from a 800px viewport up, 72px at 768px tall, so a
+// row costs 84px to 92px including its gap. The argument holds across the whole
+// range, not just at those three points: 206, 206 and 170px of content each need
+// three rows at EVERY integer row height in it, nine against the eight the column
+// has. The arithmetic still has to be re-run, not quoted, if these spans change.
+//
+// So the card stops stretching instead. It takes its content's height and sits at
+// the top of its area, which leaves the body directly under the heading where it
+// belongs. The freed height does not become a gap between cards: the right-hand
+// column is wrapped in its own stack in index.astro precisely so those three sit
+// at the page gap and the leftover collects once, beneath the last of them. The
+// cost, chosen by the maintainer over leaving the band alone and over splitting it
+// above and below the body, is that a column's cards no longer end on a shared
+// bottom edge — the unused height pools at the foot of each column instead.
+//
+// The block-size cap is the other half and it is not decoration, but be exact about
+// what it can hold. A percentage cap resolves against the PARENT's height, and the
+// parent is the grid area only for the five cards that are direct grid items; for the
+// three inside the right-hand stack it is the stack's own height — 720px at 1440x900,
+// over 500px more than any one of them asks for — so the cap cannot bind there at all,
+// and what keeps those three inside their column is the stack, not the cap. Either
+// way the percentage needs a parent height that is already decided, which is true
+// only where the rows have a set height, so the cap clamps at the large breakpoint
+// and does nothing at the smaller ones, where rows already size to their content.
+//
+// Where it does bind, measured: at the reference viewport exactly one card's content
+// exceeds its area — the footer's, by 6px — and with the cap taken off the footer
+// grows 76px to 82px, which is 6px past its own row and past the grid's content box,
+// into main's bottom padding. At the 736px floor it holds two more, about-me and the
+// HeyMax role card, whose content outgrows their shorter areas there.
+//
+// Two cards keep the height they ship with today exactly: the intro card at 352px,
+// which is exempt anyway (below), and the footer at 76px. Now does not — it goes
+// 168px to 170px, and that is the point rather than a side effect, because the 2px it
+// used to spill past its own padding edge is now inside it. The five roomy cards
+// shrink.
+//
+// Below 1024px there is nothing to fix. Rows there size to their content, so no
+// card is stretched and no band exists — except one: between 768px and 1023px the
+// NCS role card shares a six-row span with the taller HeyMax card and was pulled
+// to 332px for 254px of content. The same two tokens fix that instance too.
+//
+// ONE CARD OPTS OUT, and it is the only card that had no band to begin with: the
+// intro card, whose figure is 0px. It is measured differently from the five above,
+// because it has to be — those are distances from the last TEXT line a reader sees,
+// and this card has no text line below its row of controls, so its figure is the
+// lowest painted box instead: at 1440x900 that box ends at 401px and so does the
+// content box, in both revisions. (A last-line instrument reports 173px here, off the
+// tagline, which is why no band figure for this card is comparable to the others'.)
+//
+// It is the exception for a mechanical reason, not a cosmetic one. Its inner row asks
+// for its full height as a percentage, and a percentage needs a parent whose height
+// is already decided. While the card stretched, the grid row decided it. A card sized
+// to its own content has no decided height for that percentage to resolve against, so
+// the card's two halves stack at their natural heights and its content asks for 355px
+// inside a 318px padding box, while the cap still holds the box at its area. What
+// then falls outside the clip edge is the BOTTOM ROW OF THREE CONTROLS — Strava,
+// Telegram and the résumé link — by 6px at 1024x600, where the page sits on its 736px
+// floor and the rows are at their shortest. Not the portrait: that renders at its
+// 275px attribute height with the exemption or without it, and stays 3px inside the
+// clip edge either way. Letting this one card go on stretching is a smaller change
+// than rebuilding how the intro card distributes its own two halves, and it costs
+// nothing, because a card with no spare height has nothing to hand back. Anything
+// else added to this page should NOT take the exemption.
+//
+// THE HEADING OWNS THE SPACE BELOW IT, and it owns it here so that every card taking
+// this component's `title` prop gets the same amount — five of the page's six card
+// headings, measured 16px each. The sixth is the Now card's, which is written out in
+// Now.astro rather than passed as `title` and reserves 0px; that card is deliberately
+// outside this rule, so "every card heading" is not the claim.
+//
+// It did not hold before either: measured at 1440x900 from the heading's bottom to the
+// top of the first thing under it, the goal cards had 16px — supplied by the progress
+// bar's own top margin, which is why they looked right — while about-me and both role
+// cards had 1px and read as cramped. The margin moved onto the heading and came off
+// the bar; keeping both would double the goal cards' gap to 32px.
+//
+// The space has no breakpoint variant, on purpose — a card heading reads as cramped at
+// every width — so it is spent below the large breakpoint too, where nothing is
+// clipped and the page simply gets taller. Measured base-to-branch: about-me, HeyMax
+// and NCS gain 16px each, and the page grows 35px at 1023x900, 42px at 768x900 and
+// 48px at 320x568. One case worth knowing rather than rediscovering: at 834x1112,
+// 10.5-inch tablet portrait, the page went from exactly fitting the viewport (1112px)
+// to 1128px, so it now scrolls there where it did not before.
+//
+// That space is an ABSOLUTE length, for the same reason the control box is one
+// (uno.config.ts): a card's height comes from the page rows and does not scale with
+// the root font-size, while every card clips, so anything inside it that DOES scale
+// with the text is simply cut off. A review panel measured the cost of the relative
+// spelling and it is real: with a 1rem gap this page loses content at a root size of
+// 17 where the previous revision loses none — about-me's last line, 8 of those
+// units at 1024x800, and 3.5 across six wider viewports at root 18. Pinning the gap
+// does not remove that (the space itself is what the card cannot afford) but it
+// stops the deficit widening: measured loss at root 17 / 18 / 20 / 22 / 24 goes
+// 8 / 3.5 / 14 / 230 / 480 with the relative spelling and 7 / 1.5 / 10 / 200 / 440
+// with this one — identical at the default size, better at every size above it.
+//
+// The real fix is not available here. A card cannot get taller because the lg grid
+// is height-capped, so the page would have to stop being single-screen when the text
+// is enlarged — a design decision, not a bug fix, and one the maintainer has not
+// been asked. Do not "fix" this by shrinking the gap back: the cramped reading it
+// corrects was reported.
 interface Props {
     title?: string;
     titleIcon?: string;
     colSpan?: string;
     rowSpan?: string;
+    /** Keep filling the grid area instead of sizing to content. See above — the intro card only. */
+    fillsArea?: boolean;
 }
 
-const {title, titleIcon, colSpan, rowSpan} = Astro.props;
+const {title, titleIcon, colSpan, rowSpan, fillsArea} = Astro.props;
 ---
 
 <div
-        class={`isolate overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] relative w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
+        data-card
+        class={`isolate ${fillsArea ? "" : "self-start max-h-full"} overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] relative w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
-    {title && <h2 class="text-xl font-bold m-0">{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
+    {title && <h2 class="text-xl font-bold mt-0 mb-[16px]">{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
     <slot/>
 </div>

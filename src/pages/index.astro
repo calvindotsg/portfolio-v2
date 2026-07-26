@@ -28,6 +28,38 @@ import {iconClass} from "../lib/icons";
  * exactly what it asks to do, and it inherits the token. ProgressBar.astro already
  * does this — the ink token is on the fill, not on the icon inside it — so this is
  * the established shape here rather than a new one.
+ *
+ * ---
+ *
+ * THE RIGHT-HAND STACK'S COST BELOW lg. The wrapper below carries `contents` there,
+ * so it generates no box and its three children are direct grid items again — but a
+ * wrapper still changes SIBLING ORDER, and auto-placement is driven by DOM order.
+ * These three cards were not contiguous siblings before, so wrapping them moves Now
+ * ahead of about-me and both role cards at every width below lg. "The smaller
+ * layouts are untouched" was the claim here and it is false; this is what was
+ * measured instead, with card sizing held constant (this build, wrapper removed from
+ * the DOM, so the wrapper is the only variable):
+ *
+ *   md 768x900 — five cards re-place. Now (390,885) -> (24,583); about-me x=24 ->
+ *   x=390; the HeyMax card (390,583) -> (24,745); the NCS card x=24 -> x=390; and
+ *   the FOOTER leaves the right column for the left one, x=390 -> x=24. Page height
+ *   1165 -> 1191. The same reshuffle at 1023x900 (footer x=518 -> x=24).
+ *
+ *   390x844, one column — Now moves from seventh card to fourth, 670px up the page.
+ *
+ * Reading order moves with placement below lg, so the two still agree there; that
+ * re-ordering is the trade accepted for the stack. At lg they do NOT agree: Now is
+ * read before about-me and both role cards while being painted 76px below them.
+ * If the old sub-lg placement ever has to be restored, the fix is explicit `md:`
+ * placement tokens on Now/AboutMe/Career/the footer card, decoupling placement from
+ * DOM order — not the removal of this wrapper, which lg needs.
+ *
+ * Two figures that are easy to quote wrongly. The three cards' gaps in the
+ * intermediate state (sized to content, still in the shared row template) measure
+ * 70px and 70px at 1440x900 — EQUAL, so the case for the stack is the size of those
+ * gaps against the page's 16px, not any unevenness between them. And the leftover
+ * under the last card is 106px at that viewport; the stack's unspent height is 138px,
+ * of which 32px is the two gaps that are actually spent between the cards.
  */
 ---
 
@@ -43,10 +75,20 @@ import {iconClass} from "../lib/icons";
              re-balancing the lg row/col spans in IntroCard/AboutMe/Now, otherwise
              auto-placement pushes Now into a zero-height implicit row and clips
              its content (see PR #42). -->
-        {GOALS.map((goal) => <Goal goal={goal}/>)}
+        <!-- The right-hand column is its own stack, and it has to be. Grid rows are
+             shared across every column, so the height of these three cards' rows is
+             decided by the intro and role cards beside them, not by their own
+             content: sized to content inside a shared row template they sat 70px
+             apart, against the page's own 16px gap. As one grid item holding its own
+             column, they stack at the page gap and the leftover collects once, under
+             the last of them. This wrapper also re-orders siblings, which moves five
+             cards below lg — measurements and the trade are in the frontmatter. -->
+        <div class="contents lg:flex lg:flex-col lg:gap-4 lg:col-start-4 lg:row-start-1 lg:row-span-8">
+            {GOALS.map((goal) => <Goal goal={goal}/>)}
+            <Now/>
+        </div>
         <AboutMe/>
         <Career/>
-        <Now/>
         <Card colSpan="md:col-span-1" rowSpan="md:row-span-1">
             <p class="text-xs">
                 {FOOTER.prefix} <span class="text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}

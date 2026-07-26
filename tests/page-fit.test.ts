@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {appliesBelow, decl, isKeyframeStep, minWidthOf, parseRules, structuralSelector} from "./helpers/css";
+import {appliesBelow, decl, effectiveDecl, isKeyframeStep, minWidthOf, parseRules, structuralSelector} from "./helpers/css";
 
 /**
  * The page must be allowed to be taller than the viewport.
@@ -269,18 +269,83 @@ describe("the page may grow taller than the viewport", () => {
         }
     });
 
-    it("does not let a card opt out of clipping instead of fitting", () => {
+    it("does not let a card opt out of clipping instead of fitting, at any width", () => {
         // The tempting cheap fix, recorded so it is rejected on purpose rather
         // than rediscovered: dropping overflow-hidden from the cards stops the
         // clipping and lets content spill across the card's own border and its
         // neighbours. The cards' clipping is load-bearing besides — the intro
         // portrait bleeds 72px past the card's right edge by design and that
         // clipping is what shapes it. Cards must clip; the layout must fit.
-        const cards = [...document.querySelectorAll("main > *")];
+        // Every card at any depth — one column is wrapped in a layout box, and a
+        // wrapper is not a card and does not need to clip.
+        //
+        // WIDTH AND ORDER BOTH DECIDE, and an earlier revision of this assertion
+        // asked for neither: it took the first shape that comes to mind, "SOME
+        // rule matching this card declares an overflow that clips", with no
+        // viewport and no resolution of which rule wins. Three ways through it,
+        // each measured with the whole suite at 136 green:
+        //   - gating the clipping to the large breakpoint stops every card
+        //     clipping at every width below it, and the intro portrait then runs
+        //     past the card's own border-box right edge with nothing to shape it —
+        //     71px of it, CDP-measured by the review that found this hole and
+        //     quoted rather than re-derived here;
+        //   - keeping the clipping and adding a later override below lg does the
+        //     same, because a first rule that declares the right value satisfies
+        //     any `some()` while the later rule is what the browser uses;
+        //   - overriding one AXIS below lg does it too, since the portrait bleeds
+        //     sideways and this only ever read the shorthand.
+        // So the question has to be "what value WINS, at the widths this file is
+        // about" — see `effectiveDecl`.
+        const cards = [...document.querySelectorAll("main [data-card]")];
         expect(cards.length, "no cards found").toBeGreaterThan(0);
+
+        // The md range is where the clipping ate content (768 is its lower edge,
+        // 1023 its upper one, and the emitted `lt-lg` bound is 1023.9px, so 1023
+        // is inside it); 375 is a phone, where the portrait's deliberate bleed is
+        // shaped by the same clipping; LG is the single-screen layout itself.
+        const CLIP_WIDTHS = [375, 768, 1023, LG] as const;
+        const AXIS_INDEX = {"overflow-x": 0, "overflow-y": 1} as const;
+
         for (const card of cards) {
-            const clips = rulesMatching(card).some((r) => /\b(hidden|clip)\b/.test(decl(r.body, "overflow") ?? ""));
-            expect(clips, `<${card.tagName.toLowerCase()} class="${card.getAttribute("class")}"> must keep clipping its overflow`).toBe(true);
+            const matching = rulesMatching(card);
+            const where = `<${card.tagName.toLowerCase()} class="${card.getAttribute("class")}">`;
+
+            // THE PRECONDITION `effectiveDecl` NEEDS, asserted rather than
+            // assumed: it resolves by sheet order, which is only the cascade's
+            // answer while every competing rule has the same specificity. Every
+            // rule that reaches a card today is one class, so this holds — and if
+            // a higher-specificity or element-plus-class override ever declares
+            // an overflow here, this fails loudly instead of letting the resolver
+            // quietly report the wrong winner. An escaped `\:` inside a variant
+            // token is part of the class name, so `.lt-lg\:overflow-x-visible`
+            // still counts as one class.
+            const singleClass = /^\.(?:\\.|[\w-])+$/;
+            const overflowRules = matching.filter((r) => ["overflow", "overflow-x", "overflow-y", "overflow-block", "overflow-inline"]
+                .some((prop) => decl(r.body, prop) !== undefined));
+            for (const r of overflowRules) {
+                const reaching = r.selectors.map(structuralSelector)
+                    .filter((s) => Boolean(s) && [...document.querySelectorAll(s)].includes(card as never));
+                expect(
+                    reaching.every((s) => singleClass.test(s)),
+                    `${JSON.stringify(reaching)} declares an overflow on a card through more than a single class, so this test's by-sheet-order resolution no longer decides the winner — resolve specificity here before trusting it again`,
+                ).toBe(true);
+            }
+
+            for (const width of CLIP_WIDTHS) {
+                for (const axis of ["overflow-x", "overflow-y"] as const) {
+                    // The shorthand and this axis's longhand compete as one; the
+                    // shorthand's two-value form gives x then y.
+                    const won = effectiveDecl(matching, ["overflow", axis], width);
+                    const parts = won?.value.split(/\s+/) ?? [];
+                    const value = won === null
+                        ? "nothing declared"
+                        : (won.prop === "overflow" ? parts[AXIS_INDEX[axis]] ?? parts[0] : parts[0]);
+                    expect(
+                        /^(hidden|clip)$/.test(value),
+                        `at ${width}px ${where} resolves ${axis}: ${value}${won ? ` — from ${describeRule(won.rule, won.prop, won.value)}` : ""}; every card must clip on both axes at every width, or the md-range overflow spills instead of being contained and the intro portrait's bleed loses the edge that shapes it`,
+                    ).toBe(true);
+                }
+            }
         }
     });
 });
