@@ -218,14 +218,34 @@ export default defineConfig({
          *     to half the X-height, not half the cap height. It overshoots the
          *     other way: 1.83px LOW at 20px. Trading high for low is not a fix.
          *   - -0.125em, the constant Font Awesome and Bootstrap Icons ship, leaves
-         *     0.45px. Their icons are drawn to a different cap assumption (0.75em);
-         *     ours are Iconify artwork at the full em.
+         *     0.45px. It is not derived from a cap height at all: 0.125em is Font
+         *     Awesome's own webfont DESCENT — 64 of 512 units, read off
+         *     fa-solid-900.ttf, with the ascent the exact complement at 448/512 —
+         *     so the value drops its SVG box onto the font box its webfont glyphs
+         *     used to occupy. FA's actual cap height is 421/512 = 0.82em, nowhere
+         *     near 0.75em, and FA6 kept the same -0.125em while moving its descent
+         *     to 0.1465em, which a cap-derived constant would not do. Note also
+         *     where FA ships it: on `.svg-inline--fa` in its SVG sheet, not on the
+         *     webfont classes, which carry no vertical alignment at all. Bootstrap
+         *     Icons does put it on its main `.bi::before` rule — over a glyph box
+         *     that is a FULL em with zero descent (300/300, 0/300), i.e. the same
+         *     shape as our Iconify artwork. So the number is an inherited
+         *     convention, and inheriting it here under-shifts by that 0.45px.
          *   - `calc((1cap - 1em) / 2)` is exact by construction and Chromium does
          *     accept it — it computed -2.9541px against an ink-measured 2.954, two
          *     independent instruments agreeing to four decimals. It was still
-         *     rejected: the `cap` unit needs Safari 16.4+/Chrome 111+, so the
-         *     browsers that lack it keep the whole defect, and what it buys over
-         *     the constant is 0.06px. Elegance is not worth a support floor here.
+         *     rejected on its support floor: per MDN browser-compat-data the `cap`
+         *     unit needs Chrome/Edge 118+, Safari 17.2+ or Firefox 97+ — Baseline
+         *     Widely Available only since 2026-06-11 — and the browsers that lack
+         *     it keep the whole defect. (Do not quote Chrome 111 / Safari 16.4 for
+         *     this: those are the floors of OTHER length units in the same BCD
+         *     file, `rex`/`rch`/`ric`/`rlh` and `lh`/`rlh`. An earlier draft of
+         *     this comment conflated them and made the swap look about two years
+         *     safer than it is.) What the exact spelling buys over the constant is
+         *     0.0027em of residual, which is 0.05px on the 20px greeting at the
+         *     default root size and grows with the text — 0.07px at root 20,
+         *     0.08px at root 24 — so it is a fixed em fraction, not a fixed 0.06px.
+         *     Elegance is not worth a support floor for that.
          *
          * This belongs in the preset rather than at the three call sites because
          * baseline alignment is a property of "a 1em icon in a line of text", not
@@ -258,9 +278,20 @@ export default defineConfig({
          * every extra property onto the inlined `<svg>` in the mask data URI as an
          * attribute as well as into the rule. So each icon's data URI now carries
          * a `vertical-align='-0.145em'` attribute, which is inert there — the SVG
-         * is only ever a mask, and this is already true of `display`. It is why
-         * the raw sheet grows ~690 bytes for a change worth 13 bytes on the wire
-         * after brotli: the repetition compresses away.
+         * is only ever a mask, and this is already true of `display`. It is why the
+         * raw sheet grows 686 bytes (14 attributes at 26 bytes, 14 declarations at
+         * 23) for a change worth 23 bytes brotli on the wire.
+         *
+         * Quote that total and not a split between the two halves: the split is not
+         * stable. Measured on this build, deleting all 364 bytes of attribute
+         * repetition changes brotli by +4 bytes — it compresses to less than
+         * nothing — while deleting the 14 declarations alone saves 13. A review
+         * panel measured the reverse on the previous revision and concluded the
+         * whole 13 was the attribute. Both readings are compression context, not a
+         * property of the change. (presetIcons' documented `processor` option would
+         * emit the declaration without the attribute if the raw bytes ever matter;
+         * `extraProperties` is kept because it is the documented spelling for this
+         * and the wire difference is inside the noise.)
          */
         presetIcons({scale: 1, extraProperties: {"display": "inline-block", "vertical-align": "-0.145em"}}),
     ],

@@ -178,6 +178,86 @@ export function appliesBelow(rule: Rule, width: number): boolean {
 }
 
 /**
+ * The UPPER width bound of a rule's enclosing media queries in px, or Infinity
+ * when it has none. Both spellings, for the reason `minWidthOf` gives.
+ *
+ * The asymmetry with `minWidthOf` — Infinity here, `null` there — is deliberate.
+ * `minWidthOf`'s callers ask "is this rule width-gated AT ALL", and need a value
+ * they can distinguish from a real bound to assert on. The only question asked of
+ * an upper bound is "does this rule still reach that width", where Infinity is the
+ * right identity and a `null` would just be `?? Infinity` at every call site.
+ */
+export function maxWidthOf(rule: Rule): number {
+    const widths = [
+        ...rule.at.matchAll(/max-width:\s*([\d.]+)px/g),
+        ...rule.at.matchAll(/width\s*<=\s*([\d.]+)px/g),
+    ].map((m) => parseFloat(m[1]));
+    return widths.length ? Math.min(...widths) : Infinity;
+}
+
+/**
+ * True when the rule can take effect at EXACTLY `width`.
+ *
+ * `appliesBelow` above answers a different question — "could this rule bite
+ * anywhere under this breakpoint" — and consults only the lower bound, which is
+ * correct for a rule that must not exist below lg and wrong for anything asserting
+ * what a page actually does at a stated viewport. Both bounds are read here
+ * because UnoCSS compiles a range variant to NESTED queries: `lt-lg:` emits
+ * `@media (width<=1023.9px)`, so a declaration gated to below lg is invisible to a
+ * lower-bound-only reading (its lower bound is 0) yet decides the layout at every
+ * width the defect lives at.
+ */
+export function appliesAt(rule: Rule, width: number): boolean {
+    return (minWidthOf(rule) ?? 0) <= width && maxWidthOf(rule) >= width;
+}
+
+/**
+ * The declaration that WINS for `props` on a set of already-matched rules at a
+ * given viewport width — the last one declared among the rules that apply there.
+ *
+ * This exists to stop `.some()`. "Does SOME rule declare the value I want" is not
+ * "is that the value": a second utility beside the first leaves the first rule in
+ * the sheet, so a `some()` check stays green while the later rule overrides it.
+ * Measured with that second utility actually added to a card: the clipping one
+ * emits at byte 18677 of the sheet and its opposite at 18710, so the opposite
+ * wins. Pair that with a missing width filter and one class name gates the whole
+ * invariant out of existence at the widths it was written for, suite green.
+ *
+ * `props` may be a LIST, in which case they compete as one: pass
+ * `["overflow", "overflow-x"]` and the winner is whichever of the shorthand or the
+ * longhand was declared last, which is what decides that axis. Checking a
+ * shorthand alone lets a longhand override slip past.
+ *
+ * The rule is returned alongside the value, not just the value: a guard that
+ * cannot name the declaration that beat it leaves the reader grepping minified
+ * CSS. `!important` is honoured; specificity is NOT resolved, only sheet order,
+ * which is sound only while every rule reaching the element is a single-class
+ * utility. That is a precondition callers must assert rather than assume — see
+ * the single-class tripwire in page-fit.test.ts.
+ */
+export function effectiveDecl(
+    rules: Rule[],
+    props: string | string[],
+    width: number,
+): {prop: string, value: string, rule: Rule} | null {
+    const wanted = typeof props === "string" ? [props] : props;
+    let winner: {prop: string, value: string, rule: Rule} | null = null;
+    let winnerImportant = false;
+    for (const rule of rules) {
+        if (!appliesAt(rule, width)) continue;
+        for (const prop of wanted) {
+            const raw = decl(rule.body, prop);
+            if (raw === undefined) continue;
+            const important = /!\s*important$/i.test(raw);
+            if (winnerImportant && !important) continue;
+            winner = {prop, value: raw.replace(/!\s*important$/i, "").trim(), rule};
+            winnerImportant = important;
+        }
+    }
+    return winner;
+}
+
+/**
  * True for the steps inside a `@keyframes` block. `parseRules` reports these like
  * any other rule, but their "selectors" are offsets (`from`, `to`, `100%`), and
  * handing one to a selector engine throws `Unmatched selector: %`. Any walker that
