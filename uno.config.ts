@@ -191,9 +191,65 @@ export default defineConfig({
     },
     presets: [
         presetWind3(),
-        // `display` is NOT part of presetIcons' default output. Without it the
-        // icon <span> stays an inline box, width/height are ignored, and the icon
-        // renders at zero size — i.e. invisibly. This line is load-bearing.
-        presetIcons({scale: 1, extraProperties: {display: "inline-block"}}),
+        /**
+         * `display` is NOT part of presetIcons' default output. Without it the
+         * icon <span> stays an inline box, width/height are ignored, and the icon
+         * renders at zero size — i.e. invisibly. This line is load-bearing.
+         *
+         * `vertical-align` is here for the consequence of that inline-block: the
+         * box is 1em tall and its BOTTOM sits on the text baseline, while capital
+         * letters only reach cap-height above it. The icon therefore overhangs the
+         * cap line by (1em - cap)/2 and reads as riding high beside its text. The
+         * offset scales with font-size, so it was one defect in four places, at
+         * two sizes: measured 2.954px on the 20px greeting and both 20px job
+         * titles, and 1.772px on the 12px footer heart — a uniform 0.1477em.
+         *
+         * Shifting the box down by half the leftover centres it on the cap band.
+         * -0.145em is the midpoint of the ideal shift for the faces this stack can
+         * actually resolve, and it is NOT tuned to one machine: the ideal is
+         * (1 - cap/em)/2, and cap/em was measured here at 0.705 for the system
+         * face, 0.717 Helvetica, 0.716 Arial — a 0.1415–0.1475em span. Across a
+         * cap ratio anywhere in 0.68–0.73, which brackets every sans-serif in the
+         * declared stack, the residual stays under a third of a pixel at 20px.
+         *
+         * Three alternatives were built and measured against the live page before
+         * this one, and the numbers are the reason it is a length:
+         *   - `middle` is browser-computed and so adapts per font, but it aligns
+         *     to half the X-height, not half the cap height. It overshoots the
+         *     other way: 1.83px LOW at 20px. Trading high for low is not a fix.
+         *   - -0.125em, the constant Font Awesome and Bootstrap Icons ship, leaves
+         *     0.45px. Their icons are drawn to a different cap assumption (0.75em);
+         *     ours are Iconify artwork at the full em.
+         *   - `calc((1cap - 1em) / 2)` is exact by construction and Chromium does
+         *     accept it — it computed -2.9541px against an ink-measured 2.954, two
+         *     independent instruments agreeing to four decimals. It was still
+         *     rejected: the `cap` unit needs Safari 16.4+/Chrome 111+, so the
+         *     browsers that lack it keep the whole defect, and what it buys over
+         *     the constant is 0.06px. Elegance is not worth a support floor here.
+         *
+         * This belongs in the preset rather than at the three call sites because
+         * baseline alignment is a property of "a 1em icon in a line of text", not
+         * of any one heading — and because the alternative is remembering a token
+         * every future inline icon needs. It is also the mechanism presetIcons
+         * documents for this: `vertical-align` is the example property in its own
+         * "set extra CSS properties" section, with `middle` as the illustrative
+         * value. The mechanism is taken from the docs; the value is measured.
+         *
+         * It is applied to all fourteen icons and is provably inert on ten of
+         * them: `vertical-align` does not apply to flex items, and the six social
+         * links, both toggle glyphs and both progress-bar icons are flex items,
+         * already centred by their containers. Their rects are unchanged across 26
+         * viewport/theme/root-size configurations, which is the sweep the
+         * icon-alignment test's figures come from.
+         *
+         * One side effect to expect rather than rediscover: presetIcons writes
+         * every extra property onto the inlined `<svg>` in the mask data URI as an
+         * attribute as well as into the rule. So each icon's data URI now carries
+         * a `vertical-align='-0.145em'` attribute, which is inert there — the SVG
+         * is only ever a mask, and this is already true of `display`. It is why
+         * the raw sheet grows ~690 bytes for a change worth 13 bytes on the wire
+         * after brotli: the repetition compresses away.
+         */
+        presetIcons({scale: 1, extraProperties: {"display": "inline-block", "vertical-align": "-0.145em"}}),
     ],
 });
