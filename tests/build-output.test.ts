@@ -688,25 +688,69 @@ describe("dist/index.html is prerendered", () => {
      * who did not accept the default — with the markup, the suite and the rendered
      * page all still looking right.
      *
-     * Asserted against the shipped bundle rather than the source because that is
-     * where the line has to survive minification. Kept to the attribute name, not
-     * the surrounding syntax, so a rename of the local variables does not read as a
-     * regression. Verified in Chrome for real: a stored and a system dark preference
-     * both arrive with `pressed: true`, and a click round-trips true/false.
+     * Asserted against the shipped bundle rather than the source, because that is
+     * where the line has to survive minification — and by EXECUTING it, not by
+     * grepping it. An earlier version of this test only looked for the strings
+     * `aria-pressed` and `dataset.theme` in the bundle, and a review panel defeated it
+     * three ways with the suite green: deleting the once-on-load call, hard-coding
+     * `"false"` while the click handler still read the theme, and replacing the whole
+     * script with one that writes a constant. All three ship a bundle containing both
+     * strings, and Chrome confirmed all three leave a dark-preferring visitor with
+     * `pressed: false` under an active dark theme — the exact inversion the paragraph
+     * above says this test protects against. No substring can express "reports the
+     * theme it is actually in".
+     *
+     * Both visitor directions are asserted, because a dark visitor alone would be
+     * satisfied by a script hard-coding `"true"` — the mirror of the bug being fixed.
      */
-    it("ships a script that keeps the toggle's pressed state true after first paint", () => {
+    it("ships a script that reports the toggle's state from the live theme", () => {
         const html = read("dist/index.html");
         const modules = [...html.matchAll(/<script type="module">([\s\S]*?)<\/script>/g)].map((m) => m[1]);
         expect(modules.length, "the toggle's behaviour ships as an inline module script").toBeGreaterThan(0);
         const syncing = modules.filter((s) => s.includes("aria-pressed"));
+        // Kept as the first assertion purely for its diagnosis: if nothing writes the
+        // attribute at all, this says so plainly rather than failing an execution below.
         expect(
             syncing.length,
             "no shipped script writes aria-pressed — the state cannot follow the theme",
         ).toBeGreaterThan(0);
-        // It must both READ the theme and WRITE the attribute, or it can only ever
-        // repeat the server's guess.
-        expect(syncing.some((s) => s.includes("dataset.theme") || s.includes("data-theme")),
-            "the script must derive the state from the theme it is reporting").toBe(true);
+
+        /**
+         * Runs the shipped module against a stub document standing in for one visitor,
+         * and reports what the button ends up saying. `new Function` cannot evaluate a
+         * bundle containing real `import`/`export` statements, so if Astro ever stops
+         * inlining this script as bare statements the test fails loudly rather than
+         * passing silently — which is the direction to fail in.
+         */
+        const visit = (theme: string) => {
+            const {document: stub} = parseHTML(
+                `<html data-theme="${theme}"><body>
+                    <button id="theme-toggle" type="button" aria-pressed="false"></button>
+                </body></html>`,
+            );
+            const store = new Map<string, string>();
+            const storage = {
+                getItem: (k: string) => store.get(k) ?? null,
+                setItem: (k: string, v: string) => void store.set(k, v),
+            };
+            for (const src of syncing) new Function("document", "localStorage", src)(stub, storage);
+            const button = stub.querySelector("#theme-toggle")!;
+            const state = () => ({
+                theme: stub.querySelector("html")?.getAttribute("data-theme"),
+                pressed: button.getAttribute("aria-pressed"),
+            });
+            const before = state();
+            button.dispatchEvent(new stub.defaultView.Event("click"));
+            return {before, after: state()};
+        };
+
+        const dark = visit("dark");
+        expect(dark.before.pressed, "a dark visitor's toggle must report pressed before any click").toBe("true");
+        expect(dark.after, "a click must move the theme and the reported state together").toEqual({theme: "light", pressed: "false"});
+
+        const light = visit("light");
+        expect(light.before.pressed, "a light visitor's toggle must report not-pressed").toBe("false");
+        expect(light.after, "a click must move the theme and the reported state together").toEqual({theme: "dark", pressed: "true"});
     });
 
     it("emits the social-preview tags unfurls depend on", () => {
