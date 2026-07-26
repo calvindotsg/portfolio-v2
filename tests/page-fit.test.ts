@@ -22,9 +22,24 @@ import {decl, isKeyframeStep, isMaxWidthGated, minWidthOf, parseRules, structura
  * could not be scrolled. The content was not below the fold, it was unreachable —
  * silent, total loss for any visitor at a medium width, which includes a tablet
  * held in portrait at exactly 768x1024. Verified fixed at every width from 768 to
- * 1440 in both themes, and confirmed to leave the large-breakpoint layout
- * byte-identical: body, main and all eight card rects unchanged, only the body's
- * resolved `min-height` differs.
+ * 1440 in both themes.
+ *
+ * THE SAME LOCK BROKE THE LARGE BREAKPOINT TOO, at short viewport heights, and
+ * that was missed on the first pass. `<main>` carries a 736px floor, so on a
+ * viewport shorter than that the exact-height body could not contain it; the
+ * body centres its children, so the overflow was split top and bottom, and the
+ * top half sat above the scroll origin where no scrolling can reach it. Measured
+ * on production: 94px of the first card permanently unreachable at 1024x500, 69px
+ * at 550, 44px at 600, 19px at 650, none from 700 up — identical at 1024, 1100,
+ * 1280, 1440 and 1920 wide, so it is a function of height alone, and a laptop
+ * showing ~650px of viewport after browser chrome is squarely inside it. The
+ * `min-height` fix closes this as well: 0 unreachable at every one of those.
+ *
+ * So the earlier claim that the large breakpoint is left byte-identical holds
+ * only for viewports at least 736px tall (which is where it was measured: body,
+ * main and all eight card rects unchanged at 1024x768 and up, only the body's
+ * resolved `min-height` differing). Below 736px tall the large-breakpoint layout
+ * does change, because that is exactly where it was broken.
  *
  * WHAT THIS FILE CANNOT DO, said plainly. There is no layout engine here —
  * linkedom parses, it does not lay out — so nothing below measures a rendered box,
@@ -97,7 +112,7 @@ describe("the page may grow taller than the viewport", () => {
 
         // The rule walker must actually reach the elements, or every negative
         // assertion below passes for the wrong reason.
-        expect(rulesMatching(body).length, "no rule in the sheet matches <body> — the selector walker has driften").toBeGreaterThan(0);
+        expect(rulesMatching(body).length, "no rule in the sheet matches <body> — the selector walker has drifted").toBeGreaterThan(0);
         expect(rulesMatching(main).length, "no rule in the sheet matches <main> — the selector walker has drifted").toBeGreaterThan(0);
     });
 
