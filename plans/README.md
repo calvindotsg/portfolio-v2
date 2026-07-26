@@ -100,10 +100,13 @@ from the maintainer and was implemented and verified in one session, so
 numbering still continues at `016`. What it changed: the nine styled controls
 are one declared 64x48 box, the second `control` variant is gone, and
 `public/preview.jpg` was regenerated from the current build (it had still been
-showing the pre-icon-migration emoji greeting). Page weight, measured against a
-fresh build of `a5c8a43` at `gzip -9` (the level matters — at the default level
-the same comparison reads −37 B): stylesheet 7,217 → 7,171 B (**−46**), markup
-3,484 → 3,495 B (**+11**), net **−35 B**.
+showing the pre-icon-migration emoji greeting). Page weight **over the wire**, deploy
+preview 61 against production, both served `content-encoding: br` (confirmed, not
+assumed): stylesheet 6,842 → 6,741 B (**−101**), markup 3,277 → 3,368 B
+(**+91**), net **−10 B** — effectively neutral. Local `gzip -9` of the same two
+builds reads −46 / +11 / net −35 B, and the default gzip level reads net −37 B;
+the three disagree because brotli compresses the added markup tokens far worse
+than gzip does, which is why the transfer number is the one to quote.
 
 Page weight after run 3: `dist/index.html` 15,735 B raw / **3,533 B gzip**;
 the single stylesheet 24,138 B raw / **7,055 B gzip** (up ~1.1 KB gzip from
