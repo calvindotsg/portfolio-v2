@@ -290,10 +290,22 @@ const schema = {
        now fits as many controls as there is room for instead of as many as a rung
        allows. At a 16px root, 360 and 375 wide go from 2 per row over 4 rows to 3
        over 3 (document height 1856 -> 1792 at 360, and 1836 -> 1772 at 375 — one pair
-       does not describe both), 414 goes from 3 to 4, and 320 is
-       unchanged at 2. Wider viewports gain more, because the old top rung capped
-       every one of them at 4: at 1024 and a 24px root all seven now sit on one row.
-       14 of the swept configurations get shorter, by up to 160px.
+       does not describe both), 414 goes from 3 to 4, and 320 is unchanged at 2.
+       13 of the 35 swept configurations get shorter, by up to 160px, and 2 get taller
+       (on a finer 70-configuration grid it is 26 and 7 — see the next paragraph, and
+       always say which grid a count came from).
+
+       WIDER VIEWPORTS GAIN MOSTLY ONCE THE TEXT GROWS, not at the default size, and an
+       earlier draft of this note had that wrong in a way worth recording: it said they
+       "gain more, because the old top rung capped every one of them at 4". The rung did
+       cap them, but the figures behind that sentence were measured before the portrait
+       was pinned (`shrink-0` in IntroCard.astro), when this row was taking width from
+       the photo — so they described a build that did not ship. Measured on what did:
+       768 and 1024 are UNCHANGED at 4 per row at a 16px root, because the portrait now
+       keeps its 275px and the copy column takes only what is left. The gains are real
+       but they sit at larger text and at the widest viewports — 768 at a 20px root goes
+       3 -> 6, 1024 at 20 goes 4 -> 5, 1024 at 24 goes 4 -> all seven on one row, and
+       1440 at 16 goes 4 -> 5.
 
        SEVEN GET TALLER, and the reason is the whole trade rather than a wrinkle in it.
        An earlier draft said TWO, which was an artefact of sampling five root sizes where
