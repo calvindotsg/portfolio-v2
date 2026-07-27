@@ -33,17 +33,21 @@ const {title, description} = Astro.props;
  * scrolls instead of clipping. Keep this a floor — restoring an exact height
  * reintroduces the defect at every viewport shorter than the content.
  *
- * "Grows instead of clipping" is about the PAGE, and it is not a promise that
- * nothing anywhere can clip, because a fixed max-height on a box INSIDE a card
- * still turns growth into clipping however tall the page is allowed to become.
- * The intro card's copy column carries such a cap, and under text-only zoom at
- * the narrowest medium width it still bites: at 768x900 the cards clipping go
- * 4 -> 0 at a 16px root and 6 -> 0 at 20px, but at a 24px root one card still
- * loses 48px of its control row, against seven cards and 241.5px before. Better
- * by an order of magnitude, not zero. The residue is that inner cap, not this
- * floor, and it is out of scope here — see the box-in-px rationale in
- * uno.config.ts for why the controls are sized in px so they shear as little as
- * possible when it does bite.
+ * "Grows instead of clipping" is about the PAGE, and it used to come with a caveat:
+ * a fixed max-height on a box INSIDE a card still turns growth into clipping
+ * however tall the page is allowed to become. The intro card's copy column carried
+ * such a cap, and under text-only zoom at the narrowest medium width it still bit —
+ * at 768x900 the cards clipping went 4 -> 0 at a 16px root and 6 -> 0 at 20px, but
+ * at a 24px root one card still lost 48px of its control row, against seven cards
+ * and 241.5px before. Better by an order of magnitude, not zero.
+ *
+ * That residue is closed now, and closed at its source rather than here. `main`'s
+ * height budget and every breakpoint are font-relative (index.astro and
+ * uno.config.ts), so the grid grows with the reader's text and this floor lets the
+ * result scroll; the copy column's cap went font-relative in the same pass, and
+ * `tests/card-fill.test.ts` now forbids an absolute one anywhere inside a card.
+ * Swept as ink past each card's clip edge: 0 at every viewport from 320 to 2560
+ * wide, at every root size from 16px to 40px.
  *
  * It also fixes the large breakpoint, which the exact height broke as well, and
  * an earlier version of this comment wrongly claimed it left untouched. <main>
@@ -231,13 +235,17 @@ const schema = {
         gap: 1rem; /* Consistent spacing between rows and columns */
     }
 
-    @media (max-width: 640px) {
+    /* Both bounds are in `rem` to stay in step with the UnoCSS breakpoints, which
+       are text-relative (uno.config.ts explains why). 40rem is the `sm` boundary
+       restated; 25rem has no variant sibling and is this grid's own. At the 16px
+       root they are the 640px and 400px that shipped before. */
+    @media (max-width: 40rem) {
         .button-grid {
             grid-template-columns: repeat(3, auto); /* 3 buttons per row on smaller screens */
         }
     }
 
-    @media (max-width: 400px) {
+    @media (max-width: 25rem) {
         .button-grid {
             grid-template-columns: repeat(2, auto); /* 2 buttons per row on very small screens */
         }

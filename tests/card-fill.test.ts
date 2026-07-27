@@ -451,19 +451,99 @@ describe("a card sizes to its content, not to its grid area", () => {
                 `the heading of ${label(card)} must hold the body off it by the page's spacing step (${pageGap}px); found "${mb}"`,
             ).toBe(pageGap);
 
-            // And an ABSOLUTE length, which is the fix in a29a5b3: a card's height
-            // comes from the page rows and does not scale with the root font size,
-            // while every card clips, so a gap that DOES scale is content lost.
+            // And a FONT-RELATIVE length. This assertion used to say the opposite,
+            // and both versions are right about their own revision — which is why the
+            // reason matters more than the unit.
+            //
+            // It was pinned to an absolute length because a card's height came from
+            // the page rows, did not scale with the root font size, and every card
+            // clips: a gap that grew with the text was content lost. That premise is
+            // gone. The page's height budget and its breakpoints are now text-relative
+            // (see index.astro and uno.config.ts), the grid grows with the reader's
+            // text and the page scrolls, so the gap must grow with the type it holds
+            // off — measured 0 ink lost anywhere from a 16px root to a 40px one.
+            //
+            // Stated as "not absolute" rather than as a list of allowed units, on
+            // purpose: an enumeration leaks by construction, and the property is that
+            // this length must not be one the reader's text size cannot move.
             expect(
                 mb,
-                `the heading of ${label(card)} must reserve its space as an absolute length, not one that scales with the root font size; found "${mb}"`,
-            ).toMatch(/^\d+(\.\d+)?px$/);
+                `the heading of ${label(card)} must reserve its space in a font-relative unit so it grows with the text it holds off; an absolute length here re-pins the gap while the card around it grows. Found "${mb}"`,
+            ).not.toMatch(/^-?[\d.]+(px|pt|pc|in|cm|mm|Q)$/i);
             gaps.add(mb!);
         }
         expect(
             [...gaps],
             "every card heading must reserve the SAME space beneath it, or the cards disagree again",
         ).toHaveLength(1);
+    });
+
+    /**
+     * NOTHING INSIDE A CLIPPING CARD MAY BE CAPPED IN A UNIT THE READER CANNOT MOVE.
+     *
+     * A card clips. Once the page's height budget and its breakpoints grow with the
+     * reader's text — which is what makes the grid safe at all — the remaining way to
+     * turn text growth back into deleted ink is an absolute cap on a box INSIDE a
+     * card. `BasicLayout.astro` already named one as the residue it could not reach:
+     * the intro card's copy column carried a 300px cap, and at a 768px width and a
+     * 24px root it still ate 48px of the control row after everything else had been
+     * fixed. It is `18.75rem` now, which is the same 300px at the default root size.
+     *
+     * Written with a KNOWN-EXCEPTION set rather than as a blanket ban, because two
+     * absolute caps in here are right — and the exception is keyed on the ELEMENT,
+     * not on the selector that carries the cap. That distinction is not pedantry: the
+     * portrait's cap is declared by a UnoCSS utility class, so keying on `.portrait`
+     * excused nothing and the guard failed on the very thing it was meant to allow.
+     * What makes a cap legitimate is a fact about the element — this box does not
+     * reflow with text — so that is what the list states.
+     */
+    it("caps nothing inside a card in a unit the reader's text size cannot move", () => {
+        const EXEMPT: {what: string, why: string, matches: (el: Element) => boolean}[] = [
+            {
+                what: "an image",
+                why: "art-directed at a size, it does not reflow with the text; growing it with the type would crowd the copy rather than help anyone read it",
+                matches: (el) => el.tagName.toLowerCase() === "img",
+            },
+            {
+                what: "visually-hidden text",
+                why: "the 1px box is the clip technique itself, not a box any reader sees ink in",
+                matches: (el) => el.classList.contains("sr-only"),
+            },
+        ];
+
+        const hasAbsoluteLength = (value: string) =>
+            [...value.matchAll(/(?:^|[\s(,])(-?[\d.]+)(px|pt|pc|in|cm|mm|q)\b/gi)]
+                .some((m) => parseFloat(m[1]) !== 0);
+
+        // Every element inside a card, at any depth. The cards themselves are
+        // excluded: `max-height: 100%` is their own contract and is a percentage.
+        const inside = allCards.flatMap((card) => [...card.querySelectorAll("*")]);
+        expect(inside.length, "no elements inside any card — this assertion would be vacuous").toBeGreaterThan(20);
+
+        const offenders = new Set<string>();
+        for (const el of inside) {
+            if (EXEMPT.some((e) => e.matches(el))) continue;
+            for (const r of rulesMatching(el)) {
+                for (const prop of ["height", "max-height", "block-size", "max-block-size"] as const) {
+                    const value = decl(r.body, prop);
+                    if (!value || !hasAbsoluteLength(value)) continue;
+                    offenders.add(`<${el.tagName.toLowerCase()}> from ${r.at ? r.at + " " : ""}${r.selectors.join(",")} { ${prop}: ${value} }`);
+                }
+            }
+        }
+        expect(
+            [...offenders],
+            "an absolute height cap inside a clipping card turns the reader's text size into lost ink, which is the whole defect this revision fixes. Either spell it font-relative, or add the element to EXEMPT with the reason it does not reflow with text",
+        ).toEqual([]);
+
+        // The exemptions must not rot into a list of things that no longer exist: a
+        // stale entry silently widens what the ban lets through.
+        for (const e of EXEMPT) {
+            expect(
+                inside.some((el) => e.matches(el)),
+                `EXEMPT still excuses ${e.what}, which no longer appears inside any card — drop the entry rather than leaving it to excuse something else`,
+            ).toBe(true);
+        }
     });
 
     it("does not let anything under the heading add a second helping of that space", () => {

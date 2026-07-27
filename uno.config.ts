@@ -19,6 +19,39 @@ export default defineConfig({
      *  cannot, so the token is blocked instead. */
     blocklist: ["static"],
     /**
+     * EVERY BREAKPOINT IS TEXT-RELATIVE, and these five values are presetWind3's
+     * own defaults restated in `rem`: 640/768/1024/1280/1536 CSS pixels are
+     * 40/48/64/80/96rem at the 16px root every browser ships. So at the default
+     * text size this is not a change at all — it re-spells the same five numbers.
+     *
+     * It stops being a re-spelling exactly when the reader has asked for larger
+     * text. A media-query `rem` resolves against the INITIAL font-size — the
+     * user's own default, the thing a browser's "Font size" setting moves — so a
+     * `rem` breakpoint asks "how much text fits across this viewport", where a
+     * `px` breakpoint asks "how many device pixels". The layout only ever cared
+     * about the first question: this page's four-column grid needs roughly 64
+     * characters of width to work, and at a 24px root a 1024px viewport offers
+     * about 42. It was still being handed the four-column grid there, and the
+     * cards lost 846px of text off their bottom edges as a result — the columns
+     * were too narrow for the type, every line wrapped, and nothing could grow.
+     *
+     * Note what this does NOT respond to: an AUTHOR setting `font-size` on
+     * `:root`. That moves every `rem` LENGTH and no `rem` media query, which is
+     * per spec and is worth knowing because it is also how a probe is most
+     * easily written — measuring text zoom that way silently tests the other
+     * mechanism. Verified both ways on a synthetic page with a known answer
+     * before any of this was measured.
+     *
+     * The three hand-written media queries in the codebase were converted in the
+     * same pass and have to stay in step by hand: two in BasicLayout.astro for
+     * `.button-grid`, one in IntroCard.astro that deliberately mirrors `md`.
+     * A px query left among rem ones does not fail loudly — it simply parts
+     * company with its variant siblings once the reader enlarges the text.
+     */
+    theme: {
+        breakpoints: {sm: "40rem", md: "48rem", lg: "64rem", xl: "80rem", "2xl": "96rem"},
+    },
+    /**
      * The one styled control. Seven elements wear it: the six social-link anchors
      * in the intro card, and the theme toggle, which is a real button. It is a
      * class and not a component because those elements legitimately differ — only
@@ -70,23 +103,41 @@ export default defineConfig({
      * automated tool ships a 48px check any more — axe's `target-size` measures
      * 24px. The number stands on SC 2.5.5 and on nothing shrinking, not on a tool.
      *
-     * The box is in PX, deliberately, and a rem box was tried first and measured
-     * worse. The cards' heights come from the lg page grid and do NOT grow with
-     * the root font-size, and every card clips (`overflow-hidden` on Card), so a
-     * control that grows under text-only zoom is simply sheared off. `h-12` — 3rem
-     * — grows to 60px at a 20px root and the bottom control row loses 16px to the
-     * card edge at 1440x900, where the old build lost nothing. Measured worst
-     * bottom shear at 1440x900, old build / 3rem box / this 48px box: root 20px
-     * 0 / 16.0 / 0; root 22px 25.5 / 57.5 / 21.5; root 24px 55 / 99 / 51. The px
-     * box is the only one of the three that never does worse than what shipped
-     * before, at any root size.
+     * THE BOX IS FONT-RELATIVE — `w-16 h-12`, which is 4rem x 3rem, the same
+     * 64 x 48 at the 16px root every browser ships. It spent one revision in px and
+     * the reason it did is worth keeping, because it was a good reason that has since
+     * expired.
      *
-     * What the old build did here was accidental: `max-h-[50px]` let the anchors
-     * grow to 50px and then stopped them, which is why they survived zoom. Do not
-     * read this as "px good, rem bad" — the real defect is that a card cannot grow
-     * with its contents, and until that changes a growing control only buys a
-     * clipped one. Residual shear above a 22px root is that same pre-existing
-     * defect, now marginally smaller than before.
+     * The cards' heights used to come from an lg page grid clamped between two
+     * absolute lengths, so they did NOT grow with the root font-size while every card
+     * clips (`overflow-hidden` on Card) — a control that grew under text-only zoom was
+     * simply sheared off. Measured then, worst bottom shear at 1440x900 for the old
+     * build / a 3rem box / a 48px box: root 20px 0 / 16.0 / 0; root 22px
+     * 25.5 / 57.5 / 21.5; root 24px 55 / 99 / 51. A px box was the only one of the
+     * three that never did worse than what shipped before, so px it was, and the note
+     * ended "the real defect is that a card cannot grow with its contents, and until
+     * that changes a growing control only buys a clipped one".
+     *
+     * That is what changed. The height budget and the breakpoints are both
+     * text-relative now (the breakpoint note above; `main` in index.astro), the page
+     * grows and scrolls instead of clipping, and the whole sweep measures 0 ink lost
+     * from a 16px root to a 40px one. So the protection a px box bought no longer
+     * exists to buy: what it costs instead is a tap target that shrinks against the
+     * type beside it, since 64 x 48 next to 40px text is a smaller target in the
+     * reader's terms than 64 x 48 next to 16px text. Every figure below about the
+     * declared box — 64 x 48, the 2px clearance, the target-size arithmetic — is
+     * unchanged, because at the default root size this is the same box.
+     *
+     * One knock-on to expect rather than rediscover: `.button-grid`'s two column-count
+     * queries are font-relative too, and they were tuned with slack against a px
+     * control, so at enlarged text they now drop a column slightly before the
+     * controls actually stop fitting. That costs a row of card height the page can
+     * afford and no ink; it is not worth a px bound left behind to part company with
+     * every other breakpoint.
+     *
+     * What the build before last did here was accidental and is still worth knowing:
+     * `max-h-[50px]` let the anchors grow to 50px and then stopped them, which is why
+     * they survived zoom at all.
      *
      * Two things follow from declaring the box, and both are load-bearing:
      * the icon has to be centred by the CONTAINER, because `text-center` cannot
@@ -187,7 +238,7 @@ export default defineConfig({
      * backstop if that ever changes.
      */
     shortcuts: {
-        "control": "text-xl w-[64px] h-[48px] shrink-0 inline-flex justify-center items-center text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
+        "control": "text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
     },
     presets: [
         presetWind3(),

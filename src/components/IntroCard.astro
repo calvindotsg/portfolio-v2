@@ -41,7 +41,7 @@ import portfolioImage from '../assets/me.webp'
 
 <Card colSpan="md:col-span-2 lg:col-span-3" rowSpan="md:row-span-4" fillsArea>
     <div class="flex w-full h-full justify-between md:pr-8">
-        <div class="flex flex-col justify-between md:max-h-[300px] gap-4">
+        <div class="flex flex-col justify-between md:max-h-[18.75rem] gap-4">
             <div class="intro-type flex flex-col h-full">
                 <h6 class="text-sm font-light m-0 text-[var(--text)]">welcome</h6>
                 {WELCOME.description.map((item, index) => (<h1 class="m-0 font-light text-xl">{index === 0 && <span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span>} {item}</h1>))}
@@ -141,8 +141,12 @@ import portfolioImage from '../assets/me.webp'
         }
     }
 
-    /* Mirrors UnoCSS's `md` breakpoint: desktop keeps the in-flow portrait. */
-    @media (min-width: 768px) {
+    /* Mirrors UnoCSS's `md` breakpoint: desktop keeps the in-flow portrait. That
+       breakpoint is text-relative, so this one is too — 48rem is the same 768 CSS
+       pixels at the default root size, and it moves with the reader's text where an
+       absolute bound would not. If these two ever part company the mobile hero's
+       mask and scrim outlive the one-column layout they exist for. */
+    @media (min-width: 48rem) {
         .portrait {
             mask-image: none;
         }

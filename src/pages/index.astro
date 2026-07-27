@@ -54,6 +54,37 @@ import {iconClass} from "../lib/icons";
  * placement tokens on Now/AboutMe/Career/the footer card, decoupling placement from
  * DOM order — not the removal of this wrapper, which lg needs.
  *
+ * ---
+ *
+ * THE HEIGHT BUDGET BELOW IS SPELLED IN THE READER'S OWN TEXT SIZE, and that is the
+ * whole of what lets this page stop being single-screen when someone enlarges it.
+ *
+ * `main` is clamped between a floor and a cap around a viewport height. Both ends
+ * used to be absolute — 736px and 800px — which meant the grid's height could not
+ * move while every card's contents scaled with the root font-size, and every card
+ * clips. The difference was not pushed below the fold, it was deleted: the page did
+ * not even scroll, because `main` still fitted the viewport exactly. Measured as ink
+ * past each card's clip edge summed over the page, at 1024x800: 4.8px lost at a 17px
+ * root, 196 at 18, 457 at 20, 966 at 22, 1596 at 24.
+ *
+ * 46rem and 50rem are those same two numbers at the 16px root every browser ships,
+ * so at the default text size nothing changes — verified rect for rect, including
+ * every ink rect on the page, across 186 configurations (31 widths from 320 to 2560,
+ * three viewport heights, both themes): zero differences. Above it the budget grows
+ * at the rate the text grows, `main` exceeds the viewport, and the body's floor in
+ * BasicLayout lets the page scroll. The viewport term in the middle of the clamp
+ * stays in `vh` deliberately and must: it is what makes the page single-screen at
+ * all, and a floor of 50rem instead would push a 760px-tall viewport into scrolling
+ * at the DEFAULT text size, which is a regression rather than a fix.
+ *
+ * The budget is only half of it. The other half is that the breakpoints are
+ * text-relative too, for the reason in uno.config.ts — freeing the height alone still
+ * left 846px of ink lost at 1024x800 and a 24px root, because four columns of ~10em
+ * is not a layout, it is a word-per-line. With both halves the sweep is 0 lost
+ * everywhere out to a 40px root.
+ *
+ * ---
+ *
  * Two figures that are easy to quote wrongly. The three cards' gaps in the
  * intermediate state (sized to content, still in the shared row template) measure
  * 70px and 70px at 1440x900 — EQUAL, so the case for the stack is the size of those
@@ -68,7 +99,7 @@ import {iconClass} from "../lib/icons";
         description={METADATA.description}
 >
     <main
-            class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-6xl overflow-hidden relative w-full sm:p-4 md:grid-cols-2 md:gap-3 md:p-6 lg:h-screen lg:grid-rows-8 lg:grid-cols-4 lg:gap-4 lg:min-h-[736px] lg:max-h-[800px]"
+            class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-6xl overflow-hidden relative w-full sm:p-4 md:grid-cols-2 md:gap-3 md:p-6 lg:h-screen lg:grid-rows-8 lg:grid-cols-4 lg:gap-4 lg:min-h-[46rem] lg:max-h-[50rem]"
     >
         <IntroCard/>
         <!-- The lg grid is packed exactly 32/32 cells. Adding a goal card requires
