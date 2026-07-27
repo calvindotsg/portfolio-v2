@@ -140,8 +140,20 @@ export type Goal = {
  * year rolls over at midnight UTC on 1 January and the page silently starts
  * reporting a fresh year's target against last year's races and last year's
  * closing kilometres, with every test still green. Pinned, the January rollover is
- * a deliberate edit — see the checklist in README.md — and `projection.ts` asserts
- * this against the bot's own stamp rather than trusting either alone.
+ * a deliberate edit.
+ *
+ * THE JANUARY CHECKLIST LIVES HERE, not in README.md — an earlier draft pointed
+ * there and the section did not exist. Three steps, and only the first is gated:
+ *
+ *   1. Bump this constant. `tests/projection.test.ts` asserts it matches the year
+ *      in the bot's `updated_at`, so forgetting it fails the suite, which is the
+ *      build command — the page cannot ship with the two out of step.
+ *   2. Set each goal's `progress_last_year` from the closing totals. NOTHING checks
+ *      this: the repo has no memory of last year's kilometres, so a stale figure
+ *      renders happily. Read them off the bot JSON before step 1 overwrites it.
+ *   3. Add the new year's races to {@link EVENTS} and remove the old ones. Events
+ *      from a past year are inert (they are all behind `today`), so leaving them
+ *      costs nothing but noise.
  */
 export const GOAL_YEAR = 2026
 
@@ -197,7 +209,7 @@ export type RaceEvent = {
 
 export const EVENTS: readonly RaceEvent[] = [
     {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling"},
-    {date: "2026-07-12", name: "MBG DCR Krabi to Phuket", km: 158.13, sport: "cycling"},
+    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling"},
     {date: "2026-08-02", name: "Round the Island Bike Adventure", km: 121.98, sport: "cycling"},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running"},
     {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling"},

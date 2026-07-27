@@ -58,6 +58,20 @@ describe("date handling", () => {
         expect(daysRemaining("2027-03-01")).toBe(0);
     });
 
+    /**
+     * THE ONE TEST HERE THAT IS DELIBERATELY COUPLED TO LIVE BOT DATA, and it is a
+     * tripwire rather than an oversight — do not "fix" it by pinning the date the
+     * way every other assertion in this file is pinned.
+     *
+     * On the bot's first push of a new year this goes red, which fails the build
+     * command and stops the deploy. That is the intent: `GOAL_YEAR` is pinned, so
+     * until someone bumps it the page would otherwise render a fresh year's
+     * near-zero kilometres against last year's target and last year's races, and
+     * every other test would stay green. A blocked deploy is the cheap failure; a
+     * silently wrong page for the first weeks of January is the expensive one.
+     *
+     * The January checklist is in the `GOAL_YEAR` doc comment in `constants.ts`.
+     */
     it("stamps the goal year, so a stale JSON cannot divide fresh days into last year's km", () => {
         expect(stampYearMatchesGoalYear()).toBe(true);
         expect(stampYearMatchesGoalYear("2025-12-31", 2026)).toBe(false);
@@ -90,21 +104,49 @@ describe("booked race distance", () => {
         // Continuity: no single day may move it by more than one day's share.
         const oneDay = 1022.00 / 9;
         expect(bookedAhead("cycling", "2026-11-08") - midway).toBeLessThan(oneDay * 4);
+        // PIN THE VALUE, not just the shape. Ordering and bounds assertions alone let
+        // two non-equivalent mutants of the pro-rata formula survive — including one
+        // that reinstates booking the whole tour on day one, which is the exact defect
+        // `end_date` exists to prevent. 4 of 9 days ridden by the 11th leaves 5/9.
+        expect(midway).toBeCloseTo(1022.00 * 5 / 9, 2);
     });
 });
 
+/**
+ * EVERY ASSERTION BELOW PINS ITS OWN INPUTS, and that is a deploy-safety rule
+ * rather than a style preference.
+ *
+ * `GOALS[].raw_progress` and `UPDATED_AT` are rewritten by the nightly Strava bot,
+ * and `netlify.toml` runs `pnpm check && pnpm test` as the BUILD COMMAND. So an
+ * assertion against the live values turns an ordinary ride into a failed
+ * production deploy, pushed by a bot with no human in the loop — and the failure
+ * freezes the very "Updated …" dateline this feature adds, because the deploy that
+ * would refresh it is the one being blocked.
+ *
+ * Not theoretical, and not distant: measured, `cycling_km: 2309.7` — one 30 km ride
+ * — already fails, and the Round the Island booking drains out of `bookedAhead` on
+ * 3 August, taking the required rate 71 → 74 → 80.
+ *
+ * `EVENTS` is deliberately left live: it is human-edited, so a red test there is
+ * wanted feedback rather than noise.
+ */
+const AS_OF = "2026-07-27";
+const CYCLING_KM = 2279.7;
+const RUNNING_KM = 152.7;
+const at = (sport: string, raw: number): Goal => ({...goalBySport(sport), raw_progress: raw});
+
 describe("required rate", () => {
-    it("produces the figures the page renders today", () => {
-        expect(goalStatus(goalBySport("cycling"))).toEqual(
+    it("produces the figures the page rendered when this was written", () => {
+        expect(goalStatus(at("cycling", CYCLING_KM), AS_OF)).toEqual(
             expect.objectContaining({kind: "rate", kmPerWeek: 71}));
-        expect(goalStatus(goalBySport("running"))).toEqual(
+        expect(goalStatus(at("running", RUNNING_KM), AS_OF)).toEqual(
             expect.objectContaining({kind: "rate", kmPerWeek: 18}));
     });
 
     it("rounds UP, because a rounded-down rate followed exactly MISSES the goal", () => {
         // Cycling needs 70.2818 km/wk. Floor and round both give 70, which over the
         // remaining 22.43 weeks delivers 1570.00 km against 1576.32 needed.
-        const cycling = goalStatus(goalBySport("cycling"));
+        const cycling = goalStatus(at("cycling", CYCLING_KM), AS_OF);
         if (cycling.kind !== "rate") throw new Error("expected a rate");
         const weeks = cycling.days / 7;
         expect(cycling.kmPerWeek * weeks).toBeGreaterThanOrEqual(cycling.km);
@@ -120,48 +162,54 @@ describe("required rate", () => {
         const base = goalBySport("running");
         const skewed: Goal = {...base, raw_progress: 100, current_progress: 590};
         // From raw: 500 km short, races cover 63.3 of it, so a rate is owed.
-        expect(goalStatus(skewed).kind).toBe("rate");
+        expect(goalStatus(skewed, AS_OF).kind).toBe("rate");
         // From the clamped field it would read 10 km short with 63.3 km booked,
         // and report the goal as already covered.
-        expect(goalStatus({...base, raw_progress: 590}).kind).toBe("covered");
+        expect(goalStatus({...base, raw_progress: 590}, AS_OF).kind).toBe("covered");
     });
 
     it("handles every degenerate state distinctly", () => {
-        const base = goalBySport("running");
-        expect(goalStatus({...base, raw_progress: base.total_goal}).kind).toBe("met");
+        // Pinned, not live: `met` is checked before the date is parsed, so once the
+        // bot's real running_km passes 600 the `unknown` case below would silently
+        // become `met` and fail — a deploy broken by the owner reaching his goal.
+        const base = at("running", RUNNING_KM);
+        expect(goalStatus({...base, raw_progress: base.total_goal}, AS_OF).kind).toBe("met");
         // Booked races alone cover the remainder.
-        expect(goalStatus({...base, raw_progress: 560}).kind).toBe("covered");
+        expect(goalStatus({...base, raw_progress: 560}, AS_OF).kind).toBe("covered");
         // Year over.
         expect(goalStatus({...base, raw_progress: 0}, "2026-12-31").kind).toBe("closed");
         // Final fortnight: an absolute total, not a weekly rate.
         expect(goalStatus({...base, raw_progress: 0}, "2026-12-25").kind).toBe("final");
         // Unparseable input renders nothing rather than a guess.
         expect(goalStatus(base, "2026-02-30").kind).toBe("unknown");
-        expect(goalStatus({...base, total_goal: 0}).kind).toBe("unknown");
-        expect(goalStatus({...base, raw_progress: Number.NaN}).kind).toBe("unknown");
+        expect(goalStatus({...base, total_goal: 0}, AS_OF).kind).toBe("unknown");
+        expect(goalStatus({...base, raw_progress: Number.NaN}, AS_OF).kind).toBe("unknown");
     });
 
     /**
-     * The status line sits in a 110.02px column. There is no layout engine here, so
-     * this pins the two things a text-only test CAN pin, and between them they force
-     * a re-measurement rather than allowing a silent widening:
+     * The width ceiling is the goal card's ROW content width: **158px at 1024px
+     * wide, 177 at 1100, 190 from 1152 up**. There is no layout engine here, so this
+     * pins the two things a text-only test CAN pin — the fixed literals, and a
+     * character ceiling for the generated branches — and between them they force a
+     * re-measurement rather than allowing a silent widening.
      *
-     *   1. the fixed literals, against the exact strings that were measured, and
-     *   2. a character ceiling for the two generated branches.
-     *
-     * A character count alone would be the wrong invariant — wide glyphs break it —
-     * which is why (1) exists: any new wording has to be added here deliberately,
-     * and the comment in `projection.ts` carries the measured widths to add it from.
+     * CORRECTED: an earlier revision of this comment claimed the budget was 110.02px
+     * and that `Booked races cover it` "wrapped at every viewport". Both are false,
+     * and the second was never measured — it was inferred from the first. 110.02px is
+     * the running card's inner `max-content` column, which is not a budget at all: it
+     * WIDENS with its content (to 121.06 under that very string), and the cycling
+     * card's is 125.89. Measured on the built page, `Booked races cover it` renders as
+     * ONE line at 1024/1100/1152/1440 with the card height unchanged at 226 and
+     * `ovY 0`. The shorter wording ships because it is plainer, not because the longer
+     * one broke. The real ceiling is ~156.7px of single-line ink at 1024.
      */
-    it("emits only literals that were measured against the 110px goal-card column", () => {
-        // Measured at 12px: "Goal met" 50.22px, "Races cover it" 78.78px, both fit.
-        // "Booked races cover it" was the first wording and measured 121.06px — it
-        // wrapped at every viewport, and a wrap costs a 20px line the stack has not
-        // got. That is the regression this literal list exists to prevent.
+    it("emits only literals that were measured against the goal card's 158px row", () => {
+        // Measured at 12px against the 158px ceiling: "Goal met" 50.22px,
+        // "Races cover it" 78.78px. Both fit with room to spare.
         const MEASURED = new Set(["Goal met", "Races cover it"]);
         const base = goalBySport("running");
-        expect(goalStatusLine({...base, raw_progress: base.total_goal})).toSatisfy((l: string) => MEASURED.has(l));
-        expect(goalStatusLine({...base, raw_progress: 560})).toSatisfy((l: string) => MEASURED.has(l));
+        expect(goalStatusLine({...base, raw_progress: base.total_goal}, AS_OF)).toSatisfy((l: string) => MEASURED.has(l));
+        expect(goalStatusLine({...base, raw_progress: 560}, AS_OF)).toSatisfy((l: string) => MEASURED.has(l));
     });
 
     it("keeps the generated branches inside the worst case that was measured", () => {
@@ -170,7 +218,7 @@ describe("required rate", () => {
         const longest = "1000 km/wk to go";
         for (const goal of GOALS) {
             for (const raw of [0, 1, goal.total_goal / 2, goal.total_goal - 1]) {
-                for (const iso of [UPDATED_AT, "2026-12-25"]) {
+                for (const iso of [AS_OF, "2026-12-25"]) {
                     const line = goalStatusLine({...goal, raw_progress: raw}, iso);
                     if (line === null || !/\d/.test(line)) continue;
                     expect(line.length, `"${line}" must not exceed "${longest}"`)
@@ -247,10 +295,16 @@ describe("the bot's write contract", () => {
         expect(again).toBe(raw);
     });
 
-    it("stamps a fresh date as soon as a km value moves", () => {
-        const moved = nextProgress(stravaProgress.cycling_km + 0.1, stravaProgress.running_km, raw, "2026-08-01");
-        expect(moved.updated_at).toBe("2026-08-01");
-        expect(serialise(moved)).not.toBe(raw);
+    it("stamps a fresh date as soon as EITHER km value moves", () => {
+        // Both sports, because moving only cycling_km leaves the running_km half of
+        // the comparison unexercised — a mutant that drops it would survive.
+        const ride = nextProgress(stravaProgress.cycling_km + 0.1, stravaProgress.running_km, raw, "2026-08-01");
+        expect(ride.updated_at).toBe("2026-08-01");
+        expect(serialise(ride)).not.toBe(raw);
+
+        const run = nextProgress(stravaProgress.cycling_km, stravaProgress.running_km + 0.1, raw, "2026-08-01");
+        expect(run.updated_at).toBe("2026-08-01");
+        expect(serialise(run)).not.toBe(raw);
     });
 
     it("treats a missing or malformed file as a first run rather than throwing", () => {
@@ -290,13 +344,23 @@ describe("the rendered page", () => {
     });
 
     it("adds exactly ONE status line per goal card", () => {
-        // Two lines each exhausts the right-hand stack's free height and makes the
-        // flex column shrink all three cards, the Now card included. Nothing in the
-        // suite can see that, so the count is pinned here.
+        // Two lines each takes the right-hand stack's free height to zero, at which
+        // point the flex column SHRINKS all three cards — the Now card included,
+        // 154 → 149.39px — though it does not shear glyphs until four lines. Nothing
+        // in the suite can see that, so the count is pinned here.
+        //
+        // DRIVEN FROM THE GENERATOR, never from hand-copied strings. The previous
+        // filter listed `Booked races cover it` — the REJECTED wording, which no
+        // branch can emit — and omitted `Races cover it`, which ships. So the
+        // `covered` branch went unchecked, and on 31 December, when both goals return
+        // `closed` and both lines are null, the old literal list would have counted 0
+        // against an expected 2 and failed with a message about stack height.
+        const expected = GOALS.map((g) => goalStatusLine(g)).filter((l): l is string => l !== null);
+        const wanted = new Set(expected);
         const lines = [...document.querySelectorAll("[data-card]")]
             .flatMap((c) => [...c.querySelectorAll("span")])
-            .filter((s) => /\bto go\b|Goal met|Booked races cover it/.test(s.textContent ?? ""));
-        expect(lines.length).toBe(GOALS.length);
+            .filter((s) => wanted.has((s.textContent ?? "").trim()));
+        expect(lines.length).toBe(expected.length);
     });
 
     it("does not add a child to <main>", () => {
