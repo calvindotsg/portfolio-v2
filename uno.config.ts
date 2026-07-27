@@ -43,9 +43,10 @@ export default defineConfig({
      * mechanism. Verified both ways on a synthetic page with a known answer
      * before any of this was measured.
      *
-     * The three hand-written media queries in the codebase were converted in the
-     * same pass and have to stay in step by hand: two in BasicLayout.astro for
-     * `.button-grid`, one in IntroCard.astro that deliberately mirrors `md`.
+     * The hand-written media queries in the codebase were converted in the same pass
+     * and have to stay in step by hand: three in BasicLayout.astro for `.button-grid`
+     * (it was two until the column ladder gained the rung it needed — that file has
+     * the arithmetic), one in IntroCard.astro that deliberately mirrors `md`.
      * A px query left among rem ones does not fail loudly — it simply parts
      * company with its variant siblings once the reader enlarges the text.
      */
@@ -121,20 +122,31 @@ export default defineConfig({
      *
      * That is what changed. The height budget and the breakpoints are both
      * text-relative now (the breakpoint note above; `main` in index.astro), the page
-     * grows and scrolls instead of clipping, and the whole sweep measures 0 ink lost
-     * from a 16px root to a 40px one. So the protection a px box bought no longer
-     * exists to buy: what it costs instead is a tap target that shrinks against the
-     * type beside it, since 64 x 48 next to 40px text is a smaller target in the
-     * reader's terms than 64 x 48 next to 16px text. Every figure below about the
-     * declared box — 64 x 48, the 2px clearance, the target-size arithmetic — is
-     * unchanged, because at the default root size this is the same box.
+     * grows and scrolls instead of clipping, and the sweep measures 0 ink lost from a
+     * 16px root to a 40px one at each card's BOTTOM clip edge. So the protection a px
+     * box bought no longer exists to buy: what it costs instead is a tap target that
+     * shrinks against the type beside it, since 64 x 48 next to 40px text is a smaller
+     * target in the reader's terms than 64 x 48 next to 16px text. Every figure below
+     * about the declared box — 64 x 48, the 2px clearance, the target-size arithmetic —
+     * is unchanged, because at the default root size this is the same box.
      *
-     * One knock-on to expect rather than rediscover: `.button-grid`'s two column-count
-     * queries are font-relative too, and they were tuned with slack against a px
-     * control, so at enlarged text they now drop a column slightly before the
-     * controls actually stop fitting. That costs a row of card height the page can
-     * afford and no ink; it is not worth a px bound left behind to part company with
-     * every other breakpoint.
+     * THE KNOCK-ON THIS PARAGRAPH USED TO PREDICT WAS BACKWARDS, and it cost a shipped
+     * defect, so it is corrected here rather than quietly replaced. It said
+     * `.button-grid`'s column-count queries "drop a column slightly before the controls
+     * actually stop fitting", costing height and no ink. They dropped a column far too
+     * LATE: the ladder stopped at two columns, two text-relative controls plus their gap
+     * are 9rem, and a card is only ever as wide as the viewport allows — so past a 32px
+     * root two controls no longer fit a narrow card, the grid held the intro card's copy
+     * column open at its own min-content width, and the card sheared the hero copy.
+     * 136.84 of ink at 320px wide and a 40px root; 47.44 at a 32px root, inside the WCAG
+     * 1.4.4 bracket. The two claims are not opposites by accident: BOTH rest on
+     * comparing a rem bound against a rem control, and the sweep that seemed to confirm
+     * the optimistic one measured the bottom edge while the damage was on the right.
+     *
+     * The ladder reaches one column now and `tests/control-geometry.test.ts` asserts the
+     * arithmetic, which is what makes the rem box safe to keep rather than merely
+     * preferable. What the old paragraph got right is the conclusion: a px bound left
+     * behind to part company with every other breakpoint was never the answer.
      *
      * What the build before last did here was accidental and is still worth knowing:
      * `max-h-[50px]` let the anchors grow to 50px and then stopped them, which is why

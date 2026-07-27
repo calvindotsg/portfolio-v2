@@ -3,7 +3,7 @@ import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
 import {LINKS, NOW} from "../src/lib/constants";
-import {appliesAt, decl, isKeyframeStep, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
+import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * Every styled control must be ONE box. There are seven today — six social-link
@@ -400,6 +400,149 @@ describe("every styled control is one declared box", () => {
             const tracks = decl(r.body, "grid-template-columns");
             if (!tracks) continue;
             expect(tracks, "a fixed track duplicates the control's declared width").toMatch(/^repeat\(\d+,\s*auto\)$/);
+        }
+    });
+
+    /**
+     * THE COLUMN LADDER HAS TO REACH ONE, AND HAS TO REACH IT IN TIME.
+     *
+     * This is the assertion whose absence shipped a defect. The control's box is
+     * text-relative, so two controls plus their gap are a fixed number of REM — but a
+     * card's width is not: a card grows vertically with its content and never
+     * horizontally, because it is as wide as the viewport allows. Past some text size two
+     * controls therefore stop fitting, and the grid's min-content width becomes the
+     * min-content width of the intro card's whole copy column, which then overruns the
+     * card and is sheared by its clipping. Measured on the revision before this one:
+     * 136.84 of hero copy lost at 320px wide and a 40px root, and 47.44 at a 32px root,
+     * which is inside the WCAG 1.4.4 bracket. The ladder stopped at two columns.
+     *
+     * So, for each rung, the narrowest viewport it still governs must be wide enough for
+     * the columns it grants. A rung permitting N columns first applies just above the
+     * bound of the next-narrower rung, and needs `N * control + (N-1) * gap` there.
+     *
+     * WHY THE ARITHMETIC IS ALLOWED TO IGNORE THE ROOT FONT-SIZE, which is the subtle
+     * part and the reason the unit assertions below are a precondition rather than a
+     * separate nicety: every term is normalised to a 16px root, so the inequality is
+     * root-invariant only while BOTH sides scale with the root together. That is exactly
+     * what failed before — an absolute control box under text-relative bounds satisfies
+     * the inequality at a 16px root and violates it at 40. If either side is ever
+     * re-spelled in device pixels this test's arithmetic stops meaning anything, so it
+     * refuses to run rather than reporting a pass it cannot support.
+     *
+     * It is a NECESSARY condition and not a sufficient one: it compares against the
+     * viewport, where the real budget is the card's content box, which is narrower by
+     * that card's own padding — itself text-relative. Slack in the bounds is what covers
+     * the difference, and erring toward firing a rung early is the cheap direction: an
+     * early rung costs height the page can scroll, a late one costs ink. Browser
+     * measurement across widths and root sizes remains the other half of this.
+     */
+    it("carries a column ladder that reaches one, and reaches it before two controls stop fitting", () => {
+        const upperUnit = (at: string) => at.match(/(?:max-width:\s*|width\s*<=\s*)[\d.]+([a-z%]*)/)?.[1] ?? "";
+
+        const gridRules = rules.filter((r) => r.selectors.includes(".button-grid"));
+        const ladder = gridRules
+            .map((rule) => ({rule, tracks: decl(rule.body, "grid-template-columns")}))
+            .filter((x): x is {rule: Rule, tracks: string} => Boolean(x.tracks))
+            .map(({rule, tracks}) => ({
+                columns: Number(tracks.match(/^repeat\((\d+),/)?.[1]),
+                bound: maxWidthOf(rule),
+                unit: upperUnit(rule.at),
+                at: rule.at || "(no query)",
+            }))
+            .sort((a, b) => a.bound - b.bound);
+
+        // Vacuity guard: the whole invariant is about the SHAPE of a ladder, so a
+        // single-rung "ladder" must fail here rather than satisfy every loop below by
+        // never entering one.
+        expect(ladder.length, "the button grid must declare a ladder of column counts").toBeGreaterThan(1);
+        for (const rung of ladder) {
+            expect(rung.columns, `unreadable column count in "${rung.at}"`).toBeGreaterThan(0);
+        }
+
+        /**
+         * THE MODEL'S OWN PRECONDITION, asserted rather than assumed.
+         *
+         * Everything below treats a rung as governing every width up to its upper bound,
+         * which is only true while the ladder is expressed as upper bounds alone. One
+         * rung gated the other way — `@media (min-width: 30rem)` — has no upper bound at
+         * all, so it would read as the open top of the ladder, and two rungs claiming
+         * that top makes the sort order arbitrary and the monotonic check below a
+         * coin-toss. That is a plausible authoring move, not a contrived one, so it fails
+         * loudly here instead of quietly weakening an assertion three lines further on.
+         */
+        for (const rule of gridRules) {
+            if (!decl(rule.body, "grid-template-columns")) continue;
+            expect(
+                minWidthOf(rule),
+                `"${rule.at}" gates this grid's columns on a LOWER width bound. The ladder is `
+                + `modelled as upper bounds only — teach this test the other shape before using it`,
+            ).toBeNull();
+        }
+
+        // Route 3 of the assertion-hole checklist: a sheet-only walk cannot see the inline
+        // `style` attribute, which beats every rule here short of `!important`. It is the
+        // cheapest possible way to put a column count back where this test cannot read it.
+        for (const el of document.querySelectorAll(".button-grid")) {
+            expect(
+                el.getAttribute("style") ?? "",
+                "an inline style on the button grid is invisible to every assertion in this file",
+            ).not.toMatch(/grid-template-columns/);
+        }
+
+        // The precondition. Every bound that is not the open top of the ladder has to be
+        // font-relative, or the arithmetic below is not root-invariant.
+        for (const rung of ladder) {
+            if (rung.bound === Infinity) continue;
+            expect(
+                ["rem", "em"].includes(rung.unit),
+                `"${rung.at}" bounds this grid in "${rung.unit}", so it parts company with the `
+                + `control's own text-relative box the moment a reader enlarges the type`,
+            ).toBe(true);
+        }
+
+        const base = gridRules.find((r) => !r.nested)!;
+        const gap = px(decl(base.body, "gap"));
+        expect(gap, "the grid's gap must be an absolute or rem length to reason about").not.toBeNull();
+
+        const control = boxOf(controlClasses[0]);
+        const controlWidth = px(control.width);
+        expect(controlWidth, "the control must declare a readable width").not.toBeNull();
+        expect(
+            /rem$/.test(control.width ?? ""),
+            `the control's width is "${control.width}"; in device pixels the rung arithmetic `
+            + `below holds at a 16px root and breaks at every larger one, which is the defect `
+            + `this test was written for`,
+        ).toBe(true);
+        expect(
+            /rem$/.test(decl(base.body, "gap") ?? ""),
+            `the grid's gap is "${decl(base.body, "gap")}", which has to scale with the controls it separates`,
+        ).toBe(true);
+
+        // The ladder must bottom out at a single column. One control is the narrowest the
+        // grid's min-content width can possibly be, so this is what stops the copy column
+        // from being held open by a row of controls at any text size.
+        expect(
+            ladder[0].columns,
+            `the narrowest rung ("${ladder[0].at}") grants ${ladder[0].columns} columns; a ladder that `
+            + `never reaches one leaves a floor under the grid's min-content width, and that floor is `
+            + `what sheared the hero copy`,
+        ).toBe(1);
+
+        for (let i = 1; i < ladder.length; i++) {
+            const rung = ladder[i], below = ladder[i - 1];
+            // Monotonic: a wider viewport must never be granted fewer columns.
+            expect(
+                rung.columns,
+                `"${rung.at}" grants ${rung.columns} columns where the narrower "${below.at}" grants ${below.columns}`,
+            ).toBeGreaterThan(below.columns);
+
+            const needs = rung.columns * controlWidth! + (rung.columns - 1) * gap!;
+            expect(
+                needs,
+                `"${rung.at}" grants ${rung.columns} columns down to ${below.bound}px (at a 16px root), but `
+                + `${rung.columns} controls need ${needs}px there. The rung below has to fire first — `
+                + `otherwise the grid holds the intro card's copy column wider than the card and the card clips it`,
+            ).toBeLessThanOrEqual(below.bound);
         }
     });
 
