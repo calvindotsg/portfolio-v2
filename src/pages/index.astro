@@ -7,7 +7,22 @@ import IntroCard from "../components/IntroCard.astro";
 import AboutMe from "../components/AboutMe.astro";
 import Now from "../components/Now.astro";
 import {FOOTER, GOALS, METADATA} from "../lib/constants";
+import {formatDateline, UPDATED_AT} from "../lib/projection";
 import {iconClass} from "../lib/icons";
+
+/*
+ * THE DATELINE RENDERS ONCE, HERE, AND NOT ON THE GOAL CARDS. One timestamp covers
+ * both sports, so two copies could only ever disagree or repeat.
+ *
+ * It reads the bot's own `updated_at` rather than a build-time date, and the reason
+ * is not determinism alone. The workflow commits only when the kilometres actually
+ * move (`git diff --quiet` in .github/workflows/strava-progress.yml is what stops a
+ * deploy every night), so a build-time date would claim the figures were checked
+ * today when the deploy that produced them may be a week old. The stamp means "the
+ * day the kilometres last MOVED", which is what "Updated" should mean, and three
+ * flat days correctly leave it three days old.
+ */
+const dateline = formatDateline();
 
 /*
  * The footer heart is toned from a theme token, and the token sits on a WRAPPER
@@ -141,10 +156,35 @@ import {iconClass} from "../lib/icons";
         </div>
         <AboutMe/>
         <Career/>
-        <Card colSpan="md:col-span-1" rowSpan="md:row-span-1">
+        <!-- THE SECOND lg ROW IS WHAT MAKES THE DATELINE FIT, and it is free.
+             This card was one row holding a two-line paragraph. Its box already
+             overflowed by 6px at 1440x900 and 14px at 1024x600 — which cuts NO ink,
+             because that is the last line's leading and descender space inside 24px
+             of padding, and the card still has 11-19px of real headroom. So the
+             honest statement is not that a dateline makes an existing defect worse:
+             it is that a dateline needs about 16px this card did not have. Without
+             this row-span it loses 5px of actual glyphs at the DEFAULT 16px text
+             size, at every viewport whose height puts `main` on its 46rem floor.
+
+             The row costs nothing because the grid already computes TEN row tracks —
+             the eight explicit ones plus two implicit zero-height rows created by
+             the career cards' six-row spans — so the second row spends only the 16px
+             gap that was already being spent on nothing. Measured across 40
+             configurations: 0 ink lost, and every other card byte-identical in x, y,
+             width and height. The footer alone grows 76 -> 92px.
+
+             The single-line property is load-bearing, not tidiness. A dateline long
+             enough to wrap reopens the same 5px loss WITH the row-span in place; the
+             footer's text column is 182px at 1024px wide, and the worst date the
+             calendar can produce ("Updated 30 September 2026") measures 165.75px.
+             tests/projection.test.ts pins that bound. -->
+        <Card colSpan="md:col-span-1" rowSpan="md:row-span-1 lg:row-span-2">
             <p class="text-xs">
                 {FOOTER.prefix} <span class="text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}
             </p>
+            {dateline && (
+                    <p class="text-xs mt-2">Updated <time datetime={UPDATED_AT}>{dateline}</time></p>
+            )}
         </Card>
     </main>
 </Layout>

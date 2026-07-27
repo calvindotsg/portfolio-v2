@@ -1,6 +1,7 @@
 ---
 import Card from "./Card/index.astro";
 import type {Goal} from "../lib/constants";
+import {goalStatusLine} from "../lib/projection";
 import ProgressBar from './ProgressBar.astro';
 
 interface Props {
@@ -23,7 +24,20 @@ interface Props {
 // load-bearing the moment a second child returns and this change did not touch the
 // lines they sit on.
 
+// ONE extra line, and the count is a measured budget rather than a preference.
+// The right-hand stack has 58px of free height at its tightest lg configuration —
+// any viewport whose height puts `main` on its 46rem floor while lg is still
+// active, so 1024x600, 1280x720 and 1152x700 all tie. A text-xs line costs 20px in
+// each of the two goal cards, so one line each leaves 18px and two leaves nothing:
+// at zero the flex column starts SHRINKING its children, and it takes the Now card
+// down with the goal cards even though nothing was added to it.
+//
+// Nothing in the suite can see that. There is no layout engine in the tests, so a
+// two-line variant is 149/149 green while losing glyphs at the DEFAULT text size.
+// The guard is tests/projection.test.ts's width bound plus the browser sweep in the
+// PR, not a green run.
 const {goal} = Astro.props;
+const statusLine = goalStatusLine(goal);
 ---
 
 <Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${goal.goal_name} goal this year`>
@@ -42,6 +56,7 @@ const {goal} = Astro.props;
                     <span>Last year's: {goal.progress_last_year !== null
                         ? `${goal.progress_last_year} ${goal.measurable_unit}`
                         : <><span aria-hidden="true">–</span><span class="sr-only">first year back</span></>}</span>
+                    {statusLine && <span>{statusLine}</span>}
                 </div>
             </div>
         </div>
