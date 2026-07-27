@@ -162,12 +162,14 @@
 // 0 at 20, 0 at 22 and 0 at 24, against 4.8 / 196 / 457 / 966 / 1596 before — and 0
 // out to a 40px root across eight viewports from 320 to 2560 wide, measured at each
 // card's BOTTOM clip edge. That qualifier is load-bearing and was missing: the sweep said
-// nothing about horizontal shear, and there is some. On the right edge the intro card
-// sheds hero text at 320px from a 32px root (47px) and at 320/360/375/414px at a 40px root
-// (137/97/82/43px). Pre-existing in kind, but worse since the control box went rem —
-// 34px -> 137px at 320/root 40, and it now starts at root 32 where the previous revision
-// was clean — because a card grows VERTICALLY with its content and never horizontally.
-// Tracked separately; do not read the zeroes above as "nothing clips".
+// nothing about horizontal shear, and there was some. On the right edge the intro card shed
+// hero text at 320px from a 32px root (47.44) and at 320/360/375/414px at a 40px root
+// (136.84/96.84/81.84/42.84) — pre-existing in kind, but worse once the control box went
+// rem (34.58 -> 136.84 at 320 and a 40px root, and reaching a 32px root where the previous
+// revision was clean), because a card grows VERTICALLY with its content and never
+// horizontally. Closed since, in `.button-grid`'s column ladder rather than here; the
+// remaining 34.58 at 320 and a 40px root is one hero word against this card's own padding.
+// Never read a one-edge sweep as "nothing clips" — say which edge it measured.
 //
 // Two things not to do with those numbers. They are ink past the CLIP edge summed
 // over eight cards, which is not the quantity an earlier version of this comment

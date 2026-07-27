@@ -47,9 +47,10 @@ const {title, description} = Astro.props;
  * result scroll; the copy column's cap went font-relative in the same pass, and
  * `tests/card-fill.test.ts` now forbids an absolute one anywhere inside a card.
  * Swept as ink past each card's BOTTOM clip edge: 0 at every viewport from 320 to 2560
- * wide, at every root size from 16px to 40px. The RIGHT edge is not zero — see the note
- * in index.astro. A card grows vertically with its content and never horizontally, so
- * narrow widths under very large text still shear the intro card's hero text.
+ * wide, at every root size from 16px to 40px. Name the edge — the right edge was NOT zero
+ * when that sweep was published, and it took its own change to close (the column-ladder
+ * note further down this file, and index.astro). A card grows vertically with its content
+ * and never horizontally, which is the whole reason the two edges needed separate work.
  *
  * It also fixes the large breakpoint, which the exact height broke as well, and
  * an earlier version of this comment wrongly claimed it left untouched. <main>
@@ -250,6 +251,80 @@ const schema = {
     @media (max-width: 25rem) {
         .button-grid {
             grid-template-columns: repeat(2, auto); /* 2 buttons per row on very small screens */
+        }
+    }
+
+    /* THE LADDER HAS TO REACH ONE, and the rung was missing until this shipped a
+       real defect. Two controls plus their gap are 9rem — 4rem each and 1rem
+       between — because the control's box is text-relative. A CARD'S WIDTH IS NOT:
+       it is as wide as the viewport allows and no wider. So past some text size two
+       controls stop fitting, and the intro card's copy column takes its
+       min-content width from this grid: measured 360.00 at a 40px root, inside a
+       card whose content box is 158.00 at a 320px viewport, and the hero copy laid
+       out at 360 and was sheared by the card's own clipping.
+
+       TWO QUANTITIES WERE LOST AND THEY HAVE DIFFERENT ANSWERS, which one sweep of
+       mine reported as one number and should not have. Text ink past the clip edge:
+       136.84 at 320 wide and a 40px root, 96.84 at 360, 81.84 at 375, 42.84 at 414,
+       and at a 32px root — 200% text-only zoom, the WCAG 1.4.4 bracket — 47.44 at
+       320 and 7.44 at 360. This rung takes FIVE of those six to zero; the sixth,
+       320 at a 40px root, drops to 34.58 for a different reason given below.
+
+       The other quantity is the CONTROL BOXES, which no text-node sweep can see and
+       which matter more, because a sheared button is lost functionality rather than
+       lost prose. Measured against the same clip edge: 142 at 320 wide and a 40px
+       root, 102 at 360, 87 at 375, 48 at 414, 50 at 320/root 32, 10 at 360/root 32,
+       and 4 at 320/root 28 — a configuration the text sweep called clean, so the
+       onset is a 28px root and not the 32 quoted elsewhere. This rung takes ALL of
+       those to zero, at every configuration, including the one where text still
+       loses 34.58.
+
+       WHY 13rem AND NOT 9. The bound has to clear the 9rem the controls need PLUS
+       everything between the viewport and this grid, all of it text-relative and so
+       none of it payable out of a rem budget: `main`'s own padding on both sides
+       (1rem), this card's LEFT padding (1.5rem), and the card's two 1px borders —
+       2.5rem + 2px, which is 42 CSS pixels at the default text size and 102 at a
+       40px root, where it leaves a 320px viewport just 218 to lay out in. The
+       card's RIGHT padding is deliberately not in that sum: clipping happens at the
+       PADDING box, so content may run through it without losing a pixel. Charging
+       it as well rejects this working bound; charging none of it accepts 9rem, which
+       was measured shearing 47px. The tightest bound the budget actually allows is
+       just under 11.56rem, and 11rem was built and measured losing 7.44 at 360 wide
+       and a 32px root. 13rem is that boundary plus deliberate slack, because slack
+       is the right direction to be wrong in — firing a rung early costs height the
+       page can scroll, firing it late costs ink.
+
+       `tests/control-geometry.test.ts` now asserts this arithmetic at every width
+       rather than trusting the number, and it charges the same terms. Read that test
+       before re-tuning the bound: an earlier version of it compared against the bare
+       viewport and stayed green for anything from 9rem up.
+
+       It cannot touch the default text size, by construction rather than by luck:
+       13rem is 208 CSS pixels at a 16px root and only reaches the 320px of the
+       narrowest real viewport once the root passes 24.6px, i.e. above 150% zoom.
+       Measured — document height is identical to the previous revision at all
+       seven widths at a 16px root, and the controls keep the same 2/3/4 per row.
+
+       One residual is deliberately left, because it is a different defect: at 320
+       wide and a 40px root one hero word still overruns by 34.58, and that is the
+       card's padding eating 120 of 320, not this grid. It is unchanged by this
+       rung and unchanged by reverting the control to an absolute box. It sits
+       outside the 1.4.4 bracket in the sense that matters — at a 32px root no
+       control and no text is lost at 320 wide or anything wider — but say it that
+       way and not as "the page loses nothing", because a viewport narrower than
+       320 does lose some (5.23 of hero copy at 280 wide), and 320 is the floor this
+       page is designed to.
+
+       AND THERE IS NO RUNG BELOW ONE, which is the honest limit of this whole
+       approach. Once a single control plus the chrome above exceeds the viewport,
+       no column count can help: the button itself is clipped. That happens beyond
+       roughly a 48px root on a 320px phone, i.e. past 300% zoom — comfortably clear
+       of the 200% that SC 1.4.4 asks for, and the test asserts that margin as a
+       number so it cannot rot silently. Fixing it needs a control that shrinks or a
+       card that scrolls sideways; neither is a ladder. */
+    @media (max-width: 13rem) {
+        .button-grid {
+            grid-template-columns: repeat(1, auto);
         }
     }
 

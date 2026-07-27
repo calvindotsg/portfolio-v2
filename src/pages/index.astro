@@ -82,15 +82,27 @@ import {iconClass} from "../lib/icons";
  * left 846px of ink lost at 1024x800 and a 24px root, because four columns of ~10em
  * is not a layout, it is a word-per-line. With both halves the sweep is 0 lost
  * everywhere out to a 40px root — at each card's BOTTOM clip edge, which is all that sweep
- * measured. THE RIGHT EDGE IS NOT ZERO, and this revision made it worse rather than
- * better: putting the control box in rem lets two controls plus their gap exceed a narrow
- * card, which pushes the intro card's copy column wider than the card and shears the hero
- * text. Measured on the right edge at a 40px root: 137px lost at 320px wide, 97 at 360,
- * 82 at 375, 43 at 414, against 34px at 320px and nothing elsewhere before. At a 32px root
- * — 200% text zoom — 47px at 320px and 7px at 360px, where the previous revision was
- * clean. Freeing the height budget does not free the width: a card grows vertically when
- * its content does and never horizontally, because it is as wide as the viewport allows.
- * Tracked separately rather than left implied by a sweep that could not see it.
+ * measured. NAME THE EDGE, always: the right edge was not zero, and this revision made it
+ * worse rather than better before a later one closed it. Putting the control box in rem let
+ * two controls plus their gap exceed a narrow card, which pushed the intro card's copy
+ * column wider than the card and sheared the hero text. Measured on the right edge at a
+ * 40px root: 136.84 lost at 320px wide, 96.84 at 360, 81.84 at 375, 42.84 at 414, against
+ * 34.58 at 320px and nothing elsewhere before; at a 32px root — 200% text zoom — 47.44 at
+ * 320px and 7.44 at 360px, where the previous revision was clean. Freeing the height budget
+ * does not free the width: a card grows vertically when its content does and never
+ * horizontally, because it is as wide as the viewport allows.
+ *
+ * Closed now, and closed differently for the two quantities involved — which are worth
+ * keeping apart, because quoting one of them as "nothing clips" is the error that let this
+ * ship. The control's box stayed text-relative and `.button-grid`'s column ladder gained
+ * the rung it was missing, so it drops to a single column once two controls no longer fit;
+ * BasicLayout.astro owns the arithmetic and the bound. CONTROL BOXES sheared past the clip
+ * edge at seven configurations, up to 142 at 320px and a 40px root, and are now 0 at every
+ * one — that is the functional half, and no text-node sweep could see it. TEXT ink goes to
+ * 0 at five of its six; the sixth, 320px at a 40px root, drops 136.84 -> 34.58, which is
+ * one hero word against the card's own padding spending 120 of the 320 rather than the
+ * control row. That residual predates all of this and is untouched by reverting the box to
+ * device pixels.
  *
  * ---
  *
