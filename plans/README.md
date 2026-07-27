@@ -54,8 +54,8 @@ recreated.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | Establish a regression safety net | P1 | M | — | **DONE** (`4144f81`) |
-| 002 | Prerender the site and delete the SSR adapter | P1 | M | 001 | **DONE** (`a4a3e0e`) |
+| 001 | Establish a regression safety net | P1 | M | — | **DONE** (`6b2cfde`) |
+| 002 | Prerender the site and delete the SSR adapter | P1 | M | 001 | **DONE** (`32071fe`) |
 | 003 | Delete the client runtime: Svelte and motion out, CSS in | P1 | M | 002 | **DONE** (`621dd5a`) |
 | 004 | Fix the rendered-output defects, and assert each one | P1 | M | 003 | **DONE** (`ef0da28`) |
 | 005 | Delete dead configuration and template cruft | P2 | S | 004 | **DONE** (`255dbca`) |
