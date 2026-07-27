@@ -335,9 +335,12 @@ describe("the page may grow taller than the viewport", () => {
      * This polices the whole SHEET rather than one rule, because the property is a
      * property of the sheet: a single absolute bound left among the rest — most
      * likely a hand-written media query in an .astro `<style>` block, of which there
-     * are three — does not fail loudly. It simply parts company with its variant
-     * siblings the moment a reader enlarges the text, and every other assertion in
-     * this suite stays green.
+     * is now exactly one — does not fail loudly. It simply parts company with its
+     * variant siblings the moment a reader enlarges the text, and every other
+     * assertion in this suite stays green.
+     *
+     * Do not restate that count anywhere it can rot: uno.config.ts owns it, and the
+     * assertion below deliberately derives its own floor from the sheet instead.
      */
     /**
      * The width parser must fail LOUDLY on a unit it cannot read.
@@ -362,12 +365,45 @@ describe("the page may grow taller than the viewport", () => {
 
     it("decides every breakpoint in the reader's text size too", () => {
         const conditions = widthConditions(css);
-        // The page has five breakpoints plus two hand-written bounds; a selection
-        // that found only a couple would pass this test by having nothing to check.
+
+        /**
+         * NON-VACUITY, counted a second and independent way rather than compared against
+         * a literal.
+         *
+         * This used to require at least five conditions, described as "five breakpoints
+         * plus two hand-written bounds". Both halves of that number were wrong. A
+         * breakpoint only emits a query if some variant actually uses it, so the five are
+         * never all present; and the hand-written count moved twice — this row's own bounds
+         * went two, then three, then none — at which point the sheet held four conditions and
+         * a correct sheet failed a non-vacuity floor. (uno.config.ts counts the same history
+         * as "it was four", because it counts every hand-written query in the codebase and
+         * this counts only the control row's. Neither is wrong; both are why a literal here
+         * was the wrong instrument.)
+         *
+         * A literal is simply the wrong instrument for "did the scan find everything". So
+         * the sheet is scanned again here, by a DELIBERATELY LOOSER pattern — any at-rule
+         * prelude mentioning a width at all — and every prelude that scan sees has to be
+         * accounted for by `widthConditions`. It self-calibrates as the sheet changes, and
+         * it catches the failure the literal was aiming at and could not express: a bound
+         * whose SYNTAX the numeric patterns do not recognise (an interval like
+         * `(400px <= width <= 800px)` matches neither `min-width:` nor `width>=`) reads as
+         * "not width-gated", which turns every assertion built on it into a green no-op.
+         */
+        const mentionsWidth = new Set([...css.matchAll(/@(?:media|container)[^{]*/g)]
+            .map((m) => m[0].trim())
+            .filter((at) => /\bwidth\b/.test(at)));
         expect(
-            conditions.length,
-            "fewer width conditions in the sheet than the page has breakpoints — the scan has drifted and this assertion is close to vacuous",
-        ).toBeGreaterThanOrEqual(5);
+            mentionsWidth.size,
+            "no at-rule in the sheet mentions a width at all, so this assertion has nothing to check — either "
+            + "the page has stopped being responsive or the scan below is reading the wrong thing",
+        ).toBeGreaterThan(0);
+        const accounted = new Set(conditions.map((c) => c.at));
+        expect(
+            [...mentionsWidth].filter((at) => !accounted.has(at)),
+            "an at-rule prelude mentions a width that widthConditions() did not report. It is gating layout on "
+            + "a viewport width in a spelling the helper cannot read, and an unreadable bound reads as "
+            + "unconditional — silently, and green, for every assertion built on it",
+        ).toEqual([]);
 
         const absolute = conditions.filter((c) => !/^r?em$/.test(c.unit));
         expect(
