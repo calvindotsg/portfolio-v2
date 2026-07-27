@@ -196,7 +196,7 @@ export type RaceEvent = {
 }
 
 export const EVENTS: readonly RaceEvent[] = [
-    {date: "2026-07-10", name: "MBG DCR 2026 Phuket to Krabi to Phuket", km: 160.59, sport: "cycling"},
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling"},
     {date: "2026-07-12", name: "MBG DCR Krabi to Phuket", km: 158.13, sport: "cycling"},
     {date: "2026-08-02", name: "Round the Island Bike Adventure", km: 121.98, sport: "cycling"},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running"},
