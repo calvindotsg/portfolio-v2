@@ -265,28 +265,45 @@ const schema = {
        the row's minimum is only one control for as long as that holds.
 
        MEASURED, against the ladder it replaces rather than against the defect both
-       of them fix. Text ink past a card's right clip edge and control boxes past it
-       are 0 at every one of the 32 configurations either was measured at, with the
-       one documented residual unchanged: at 320 wide and a 40px root one
-       unbreakable hero word still overruns by 34.58, which is this card's own
-       padding eating 120 of 320 and is not this row's doing. Deleting the rungs
-       also removes the last two rem bounds that had no variant sibling to move with.
-       What the ladder's absence used to cost — the text figures, the control-box
-       figures, and the two different onset text sizes they imply — is recorded once,
-       in uno.config.ts's note on the control box, rather than restated here.
+       of them fix. NAME THE EDGE AND THE GRID, because these are two different sweeps
+       and an earlier draft of this note quoted one number for both: CONTROL BOXES past
+       a card's right clip edge are 0 at all 32 configurations (4 widths x 8 root sizes),
+       and past its BOTTOM clip edge 0 at all of a further 27 (9 viewports x 3 roots,
+       desktop included); TEXT INK is 0 at 34 of its 35 (7 widths x 5 roots) at the right
+       edge and 0 at all 35 at the bottom. The one exception is the documented residual,
+       and it is not this row's doing: at 320 wide and a 40px root one unbreakable hero
+       word overruns by 34.58, which is this card's own padding spending 120 of the 320.
+       Deleting the rungs also removes the last two rem bounds that had no variant sibling
+       to move with.
+
+       WHAT THE LADDER'S ABSENCE USED TO COST is recorded here rather than by pointer,
+       because the pointer was wrong — an earlier draft sent the reader to uno.config.ts,
+       which never held these figures, so deleting them from this file recorded them
+       nowhere. Control boxes sheared past the right clip edge by 142 at 320 wide and a
+       40px root, 102 at 360, 87 at 375, 48 at 414, 50 at 320/root 32, 10 at 360/root 32
+       and 4 at 320/root 28 — so the onset is a 28px root, not the 32 a text-only sweep
+       reported. Text ink lost 136.84 / 96.84 / 81.84 / 42.84 at 320/360/375/414 at a 40px
+       root, and 47.44 / 7.44 at 320/360 at a 32px root.
 
        IT CHANGES THE DEFAULT TEXT SIZE, which the ladder deliberately did not, and
        that is a design change carried on purpose rather than a side effect: the row
        now fits as many controls as there is room for instead of as many as a rung
        allows. At a 16px root, 360 and 375 wide go from 2 per row over 4 rows to 3
-       over 3 (document height 1856 -> 1792), 414 goes from 3 to 4, and 320 is
+       over 3 (document height 1856 -> 1792 at 360, and 1836 -> 1772 at 375 — one pair
+       does not describe both), 414 goes from 3 to 4, and 320 is
        unchanged at 2. Wider viewports gain more, because the old top rung capped
        every one of them at 4: at 1024 and a 24px root all seven now sit on one row.
        14 of the swept configurations get shorter, by up to 160px.
 
-       TWO GET TALLER, and the reason is the whole trade rather than a wrinkle in it.
-       At 320 and 360 wide at a 24px root the row drops to one control per row where
-       the ladder seated two, and the page grows 372px and 330px. Measured, because
+       SEVEN GET TALLER, and the reason is the whole trade rather than a wrinkle in it.
+       An earlier draft said TWO, which was an artefact of sampling five root sizes where
+       the clipping sweep samples eight — the same coarse-grid error that once put the
+       shearing onset at a 32px root when it is 28. On a ten-root grid the page grows at
+       375/28 (+434, the worst), 360/26 (+403), 414/28 (+385), 320/24 (+372), 375/26
+       (+357), 360/24 (+330) and 320/22 (+264), it shrinks at 28 configurations by up to
+       160, and 35 are identical. Every one of the seven is a narrow-to-mid viewport
+       between 150% and 175% text zoom, where the row drops to one control per row and the
+       ladder seated two. Measured, because
        the mechanism is not what it looks like: the ladder was not fitting two
        controls into the room available, it was DEMANDING room for two and getting
        it. Its minimum width of 216 held the copy column open to 216, and at that
@@ -304,9 +321,12 @@ const schema = {
 
        Worth knowing for whoever wants that height back: below `md` the portrait is
        positioned out of flow, but its wrapper is still an in-flow sibling of the
-       copy column and spends 24 of the card's 198 usable pixels there. Recovering
-       those would seat two controls at both of the configurations above. That is a
-       fix to the mobile hero, not to this row, and it is deliberately not made here.
+       copy column and spends 48 of the card's 222 content-box pixels there. Those two
+       figures were 24 and 198 in an earlier draft, DERIVED arithmetically instead of
+       measured, and they were wrong in a way that inverted the conclusion: two controls
+       at a 24px root need 216, which 222 accommodates and 198 does not. Recovering the
+       48 would seat two controls at 320 and 360 wide at that root. That is a fix to the
+       mobile hero, not to this row, and it is deliberately not made here.
 
        THE HONEST LIMIT IS UNCHANGED, because it never was the ladder's to fix: once
        ONE control plus the chrome between it and the viewport exceeds that viewport,
@@ -316,15 +336,25 @@ const schema = {
        it cannot rot. Fixing it needs a control that shrinks or a card that scrolls
        sideways.
 
-       ONE WHOLE CLASS OF CHANGE HERE STOPPED BEING DANGEROUS, which is the clearest
-       single argument for this shape. The separation below used to be able to delete
-       functionality: widened to 6rem under the column layout it pushed a control past
-       the card's clip edge at 12 of the 32 measured configurations, worst 89px, and
-       12px of it AT THE DEFAULT TEXT SIZE. The same widening was built against this
-       row and measures 0 at all 32, because a separation only applies between items
-       that share a line and the minimum here is one item on a line by itself. So it
-       can make this row taller and never wider, and the test that used to have to
-       re-resolve it at every width no longer does.
+       THE SEPARATION CAN NO LONGER COST A PIXEL OF WIDTH — AND THAT IS NOT THE SAME AS
+       SAFE. An earlier draft of this note claimed widening it "stopped being dangerous"
+       and called that the clearest argument for this shape. That claim was measured on
+       ONE EDGE and generalised to a class, which is the error this file warns about
+       three paragraphs above, so it is corrected here rather than quietly dropped.
+
+       What is true and measured: widened to 6rem under the column layout it pushed a
+       control past the card's RIGHT clip edge at 12 of 32 configurations, worst 89px,
+       12 of them at the DEFAULT text size; against this row it is 0 at all 32, because a
+       separation only applies between items sharing a line and the minimum here is one
+       item on a line by itself. So it can make this row taller and never WIDER.
+
+       What is also true: taller is not free, because above `md` this card's height comes
+       from its grid row and `overflow: hidden` clips the bottom too. The same 6rem
+       widening puts 174px of control box past the BOTTOM clip edge at 1024x768 and hides
+       the résumé control outright there and at 768x1024 and 1024x900 — with the gate
+       green, because no assertion in this repo reads a bottom edge and a stylesheet test
+       cannot lay out. The right-edge class closed; a bottom-edge one did not, and the
+       browser sweep is the only thing that sees it.
 
        `justify-content` is deliberately absent: a wrapping row packs its items at
        the start of the line already, so declaring it restated the default. The

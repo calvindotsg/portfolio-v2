@@ -56,9 +56,37 @@ export function parseRules(css: string): Rule[] {
                 else if (css[j] === "}") depth--;
                 j++;
             }
+            const body = css.slice(i + 1, j - 1);
+            /**
+             * A NESTED BLOCK INSIDE A STYLE RULE IS REFUSED, not folded into this rule's
+             * body text — the same precedent `widthPx` sets for a unit it cannot read.
+             *
+             * Native CSS nesting survives this project's minifier intact, and this parser
+             * is flat: a nested block's braces would end up inside `body`, where `decl()`
+             * only matches a declaration preceded by `;` or the start of the body. So a
+             * declaration sitting first inside a nested block reads as ABSENT, a repeated
+             * property resolves to the OUTER value, and `at` stays "" — which makes every
+             * "no at-rule may decide this" guard skip the rule entirely. Measured: four
+             * lines of nested `@media (max-width:40rem){flex-wrap:nowrap}` on the control
+             * row shear 266px of control box at 320 wide and the DEFAULT text size, with
+             * the whole suite green.
+             *
+             * Throwing costs nothing today (the built sheet has no nested blocks) and it
+             * cannot rot into a silent pass. Teaching it to descend — emitting each nested
+             * at-rule's declarations as their own Rule carrying the parent's selectors and
+             * the accumulated prelude — is the fuller fix if the sheet ever needs one.
+             */
+            if (body.includes("{")) {
+                throw new Error(
+                    `nested block inside the style rule "${head}" — this parser reads only flat rules, `
+                    + `and folding a nested at-rule into a rule body makes its declarations invisible to `
+                    + `decl() and unattributed to any at-rule, silently and green. Flatten it in the `
+                    + `source, or teach parseRules to descend.`,
+                );
+            }
             rules.push({
                 selectors: head.split(",").map((s) => s.trim()).filter(Boolean),
-                body: css.slice(i + 1, j - 1),
+                body,
                 nested: atStack.length > 0,
                 at: atStack.join(" "),
             });
@@ -297,7 +325,15 @@ export function effectiveDecl(
     let winnerImportant = false;
     for (const rule of rules) {
         if (!appliesAt(rule, width)) continue;
-        for (const prop of wanted) {
+        // WITHIN ONE BODY THE LAST DECLARATION WINS, so the competing props must be visited
+        // in the order the body declares them and NOT in the order the caller listed them.
+        // Iterating `wanted` directly made array position the tie-break, which contradicts
+        // this function's own docstring and is exploitable: a shorthand and a longhand in the
+        // same rule that the minifier cannot fold (a `var()` in the shorthand defeats it)
+        // resolved to whichever the caller happened to name first.
+        const declaredAt = (p: string) => rule.body.search(new RegExp(`(?:^|;)\\s*${p}\\s*:`));
+        const competing = wanted.filter((p) => declaredAt(p) >= 0).sort((a, b) => declaredAt(a) - declaredAt(b));
+        for (const prop of competing) {
             const raw = decl(rule.body, prop);
             if (raw === undefined) continue;
             const important = /!\s*important$/i.test(raw);

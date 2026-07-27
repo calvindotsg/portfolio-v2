@@ -36,13 +36,43 @@ import portfolioImage from '../assets/me.webp'
  *
  * `md:` and up is untouched: the mask and the scrim are both switched off and
  * the portrait goes back in flow with its pink offset shadow.
+ *
+ * THREE CLASSES HERE EXIST BECAUSE THE CONTROL ROW STOPPED COUNTING COLUMNS, and all
+ * three are consequences of one fact: a wrapping row's MAX-content width is every
+ * control on a single line (34rem) where the old column grid's was four of them
+ * (19rem). The row's minimum shrank, which is the point — but its maximum grew, and
+ * this card's copy column is what asks for it. Each was measured before and after.
+ *
+ *   1. `shrink-0` ON THE PORTRAIT'S WRAPPER. The copy column and the portrait share a
+ *      `justify-between` row, so a copy column asking for 34rem takes the difference
+ *      out of the photo: the portrait shrank 275 -> 203.48 at `md` and at 1024, i.e.
+ *      26%, and by 13-26% at 104 of the 113 widths from 768 to 2560. Pinning the
+ *      wrapper makes the copy column absorb the deficit instead, and the portrait
+ *      measures 275.00 at every configuration again while the row still wraps to more
+ *      controls per line than the ladder allowed.
+ *
+ *   2. `self-start md:self-auto` ON `.intro-type`. The scrim is a pseudo-element of
+ *      the type column, so it is only "over the type" while that column is as wide
+ *      as the type. Stretched to the control row's width it dragged across the
+ *      portrait — 97.55% of the photo's on-screen width veiled at 360-640 against 81.63% and
+ *      0% before — which is the mask's job undone and the photo's focal point with it.
+ *      Not stretching below `md` restores the earlier figures exactly.
+ *
+ *   3. `max-h-full md:max-h-[415px]` ON THE PORTRAIT. Wrapping makes this card
+ *      SHORTER, and below `md` the portrait is positioned against the card, so an
+ *      absolute cap the card can now undercut leaves the photo overhanging: at 658-767
+ *      the card came out 246px against the portrait's 275, and the 15.5px cut off each
+ *      end truncated the vertical mask feather, so the photo met the card's inner
+ *      edges as a hard rectangle — the exact seam the mask exists to dissolve. Capping
+ *      against the card keeps the feather intact; `md:` restores the absolute cap for
+ *      the in-flow portrait, which is bounded by its own row instead.
  */
 ---
 
 <Card colSpan="md:col-span-2 lg:col-span-3" rowSpan="md:row-span-4" fillsArea>
     <div class="flex w-full h-full justify-between md:pr-8">
         <div class="flex flex-col justify-between md:max-h-[18.75rem] gap-4">
-            <div class="intro-type flex flex-col h-full">
+            <div class="intro-type flex flex-col h-full self-start md:self-auto">
                 <h6 class="text-sm font-light m-0 text-[var(--text)]">welcome</h6>
                 {WELCOME.description.map((item, index) => (<h1 class="m-0 font-light text-xl">{index === 0 && <span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span>} {item}</h1>))}
             </div>
@@ -54,7 +84,7 @@ import portfolioImage from '../assets/me.webp'
                 </a>))}
             </div>
         </div>
-        <div class="flex items-center justify-center p-4">
+        <div class="flex items-center justify-center p-4 shrink-0">
             <Image
                     src={portfolioImage}
                     alt={`${METADATA.name}`}
@@ -62,7 +92,7 @@ import portfolioImage from '../assets/me.webp'
                     height="275"
                     densities={[2]}
                     format="webp"
-                    class="portrait w-auto max-h-[415px] select-none absolute right-[-72px] top-1/2 -translate-y-1/2 z-[-2] md:relative md:right-auto md:top-auto md:transform-none md:z-auto pointer-events-none md:shadow-[10px_10px_0_var(--shadow)] rounded-[8px]"
+                    class="portrait w-auto max-h-full md:max-h-[415px] select-none absolute right-[-72px] top-1/2 -translate-y-1/2 z-[-2] md:relative md:right-auto md:top-auto md:transform-none md:z-auto pointer-events-none md:shadow-[10px_10px_0_var(--shadow)] rounded-[8px]"
                     loading="eager"
             />
         </div>

@@ -178,6 +178,39 @@ describe("every styled control is one declared box", () => {
         }
     });
 
+    /**
+     * A DECLARED `rem` IS ONLY THE READER'S TEXT WHILE THE ROOT FONT-SIZE IS THE READER'S.
+     *
+     * Every assertion above about the box being "font-relative" reads the DECLARED UNIT and
+     * stops there. That is a claim about the stylesheet, not about the rendered page, and one
+     * declaration collapses the difference: `html { font-size: 16px }` freezes every `rem`
+     * LENGTH on the page while every `rem` MEDIA QUERY keeps re-resolving against the reader's
+     * own default (which is per spec — a media-query `rem` never consults any element).
+     *
+     * So the page would pick its layout tier by the reader's text and then render every box in
+     * device pixels — the exact mismatch the text-relative box exists to prevent, and the gate
+     * stays green because the declared unit is still `rem`. Measured at 414px with a 40px
+     * browser default: the control renders 160x120 with the reader's root, and 64x48 with this
+     * one declaration added, while the breakpoints still move.
+     *
+     * `%`, `em` and `rem` on the root all resolve against the reader's default and keep
+     * tracking it, so they are allowed; an absolute length or a keyword replaces it.
+     */
+    it("leaves the root font-size to the reader, so a declared rem IS the reader's text", () => {
+        for (const r of rules) {
+            const root = r.selectors.filter((s) => /^(html|:root)\b/.test(structuralSelector(s).trim()));
+            if (!root.length) continue;
+            const fs = decl(r.body, "font-size");
+            if (fs === undefined) continue;
+            expect(
+                fs,
+                `${root.join(", ")}${r.at ? ` inside ${r.at}` : ""} sets font-size: ${fs} — an absolute root `
+                + `font-size freezes every rem LENGTH on the page while every rem media query still moves, so `
+                + `the layout tier tracks the reader's text and the boxes inside it do not`,
+            ).toMatch(/^[\d.]+(%|r?em)$/);
+        }
+    });
+
     it("gives every control the same box", () => {
         const boxes = controlClasses.map(boxOf);
         const tuples = new Set(boxes.map((b) => `${b.width}/${b.height}/${b.padding}/${b.borderWidth ?? "0"}/${b.fontSize}`));
@@ -515,6 +548,19 @@ describe("every styled control is one declared box", () => {
             + `minimum width from ALL of its items at once, which is the defect: seven controls plus their `
             + `separation would hold the intro card's copy column open and the card would clip it`,
         ).toBe("wrap");
+        // MAIN-START PACKING IS THE OTHER HALF, and it was neither declared nor asserted. The
+        // minimum-width invariant says the row cannot be wider than one control; packing is what
+        // decides where a line's items sit inside the row, and centre or end packing pushes a
+        // control toward the clip edge whenever the copy column itself overruns the card. The
+        // flex initial value already renders main-start — verified identical to the pre-change
+        // build at all 56 configurations — so this pins the default rather than declaring one.
+        const packing = effectiveDecl(rowRules, ["justify-content", "place-content"], WIDE);
+        expect(
+            packing === null ? "normal" : (packing.value.trim().split(/\s+/).pop() ?? ""),
+            `the control row packs its items at "${packing?.value ?? "normal"}". Main-start packing is `
+            + `what keeps a control inside the card's clip edge when the copy column overruns it`,
+        ).toMatch(/^(normal|flex-start|start|left)$/);
+
         expect(
             flow.direction,
             `the control row's flex-direction resolves to "${flow.direction}". A reversed or vertical flow `
@@ -526,7 +572,7 @@ describe("every styled control is one declared box", () => {
         // see the note above. `@media` is the one that shipped a defect; `@layer` is the
         // one `effectiveDecl` cannot model even in principle.
         const LAYOUT_PROPS = [
-            "display", "flex-wrap", "flex-flow", "flex-direction",
+            "display", "flex-wrap", "flex-flow", "flex-direction", "justify-content", "place-content",
             "grid-template", "grid-template-columns", "grid-auto-flow",
             "columns", "column-count", "column-width",
         ];
@@ -629,16 +675,26 @@ describe("every styled control is one declared box", () => {
      * TWO THINGS THIS DELIBERATELY NO LONGER ASSERTS, both consequences of the change
      * rather than omissions.
      *
-     * The GAP. A column gap only separates items that SHARE a line, and a wrapping row's
-     * minimum is one item on a line by itself, so the gap can make this row taller and
-     * never wider. Its predecessor had to resolve the gap at every swept width, because
-     * `gap: 6rem` put 12px of control box past the clip edge at 414px and the DEFAULT text
-     * size with the gate green. That is measured rather than reasoned here, by building the
-     * same mutation under both layouts: under the column grid it clips a control at 12 of
-     * the 32 configurations, worst 89px, including that same 12 at 414px and a 16px root —
-     * under this row it is 0 at all 32. An entire class of change to this row therefore
-     * stopped being able to delete functionality, which is worth more than the assertion
-     * that was removed.
+     * The GAP, and READ THE WHOLE OF THIS before concluding the gap is now harmless — an
+     * earlier draft of this paragraph concluded exactly that and was wrong.
+     *
+     * A column gap only separates items that SHARE a line, and a wrapping row's minimum is
+     * one item on a line by itself, so the gap can make this row taller and never WIDER.
+     * That much is measured under both layouts: `gap: 6rem` clips a control past the card's
+     * right edge at 12 of 32 configurations under the column grid, worst 89px, including
+     * 12px at 414px and the DEFAULT text size — and 0 at all 32 under this row. So the
+     * predecessor's per-width gap resolution genuinely has nothing left to protect on the
+     * horizontal axis, which is why it is gone.
+     *
+     * BUT TALLER IS NOT FREE. Above `md` this card's height comes from its grid row and
+     * `overflow: hidden` clips the bottom as well, so the same 6rem widening puts 174px of
+     * control box past the BOTTOM clip edge at 1024x768 and hides the résumé control
+     * outright there and at 768x1024 and 1024x900. The gate is green throughout, and no
+     * assertion in this repo reads a bottom edge — nor can one here, since linkedom does not
+     * lay out. The honest statement is therefore narrow: the gap can no longer cost
+     * horizontal ink, and a browser sweep at desktop widths is the only thing that sees what
+     * it costs vertically. Do not restate this as "a class of change stopped being
+     * dangerous"; that generalises one edge to both.
      *
      * And the COLUMN COUNT, which no longer exists.
      *
@@ -731,24 +787,80 @@ describe("every styled control is one declared box", () => {
             return n;
         };
 
-        /** One side of a box-edge property for an element at a width, shorthand-aware. */
+        /**
+         * One side of a box-edge property for an element at a width, shorthand-aware.
+         *
+         * THE LOGICAL AND PHYSICAL SHORTHANDS PUT THE SIDES IN DIFFERENT PLACES, and reading
+         * one as the other is a hole rather than a rounding error. `padding: A B` is
+         * block-then-inline, so BOTH horizontal sides are the second token; `padding-inline: A B`
+         * is start-then-end, so in LTR the LEFT side is the FIRST token. An earlier version ran
+         * both through the physical branch, which charged a real `padding-inline: 8rem 0` — 128px
+         * of left padding — as 0, and put 262px of control box past the clip edge at 320 wide and
+         * a 40px root with the whole gate green. Found by inspection, then reproduced: it clips at
+         * 12 of the 32 configurations, worst 262px.
+         *
+         * LTR is assumed, consistently with mapping `-inline-start` to the left in `props` below.
+         * The page declares `lang="en"` and no `dir`, so that holds; it would need revisiting for
+         * an RTL locale, and the assumption is stated rather than buried.
+         */
         const edge = (el: Element, prop: "padding" | "margin", side: "left" | "right", width: number): number => {
             const props = [prop, `${prop}-inline`, `${prop}-inline-${side === "left" ? "start" : "end"}`, `${prop}-${side}`];
             const won = effectiveDecl(reaching.get(el)!, props, width);
             if (!won) return 0;
             const parts = won.value.trim().split(/\s+/);
-            const shorthand = won.prop === prop || won.prop === `${prop}-inline`;
-            const pick = !shorthand ? parts[0]
-                : parts.length === 1 ? parts[0]
+            const where = `${won.prop} on ${el.tagName.toLowerCase()}`;
+            let pick: string;
+            if (won.prop === `${prop}-inline`) {
+                // At most two values are valid here. More than two is something this cannot
+                // read, and an unreadable edge must be loud rather than charged as free space.
+                if (parts.length > 2) {
+                    unreadable.push(`${where}: "${won.value}" — a logical inline shorthand takes at most two values`);
+                    return 0;
+                }
+                pick = parts.length === 1 ? parts[0] : (side === "left" ? parts[0] : parts[1]);
+            } else if (won.prop === prop) {
+                // top / right / bottom / left, with the usual 1-, 2- and 3-value fallbacks.
+                pick = parts.length === 1 ? parts[0]
                     : parts.length === 4 ? (side === "left" ? parts[3] : parts[1])
                         : parts[1];
+            } else {
+                pick = parts[0]; // a single-side longhand
+            }
             // `auto` on a margin is legitimate and centres rather than consuming a knowable
             // amount, so it is reported as unmodelled rather than silently read as zero.
-            return length(pick, `${won.prop} on ${el.tagName.toLowerCase()}`, el);
+            return length(pick, where, el);
         };
+        /**
+         * One side's border width, SHORTHANDS INCLUDED.
+         *
+         * Reading only `border-width` and `border-<side>-width` missed every shorthand
+         * spelling — `border`, `border-left`, `border-inline`, `border-inline-start` — each
+         * of which sets the used width and any of which a hand-written scoped `<style>` would
+         * plausibly use. It also always took `parts[0]`, so the four-value form of
+         * `border-width` charged the TOP width for both horizontal sides.
+         *
+         * In a shorthand like `border: 2rem solid red` the width is the token that reads as a
+         * length, so that is what is picked; an unreadable one still reaches `length()` and is
+         * reported through `unreadable` rather than charged as zero. Bare `border` is safe to
+         * list because `decl()` anchors on `(?:^|;)\s*border\s*:`, so the sheet's
+         * `--card-border:` custom properties cannot match it.
+         */
         const border = (el: Element, side: "left" | "right", width: number): number => {
-            const won = effectiveDecl(reaching.get(el)!, ["border-width", `border-${side}-width`], width);
-            return won ? length(won.value.trim().split(/\s+/)[0], `border-width on ${el.tagName.toLowerCase()}`, el) : 0;
+            const flow = side === "left" ? "start" : "end";
+            const props = [
+                "border", "border-width", "border-inline", "border-inline-width",
+                `border-${side}`, `border-${side}-width`,
+                `border-inline-${flow}`, `border-inline-${flow}-width`,
+            ];
+            const won = effectiveDecl(reaching.get(el)!, props, width);
+            if (!won) return 0;
+            const parts = won.value.trim().split(/\s+/);
+            const isLength = (t: string) => /^-?0(?:\.0+)?$/.test(t) || px(t) !== null;
+            const pick = /(?:^|-)width$/.test(won.prop)
+                ? (parts.length === 4 ? (side === "left" ? parts[3] : parts[1])
+                    : parts.length >= 2 ? parts[1] : parts[0])
+                : (parts.find(isLength) ?? parts[0]);
+            return length(pick, `${won.prop} on ${el.tagName.toLowerCase()}`, el);
         };
 
         /**
@@ -757,6 +869,16 @@ describe("every styled control is one declared box", () => {
          * MARGINS are charged as well as padding and border: a `margin-left` on the row
          * shifts its content rightward exactly as the card's padding does, and leaving them
          * out let a 2rem margin push a control 22px past the clip edge with the gate green.
+         *
+         * WHAT CHARGING THEM BUYS HERE IS NARROWER THAN THAT HISTORY SUGGESTS, and saying so
+         * is the point. That 2rem margin is caught by the per-width inequality the ladder
+         * needed and this file no longer has. The surviving sweep asks only "does ONE control
+         * fit", and `gutters` is derived from `available()` itself at a narrow width — so a
+         * margin added to the row raises the chrome and the floor together and the comparison
+         * cannot fail below `md` by construction. Margins are still charged because
+         * `available()` is also what the zoom-ceiling figure is computed from, and an
+         * uncharged margin overstates that; but a margin mutation goes red on the parent
+         * commit and green here, and that is a coverage loss the invariant does not replace.
          */
         const available = (width: number): number => width - chain.reduce((spent, c) => spent
             + edge(c.el, "padding", "left", width) + edge(c.el, "margin", "left", width)
@@ -809,6 +931,14 @@ describe("every styled control is one declared box", () => {
             "margin", "margin-left", "margin-right", "margin-inline", "margin-inline-start", "margin-inline-end",
             "padding", "padding-left", "padding-right", "padding-inline", "padding-inline-start", "padding-inline-end",
             "box-sizing", "display", "position", "float",
+            // `order` reorders the row without touching any box: it desynchronises
+            // visual reading order from DOM and tab order (WCAG 1.3.2 / 2.4.3) while every
+            // geometric assertion here stays green. Measured: `order-last` on the theme
+            // toggle moves it from visual position 1/7 to 7/7 at six widths while it
+            // remains the first tab stop. Nothing reaching a control declares it today,
+            // so no exemption clause is needed. It is a PRE-EXISTING gap, not one this
+            // change opened — the same mutation is equally green on the column ladder.
+            "order",
         ];
         const itemOffenders: string[] = [];
         for (const el of items) {

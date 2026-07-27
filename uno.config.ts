@@ -49,8 +49,9 @@ export default defineConfig({
      * it simply parts company with its variant siblings once the reader enlarges the
      * text, which is why the count is worth keeping small and worth stating here.
      *
-     * It was four. Three of them granted the control row a column count (4/3/2/1 at
-     * 40rem, 25rem and 13rem) and all three are gone: that row wraps now, so it needs
+     * It was four. Three of them granted the control row a column count — 3, 2 and 1 at
+     * 40rem, 25rem and 13rem, with the 4-column rule unconditional and so not a query at
+     * all — and all three are gone: that row wraps now, so it needs
      * no bound at all and there is nothing left to keep in step. Two of those bounds
      * had no variant sibling to move with in the first place, which is the shape of
      * hand-maintained CSS worth deleting rather than converting — see BasicLayout.astro.
@@ -219,9 +220,16 @@ export default defineConfig({
      * (a 44px square, for comparison, has room for 2px of content beside the old
      * `px-5`, which is why that number was rejected).
      *
-     * `shrink-0` on the surface IS LOAD-BEARING, and it is worth knowing that it has
-     * been all three things in turn — necessary, inert, and necessary again — because
-     * that is why it was never removed. It was added for a real measured failure: the
+     * `shrink-0` on the surface is a LIVE GUARD, and the distinction from "load-bearing"
+     * is the whole point: the mechanism it defends against became APPLICABLE again with the
+     * wrapping row, but no reachable configuration currently triggers it. Removing the token
+     * changes no control's rendered width at any measured configuration; force the row
+     * narrower than one control and a control goes 64 -> 40 without it and holds 64 with it.
+     * An earlier draft of this paragraph claimed the token was load-bearing again, which
+     * overstated it in the direction that invites someone to "verify" it by deleting it,
+     * seeing nothing change, and concluding the note is stale. It is worth knowing that it
+     * has been all three things in turn — necessary, inert, and applicable-but-unexercised —
+     * because that is why it was never removed. It was added for a real measured failure: the
      * two goal CTAs were flex items, flex-shrink outranks a declared width, and they
      * measured 47.80px at lg with the width already in place. Removing those CTAs left
      * all seven remaining controls as grid items of a column ladder, where nothing

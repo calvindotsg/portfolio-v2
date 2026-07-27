@@ -373,9 +373,12 @@ describe("the page may grow taller than the viewport", () => {
          * This used to require at least five conditions, described as "five breakpoints
          * plus two hand-written bounds". Both halves of that number were wrong. A
          * breakpoint only emits a query if some variant actually uses it, so the five are
-         * never all present; and the hand-written count went two, then three, then one as
-         * the control row stopped needing any bound at all — at which point the sheet held
-         * four and a correct sheet failed a non-vacuity floor.
+         * never all present; and the hand-written count moved twice — this row's own bounds
+         * went two, then three, then none — at which point the sheet held four conditions and
+         * a correct sheet failed a non-vacuity floor. (uno.config.ts counts the same history
+         * as "it was four", because it counts every hand-written query in the codebase and
+         * this counts only the control row's. Neither is wrong; both are why a literal here
+         * was the wrong instrument.)
          *
          * A literal is simply the wrong instrument for "did the scan find everything". So
          * the sheet is scanned again here, by a DELIBERATELY LOOSER pattern — any at-rule
