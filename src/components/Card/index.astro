@@ -118,10 +118,17 @@
 // else added to this page should NOT take the exemption.
 //
 // THE HEADING OWNS THE SPACE BELOW IT, and it owns it here so that every card taking
-// this component's `title` prop gets the same amount — five of the page's six card
-// headings, measured 16px each. The sixth is the Now card's, which is written out in
-// Now.astro rather than passed as `title` and reserves 0px; that card is deliberately
-// outside this rule, so "every card heading" is not the claim.
+// this component's `title` prop gets the same amount. That is now ALL SIX of the page's
+// card headings, measured ink-to-ink at 1440x900: 20px under about-me, both role cards
+// and Now, 19px under the two goal cards, where the first thing below is the progress
+// bar's graphic rather than a line of text.
+//
+// It was five until the Now card stopped writing its own heading out. That card was the
+// documented exception and reserved 9px, and the exception was never a spacing choice —
+// its heading shared a row with the "what's that ?" link, so the heading had to be
+// hand-written, and a hand-written heading inherits nothing from here. Moving the link
+// into the corner slot below let Now pass `title` like the other five, and the space
+// arrived on its own. See Now.astro.
 //
 // It did not hold before either: measured at 1440x900 from the heading's bottom to the
 // top of the first thing under it, the goal cards had 16px — supplied by the progress
@@ -161,6 +168,31 @@
 // where each figure first appeared, so it reads as a single sweep and is not one.
 // And do not "fix" a future cramped reading by shrinking this gap: the cramped
 // reading it corrects was reported.
+// THE `corner` SLOT, and why a card owns this position rather than its caller.
+//
+// It exists because of one card. The Now card carries two marks that belong to the
+// card rather than to any line of its copy: a live-status dot, and a link out to what
+// a "/now page" is. Both used to live in a flex row that ALSO held the heading, and
+// that row is the reason Now was the only card whose heading did not reserve the same
+// space beneath it — a hand-rolled heading cannot inherit this component's. Give the
+// marks a position of their own and Now can pass `title` like the other five.
+//
+// The offset is the card's own padding, and it is written here for that reason: the
+// caller does not know what this component pads by, and a caller that guessed would
+// silently drift the moment the padding changed.
+//
+// The live dot does move, 6px down — measured 25px below the card's top edge before and
+// 31px after, at 1440x900 — and that is the slot doing its job rather than a side
+// effect. Two marks in a row share a centre line, which is what `items-center` is for,
+// and the taller of the two is the 24px explainer. It also lands the dot better against
+// the heading than it was: the dot's centre is now 37px below the card's top against the
+// heading's optical centre at 36px, where before it sat 5px high at 31px. Its horizontal
+// position is unchanged, 227px in from the card's left edge in both.
+//
+// The heading gets right padding when the slot is filled, so a longer title runs out
+// of room instead of running under the marks. `Astro.slots.has` is checked rather than
+// always emitting the box: an empty absolutely-positioned div would sit over the
+// heading of all five other cards for no reason.
 interface Props {
     title?: string;
     titleIcon?: string;
@@ -171,12 +203,18 @@ interface Props {
 }
 
 const {title, titleIcon, colSpan, rowSpan, fillsArea} = Astro.props;
+const hasCorner = Astro.slots.has("corner");
 ---
 
 <div
         data-card
         class={`isolate ${fillsArea ? "" : "self-start max-h-full"} overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] relative w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
-    {title && <h2 class="text-xl font-bold mt-0 mb-4">{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
+    {hasCorner && (
+            <div class="absolute top-6 right-6 flex items-center gap-3">
+                <slot name="corner"/>
+            </div>
+    )}
+    {title && <h2 class={`text-xl font-bold mt-0 mb-4 ${hasCorner ? "pr-16" : ""}`}>{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
     <slot/>
 </div>

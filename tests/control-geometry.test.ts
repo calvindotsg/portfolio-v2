@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {LINKS} from "../src/lib/constants";
+import {LINKS, NOW} from "../src/lib/constants";
 import {decl, isKeyframeStep, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
 
 /**
@@ -400,6 +400,62 @@ describe("every styled control is one declared box", () => {
             const tracks = decl(r.body, "grid-template-columns");
             if (!tracks) continue;
             expect(tracks, "a fixed track duplicates the control's declared width").toMatch(/^repeat\(\d+,\s*auto\)$/);
+        }
+    });
+
+    /**
+     * THE NOW CARD'S EXPLAINER IS A TARGET TOO, and it is deliberately not a `.control`.
+     *
+     * It is an icon-only link in a card corner with no visible words, which makes it the
+     * one interactive element on the page whose whole hit area is decided by a box nobody
+     * else's tests look at. Shrink it to the glyph and it becomes a 16px target.
+     *
+     * 24px, and NOT the 48px the plated controls get, which is a real inconsistency and
+     * worth stating rather than hiding. 24x24 is exactly WCAG 2.2 SC 2.5.8 (Minimum, AA)
+     * and is the number axe's `target-size` audit measures; SC 2.5.5 (Enhanced, AAA) asks
+     * 44 and this does not meet it. The reason is position, not principle: at 44px the
+     * box would run from the card's top padding edge down into the first line of the
+     * body copy, and sideways past where a longer card title can reach — measured, the
+     * heading's text can extend to 176px from the card's left edge and a 44px box would
+     * start at 172. The controls are the card's primary affordances in a grid of their
+     * own and have the room; this is a supplementary link in a corner and does not.
+     *
+     * The box is font-relative for the same reason everything else on this page is: a
+     * target that stays 24px while the reader's text doubles is a target that has
+     * halved. `w-6 h-6` is 1.5rem, so it grows with the type.
+     */
+    it("gives the Now card's icon-only explainer a real target, sized in text", () => {
+        const link = [...document.querySelectorAll("[data-card] a")]
+            .find((a) => a.getAttribute("href") === NOW.explainer_url);
+        expect(link, `no link to ${NOW.explainer_url} — this assertion would be vacuous`).toBeTruthy();
+
+        // Resolved over every rule that can reach the element, so a later utility that
+        // overrides the box is caught rather than merely the first one that agrees.
+        const reaching = rules.filter((r) => !isKeyframeStep(r) && r.selectors.some((s) => {
+            const structural = structuralSelector(s);
+            return Boolean(structural) && [...document.querySelectorAll(structural)].includes(link as never);
+        }));
+        expect(reaching.length, "no rule in the sheet reaches the explainer link — the walker has drifted").toBeGreaterThan(0);
+
+        for (const prop of ["width", "height"] as const) {
+            const declared = reaching.flatMap((r) => {
+                const v = decl(r.body, prop);
+                return v ? [v] : [];
+            });
+            expect(declared, `the explainer link must declare a ${prop}; an inline box's padding hit-tests but adds nothing to the line box`).not.toEqual([]);
+            const winner = declared[declared.length - 1];
+            expect(
+                px(winner),
+                `the explainer's ${prop} resolves to "${winner}", which is not a length this can measure`,
+            ).not.toBeNull();
+            expect(
+                px(winner)!,
+                `the explainer's ${prop} is ${winner} (${px(winner)}px at a 16px root); SC 2.5.8 asks 24`,
+            ).toBeGreaterThanOrEqual(24);
+            expect(
+                winner,
+                `the explainer's ${prop} must be font-relative, or the target shrinks against the reader's text; found "${winner}"`,
+            ).toMatch(/\d\s*r?em\b/);
         }
     });
 });

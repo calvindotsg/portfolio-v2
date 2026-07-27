@@ -165,6 +165,58 @@ describe("page content", () => {
         expect(text).toContain(NOW.description);
     });
 
+    /**
+     * The Now card's explainer is an icon link with no visible words, so the whole of
+     * what a screen reader gets is the sr-only name. An icon link that loses its name
+     * announces as its URL, or as nothing at all, and no layout assertion notices.
+     *
+     * This is the one card that used to write its own heading, purely so the explainer
+     * could share the heading's row — which is why it was also the one card whose
+     * heading did not reserve the same space beneath it. So the structural half is
+     * asserted too: the heading has to come from `Card`, i.e. be a direct child of the
+     * card element like the other five, not a descendant of some row inside it.
+     */
+    it("gives the Now card's explainer an accessible name and no visible words", () => {
+        const now = [...doc.querySelectorAll("[data-card]")]
+            .find((c) => (c.querySelector("h2")?.textContent ?? "").trim() === "Now");
+        expect(now, "no card titled Now — every assertion below would be vacuous").toBeTruthy();
+
+        const link = [...now!.querySelectorAll("a")]
+            .find((a) => a.getAttribute("href") === NOW.explainer_url);
+        expect(link, `the Now card must link to ${NOW.explainer_url}`).toBeTruthy();
+
+        const srOnly = [...link!.querySelectorAll(".sr-only")].map((s) => s.textContent?.trim()).filter(Boolean);
+        expect(srOnly, "the explainer link's accessible name must come from constants.ts").toContain(NOW.explainer_name);
+
+        // No visible text of its own. A link that still carries words does not need an
+        // sr-only name, and having both would announce the name twice.
+        const visible = [...link!.childNodes]
+            .filter((n) => n.nodeType === 3 || !(n as Element).classList?.contains("sr-only"))
+            .map((n) => (n.nodeType === 3 ? n.textContent : (n as Element).textContent) ?? "")
+            .join("").trim();
+        expect(visible, "the explainer is an icon; visible words beside it would be announced twice").toBe("");
+
+        // The icon itself must be hidden from the accessibility tree, or it competes
+        // with the name above.
+        const icon = link!.querySelector('[class*="i-"]');
+        expect(icon, "the explainer must render an icon").toBeTruthy();
+        expect(icon!.getAttribute("aria-hidden"), "the glyph is decorative beside an sr-only name").toBe("true");
+
+        // The heading comes from Card, which is what makes the space under it the same
+        // as every other card's. A heading nested inside a row of this card's own is
+        // exactly the shape that caused the reported inconsistency.
+        const h2 = now!.querySelector("h2")!;
+        expect(
+            h2.parentElement === now,
+            "the Now card's heading must be rendered by Card (a direct child of the card), not written out inside a row of its own — that is what let its heading-to-body space drift from the other five",
+        ).toBe(true);
+
+        // Rot guard: the words the icon replaced must be gone. Leaving them anywhere
+        // reads as a half-applied change, and "what's that ?" is exactly the string a
+        // future edit would paste back beside the icon.
+        expect(text, 'the explainer\'s old visible wording must not survive anywhere in the page').not.toContain("what's that");
+    });
+
     it("renders the footer", () => {
         expect(text).toContain(FOOTER.prefix);
         expect(text).toContain(FOOTER.suffix.replace(/^, /, ""));

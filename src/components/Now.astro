@@ -2,17 +2,55 @@
 import Card from "./Card/index.astro";
 import Pulse from "./Pulse.astro";
 import {NOW} from "../lib/constants";
+import {iconClass} from "../lib/icons";
+
+/*
+ * THIS CARD USED TO HAND-ROLL ITS OWN HEADING, and that was the defect rather than a
+ * style choice — reported as the Now card breaking the heading-to-body convention the
+ * other five cards keep.
+ *
+ * It is worth being precise about the cause, because the obvious reading is wrong. The
+ * gap under this heading measured 11px against 16px everywhere else, which looks like a
+ * spacing value someone got wrong. It was not: `Card` owns that space and gives it to
+ * every card that passes a `title`, and this card could not pass one. The "what's
+ * that ?" link SHARED THE HEADING'S ROW — heading and link stacked in a flex column,
+ * with the live dot pushed to the far end — so the heading had to be written out here,
+ * and a heading written out here inherits nothing.
+ *
+ * So the fix is structural and the spacing follows from it. The link becomes an icon in
+ * the card's own corner slot beside the dot, the heading goes back to being
+ * `title="Now"`, and the 16px arrives on its own. Nothing in this file sets a spacing
+ * value any more.
+ *
+ * WHY THE CORNER AND NOT INSIDE THE HEADING. An adornment after the title text was the
+ * first shape tried, and it is worse for the reason that matters most about a heading:
+ * a link inside the heading element becomes part of that heading's accessible name, so
+ * screen-reader
+ * heading navigation would announce "Now What's a /now page?" instead of "Now". The
+ * corner keeps the heading's name exactly one word, and still reads as belonging to the
+ * card rather than to any line of its copy.
+ *
+ * The icon is 1em inside a 1.5rem anchor — 24px at the default text size, which is SC
+ * 2.5.8's minimum target on the nose, and it grows with the reader's text rather than
+ * staying put. That box is INLINE-FLEX on purpose: an inline anchor's vertical padding
+ * paints and hit-tests but adds nothing to the line box, so it would have reported a
+ * 24px target while overlapping whatever sat above it. The flex box also centres the
+ * glyph, which is what nine other icons on this page already rely on — a flex item is
+ * blockified, so the preset's baseline nudge does not apply to it and does not need to.
+ */
 ---
 
-<Card colSpan="md:col-span-1" rowSpan="md:row-span-2">
-    <div class="flex justify-between w-full items-start mb-2">
-        <div class="flex flex-col">
-            <h2 class="text-xl font-bold m-0">Now</h2>
-            <a href="https://sive.rs/nowff" target="_blank">
-                <span class="text-xs cursor-pointer">what's that ?</span>
-            </a>
-        </div>
+<Card colSpan="md:col-span-1" rowSpan="md:row-span-2" title="Now">
+    <Fragment slot="corner">
+        <a
+                href={NOW.explainer_url}
+                target="_blank"
+                class="inline-flex items-center justify-center w-6 h-6 text-base text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out"
+        >
+            <span class={`${iconClass(NOW.explainer_icon)} shrink-0`} aria-hidden="true"></span>
+            <span class="sr-only">{NOW.explainer_name}</span>
+        </a>
         <Pulse/>
-    </div>
+    </Fragment>
     <p class="text-sm">{NOW.description}</p>
 </Card>

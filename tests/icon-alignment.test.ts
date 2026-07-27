@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {CAREER, FOOTER, GOALS, LINKS, WELCOME} from "../src/lib/constants";
+import {CAREER, FOOTER, GOALS, LINKS, NOW, WELCOME} from "../src/lib/constants";
 import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, parseRules, type Rule, structuralSelector} from "./helpers/css";
 
 /**
@@ -259,9 +259,16 @@ describe("an inline icon is centred on its text's cap band", () => {
      *
      * The two theme-toggle glyphs are the only icons not named in constants.ts: the
      * toggle carries a sun and a moon and hides whichever one is not current.
+     *
+     * The Now card's explainer icon belongs in the FLEX group, and it is worth saying
+     * why rather than leaving it to the count: its anchor is an inline-flex box, so
+     * the glyph inside is a flex item and is blockified like the other eleven. It sits
+     * in the card's corner, not in a line of prose, so there is no cap line for the
+     * baseline nudge to centre it on — its container centres it instead.
      */
     const TOGGLE_GLYPHS = 2;
-    const EXPECTED_FLEX_HOSTED = LINKS.length + GOALS.length + TOGGLE_GLYPHS;
+    const EXPECTED_FLEX_HOSTED = LINKS.length + GOALS.length + TOGGLE_GLYPHS
+        + [NOW.explainer_icon].length;
     const EXPECTED_INLINE_HOSTED = [WELCOME.greeting_icon, ...CAREER.map((c) => c.icon), FOOTER.icon].length;
     const EXPECTED_ICONS = EXPECTED_FLEX_HOSTED + EXPECTED_INLINE_HOSTED;
 
@@ -551,7 +558,8 @@ describe("an inline icon is centred on its text's cap band", () => {
                     [width, isFlexHostedAt(icon, width)]))}`).toBe(1);
         }
 
-        // One per social link, one per goal bar and the two toggle glyphs, against
+        // One per social link, one per goal bar, the two toggle glyphs and the Now
+        // card's corner explainer, against
         // the greeting, one per job title and the footer heart. Counted from the
         // data, because the interesting failure is an icon crossing from one group
         // to the other, which no per-element check would notice — and because a

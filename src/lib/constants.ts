@@ -149,10 +149,32 @@ export const WELCOME: {
     description: ["Hi, I'm Calvin", "Business Systems Analyst.", "Road cyclist.", "Enthusiastic learner."]
 }
 
+/**
+ * The Now card. `description` is the status line; the three `explainer_*` fields
+ * are the link out to what a "/now page" even is.
+ *
+ * That link used to be the visible words "what's that ?", sitting on a second line
+ * directly under a hand-rolled heading — which is what made this the one card whose
+ * heading did not reserve the same space beneath it as the other five. The heading
+ * was hand-rolled precisely because the link had to share its row. See
+ * `src/components/Now.astro`.
+ *
+ * `explainer_name` is the link's WHOLE accessible name, announced verbatim: the icon
+ * beside it is aria-hidden and there is no visible text left, so this string is all a
+ * screen reader gets. It says what the destination explains rather than gesturing at
+ * it — "what's that ?" reads fine beside the word it follows and says nothing at all
+ * when read out of a list of links.
+ */
 export const NOW: {
     description: string
+    explainer_url: string
+    explainer_name: string
+    explainer_icon: string
 } = {
-    description: "Building processes at a startup, probably running when you find me"
+    description: "Building processes at a startup, probably running when you find me",
+    explainer_url: "https://sive.rs/nowff",
+    explainer_name: "What's a /now page?",
+    explainer_icon: "ri:information-line"
 }
 
 /**
