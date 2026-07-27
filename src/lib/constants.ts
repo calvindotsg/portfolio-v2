@@ -104,13 +104,117 @@ export const ABOUT_ME: {
  */
 export type Goal = {
     total_goal: number
+    /** Clamped to `total_goal` — what the bar and the "x of y" line read. */
     current_progress: number
+    /**
+     * UNCLAMPED km, straight from the bot JSON, and what `projection.ts` reads.
+     *
+     * Be precise about why, because the obvious justification is wrong and was
+     * written here first: it is NOT that the clamped figure would misreport a met
+     * goal. `clampToGoal` is `min(raw, total_goal)`, and the projection's met test
+     * is `>= total_goal`, so the two agree on every input — mutation-verified.
+     *
+     * The reason is that `current_progress` is a DISPLAY value. It exists so an
+     * overshot year cannot push the bar past 100%, and arithmetic that reads a value
+     * shaped for a progress bar inherits that shaping. The agreement above is a
+     * coincidence of two facts that are free to move independently: the clamp's
+     * formula, and the threshold the projection happens to compare against. Reading
+     * the source figure means neither can be changed into a silent wrong answer, and
+     * it is what lets a future "met, and 200 km past it" say the second half at all.
+     */
+    raw_progress: number
     /** null when there is no comparable figure — e.g. first year back at the sport */
     progress_last_year: number | null
     goal_name: string
     goal_logo: string
     measurable_unit: string
+    /** Joins this goal to {@link EVENTS}. See {@link Sport}. */
+    sport: Sport
 }
+
+/**
+ * The calendar year every figure on this page is year-to-date against: the bot's
+ * km, `progress_last_year`, and the races in {@link EVENTS}.
+ *
+ * It is a constant rather than `new Date().getFullYear()` on purpose. A derived
+ * year rolls over at midnight UTC on 1 January and the page silently starts
+ * reporting a fresh year's target against last year's races and last year's
+ * closing kilometres, with every test still green. Pinned, the January rollover is
+ * a deliberate edit.
+ *
+ * THE JANUARY CHECKLIST LIVES HERE, not in README.md — an earlier draft pointed
+ * there and the section did not exist. Three steps, and only the first is gated:
+ *
+ *   1. Bump this constant. `tests/projection.test.ts` asserts it matches the year
+ *      in the bot's `updated_at`, so forgetting it fails the suite, which is the
+ *      build command — the page cannot ship with the two out of step.
+ *   2. Set each goal's `progress_last_year` from the closing totals. NOTHING checks
+ *      this: the repo has no memory of last year's kilometres, so a stale figure
+ *      renders happily. Read them off the bot JSON before step 1 overwrites it.
+ *   3. Add the new year's races to {@link EVENTS} and remove the old ones. Events
+ *      from a past year are inert (they are all behind `today`), so leaving them
+ *      costs nothing but noise.
+ */
+export const GOAL_YEAR = 2026
+
+/**
+ * The join between a goal and a race, and the reason it is DERIVED rather than
+ * declared.
+ *
+ * `Sport` is read off the literals in `RAW_GOALS` below, so the set of legal
+ * values is exactly the set of goals that exist. Declaring
+ * `type Sport = "running" | "cycling"` independently would let the two drift: a
+ * renamed goal would leave events pointing at a sport nothing renders, and the
+ * mismatch is invisible — an event whose sport matches no goal contributes to no
+ * projection and throws nothing.
+ *
+ * That derivation only works because `RAW_GOALS` is declared `as const satisfies`
+ * rather than with a plain `: Goal[]` annotation. An annotation WIDENS the string
+ * literals to `string`, and `Sport` would resolve to `string` — accepting every
+ * typo while still type-checking. This is the load-bearing half of the pattern and
+ * it looks like a style choice, so: do not "tidy" the declaration back to an
+ * annotation. `pnpm check` is the first half of Netlify's build command, so a real
+ * type error here cannot reach production; a widened one is not a type error at all.
+ */
+export type Sport = typeof RAW_GOALS[number]["sport"]
+
+/**
+ * A race the site owner has entered — completed ones are in the past, booked ones
+ * are ahead. One array serves both consumers: the projection folds the BOOKED
+ * distance of future events into what is already accounted for, and completion is
+ * derived from the date rather than stored, so no flag can go stale.
+ *
+ * `end_date` is for multi-day events and it is not decoration. With a single date,
+ * the whole of a 1,022 km nine-day tour books as ridden on its start date while
+ * Strava has recorded one day of it — a discontinuity that would drop a projection
+ * by roughly 930 km mid-tour and recover it eight days later. Spreading the booking
+ * across the span keeps the figure continuous.
+ *
+ * Deliberately NO `priority` field, though the owner's Garmin export has one:
+ * neither consumer reads it, and this file's tests assert that unrendered fields
+ * are absent rather than left for a future editor to fill in expecting them to do
+ * something.
+ *
+ * Named `RaceEvent` because `Event` is a live DOM global in this module.
+ */
+export type RaceEvent = {
+    /** ISO `YYYY-MM-DD`, the day the event starts. */
+    date: string
+    /** ISO `YYYY-MM-DD`, the last day — multi-day events only. */
+    end_date?: string
+    name: string
+    km: number
+    sport: Sport
+}
+
+export const EVENTS: readonly RaceEvent[] = [
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling"},
+    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling"},
+    {date: "2026-08-02", name: "Round the Island Bike Adventure", km: 121.98, sport: "cycling"},
+    {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running"},
+    {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling"},
+    {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running"},
+]
 
 /**
  * A year that overshoots its target is clamped here rather than in the bot
@@ -119,25 +223,44 @@ export type Goal = {
  */
 export const clampToGoal = (progress: number, total_goal: number): number => Math.min(progress, total_goal)
 
+/**
+ * The shape `RAW_GOALS` is checked against. It is a separate type from {@link Goal}
+ * so the source can be `as const satisfies` — see {@link Sport} for why an
+ * annotation here would silently widen `sport` to `string` and break the join.
+ * `raw_progress` is absent because it is derived below, not authored.
+ */
+type GoalSource = {
+    total_goal: number
+    current_progress: number
+    progress_last_year: number | null
+    goal_name: string
+    goal_logo: string
+    measurable_unit: string
+    sport: string
+}
+
 // current_progress is bot-owned — see .github/workflows/strava-progress.yml; edit the JSON, not this file, to bump it manually.
-const RAW_GOALS: Goal[] = [{
+const RAW_GOALS = [{
     total_goal: 600,
     current_progress: stravaProgress.running_km,
     progress_last_year: null,
     goal_name: "Running",
     goal_logo: "ri:run-line",
-    measurable_unit: "km"
+    measurable_unit: "km",
+    sport: "running"
 }, {
     total_goal: 5000,
     current_progress: stravaProgress.cycling_km,
     progress_last_year: 1440.8,
     goal_name: "Cycling",
     goal_logo: "ri:riding-line",
-    measurable_unit: "km"
-}]
+    measurable_unit: "km",
+    sport: "cycling"
+}] as const satisfies readonly GoalSource[]
 
 export const GOALS: Goal[] = RAW_GOALS.map((goal) => ({
     ...goal,
+    raw_progress: goal.current_progress,
     current_progress: clampToGoal(goal.current_progress, goal.total_goal)
 }))
 

@@ -2,7 +2,7 @@
 // Runs in GitHub Actions (.github/workflows/strava-progress.yml) on node 20+
 // built-in fetch — zero dependencies. Fail-loud: any error exits non-zero,
 // the workflow goes red, and no file is written.
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 // This script holds no configuration of its own: the athlete comes from the
@@ -16,6 +16,56 @@ export function kmFromMeters(meters, label) {
     // Meters → km, 1 decimal (matches the existing 2246.4 style).
     return Number((meters / 1000).toFixed(1));
 }
+
+// The Singapore calendar date. The cron fires 21:13 UTC, which is 05:13 the NEXT
+// morning in Singapore, so a UTC-derived stamp is off by one on every scheduled
+// run for the only reader this site has. `en-CA` yields ISO order.
+export function singaporeDate(now = new Date()) {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit"
+    }).format(now);
+}
+
+/**
+ * The bytes to write, given the fetched km and whatever is already on disk.
+ *
+ * `updated_at` MUST survive a run that changes nothing. The workflow commits only
+ * when `git diff --quiet` reports a change, and that gate is the only thing
+ * standing between this repo and a commit-push-deploy every single night. Stamping
+ * the date unconditionally makes the file differ on every run by construction, so
+ * the gate can never fire — verified by running it: an identical-km file carrying a
+ * fresh date reports CHANGED.
+ *
+ * So the date means "the day the kilometres last MOVED", not "the day they were
+ * last checked", and the page's "Updated" line has to be true of that.
+ *
+ * A missing or malformed file is treated as a first run and stamped fresh, rather
+ * than thrown. The fail-loud posture elsewhere in this script is about bad data
+ * from Strava; turning a bootstrap into a red workflow would be a different thing.
+ */
+export function nextProgress(cycling_km, running_km, previousRaw, today = singaporeDate()) {
+    let previous = null;
+    try {
+        const parsed = JSON.parse(previousRaw);
+        if (parsed && typeof parsed === "object") previous = parsed;
+    } catch { /* first run, or a hand-mangled file — stamp fresh */ }
+
+    const unchanged = previous
+        && previous.cycling_km === cycling_km
+        && previous.running_km === running_km
+        && typeof previous.updated_at === "string";
+
+    // Key order is part of the byte-stability contract, alongside the 4-space
+    // indent and the trailing newline. (The commit message reads keys by name, so
+    // it is order-indifferent — the diff is not.)
+    return {
+        cycling_km,
+        running_km,
+        updated_at: unchanged ? previous.updated_at : today
+    };
+}
+
+export const serialise = (progress) => JSON.stringify(progress, null, 4) + "\n";
 
 async function main() {
     const env = (name) => {
@@ -45,17 +95,19 @@ async function main() {
     if (!statsRes.ok) throw new Error(`Stats fetch failed: ${statsRes.status} ${await statsRes.text()}`);
     const stats = await statsRes.json();
 
-    const progress = {
-        cycling_km: kmFromMeters(stats.ytd_ride_totals?.distance, "ride"),
-        running_km: kmFromMeters(stats.ytd_run_totals?.distance, "run")
-    };
+    const target = new URL("../src/data/strava-progress.json", import.meta.url);
+    let previousRaw = "";
+    try { previousRaw = readFileSync(target, "utf8"); } catch { /* first run */ }
+
+    const progress = nextProgress(
+        kmFromMeters(stats.ytd_ride_totals?.distance, "ride"),
+        kmFromMeters(stats.ytd_run_totals?.distance, "run"),
+        previousRaw
+    );
 
     // Formatting must stay byte-stable (4-space indent, trailing newline, this
     // key order) so unchanged values produce a zero diff and no commit.
-    writeFileSync(
-        new URL("../src/data/strava-progress.json", import.meta.url),
-        JSON.stringify(progress, null, 4) + "\n"
-    );
+    writeFileSync(target, serialise(progress));
     console.log(`Wrote cycling ${progress.cycling_km} km, running ${progress.running_km} km`);
 }
 

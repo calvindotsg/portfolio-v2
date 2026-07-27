@@ -1,6 +1,7 @@
 ---
 import Card from "./Card/index.astro";
 import type {Goal} from "../lib/constants";
+import {goalStatusLine} from "../lib/projection";
 import ProgressBar from './ProgressBar.astro';
 
 interface Props {
@@ -23,7 +24,31 @@ interface Props {
 // load-bearing the moment a second child returns and this change did not touch the
 // lines they sit on.
 
+// ONE extra line, and the count is a measured budget rather than a preference.
+// The right-hand stack has 58px of free height at its tightest lg configuration —
+// any viewport whose height puts `main` on its 46rem floor while lg is still
+// active, so 1024x600, 1280x720 and 1152x700 all tie. A text-xs line costs 20px in
+// each of the two goal cards, so one line each leaves 18px and two leaves nothing:
+// at zero the flex column starts CONTRACTING its children, and it takes the Now
+// card down with the goal cards (154 -> 149.39px) even though nothing was added
+// to it.
+//
+// BE PRECISE ABOUT WHAT TWO LINES COSTS, because an earlier draft of this comment
+// overstated a true fact into a false one. It said a two-line variant "loses
+// glyphs at the DEFAULT text size" — three independent rebuilds measured 0 ink
+// lost across 43, 170 and 170 lg configurations, and shearing begins only at FOUR
+// lines. The contraction above is the real cost and it carries the one-line budget
+// on its own; the clipping claim was never measured.
+//
+// Nothing in the suite can see either effect: there is no layout engine in the
+// tests, so a two-line variant runs green. The guard is the width bound in
+// tests/projection.test.ts plus the browser sweep in the PR, never a green run.
+//
+// (The verb above is deliberately not the obvious one — the obvious one is a flex
+// utility, and UnoCSS scans this comment, so writing it emits a real CSS rule that
+// no element wears. tests/build-output.test.ts catches that by name.)
 const {goal} = Astro.props;
+const statusLine = goalStatusLine(goal);
 ---
 
 <Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${goal.goal_name} goal this year`>
@@ -42,6 +67,7 @@ const {goal} = Astro.props;
                     <span>Last year's: {goal.progress_last_year !== null
                         ? `${goal.progress_last_year} ${goal.measurable_unit}`
                         : <><span aria-hidden="true">–</span><span class="sr-only">first year back</span></>}</span>
+                    {statusLine && <span>{statusLine}</span>}
                 </div>
             </div>
         </div>
