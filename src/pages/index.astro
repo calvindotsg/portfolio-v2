@@ -81,7 +81,16 @@ import {iconClass} from "../lib/icons";
  * text-relative too, for the reason in uno.config.ts — freeing the height alone still
  * left 846px of ink lost at 1024x800 and a 24px root, because four columns of ~10em
  * is not a layout, it is a word-per-line. With both halves the sweep is 0 lost
- * everywhere out to a 40px root.
+ * everywhere out to a 40px root — at each card's BOTTOM clip edge, which is all that sweep
+ * measured. THE RIGHT EDGE IS NOT ZERO, and this revision made it worse rather than
+ * better: putting the control box in rem lets two controls plus their gap exceed a narrow
+ * card, which pushes the intro card's copy column wider than the card and shears the hero
+ * text. Measured on the right edge at a 40px root: 137px lost at 320px wide, 97 at 360,
+ * 82 at 375, 43 at 414, against 34px at 320px and nothing elsewhere before. At a 32px root
+ * — 200% text zoom — 47px at 320px and 7px at 360px, where the previous revision was
+ * clean. Freeing the height budget does not free the width: a card grows vertically when
+ * its content does and never horizontally, because it is as wide as the viewport allows.
+ * Tracked separately rather than left implied by a sweep that could not see it.
  *
  * ---
  *

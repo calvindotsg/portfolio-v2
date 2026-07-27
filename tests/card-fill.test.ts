@@ -431,11 +431,19 @@ describe("a card sizes to its content, not to its grid area", () => {
         // under the heading because the progress bar supplied its own top margin,
         // while about-me and both role cards had 1px and read as cramped. The space
         // belongs to the heading, once, so that every titled card gets it.
-        const headed = allCards.filter((c) => [...c.children].some((k) => k.tagName.toLowerCase() === "h2"));
-        expect(headed.length, "no card renders a heading — this assertion would be vacuous").toBeGreaterThan(2);
+        // ANY h2 in the card, not just a direct child. The Now card's heading shares a
+        // flex row with that card's corner marks, so it is a grandchild — and a
+        // direct-child filter dropped it here SILENTLY, taking the count from six back to
+        // five while `toBeGreaterThan(2)` stayed green. That is the whole point of this
+        // test (every titled card reserves the same space), so the count is pinned.
+        const headed = allCards.filter((c) => c.querySelector("h2"));
+        expect(
+            headed.length,
+            "every titled card must be counted here; a heading nested one level deeper silently leaves this test and its card stops being checked",
+        ).toBe(6);
         const gaps = new Set<string>();
         for (const card of headed) {
-            const h2 = [...card.children].find((k) => k.tagName.toLowerCase() === "h2")!;
+            const h2 = card.querySelector("h2")!;
             const mb = effectiveValue(h2, "margin-bottom", LG);
             expect(mb, `the heading of ${label(card)} declares no bottom margin at ${LG}px`).toBeDefined();
 
@@ -497,6 +505,93 @@ describe("a card sizes to its content, not to its grid area", () => {
      * What makes a cap legitimate is a fact about the element — this box does not
      * reflow with text — so that is what the list states.
      */
+    /**
+     * A CARD'S CORNER MARKS MUST SHARE THE HEADING'S ROW, NEVER FLOAT OVER IT.
+     *
+     * This is the structural residue of a defect three review dimensions found
+     * independently. The marks were absolutely positioned at the card's padding edge,
+     * with the heading given 4rem of right padding to keep clear of them. Both of those
+     * lengths scale with the reader's text; a card's WIDTH does not, because a card is as
+     * wide as the viewport allows. At 320px and a 34px root the heading's content box has
+     * collapsed to nothing, the word "Now" overflows to the right, and an
+     * absolutely-positioned box cannot be pushed aside. Measured at 320px/root 40, 891 of
+     * 43,152 heading-ink sample points had the anchor on top of them, and
+     * `elementFromPoint` over the word returned the LINK — a tap on the card's own heading
+     * navigated off-site. Zero on the previous revision and on production.
+     *
+     * WHY NO ASSERTION IN THIS SUITE COULD HAVE CAUGHT IT, which is the part worth
+     * keeping: occlusion by a later-painted sibling costs no rect and clips no ink. The
+     * ink-loss sweep this PR leans on measures overflow past a clip edge, so it was
+     * correctly reporting zero the whole time. There is no layout engine here either, so
+     * what is policed below is the MECHANISM rather than the pixels — the marks are in
+     * flow, and the row they share with the heading is allowed to wrap. The pixel evidence
+     * comes from a CDP occlusion probe (`elementFromPoint` over the heading's ink, with the
+     * heading scrolled into view — it is viewport-relative, and without the scroll it
+     * samples nothing and reports a clean page).
+     */
+    it("keeps a card's corner marks in flow, in a row the heading can push them out of", () => {
+        // A card whose heading is NOT its own direct child, i.e. one using the corner slot.
+        // The `h2 &&` is load-bearing: without it, a card with no heading at all reports
+        // `undefined !== card` and joins the set — the intro card did, on the strength of
+        // its six social links.
+        const cornered = allCards.filter((c) => {
+            const h2 = c.querySelector("h2");
+            return Boolean(h2) && h2!.parentElement !== c;
+        });
+        expect(
+            cornered.length,
+            "no card renders its heading inside a shared row — if the corner slot has gone, drop this test with it rather than leaving it vacuous",
+        ).toBe(1);
+
+        for (const card of cornered) {
+            const h2 = card.querySelector("h2")!;
+            const row = h2.parentElement!;
+            const marks = h2.nextElementSibling;
+            expect(marks, `${label(card)}'s heading row must also hold the corner marks`).toBeTruthy();
+
+            // IN FLOW. `position: absolute` or `fixed` takes the marks out of flow, which
+            // is what let them paint over the heading.
+            //
+            // Scoped to the row, the marks group and the group's DIRECT children, not the
+            // whole subtree. A mark may position its own internals — the live dot's pulsing
+            // halo is absolute inside the dot's own `relative` wrapper, which is correct and
+            // is contained by it. Walking every descendant flagged that halo, which would
+            // have made this test demand a change that breaks the dot.
+            for (const el of [row, marks!, ...marks!.children]) {
+                for (const r of rulesMatching(el)) {
+                    for (const width of [320, LG]) {
+                        if (!appliesAt(r, width)) continue;
+                        const pos = decl(r.body, "position");
+                        if (pos === undefined) continue;
+                        expect(
+                            pos,
+                            `${label(card)}: <${el.tagName.toLowerCase()}> in the heading row is "${pos}" at ${width}px. Out-of-flow marks cannot be pushed aside by a heading that has run out of room, and they paint over it instead`,
+                        ).not.toMatch(/^(absolute|fixed)$/);
+                    }
+                }
+            }
+
+            // AND THE ROW MUST WRAP, or the marks are sheared off by the card's own
+            // clipping instead — measured, an unwrapped row deletes the live status dot
+            // entirely at 320px/root 40, which is worse than the overlap it replaced.
+            const wrap = effectiveValue(row, "flex-wrap", 320);
+            expect(
+                wrap,
+                `${label(card)}'s heading row must be allowed to wrap at narrow widths; without it the marks overflow the card and its overflow-hidden removes them`,
+            ).toBe("wrap");
+        }
+
+        // The heading must still come FIRST in that row: it is the reading order a screen
+        // reader gets, and with justify-between it is also the visual order.
+        for (const card of cornered) {
+            const row = card.querySelector("h2")!.parentElement!;
+            expect(
+                row.firstElementChild!.tagName.toLowerCase(),
+                `${label(card)} must announce its heading before the marks that annotate it`,
+            ).toBe("h2");
+        }
+    });
+
     it("caps nothing inside a card in a unit the reader's text size cannot move", () => {
         const EXEMPT: {what: string, why: string, matches: (el: Element) => boolean}[] = [
             {
@@ -561,12 +656,17 @@ describe("a card sizes to its content, not to its grid area", () => {
         const bars = [...document.querySelectorAll("[role=progressbar]")];
         expect(bars.length, "no progress bar found — this assertion would be vacuous").toBeGreaterThan(0);
 
-        const headed = allCards.filter((c) => [...c.children].some((k) => k.tagName.toLowerCase() === "h2"));
-        expect(headed.length, "no card renders a heading — the path below one would be vacuous").toBeGreaterThan(2);
+        const headed = allCards.filter((c) => c.querySelector("h2"));
+        expect(headed.length, "every titled card must be counted here, or the path below its heading goes unchecked").toBe(6);
 
+        // The chain starts after the heading's own PARENT where the heading is nested, so
+        // the Now card (whose h2 shares a row with the corner marks) walks the row's
+        // following siblings rather than the row's own children.
         const topEdgeChain = (card: Element) => {
+            const h2el = card.querySelector("h2")!;
+            const top = h2el.parentElement === card ? h2el : h2el.parentElement!;
             const kids = [...card.children];
-            const h2 = kids.findIndex((k) => k.tagName.toLowerCase() === "h2");
+            const h2 = kids.indexOf(top as never);
             const chain: Element[] = [];
             for (let el = kids[h2 + 1]; el; el = el.children[0]) chain.push(el);
             return chain;

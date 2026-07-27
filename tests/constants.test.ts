@@ -238,6 +238,33 @@ describe("NOW", () => {
         expect(typeof NOW.description).toBe("string");
         expect(Array.isArray(NOW.description)).toBe(false);
     });
+
+    it("points its explainer somewhere absolute, at an installed icon", () => {
+        expect(NOW.explainer_url, "the explainer leaves the site, so it must be absolute").toMatch(/^https?:\/\//);
+        expect(NOW.explainer_icon, 'explainer_icon must be "collection:icon"').toContain(":");
+        expect(ICON_COLLECTIONS, `explainer_icon uses collection "${NOW.explainer_icon.split(":")[0]}"`)
+            .toContain(NOW.explainer_icon.split(":")[0]);
+    });
+
+    /**
+     * The explainer is an icon with no visible words, so this string is the whole of
+     * what a screen reader announces for it. Two things are asserted, and the second
+     * is the one worth having.
+     *
+     * It must SAY WHAT THE DESTINATION EXPLAINS, not gesture at it. The wording this
+     * replaced was "what's that ?", which reads fine sitting under the word "Now" and
+     * says nothing at all in a list of links read out of context — and an icon link has
+     * no context to sit under. Pinning "what" out of the name is the cheap version of
+     * that rule and would reject a perfectly good rewrite, so what is pinned instead is
+     * that the name names its subject: a /now page.
+     */
+    it("gives the explainer a name that survives being read out of context", () => {
+        expect(NOW.explainer_name.trim().length, "an icon-only link with no accessible name announces as its URL").toBeGreaterThan(0);
+        expect(
+            NOW.explainer_name.toLowerCase(),
+            `the explainer's whole accessible name is "${NOW.explainer_name}"; it has to name what the link explains, because there is no visible text beside it to supply the subject`,
+        ).toContain("now page");
+    });
 });
 
 describe("strava progress wiring", () => {

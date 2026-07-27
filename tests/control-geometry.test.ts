@@ -2,8 +2,8 @@ import {describe, expect, it} from "vitest";
 import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {LINKS} from "../src/lib/constants";
-import {decl, isKeyframeStep, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
+import {LINKS, NOW} from "../src/lib/constants";
+import {appliesAt, decl, isKeyframeStep, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * Every styled control must be ONE box. There are seven today — six social-link
@@ -401,5 +401,153 @@ describe("every styled control is one declared box", () => {
             if (!tracks) continue;
             expect(tracks, "a fixed track duplicates the control's declared width").toMatch(/^repeat\(\d+,\s*auto\)$/);
         }
+    });
+
+    /**
+     * THE NOW CARD'S EXPLAINER IS A TARGET TOO, and it is deliberately not a `.control`.
+     *
+     * It is an icon-only link in a card corner with no visible words, which makes it the
+     * one interactive element on the page whose whole hit area is decided by a box nobody
+     * else's tests look at. Shrink it to the glyph and it becomes a 16px target.
+     *
+     * 24px, and NOT the 48px tall the plated controls get (they are 64x48; only the
+     * shorter axis bears on target size), which is a real inconsistency and worth stating
+     * rather than hiding. 24x24 is exactly WCAG 2.2 SC 2.5.8 (Minimum, AA)
+     * and is the number axe's `target-size` audit measures; SC 2.5.5 (Enhanced, AAA) asks
+     * 44 and this does not meet it. The reason is position, not principle, and the binding
+     * constraint is HORIZONTAL. Measured at 1440x900, everything from the card's
+     * border-box left edge: the marks occupy 191–239px, the heading's own text box ends at
+     * 175px, and widening the target to 44px would move the marks' left edge to 171px —
+     * i.e. under the heading. The controls are a card's primary affordances in a grid of
+     * their own and have the room; this is a supplementary link beside a heading.
+     *
+     * The vertical direction is NOT a reason, and an earlier version of this note claimed
+     * it was: "at 44px the box would run down into the first line of the body copy". It
+     * would not. Measured with a 44px override injected, the heading box runs 25->53px, the
+     * 16px heading margin puts the paragraph's first line box at 69, and a 44px mark
+     * starting at 25 ends at exactly 69 — it abuts the line box and clears its first ink by
+     * 1px. Structurally that is not a coincidence: the mark starts at the heading's top and
+     * the heading plus its margin is 44px tall at the default text size, so the two are the
+     * same height by construction. It touches nothing.
+     *
+     * Those last two figures read 176 and 172 in the first draft, derived from the card's
+     * padding without counting its 1px border. The conclusion is unchanged — 4px of
+     * overlap either way — but the numbers were wrong, and they are measured now rather
+     * than reasoned.
+     *
+     * The heading's right padding is what keeps the two apart, and it was verified rather
+     * than assumed: a deliberately long title wraps to four lines and its ink reaches
+     * 168.5px, clear of the corner at 191px. It does NOT protect against a single
+     * unbreakable word, which reaches 677px and overruns the whole card — but such a word
+     * overflows a card heading with or without this slot, so that is a property of long
+     * unbreakable words here, not of the corner.
+     *
+     * The box is font-relative for the same reason everything else on this page is: a
+     * target that stays 24px while the reader's text doubles is a target that has
+     * halved. `w-6 h-6` is 1.5rem, so it grows with the type.
+     */
+    it("gives the Now card's icon-only explainer a real target, sized in text", () => {
+        const link = [...document.querySelectorAll("[data-card] a")]
+            .find((a) => a.getAttribute("href") === NOW.explainer_url);
+        expect(link, `no link to ${NOW.explainer_url} — this assertion would be vacuous`).toBeTruthy();
+
+        // THE INLINE `style` ATTRIBUTE FIRST, because a sheet-only walk cannot see it and
+        // it beats every author rule short of `!important`. `style="width:16px"` was the
+        // cheapest way found to break the one number this test exists to protect.
+        const inline = (link!.getAttribute("style") ?? "").toLowerCase();
+        expect(
+            inline,
+            `the explainer must not size itself from a style attribute, which outranks every rule this test reads; found "${inline}"`,
+        ).not.toMatch(/(^|;)\s*(min-|max-)?(width|height|block-size|inline-size)\s*:/);
+
+        // Every rule that can reach the element, kept WITH its at-rule prelude.
+        const reaching = rules.filter((r) => !isKeyframeStep(r) && r.selectors.some((s) => {
+            const structural = structuralSelector(s);
+            return Boolean(structural) && [...document.querySelectorAll(structural)].includes(link as never);
+        }));
+        expect(reaching.length, "no rule in the sheet reaches the explainer link — the walker has drifted").toBeGreaterThan(0);
+
+        // AT EVERY WIDTH, not once over the union of all at-rule depths. Gating the box
+        // behind `lg:` left every phone and tablet declaring no size at all — the target
+        // collapsed to the 1em glyph, 16px, exactly where SC 2.5.8 bites — with the suite
+        // green. This file's own header records the same hole in the control path
+        // (`md:w-max md:px-5`), and `appliesAt` exists for it.
+        for (const width of [320, 375, 768, 1024, 1440]) {
+            const applying = reaching.filter((r) => appliesAt(r, width));
+
+            for (const prop of ["width", "height"] as const) {
+                const declared = applying.flatMap((r) => {
+                    const v = decl(r.body, prop);
+                    return v ? [v] : [];
+                });
+                expect(
+                    declared,
+                    `the explainer link declares no ${prop} at ${width}px. An inline box's padding hit-tests but adds nothing to the line box, so a target with no declared box is only as big as its glyph`,
+                ).not.toEqual([]);
+                const winner = declared[declared.length - 1];
+                expect(
+                    px(winner),
+                    `the explainer's ${prop} at ${width}px resolves to "${winner}", which is not a length this can measure`,
+                ).not.toBeNull();
+                expect(
+                    px(winner)!,
+                    `the explainer's ${prop} at ${width}px is ${winner} (${px(winner)}px at a 16px root); SC 2.5.8 asks 24`,
+                ).toBeGreaterThanOrEqual(24);
+                expect(
+                    winner,
+                    `the explainer's ${prop} at ${width}px must be font-relative, or the target shrinks against the reader's text; found "${winner}"`,
+                ).toMatch(/\d\s*r?em\b/);
+
+                // A `max-*` BELOW the declared size wins the used value with no
+                // specificity or ordering involved. This is the theme-toggle defect this
+                // whole file was written for — `max-h-[40px]` made that button 6px short —
+                // and `max-w-4 max-h-4` beside a 1.5rem box renders 16px with every
+                // assertion above still green.
+                for (const cap of applying.flatMap((r) => {
+                    const v = decl(r.body, `max-${prop}`);
+                    return v ? [{v, r}] : [];
+                })) {
+                    const capPx = px(cap.v);
+                    expect(
+                        capPx === null || capPx >= 24,
+                        `the explainer's max-${prop} at ${width}px is "${cap.v}", below the 24px this target must keep; a max cap under the declared size wins the used value outright`,
+                    ).toBe(true);
+                }
+            }
+
+            // PAINTED AND REACHABLE. Every assertion above passes on a box that is not
+            // displayed, or that hit-tests nothing, or that cannot be tabbed to — and each
+            // of those is strictly worse than the visible-text link this replaced.
+            //
+            // Walked up the ANCESTOR CHAIN, not just over the link's own rules. `display:
+            // none` on the marks group hides the link without any rule reaching the link
+            // itself, so a link-only check stayed green while both marks vanished from the
+            // page AND from the accessibility tree — measured, that is exactly what
+            // happened on the first version of this assertion.
+            for (let el: Element | null = link!; el && el !== document.body; el = el.parentElement) {
+                const chainRules = rules.filter((r) => !isKeyframeStep(r) && appliesAt(r, width) && r.selectors.some((s) => {
+                    const structural = structuralSelector(s);
+                    return Boolean(structural) && [...document.querySelectorAll(structural)].includes(el as never);
+                }));
+                for (const r of chainRules) {
+                    for (const [prop, forbidden] of [["display", /^none$/], ["visibility", /^(hidden|collapse)$/], ["pointer-events", /^none$/]] as const) {
+                        const v = decl(r.body, prop);
+                        if (v === undefined) continue;
+                        expect(
+                            v.trim(),
+                            `<${el!.tagName.toLowerCase()}> above the explainer resolves ${prop}: ${v} at ${width}px, which leaves a correctly-sized target that no reader can see or use`,
+                        ).not.toMatch(forbidden);
+                    }
+                }
+            }
+        }
+
+        // Keyboard reachable. A negative tabindex removes it from the tab order while
+        // every geometric assertion stays green.
+        const tabindex = link!.getAttribute("tabindex");
+        expect(
+            tabindex === null || Number(tabindex) >= 0,
+            `the explainer carries tabindex="${tabindex}", so it is sized correctly and cannot be reached by keyboard`,
+        ).toBe(true);
     });
 });

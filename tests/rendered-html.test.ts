@@ -165,6 +165,103 @@ describe("page content", () => {
         expect(text).toContain(NOW.description);
     });
 
+    /**
+     * The Now card's explainer is an icon link with no visible words, so the whole of
+     * what a screen reader gets is the sr-only name. An icon link that loses its name
+     * announces as its URL, or as nothing at all, and no layout assertion notices.
+     *
+     * This is the one card that used to write its own heading, purely so the explainer
+     * could share the heading's row — which is why it was also the one card whose
+     * heading did not reserve the same space beneath it. So the structural half is
+     * asserted too: the heading has to come from `Card`, i.e. be a direct child of the
+     * card element like the other five, not a descendant of some row inside it.
+     */
+    it("gives the Now card's explainer an accessible name and no visible words", () => {
+        const now = [...doc.querySelectorAll("[data-card]")]
+            .find((c) => (c.querySelector("h2")?.textContent ?? "").trim() === "Now");
+        expect(now, "no card titled Now — every assertion below would be vacuous").toBeTruthy();
+
+        const link = [...now!.querySelectorAll("a")]
+            .find((a) => a.getAttribute("href") === NOW.explainer_url);
+        expect(link, `the Now card must link to ${NOW.explainer_url}`).toBeTruthy();
+
+        // EXACTLY the name, not merely containing it. A computed accessible name is the
+        // CONCATENATION of the subtree, so a second sr-only span beside this one is
+        // announced as part of the name — "Link Link Link. What's a /now page?" satisfied a
+        // `toContain` check while constants.ts no longer owned what a reader hears.
+        const srOnly = [...link!.querySelectorAll(".sr-only")].map((s) => s.textContent?.trim()).filter(Boolean);
+        expect(
+            srOnly,
+            "the explainer link's accessible name must come from constants.ts and be the whole of it; extra hidden text concatenates into what is announced",
+        ).toEqual([NOW.explainer_name]);
+
+        // The anchor holds exactly two things: the glyph and the name. Asserted on the
+        // shape rather than on the text, because the "no visible words" check below
+        // classifies DIRECT children by class token — a visible span nested inside an
+        // `sr-only` wrapper (`.not-sr-only` genuinely un-hides: position:static, clip:auto,
+        // overflow:visible) painted "huh ?" while that check reported no visible text.
+        const kids = [...link!.children];
+        expect(
+            kids.map((k) => k.tagName.toLowerCase()),
+            "the explainer anchor must contain exactly a glyph and an sr-only name",
+        ).toEqual(["span", "span"]);
+        expect(kids[0].getAttribute("class"), "the first child must be the icon glyph").toMatch(/(^|\s)i-/);
+        expect(kids[0].textContent?.trim(), "the glyph carries no text of its own").toBe("");
+        expect(kids[1].getAttribute("class"), "the second child must be the sr-only name").toMatch(/(^|\s)sr-only(\s|$)/);
+        expect(kids[1].children.length, "the name must be plain text, not a wrapper that a child can un-hide").toBe(0);
+
+        // No `title` either. It paints a tooltip — visible words back — and per HTML-AAM it
+        // is a name/description fallback that some AT combinations append, i.e. exactly the
+        // double announcement the assertion above prevents.
+        expect(link!.getAttribute("title"), "a title attribute competes with the sr-only name and paints a tooltip").toBeNull();
+
+        // No visible text of its own. A link that still carries words does not need an
+        // sr-only name, and having both would announce the name twice.
+        const visible = [...link!.childNodes]
+            .filter((n) => n.nodeType === 3 || !(n as Element).classList?.contains("sr-only"))
+            .map((n) => (n.nodeType === 3 ? n.textContent : (n as Element).textContent) ?? "")
+            .join("").trim();
+        expect(visible, "the explainer is an icon; visible words beside it would be announced twice").toBe("");
+
+        // The icon itself must be hidden from the accessibility tree, or it competes
+        // with the name above.
+        const icon = link!.querySelector('[class*="i-"]');
+        expect(icon, "the explainer must render an icon").toBeTruthy();
+        expect(icon!.getAttribute("aria-hidden"), "the glyph is decorative beside an sr-only name").toBe("true");
+
+        // THE HEADING MUST COME FROM `Card`, which is what makes the space under it the
+        // same as every other card's. The invariant is "one heading implementation", and
+        // it is asserted as such: every card heading on the page carries the identical
+        // class string, so a hand-rolled one — the shape that caused the reported
+        // inconsistency — shows up as a second spelling.
+        //
+        // This deliberately does NOT assert `h2.parentElement === card`. That was the
+        // first spelling and it pinned an incidental DOM shape rather than the property:
+        // the Now card's heading now shares a flex row with the card's corner marks, so
+        // it is a grandchild, and it was the ABSOLUTE positioning that row replaced which
+        // painted the marks over the heading at large text. Re-pointing the assertion at
+        // the real invariant is not the same as loosening it to match the code — the
+        // "written out in Now.astro" regression still fails here, because a hand-rolled
+        // heading would not carry Card's class string.
+        const headings = [...doc.querySelectorAll("[data-card] h2")];
+        expect(headings.length, "expected a heading on every titled card").toBe(6);
+        expect(headings, "the Now card must render a heading").toContain(now!.querySelector("h2"));
+        const spellings = new Set(headings.map((h) => h.getAttribute("class")));
+        expect(
+            [...spellings],
+            "every card heading must be rendered by Card, so they all carry one class string; a second spelling means a card is writing its own heading again and will not inherit Card's spacing",
+        ).toHaveLength(1);
+
+        // Rot guard: the words the icon replaced must be gone. Leaving them anywhere
+        // reads as a half-applied change, and "what's that ?" is exactly the string a
+        // future edit would paste back beside the icon.
+        //
+        // Over the RAW HTML, not over body.textContent — which is what it read first, and
+        // `title="what's that ?"` walked straight past it while sitting in the shipped
+        // markup. A guard whose message says "anywhere in the page" has to look at the page.
+        expect(html, 'the explainer\'s old visible wording must not survive anywhere in the page, including in an attribute').not.toContain("what's that");
+    });
+
     it("renders the footer", () => {
         expect(text).toContain(FOOTER.prefix);
         expect(text).toContain(FOOTER.suffix.replace(/^, /, ""));
