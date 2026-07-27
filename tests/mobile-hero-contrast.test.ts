@@ -46,6 +46,27 @@ const atRule = (css: string, prelude: RegExp) => {
     return bodies.join("\n");
 };
 
+/**
+ * The prelude of the media query whose lower width bound RESOLVES to `wantPx` at a
+ * 16px root, whatever unit and syntax it is written in, or null.
+ *
+ * Resolving rather than pattern-matching is the point. Two independent spellings
+ * are already in play — lightningcss rewrites `min-width` to range syntax, and the
+ * breakpoints are authored in `rem` so they move with the reader's text size — and
+ * a literal pattern for one of them does not report "the bound changed unit", it
+ * reports that the whole block is missing. `em` and `rem` are the same length here:
+ * a media query resolves both against the initial font-size.
+ */
+const mediaPreludeAt = (css: string, wantPx: number): string | null => {
+    for (const m of css.matchAll(/@media\s*\([^)]*\)/g)) {
+        const bound = m[0].match(/(?:min-width:\s*|width\s*>=\s*)(-?[\d.]+)(px|r?em)/);
+        if (!bound) continue;
+        const scale = bound[2] === "px" ? 1 : 16;
+        if (parseFloat(bound[1]) * scale === wantPx) return m[0];
+    }
+    return null;
+};
+
 /** Declarations of `.intro-type::after` (or `.intro-type`) within some scope. */
 const rule = (scope: string, selector: string) =>
     scope.match(new RegExp(`\\.${selector}[^{}]*\\{([^{}]*)\\}`))?.[1] ?? "";
@@ -211,8 +232,15 @@ describe("mobile hero legibility", () => {
      */
     it("confines the mobile treatment to below the md breakpoint", () => {
         const css = sheet();
-        // lightningcss emits min-width as range syntax.
-        const desktop = atRule(css, /@media\s*\((?:min-width:\s*768px|width\s*>=\s*768px)\)/);
+        // The md block is found by the width its bound RESOLVES to, not by how that
+        // bound is spelled. Two spellings are in play — lightningcss emits
+        // `min-width` as range syntax, and the breakpoints are authored in `rem`
+        // (uno.config.ts) — and a pattern naming either one literally reports "no
+        // md block at all" when the other ships, which reads as a missing safety
+        // net rather than the re-spelling it is.
+        const mdPrelude = mediaPreludeAt(css, 768);
+        expect(mdPrelude, "an md-and-up block must exist to undo the mobile treatment").toBeTruthy();
+        const desktop = atRule(css, new RegExp(mdPrelude!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
         expect(desktop, "an md-and-up block must exist to undo the mobile treatment").toBeTruthy();
 
         expect(rule(desktop, "intro-type[^{}]*:{1,2}after")).toMatch(/display:\s*none/);

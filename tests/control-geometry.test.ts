@@ -138,15 +138,43 @@ describe("every styled control is one declared box", () => {
             .toBe(LINKS.length + 1);
     });
 
-    it("declares an absolute width and height, rather than capping a content-sized box", () => {
+    it("declares a real width and height, rather than capping a content-sized box", () => {
         for (const box of controlClasses.map(boxOf)) {
-            expect(px(box.width), `.${box.cls} width must be an absolute length, got ${box.width ?? "nothing"}`).not.toBeNull();
-            expect(px(box.height), `.${box.cls} height must be an absolute length, got ${box.height ?? "nothing"}`).not.toBeNull();
+            expect(px(box.width), `.${box.cls} width must be a declared length, got ${box.width ?? "nothing"}`).not.toBeNull();
+            expect(px(box.height), `.${box.cls} height must be a declared length, got ${box.height ?? "nothing"}`).not.toBeNull();
             // A max-* cap instead of a real size is the original defect in both of
             // its forms: it leaves the box content-sized, and it deforms the
             // content when the cap bites (the toggle's 20px icon became 18px).
             expect(box.maxWidth, `.${box.cls} must not cap its width; declare it`).toBeUndefined();
             expect(box.maxHeight, `.${box.cls} must not cap its height; declare it`).toBeUndefined();
+        }
+    });
+
+    it("sizes that box in the reader's text, not in device pixels", () => {
+        // This box was in px, deliberately, and the reason was recorded at length:
+        // the cards' heights came from a page grid that did not grow with the root
+        // font size while every card clipped, so a control that grew under text-only
+        // zoom was simply sheared off — a 3rem box lost 16px to the card edge at
+        // 1440x900 at a 20px root where the px box lost nothing.
+        //
+        // That premise is gone. The grid's height budget and every breakpoint are
+        // font-relative now (see page-fit.test.ts), so the card grows with the text
+        // and the page scrolls instead of clipping: measured 0 ink lost anywhere from
+        // a 16px root to a 40px one. A px box under those conditions is no longer
+        // protective, it is just a tap target that shrinks relative to the type it
+        // sits beside — 64x48 against 40px text is a smaller target, in the reader's
+        // terms, than 64x48 against 16px text.
+        //
+        // At the default root size this is the same 64x48 that shipped: `w-16 h-12`
+        // resolves to exactly 4rem x 3rem. The target-size assertions above are
+        // unaffected and still measure 64 and 48.
+        for (const box of controlClasses.map(boxOf)) {
+            for (const [axis, value] of [["width", box.width], ["height", box.height]] as const) {
+                expect(
+                    value,
+                    `.${box.cls} ${axis} must be font-relative so the control keeps its size against the text beside it; found "${value}"`,
+                ).toMatch(/\d\s*r?em\b/);
+            }
         }
     });
 

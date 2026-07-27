@@ -132,23 +132,78 @@ export function structuralSelector(selector: string): string {
     return out.replace(/(^|[>+~]\s*)(?=[>+~]|$)/g, "$1*").trim();
 }
 
+/** The root font-size every width bound below is normalised to. */
+export const ROOT_PX = 16;
+
 /**
- * The lower width bound of a rule's enclosing media queries in px, or null when
- * it is not width-gated. Used to assert that a declaration only takes effect at
- * or above a given breakpoint — the difference between the page's single-screen
- * contract applying from 1024px and applying from 768px, which is a defect.
+ * A media-query width bound as a number of CSS pixels at a 16px root.
+ *
+ * `em` and `rem` are the SAME length in a media query: both resolve against the
+ * initial font-size — the reader's own default — and never against any element,
+ * which is the whole reason a `rem` breakpoint moves under text-only zoom while a
+ * `rem` LENGTH set by an author does not.
+ *
+ * An unrecognised unit THROWS rather than returning null. That direction is
+ * load-bearing: every predicate below feeds an assertion, and a null bound reads
+ * as "not width-gated", which silently converts the assertion into a no-op that
+ * passes. This file's own history is the argument — see `minWidthOf` — and the
+ * unit is the second way in: when the breakpoints moved from px to rem, a
+ * px-only regex made every lg-gated rule in the sheet look unconditional.
+ */
+function widthPx(num: string, unit: string): number {
+    if (unit === "px") return parseFloat(num);
+    if (unit === "rem" || unit === "em") return parseFloat(num) * ROOT_PX;
+    throw new Error(
+        `unreadable unit in a media-query width bound: "${num}${unit}". Teach ` +
+        `widthPx() about it — a bound this file cannot parse disables every ` +
+        `assertion that reads it, silently and green.`,
+    );
+}
+
+const LOWER = [/min-width:\s*(-?[\d.]+)([a-z%]*)/g, /width\s*>=\s*(-?[\d.]+)([a-z%]*)/g];
+const UPPER = [/max-width:\s*(-?[\d.]+)([a-z%]*)/g, /width\s*<=\s*(-?[\d.]+)([a-z%]*)/g];
+
+const bounds = (at: string, patterns: RegExp[]): number[] =>
+    patterns.flatMap((re) => [...at.matchAll(re)].map((m) => widthPx(m[1], m[2])));
+
+/**
+ * Every width condition in a whole sheet, as `{value, unit}` pairs. Exported so a
+ * test can assert what the breakpoints are SPELLED in, which is the property this
+ * page's text-zoom behaviour actually rests on — a single px bound left among rem
+ * ones parts company with its variant siblings the moment a reader enlarges the
+ * text, and nothing else in the suite would notice.
+ */
+export function widthConditions(css: string): {value: number, unit: string, at: string}[] {
+    const out: {value: number, unit: string, at: string}[] = [];
+    // Only at-rule PRELUDES. Scanning the whole sheet also matches the `max-width`
+    // and `min-width` DECLARATIONS in it — `.max-w-6xl` alone would contribute a
+    // spurious "72rem condition" — which would make this read as three more
+    // breakpoints than the page has.
+    for (const at of css.matchAll(/@(?:media|container)[^{]*/g)) {
+        for (const re of [...LOWER, ...UPPER]) {
+            for (const m of at[0].matchAll(new RegExp(re.source, "g"))) {
+                out.push({value: parseFloat(m[1]), unit: m[2], at: at[0].trim()});
+            }
+        }
+    }
+    return out;
+}
+
+/**
+ * The lower width bound of a rule's enclosing media queries in CSS pixels at a
+ * 16px root, or null when it is not width-gated. Used to assert that a
+ * declaration only takes effect at or above a given breakpoint — the difference
+ * between the page's single-screen contract applying from 1024px and applying
+ * from 768px, which is a defect.
  *
  * BOTH spellings are matched deliberately. This project's minifier emits the
- * modern range form, `@media (width>=768px)`; a regex for `min-width:` alone
+ * modern range form, `@media (width>=48rem)`; a regex for `min-width:` alone
  * returns null for every rule in the sheet, which silently turns every assertion
  * built on this into a no-op. Authored UnoCSS output and hand-written media
  * queries elsewhere still use the legacy form, so neither can be dropped.
  */
 export function minWidthOf(rule: Rule): number | null {
-    const widths = [
-        ...rule.at.matchAll(/min-width:\s*([\d.]+)px/g),
-        ...rule.at.matchAll(/width\s*>=\s*([\d.]+)px/g),
-    ].map((m) => parseFloat(m[1]));
+    const widths = bounds(rule.at, LOWER);
     return widths.length ? Math.max(...widths) : null;
 }
 
@@ -188,10 +243,7 @@ export function appliesBelow(rule: Rule, width: number): boolean {
  * right identity and a `null` would just be `?? Infinity` at every call site.
  */
 export function maxWidthOf(rule: Rule): number {
-    const widths = [
-        ...rule.at.matchAll(/max-width:\s*([\d.]+)px/g),
-        ...rule.at.matchAll(/width\s*<=\s*([\d.]+)px/g),
-    ].map((m) => parseFloat(m[1]));
+    const widths = bounds(rule.at, UPPER);
     return widths.length ? Math.min(...widths) : Infinity;
 }
 

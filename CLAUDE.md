@@ -54,8 +54,16 @@ preview is byte-identical to what Netlify serves.
 - **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
   `blocklist`, the single `control` shortcut (the styled control's whole box,
   including the offset-plate shadow — every styled control wears it, and it
-  deliberately has no variants) and the presets — there is no `theme` key, so no
-  colour or shadow tokens live there
+  deliberately has no variants), the presets, and a `theme` key holding **only**
+  the five breakpoints. Those are presetWind3's own defaults restated in `rem`,
+  which is load-bearing rather than cosmetic — see the note there. No colour or
+  shadow token lives in `theme`; those are CSS custom properties in
+  `BasicLayout.astro`
+- **Text-relative sizing**: every breakpoint, `main`'s height clamp, the card
+  heading's space and the control box are font-relative, so the page grows with
+  the reader's text instead of clipping it. `tests/page-fit.test.ts` and
+  `tests/card-fill.test.ts` forbid an absolute length in each of those places;
+  read the rationale before re-pinning one to pixels
 - **Theme Support**: dark/light mode via CSS custom properties on
   `:root[data-theme]` in `src/layouts/BasicLayout.astro`; that block's header
   comment defines each token's role and the progress-bar polarity rule — read it

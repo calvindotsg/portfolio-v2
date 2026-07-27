@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {appliesBelow, decl, effectiveDecl, isKeyframeStep, minWidthOf, parseRules, structuralSelector} from "./helpers/css";
+import {appliesBelow, decl, effectiveDecl, isKeyframeStep, minWidthOf, parseRules, structuralSelector, widthConditions} from "./helpers/css";
 
 /**
  * The page must be allowed to be taller than the viewport.
@@ -249,6 +249,130 @@ describe("the page may grow taller than the viewport", () => {
         expect(
             [...new Set(offenders)],
             `only the large breakpoint (>=${LG}px) may impose a fixed row template on <main>`,
+        ).toEqual([]);
+    });
+
+    /**
+     * THE HEIGHT BUDGET MUST BE SPELLED IN THE READER'S OWN TEXT SIZE.
+     *
+     * `<main>` is deliberately height-locked at lg — clamped between a floor and a
+     * cap around a viewport height — and that lock is the bento design, not a
+     * defect. What WAS a defect is that the two ends of the clamp were absolute
+     * lengths while everything inside the cards is font-relative: the grid's height
+     * budget could not move, the type inside it could, and every card clips. So a
+     * reader who had asked for larger text got the difference deleted. Measured
+     * before, as ink past each card's clip edge summed over the page, at a 1024x800
+     * viewport: 4.8px at a 17px root, 196 at 18, 457 at 20, 966 at 22, 1596 at 24 —
+     * and the page did not scroll, so none of it was recoverable.
+     *
+     * With both ends in `rem` the budget grows at the same rate as the text, the
+     * page becomes taller than the viewport, and `<body>`'s floor (above) lets it
+     * scroll. Measured after: 0 at every one of those, and 0 out to a 40px root
+     * across eight viewports from 320 to 2560 wide.
+     *
+     * The assertion is "no absolute length", not "must be rem". A viewport-relative
+     * term is not only allowed but required — the `100vh` in the middle of the
+     * clamp is what makes the page single-screen in the first place — and writing
+     * the allowed set as an enumeration of units is the mistake `isDefiniteSize`
+     * above already records: the list leaks, the inversion does not.
+     */
+    it("spells the grid's height budget in a unit the reader's text size can move", () => {
+        // A length no font-size can move. Zero is exempt: it is unit-agnostic and
+        // caps nothing.
+        const hasAbsoluteLength = (value: string) =>
+            [...value.matchAll(/(?:^|[\s(,])(-?[\d.]+)(px|pt|pc|in|cm|mm|q)\b/gi)]
+                .some((m) => parseFloat(m[1]) !== 0);
+
+        const props = ["height", "min-height", "max-height", "block-size", "min-block-size", "max-block-size"] as const;
+        const offenders = rulesMatching(main).flatMap((r) =>
+            props.flatMap((prop) => {
+                const value = decl(r.body, prop);
+                return value && hasAbsoluteLength(value) ? [describeRule(r, prop, value)] : [];
+            }));
+        expect(
+            [...new Set(offenders)],
+            "<main>'s height budget must contain no absolute length: the cards inside it are sized in text, they clip, and a budget the reader's font size cannot move turns their content into deleted ink rather than a scrollbar",
+        ).toEqual([]);
+
+        // Non-vacuity, in the direction that matters. Deleting the clamp entirely
+        // satisfies the negative assertion above, so both ends have to be shown to
+        // exist — and to exist at lg, which is the only place the four-column grid
+        // can hold a single screen.
+        const atLg = rulesMatching(main).filter((r) => (minWidthOf(r) ?? 0) === LG);
+        for (const prop of ["min-height", "max-height"] as const) {
+            const found = atLg.flatMap((r) => {
+                const value = decl(r.body, prop);
+                return value ? [value] : [];
+            });
+            expect(
+                found,
+                `<main> must declare a ${prop} at the large breakpoint; without both ends of the clamp the single-screen contract is gone, and this file's negative assertions all pass for a page that no longer has one`,
+            ).not.toEqual([]);
+            // And each end must actually be font-relative, which "no absolute
+            // length" alone does not give: `min-height: 100vh` contains no absolute
+            // length and does not grow with the text either.
+            for (const value of found) {
+                expect(
+                    value,
+                    `<main>'s ${prop} at the large breakpoint must be font-relative so the budget grows with the reader's text; found "${value}"`,
+                ).toMatch(/\d\s*r?em\b/);
+            }
+        }
+    });
+
+    /**
+     * AND SO MUST EVERY BREAKPOINT.
+     *
+     * The height budget above is only half of it. The four-column grid needs a
+     * certain amount of TEXT across the viewport, not a certain number of device
+     * pixels: at a 24px root a 1024px viewport carries about 42 characters where the
+     * layout wants 64, and the page was still being handed four columns there. Every
+     * line wrapped, and with the budget fixed the cards lost 846px of ink at
+     * 1024x800 even after the budget itself was freed. Keying the breakpoints to the
+     * reader's text instead drops that viewport to the two-column layout, which
+     * flows, and takes the loss to 0.
+     *
+     * This polices the whole SHEET rather than one rule, because the property is a
+     * property of the sheet: a single absolute bound left among the rest — most
+     * likely a hand-written media query in an .astro `<style>` block, of which there
+     * are three — does not fail loudly. It simply parts company with its variant
+     * siblings the moment a reader enlarges the text, and every other assertion in
+     * this suite stays green.
+     */
+    /**
+     * The width parser must fail LOUDLY on a unit it cannot read.
+     *
+     * Against a FIXTURE, not against the page, because the page is not allowed to
+     * contain such a bound — the assertion below forbids it — so there is nothing
+     * real left to prove this on. The property is still worth pinning: a bound the
+     * helper reads as "not width-gated" turns `appliesAt`, `appliesBelow` and every
+     * cascade assertion built on them into a no-op that passes. This file has been
+     * bitten twice by that shape already, once on the SYNTAX (range vs `min-width:`)
+     * and once on the UNIT (px vs rem). Third time it should shout.
+     */
+    it("refuses to read a width bound whose unit it does not understand", () => {
+        const fixture = {selectors: [".x"], body: "color:red", nested: true, at: "@media (min-width: 60ch)"};
+        expect(() => minWidthOf(fixture)).toThrow(/unreadable unit/);
+        // And the readable ones still resolve, so the throw is not just "throws on
+        // everything" — which would pass the line above and break the whole suite.
+        expect(minWidthOf({...fixture, at: "@media (width>=64rem)"})).toBe(1024);
+        expect(minWidthOf({...fixture, at: "@media (min-width: 768px)"})).toBe(768);
+        expect(minWidthOf({...fixture, at: ""})).toBeNull();
+    });
+
+    it("decides every breakpoint in the reader's text size too", () => {
+        const conditions = widthConditions(css);
+        // The page has five breakpoints plus two hand-written bounds; a selection
+        // that found only a couple would pass this test by having nothing to check.
+        expect(
+            conditions.length,
+            "fewer width conditions in the sheet than the page has breakpoints — the scan has drifted and this assertion is close to vacuous",
+        ).toBeGreaterThanOrEqual(5);
+
+        const absolute = conditions.filter((c) => !/^r?em$/.test(c.unit));
+        expect(
+            [...new Set(absolute.map((c) => `${c.value}${c.unit} in "${c.at}"`))],
+            "every width bound must be font-relative, so the layout tier is chosen by how much text fits rather than by device pixels. A px bound here keeps the four-column grid on a viewport that can no longer hold four columns of the reader's type",
         ).toEqual([]);
     });
 
