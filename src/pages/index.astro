@@ -163,8 +163,11 @@ const dateline = formatDateline();
              of padding, and the card still has 11-19px of real headroom. So the
              honest statement is not that a dateline makes an existing defect worse:
              it is that a dateline needs about 16px this card did not have. Without
-             this row-span it loses 5px of actual glyphs at the DEFAULT 16px text
-             size, at every viewport whose height puts `main` on its 46rem floor.
+             this row-span it loses actual glyphs at the DEFAULT 16px text size —
+             5px at 1440x900, and 13px at every viewport whose height puts `main`
+             on its 46rem floor. Those two figures belong to different
+             configurations; an earlier draft attached the 1440x900 number to the
+             floor configs and so understated this fix by 8px.
 
              The row costs nothing because the grid already computes TEN row tracks —
              the eight explicit ones plus two implicit zero-height rows created by

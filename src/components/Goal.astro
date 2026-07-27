@@ -29,13 +29,24 @@ interface Props {
 // any viewport whose height puts `main` on its 46rem floor while lg is still
 // active, so 1024x600, 1280x720 and 1152x700 all tie. A text-xs line costs 20px in
 // each of the two goal cards, so one line each leaves 18px and two leaves nothing:
-// at zero the flex column starts SHRINKING its children, and it takes the Now card
-// down with the goal cards even though nothing was added to it.
+// at zero the flex column starts CONTRACTING its children, and it takes the Now
+// card down with the goal cards (154 -> 149.39px) even though nothing was added
+// to it.
 //
-// Nothing in the suite can see that. There is no layout engine in the tests, so a
-// two-line variant is 149/149 green while losing glyphs at the DEFAULT text size.
-// The guard is tests/projection.test.ts's width bound plus the browser sweep in the
-// PR, not a green run.
+// BE PRECISE ABOUT WHAT TWO LINES COSTS, because an earlier draft of this comment
+// overstated a true fact into a false one. It said a two-line variant "loses
+// glyphs at the DEFAULT text size" — three independent rebuilds measured 0 ink
+// lost across 43, 170 and 170 lg configurations, and shearing begins only at FOUR
+// lines. The contraction above is the real cost and it carries the one-line budget
+// on its own; the clipping claim was never measured.
+//
+// Nothing in the suite can see either effect: there is no layout engine in the
+// tests, so a two-line variant runs green. The guard is the width bound in
+// tests/projection.test.ts plus the browser sweep in the PR, never a green run.
+//
+// (The verb above is deliberately not the obvious one — the obvious one is a flex
+// utility, and UnoCSS scans this comment, so writing it emits a real CSS rule that
+// no element wears. tests/build-output.test.ts catches that by name.)
 const {goal} = Astro.props;
 const statusLine = goalStatusLine(goal);
 ---

@@ -158,25 +158,32 @@ export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonl
 /**
  * The card's third line, or null to render nothing.
  *
- * EVERY STRING HERE IS WIDTH-BUDGETED, and the budget is small. The text sits in a
- * 110.02px column — the right-hand card's inner flex column, which is narrower than
- * the card's own content box and does not widen with the viewport (it is constant
- * from 1024px to 1440px, because that column is a fixed 264px at `lg`). Measured at
- * 12px in the page's own stack:
+ * EVERY STRING HERE IS WIDTH-BUDGETED. The ceiling is the goal card's ROW content
+ * width — **158px at 1024px wide, 177 at 1100, 190 from 1152 up** — and the widest
+ * single line that fits at 1024 is about 156.7px of ink. Measured at 12px in the
+ * page's own stack:
  *
- *     1000 km/wk to go        99.31   worst case of the rate branch, fits by 10.7
+ *     1000 km/wk to go        99.31   worst case of the rate branch
  *     71 km/wk to go          83.56
  *     1000 km to go           80.11   worst case of the final branch
  *     Races cover it          78.78
  *     Goal met                50.22
- *     Booked races cover it  121.06   WRAPS — this was the first wording, and it
- *                                     wrapped at every viewport
  *
- * A wrap is not cosmetic here: it costs a second 20px line, and the right-hand
- * stack has 18px of free height left once both goal cards carry one line. The next
- * line makes the flex column shrink all three cards, the Now card included.
- * `tests/projection.test.ts` pins the literals below against these measurements, so
- * changing the copy without re-measuring fails.
+ * BE CAREFUL WHICH BOX YOU MEASURE — an earlier revision of this comment got it
+ * wrong and stated the budget as 110.02px. That figure is the RUNNING card's inner
+ * `max-content` column, which is not a budget at all: it widens with its own
+ * content, and the cycling card's is 125.89px. The same error carried a claim that
+ * `Booked races cover it` "wraps at every viewport"; it does not — measured on the
+ * built page it is ONE line at 1024/1100/1152/1440 with the card height unchanged
+ * at 226 and no overflow. The shorter wording below ships because it is plainer,
+ * not because the longer one broke.
+ *
+ * The line COUNT is the real constraint, and it is about height rather than width:
+ * the right-hand stack has 18px of free height once both goal cards carry one line,
+ * and a second line takes it to zero — at which point the flex column contracts all
+ * three cards, the Now card included, 154 -> 149.39px. Glyphs are not sheared until
+ * FOUR lines, so the budget protects the Now card, not against clipping.
+ * `tests/projection.test.ts` pins the literals below against these measurements.
  */
 export function goalStatusLine(goal: Goal, iso: string = UPDATED_AT, events: readonly RaceEvent[] = EVENTS): string | null {
     const s = goalStatus(goal, iso, events)
