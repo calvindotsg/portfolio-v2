@@ -261,10 +261,17 @@ describe("an inline icon is centred on its text's cap band", () => {
      * toggle carries a sun and a moon and hides whichever one is not current.
      *
      * The Now card's explainer icon belongs in the FLEX group, and it is worth saying
-     * why rather than leaving it to the count: its anchor is an inline-flex box, so
-     * the glyph inside is a flex item and is blockified like the other eleven. It sits
-     * in the card's corner, not in a line of prose, so there is no cap line for the
-     * baseline nudge to centre it on — its container centres it instead.
+     * why rather than leaving it to the count: its anchor is a flex box, so the glyph
+     * inside is a flex item and is blockified like the other ten in this derived group.
+     * It sits in the card's corner, not in a line of prose, so there is no cap line for
+     * the baseline nudge to centre it on — its container centres it instead.
+     *
+     * Be careful quoting a number here, because two files legitimately count differently.
+     * This group TOTALS eleven — six social links, two goal bars, both toggle glyphs and
+     * this one — so there are ten others. Only ten are ever laid out at once, since the
+     * toggle hides whichever glyph is not current, which is why `Now.astro` says "nine
+     * other icons" for the set that sentence is about: the ones that actually rely on a
+     * container to centre them.
      */
     const TOGGLE_GLYPHS = 2;
     const EXPECTED_FLEX_HOSTED = LINKS.length + GOALS.length + TOGGLE_GLYPHS

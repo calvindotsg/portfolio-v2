@@ -160,7 +160,14 @@
 // scaling with the type it holds off. Measured as ink past each card's clip edge,
 // summed over the page at 1024x800: this revision loses 0 at a 17px root, 0 at 18,
 // 0 at 20, 0 at 22 and 0 at 24, against 4.8 / 196 / 457 / 966 / 1596 before — and 0
-// out to a 40px root across eight viewports from 320 to 2560 wide.
+// out to a 40px root across eight viewports from 320 to 2560 wide, measured at each
+// card's BOTTOM clip edge. That qualifier is load-bearing and was missing: the sweep said
+// nothing about horizontal shear, and there is some. On the right edge the intro card
+// sheds hero text at 320px from a 32px root (47px) and at 320/360/375/414px at a 40px root
+// (137/97/82/43px). Pre-existing in kind, but worse since the control box went rem —
+// 34px -> 137px at 320/root 40, and it now starts at root 32 where the previous revision
+// was clean — because a card grows VERTICALLY with its content and never horizontally.
+// Tracked separately; do not read the zeroes above as "nothing clips".
 //
 // Two things not to do with those numbers. They are ink past the CLIP edge summed
 // over eight cards, which is not the quantity an earlier version of this comment
@@ -175,24 +182,51 @@
 // a "/now page" is. Both used to live in a flex row that ALSO held the heading, and
 // that row is the reason Now was the only card whose heading did not reserve the same
 // space beneath it — a hand-rolled heading cannot inherit this component's. Give the
-// marks a position of their own and Now can pass `title` like the other five.
+// marks a row that the heading SHARES rather than one it lives inside, and Now can pass
+// `title` like the other five.
 //
-// The offset is the card's own padding, and it is written here for that reason: the
-// caller does not know what this component pads by, and a caller that guessed would
-// silently drift the moment the padding changed.
+// IT WAS ABSOLUTELY POSITIONED FIRST, AND THAT WAS A DEFECT. A review panel found it
+// three times over, from three independent dimensions. The marks were pinned to the
+// card's padding edge with the heading given 4rem of right padding to stay clear of
+// them; both of those lengths scale with the reader's text while the CARD'S WIDTH DOES
+// NOT — a card is as wide as the viewport allows. At 320px and a 34px root the heading's
+// content box has collapsed to nothing, so the word "Now" overflows to the right, and an
+// absolutely-positioned box cannot be pushed out of the way. Measured at 320x568,
+// root 36: 627 of 2205 heading-ink sample points had the anchor on top of them, and
+// `elementFromPoint` over the word returned the LINK — so a tap on the card's own
+// heading navigated off-site to sive.rs. Zero occluded points on the previous revision
+// across 36 configurations, and zero on production.
 //
-// The live dot does move, 6px down — measured 25px below the card's top edge before and
-// 31px after, at 1440x900 — and that is the slot doing its job rather than a side
-// effect. Two marks in a row share a centre line, which is what `items-center` is for,
-// and the taller of the two is the 24px explainer. It also lands the dot better against
-// the heading than it was: the dot's centre is now 37px below the card's top against the
-// heading's optical centre at 36px, where before it sat 5px high at 31px. Its horizontal
-// position is unchanged, 227px in from the card's left edge in both.
+// Two things kept it out of sight of every guard: the marks paint later than the heading, so
+// they win both paint and hit-testing; and occlusion by a later-painted sibling costs no
+// rect and clips no ink, so neither the suite nor this PR's own ink-loss sweep could
+// fail on it. That is why there is now an explicit occlusion assertion.
 //
-// The heading gets right padding when the slot is filled, so a longer title runs out
-// of room instead of running under the marks. `Astro.slots.has` is checked rather than
-// always emitting the box: an empty absolutely-positioned div would sit over the
-// heading of all five other cards for no reason.
+// SO THE MARKS ARE IN FLOW, in a row they share with the heading, and the row WRAPS.
+// `flex-wrap` is the whole fix: where the two cannot sit side by side, the marks drop
+// to their own line instead of overlapping the heading (absolute positioning) or being
+// sheared off by the card's own clipping (an unwrapped flex row, which was measured and
+// deletes the live dot entirely at 320px/root 40 — a status graphic the repo holds to
+// 3:1 in its own test). Verified at 320px: 0 occluded heading-ink points at root 36 and
+// root 40, the dot fully inside the padding box, and the anchor reachable at every
+// sample point.
+//
+// The heading comes FIRST in the row, which is both the reading order a screen reader
+// gets — the card announces "Now" before offering a link that explains it — and, with
+// `justify-between`, the visual order. The absolute version had the marks first in the
+// DOM, so they were announced and copied ahead of the heading they belong to.
+//
+// THE LIVE DOT lands 33px below the card's top edge at 1440x900, against 25px before this
+// PR — its centre at 39px now sits on the heading's optical centre, measured 38.96px,
+// where it used to sit 8px high of it. Horizontal position unchanged, 227px in from the
+// card's left edge across all three revisions. An earlier draft of this note put that
+// optical centre at 36px and called the dot 1px low; a review panel re-measured the cap
+// band and both figures were wrong, which mattered because they were the evidence that the
+// alignment was deliberate rather than incidental.
+//
+// `Astro.slots.has` is checked rather than always emitting the row: the other five cards
+// keep their heading as a direct child of the card, which is what `card-fill.test.ts`
+// selects on, and a card with no marks has no row to share.
 interface Props {
     title?: string;
     titleIcon?: string;
@@ -204,17 +238,25 @@ interface Props {
 
 const {title, titleIcon, colSpan, rowSpan, fillsArea} = Astro.props;
 const hasCorner = Astro.slots.has("corner");
+
+// One string, so the heading cannot drift between the two branches below. The bottom
+// margin is the page's spacing step and every titled card gets it; see the note above.
+const HEADING = "text-xl font-bold mt-0 mb-4";
 ---
 
 <div
         data-card
         class={`isolate ${fillsArea ? "" : "self-start max-h-full"} overflow-hidden bg-[var(--card-background)] shadow-lg rounded-lg p-6 border border-[var(--card-border)] relative w-full transition-colors duration-300 ease-in-out col-span-1 ${colSpan || "md:col-span-2"} ${rowSpan || ""}`}
 >
-    {hasCorner && (
-            <div class="absolute top-6 right-6 flex items-center gap-3">
-                <slot name="corner"/>
+    {hasCorner ? (
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                {title && <h2 class={HEADING}>{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
+                <div class="flex items-center gap-3 mb-4">
+                    <slot name="corner"/>
+                </div>
             </div>
+    ) : (
+            title && <h2 class={HEADING}>{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>
     )}
-    {title && <h2 class={`text-xl font-bold mt-0 mb-4 ${hasCorner ? "pr-16" : ""}`}>{titleIcon && <span class={titleIcon} aria-hidden="true"></span>} {title}</h2>}
     <slot/>
 </div>

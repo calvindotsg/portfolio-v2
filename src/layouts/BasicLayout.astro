@@ -46,8 +46,10 @@ const {title, description} = Astro.props;
  * uno.config.ts), so the grid grows with the reader's text and this floor lets the
  * result scroll; the copy column's cap went font-relative in the same pass, and
  * `tests/card-fill.test.ts` now forbids an absolute one anywhere inside a card.
- * Swept as ink past each card's clip edge: 0 at every viewport from 320 to 2560
- * wide, at every root size from 16px to 40px.
+ * Swept as ink past each card's BOTTOM clip edge: 0 at every viewport from 320 to 2560
+ * wide, at every root size from 16px to 40px. The RIGHT edge is not zero — see the note
+ * in index.astro. A card grows vertically with its content and never horizontally, so
+ * narrow widths under very large text still shear the intro card's hero text.
  *
  * It also fixes the large breakpoint, which the exact height broke as well, and
  * an earlier version of this comment wrongly claimed it left untouched. <main>
