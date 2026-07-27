@@ -92,12 +92,17 @@ import {iconClass} from "../lib/icons";
  * does not free the width: a card grows vertically when its content does and never
  * horizontally, because it is as wide as the viewport allows.
  *
- * All six are 0 now. The control's box stayed text-relative and `.button-grid`'s
- * column ladder gained the rung it was missing, so it drops to a single column once two
- * controls no longer fit — BasicLayout.astro owns the arithmetic and the bound. What
- * remains at 320px and a 40px root is 34.58 of one hero word, which is the card's own
- * padding spending 120 of the 320 and not the control row; it predates all of this and
- * sits outside the 1.4.4 bracket.
+ * Closed now, and closed differently for the two quantities involved — which are worth
+ * keeping apart, because quoting one of them as "nothing clips" is the error that let this
+ * ship. The control's box stayed text-relative and `.button-grid`'s column ladder gained
+ * the rung it was missing, so it drops to a single column once two controls no longer fit;
+ * BasicLayout.astro owns the arithmetic and the bound. CONTROL BOXES sheared past the clip
+ * edge at seven configurations, up to 142 at 320px and a 40px root, and are now 0 at every
+ * one — that is the functional half, and no text-node sweep could see it. TEXT ink goes to
+ * 0 at five of its six; the sixth, 320px at a 40px root, drops 136.84 -> 34.58, which is
+ * one hero word against the card's own padding spending 120 of the 320 rather than the
+ * control row. That residual predates all of this and is untouched by reverting the box to
+ * device pixels.
  *
  * ---
  *

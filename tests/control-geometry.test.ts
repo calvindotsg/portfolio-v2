@@ -3,7 +3,7 @@ import {readdirSync, readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
 import {LINKS, NOW} from "../src/lib/constants";
-import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, parseRules, px, type Rule, structuralSelector} from "./helpers/css";
+import {appliesAt, decl, effectiveDecl, isKeyframeStep, parseRules, px, ROOT_PX, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * Every styled control must be ONE box. There are seven today — six social-link
@@ -404,146 +404,265 @@ describe("every styled control is one declared box", () => {
     });
 
     /**
-     * THE COLUMN LADDER HAS TO REACH ONE, AND HAS TO REACH IT IN TIME.
+     * NEVER GRANT MORE CONTROL COLUMNS THAN THE CARD CAN FIT.
      *
-     * This is the assertion whose absence shipped a defect. The control's box is
-     * text-relative, so two controls plus their gap are a fixed number of REM — but a
-     * card's width is not: a card grows vertically with its content and never
-     * horizontally, because it is as wide as the viewport allows. Past some text size two
-     * controls therefore stop fitting, and the grid's min-content width becomes the
-     * min-content width of the intro card's whole copy column, which then overruns the
-     * card and is sheared by its clipping. Measured on the revision before this one:
-     * 136.84 of hero copy lost at 320px wide and a 40px root, and 47.44 at a 32px root,
-     * which is inside the WCAG 1.4.4 bracket. The ladder stopped at two columns.
+     * This is the assertion whose absence shipped a defect, and its first version was
+     * defeated five ways by a review panel with the whole suite green, so read the shape
+     * before changing it.
      *
-     * So, for each rung, the narrowest viewport it still governs must be wide enough for
-     * the columns it grants. A rung permitting N columns first applies just above the
-     * bound of the next-narrower rung, and needs `N * control + (N-1) * gap` there.
+     * THE DEFECT. The control's box is text-relative, so two controls plus their gap are a
+     * fixed number of REM — but a card's width is not: a card grows vertically with its
+     * content and never horizontally, because it is as wide as the viewport allows. Past
+     * some text size two controls stop fitting, the grid's min-content width becomes the
+     * min-content width of the intro card's whole copy column, and the card's clipping
+     * shears the hero copy. Measured on the revision before this one: 136.84 of hero copy
+     * lost at 320px wide and a 40px root, 47.44 at a 32px root — inside the WCAG 1.4.4
+     * bracket. `.button-grid`'s column ladder stopped at two columns.
      *
-     * WHY THE ARITHMETIC IS ALLOWED TO IGNORE THE ROOT FONT-SIZE, which is the subtle
-     * part and the reason the unit assertions below are a precondition rather than a
-     * separate nicety: every term is normalised to a 16px root, so the inequality is
-     * root-invariant only while BOTH sides scale with the root together. That is exactly
-     * what failed before — an absolute control box under text-relative bounds satisfies
-     * the inequality at a 16px root and violates it at 40. If either side is ever
-     * re-spelled in device pixels this test's arithmetic stops meaning anything, so it
-     * refuses to run rather than reporting a pass it cannot support.
+     * WHY THIS ASKS THE QUESTION AT A WIDTH RATHER THAN PER RUNG. The first version walked
+     * the ladder's rungs and compared each against its neighbour's bound. Four separate
+     * holes, all measured, all green:
      *
-     * It is a NECESSARY condition and not a sufficient one: it compares against the
-     * viewport, where the real budget is the card's content box, which is narrower by
-     * that card's own padding — itself text-relative. Slack in the bounds is what covers
-     * the difference, and erring toward firing a rung early is the cheap direction: an
-     * early rung costs height the page can scroll, a late one costs ink. Browser
-     * measurement across widths and root sizes remains the other half of this.
+     *   - SOURCE ORDER. Two `max-width` rungs both match a narrow viewport, so the LAST one
+     *     declared wins. Moving the one-column rung above the two-column rung reverted the
+     *     fix completely — ink identical to the unfixed revision at all six configurations
+     *     — while a rung-walking test saw the same set of rungs and passed.
+     *   - THE SHORTHAND. `grid-template` beats the `grid-template-columns` longhand the
+     *     first version read, inside the same rule after minification.
+     *   - THE SELECTOR STRING. Matching `r.selectors.includes(".button-grid")` misses an
+     *     Astro scoped `<style>`, which emits `.button-grid[data-astro-cid-…]`.
+     *   - THE BUDGET. Comparing against the raw viewport width ignored everything between
+     *     the viewport and the grid, and that slack is exactly what the rung needs: a bound
+     *     anywhere in [9rem, ~11.56rem) passed while re-shipping the defect. An 11rem bound
+     *     was built and measured — 7.44px of hero copy sheared at 360px and a 32px root.
+     *
+     * Resolving the EFFECTIVE declaration at a given width closes the first three at once
+     * (`effectiveDecl` keeps the last applying declaration and competes shorthand against
+     * longhand), and charging the real gutters closes the fourth.
+     *
+     * THE BUDGET, and why the card's RIGHT padding is not charged. Ink is lost where the
+     * card clips, and `overflow: hidden` clips at the PADDING box — so content may extend
+     * through the card's right padding without losing a pixel, while its left padding
+     * really does push content rightward. Everything else between the viewport and the grid
+     * is charged on both sides. Walking the real ancestor chain rather than pinning a
+     * constant is what makes `md:pr-8` on the intro row count itself in automatically.
+     *
+     * That model is not reasoned, it is FITTED TO EIGHT MEASURED OUTCOMES: it predicts ink
+     * loss at 320/360 and a 32px root and at 320/360/375/414 and a 40px root, and predicts
+     * NO loss at 375/414 and a 32px root — which is what the browser measured on the
+     * unfixed revision, including both of the negatives. Charging both paddings instead
+     * rejects the shipped, working bound; charging neither accepts a broken one.
+     *
+     * WHY THE ARITHMETIC MAY IGNORE THE ROOT FONT-SIZE. Every term is normalised to a 16px
+     * root, so a width here means "viewport width in CSS pixels at a 16px root" and a
+     * viewport of W at a root of R enters this sweep as W * 16/R. That reindexing is only
+     * valid while every term scales with the root together — which is why the unit
+     * assertions below are a PRECONDITION and not a tidiness check. It is also exactly what
+     * failed before: an absolute control box under text-relative bounds satisfies the
+     * inequality at a 16px root and violates it at 40.
+     *
+     * WHAT THE SWEEP'S FLOOR MEANS, because it is a real limitation and not a fudge. Below
+     * `one control + the gutters` no column count can help — there is nothing under one
+     * column — so the sweep starts there and the assertion below states the zoom level that
+     * floor corresponds to on a 320px phone. Past it the single control is itself clipped.
+     * Closing that needs a control that shrinks or a card that scrolls sideways, neither of
+     * which is a ladder.
+     *
+     * Still NOT sufficient, and browser measurement remains the other half: this models the
+     * grid's own min-content width and says nothing about the copy column's other contents
+     * (one long unbreakable hero word overruns the card at large text no matter what the
+     * ladder does — see the residual noted in BasicLayout.astro).
      */
-    it("carries a column ladder that reaches one, and reaches it before two controls stop fitting", () => {
-        const upperUnit = (at: string) => at.match(/(?:max-width:\s*|width\s*<=\s*)[\d.]+([a-z%]*)/)?.[1] ?? "";
+    it("never grants more control columns than the intro card can fit", () => {
+        const gridEl = document.querySelector(".button-grid");
+        const mainEl = document.querySelector("main");
+        expect(gridEl, "no .button-grid in the built page").not.toBeNull();
+        expect(mainEl, "no <main> in the built page").not.toBeNull();
+        const cardEl = gridEl!.closest("[data-card]");
+        expect(cardEl, "the control grid must sit inside a card, or nothing clips it").not.toBeNull();
 
-        const gridRules = rules.filter((r) => r.selectors.includes(".button-grid"));
-        const ladder = gridRules
-            .map((rule) => ({rule, tracks: decl(rule.body, "grid-template-columns")}))
-            .filter((x): x is {rule: Rule, tracks: string} => Boolean(x.tracks))
-            .map(({rule, tracks}) => ({
-                columns: Number(tracks.match(/^repeat\((\d+),/)?.[1]),
-                bound: maxWidthOf(rule),
-                unit: upperUnit(rule.at),
-                at: rule.at || "(no query)",
-            }))
-            .sort((a, b) => a.bound - b.bound);
+        // The chain from the grid up to <main>. The card is flagged because its right
+        // padding is inside its own clip box and therefore usable; everything else costs
+        // space on both sides.
+        const chain: {el: Element, chargeRight: boolean, label: string}[] = [];
+        for (let e: Element | null = gridEl!.parentElement; e; e = e.parentElement) {
+            chain.push({
+                el: e,
+                chargeRight: e !== cardEl,
+                label: `<${e.tagName.toLowerCase()} class="${(e.getAttribute("class") ?? "").slice(0, 40)}">`,
+            });
+            if (e === mainEl) break;
+        }
+        expect(
+            chain.some((c) => c.el === cardEl) && chain.some((c) => c.el === mainEl),
+            "the walk up from the grid must reach both the card and <main>, or the budget below is missing a term",
+        ).toBe(true);
 
-        // Vacuity guard: the whole invariant is about the SHAPE of a ladder, so a
-        // single-rung "ladder" must fail here rather than satisfy every loop below by
-        // never entering one.
-        expect(ladder.length, "the button grid must declare a ladder of column counts").toBeGreaterThan(1);
-        for (const rung of ladder) {
-            expect(rung.columns, `unreadable column count in "${rung.at}"`).toBeGreaterThan(0);
+        // Every rule that can reach each element on that chain, in SHEET ORDER — matched
+        // structurally, so an Astro scoped selector counts. Built in one pass over the
+        // sheet rather than per element, and deliberately not wrapped in try/catch: a
+        // selector this cannot parse must go red rather than be silently skipped.
+        const wanted = new Set<Element>([gridEl!, ...chain.map((c) => c.el)]);
+        const reaching = new Map<Element, Rule[]>([...wanted].map((e) => [e, []]));
+        for (const rule of rules) {
+            if (isKeyframeStep(rule)) continue;
+            const matched = new Set<Element>();
+            for (const selector of rule.selectors) {
+                // Element-only and universal selectors are the preflight's reset, which
+                // legitimately sets padding and border on everything.
+                if (!/[.#[]/.test(selector)) continue;
+                const structural = structuralSelector(selector);
+                if (!structural) continue;
+                for (const el of document.querySelectorAll(structural)) {
+                    if (wanted.has(el as Element)) matched.add(el as Element);
+                }
+            }
+            for (const el of matched) reaching.get(el)!.push(rule);
         }
 
-        /**
-         * THE MODEL'S OWN PRECONDITION, asserted rather than assumed.
-         *
-         * Everything below treats a rung as governing every width up to its upper bound,
-         * which is only true while the ladder is expressed as upper bounds alone. One
-         * rung gated the other way — `@media (min-width: 30rem)` — has no upper bound at
-         * all, so it would read as the open top of the ladder, and two rungs claiming
-         * that top makes the sort order arbitrary and the monotonic check below a
-         * coin-toss. That is a plausible authoring move, not a contrived one, so it fails
-         * loudly here instead of quietly weakening an assertion three lines further on.
-         */
-        for (const rule of gridRules) {
-            if (!decl(rule.body, "grid-template-columns")) continue;
-            expect(
-                minWidthOf(rule),
-                `"${rule.at}" gates this grid's columns on a LOWER width bound. The ladder is `
-                + `modelled as upper bounds only — teach this test the other shape before using it`,
-            ).toBeNull();
-        }
+        /** One side's padding for an element at a width, honouring the shorthand's sides. */
+        const padding = (el: Element, side: "left" | "right", width: number): number => {
+            const props = ["padding", "padding-inline", `padding-inline-${side === "left" ? "start" : "end"}`, `padding-${side}`];
+            const won = effectiveDecl(reaching.get(el)!, props, width);
+            if (!won) return 0;
+            const parts = won.value.trim().split(/\s+/);
+            if (won.prop === "padding" || won.prop === "padding-inline") {
+                const pick = parts.length === 1 ? parts[0]
+                    : parts.length === 4 ? (side === "left" ? parts[3] : parts[1])
+                        : parts[1];
+                return px(pick) ?? 0;
+            }
+            return px(parts[0]) ?? 0;
+        };
+        const border = (el: Element, side: "left" | "right", width: number): number => {
+            const won = effectiveDecl(reaching.get(el)!, ["border-width", `border-${side}-width`], width);
+            return won ? (px(won.value.trim().split(/\s+/)[0]) ?? 0) : 0;
+        };
 
-        // Route 3 of the assertion-hole checklist: a sheet-only walk cannot see the inline
-        // `style` attribute, which beats every rule here short of `!important`. It is the
-        // cheapest possible way to put a column count back where this test cannot read it.
-        for (const el of document.querySelectorAll(".button-grid")) {
-            expect(
-                el.getAttribute("style") ?? "",
-                "an inline style on the button grid is invisible to every assertion in this file",
-            ).not.toMatch(/grid-template-columns/);
-        }
+        /** Space the grid may occupy at `width` before the card starts clipping it. */
+        const available = (width: number): number => width - chain.reduce((spent, c) => spent
+            + padding(c.el, "left", width) + border(c.el, "left", width) + border(c.el, "right", width)
+            + (c.chargeRight ? padding(c.el, "right", width) : 0), 0);
 
-        // The precondition. Every bound that is not the open top of the ladder has to be
-        // font-relative, or the arithmetic below is not root-invariant.
-        for (const rung of ladder) {
-            if (rung.bound === Infinity) continue;
-            expect(
-                ["rem", "em"].includes(rung.unit),
-                `"${rung.at}" bounds this grid in "${rung.unit}", so it parts company with the `
-                + `control's own text-relative box the moment a reader enlarges the type`,
-            ).toBe(true);
-        }
+        // --- the two text-relative lengths the columns are made of --------------------
+        const gridRules = reaching.get(gridEl!)!;
+        expect(gridRules.length, "no rule in the sheet reaches the control grid").toBeGreaterThan(0);
 
-        const base = gridRules.find((r) => !r.nested)!;
-        const gap = px(decl(base.body, "gap"));
-        expect(gap, "the grid's gap must be an absolute or rem length to reason about").not.toBeNull();
+        const gapDecl = effectiveDecl(gridRules, ["gap", "column-gap", "grid-column-gap"], 1440);
+        expect(gapDecl, "the control grid must declare a gap").not.toBeNull();
+        const gap = px(gapDecl!.value.trim().split(/\s+/).pop()!);
+        expect(gap, `the grid's gap is "${gapDecl!.value}", which this test cannot reduce to a length`).not.toBeNull();
 
         const control = boxOf(controlClasses[0]);
         const controlWidth = px(control.width);
         expect(controlWidth, "the control must declare a readable width").not.toBeNull();
+
+        // PRECONDITIONS OF THE NORMALISATION. If either side stops scaling with the root,
+        // the sweep below is a statement about a 16px root only — which is the defect this
+        // test exists for — so it refuses to run rather than reporting a pass.
         expect(
             /rem$/.test(control.width ?? ""),
-            `the control's width is "${control.width}"; in device pixels the rung arithmetic `
-            + `below holds at a 16px root and breaks at every larger one, which is the defect `
-            + `this test was written for`,
+            `the control's width is "${control.width}"; in device pixels the arithmetic below holds `
+            + `at a 16px root and breaks at every larger one, which is the shape of the shipped defect`,
         ).toBe(true);
         expect(
-            /rem$/.test(decl(base.body, "gap") ?? ""),
-            `the grid's gap is "${decl(base.body, "gap")}", which has to scale with the controls it separates`,
+            /rem$/.test(gapDecl!.value.trim().split(/\s+/).pop() ?? ""),
+            `the grid's gap is "${gapDecl!.value}", and it has to scale with the controls it separates`,
         ).toBe(true);
-
-        // The ladder must bottom out at a single column. One control is the narrowest the
-        // grid's min-content width can possibly be, so this is what stops the copy column
-        // from being held open by a row of controls at any text size.
-        expect(
-            ladder[0].columns,
-            `the narrowest rung ("${ladder[0].at}") grants ${ladder[0].columns} columns; a ladder that `
-            + `never reaches one leaves a floor under the grid's min-content width, and that floor is `
-            + `what sheared the hero copy`,
-        ).toBe(1);
-
-        for (let i = 1; i < ladder.length; i++) {
-            const rung = ladder[i], below = ladder[i - 1];
-            // Monotonic: a wider viewport must never be granted fewer columns.
+        for (const rung of gridRules) {
+            if (!/grid-template/.test(rung.body)) continue;
+            const unit = rung.at.match(/(?:max-width:\s*|width\s*<=\s*)[\d.]+([a-z%]*)/)?.[1];
+            if (unit === undefined) continue; // the open top of the ladder carries no bound
             expect(
-                rung.columns,
-                `"${rung.at}" grants ${rung.columns} columns where the narrower "${below.at}" grants ${below.columns}`,
-            ).toBeGreaterThan(below.columns);
-
-            const needs = rung.columns * controlWidth! + (rung.columns - 1) * gap!;
-            expect(
-                needs,
-                `"${rung.at}" grants ${rung.columns} columns down to ${below.bound}px (at a 16px root), but `
-                + `${rung.columns} controls need ${needs}px there. The rung below has to fire first — `
-                + `otherwise the grid holds the intro card's copy column wider than the card and the card clips it`,
-            ).toBeLessThanOrEqual(below.bound);
+                ["rem", "em"].includes(unit),
+                `"${rung.at}" bounds this grid in "${unit}", so it parts company with the control's own `
+                + `text-relative box the moment a reader enlarges the type`,
+            ).toBe(true);
         }
+        // A FLOOR is a second declared box and beats the declared width for the used value,
+        // exactly as a cap does. The canonical rule is checked here because the sheet-wide
+        // guard above deliberately exempts it.
+        for (const cls of controlClasses) {
+            for (const prop of ["min-width", "min-height", "max-width", "max-height"] as const) {
+                expect(
+                    decl(canonicalRule(cls).body, prop),
+                    `.${cls} declares ${prop}; the control's box must be declared once, not floored or capped, `
+                    + `or the width this test multiplies is not the width that renders`,
+                ).toBeUndefined();
+            }
+        }
+        // No stylesheet reading can see an inline style, and it outranks all of it. Any
+        // grid or display declaration there decides the column count — `grid-auto-flow`
+        // alone defeats a guard that greps only for `grid-template-columns`.
+        for (const el of document.querySelectorAll(".button-grid")) {
+            const inline = (el as Element).getAttribute("style") ?? "";
+            expect(
+                inline.match(/(?:^|;)\s*(grid[\w-]*|display)\s*:/i)?.[1] ?? null,
+                `the control grid carries an inline style (${inline}) that decides its layout and is invisible `
+                + `to every stylesheet assertion in this file`,
+            ).toBeNull();
+        }
+
+        // --- the sweep ----------------------------------------------------------------
+        // Below one control plus the gutters, no column count can help: there is nothing
+        // under one column. That is the floor, and it is a real limitation — see the zoom
+        // assertion right after it.
+        // Sampled at a narrow width deliberately: below `md` the chain carries no
+        // width-gated padding, so this is the chrome the binding case actually pays.
+        const gutters = 300 - available(300);
+        expect(gutters, "the card's chrome must resolve to a positive number of pixels").toBeGreaterThan(0);
+        const floor = Math.ceil(controlWidth! + gutters);
+        const widths: number[] = [];
+        for (let w = floor; w <= 700; w++) widths.push(w);
+        for (let w = 704; w <= 2560; w += 8) widths.push(w);
+
+        const columnsAt = (width: number): number => {
+            const won = effectiveDecl(gridRules, ["grid-template-columns", "grid-template"], width);
+            expect(won, `no rule declares the grid's columns at ${width}px (at a 16px root)`).not.toBeNull();
+            // `repeat(N, …)`, or an explicit track list — count the tracks either way.
+            const value = won!.value.split("/")[0].trim();
+            const repeat = value.match(/^repeat\(\s*(\d+)\s*,/);
+            if (repeat) return Number(repeat[1]);
+            expect(
+                /^(?:none|auto)$/.test(value) === false,
+                `the grid's columns resolve to "${value}" at ${width}px, which this test cannot count — `
+                + `an uncountable track list must fail loudly, not be skipped`,
+            ).toBe(true);
+            return value.split(/\s+/).length;
+        };
+
+        const offenders: string[] = [];
+        const seen = new Set<number>();
+        for (const width of widths) {
+            const columns = columnsAt(width);
+            seen.add(columns);
+            const needs = columns * controlWidth! + (columns - 1) * gap!;
+            const room = available(width);
+            if (needs > room) {
+                offenders.push(
+                    `at ${width}px (16px root) the grid is granted ${columns} columns needing ${needs}px, `
+                    + `but the card leaves ${room}px — the rung below has to fire first, or the grid holds `
+                    + `the copy column wider than the card and the card clips it`,
+                );
+            }
+        }
+        expect(offenders.slice(0, 4), `${offenders.length} of ${widths.length} widths grant columns that do not fit`).toEqual([]);
+
+        // NON-VACUITY. A ladder that never varies, or never reaches one column, would
+        // satisfy the loop above only by accident of where the sweep starts.
+        expect(seen.has(1), `the ladder never resolves to a single column anywhere in ${floor}–2560px`).toBe(true);
+        expect(seen.size, "the ladder must grant different column counts at different widths").toBeGreaterThan(1);
+
+        // THE LIMITATION, stated as a number so it cannot rot. A 320px phone reaches this
+        // floor at a root of 320 * 16 / floor; below that the single control is clipped and
+        // no column count can prevent it. 200% (a 32px root) is the WCAG 1.4.4 bracket and
+        // must stay comfortably clear.
+        const zoomCeiling = (320 * ROOT_PX) / floor;
+        expect(
+            zoomCeiling,
+            `one control plus the card's chrome needs ${floor}px, so on a 320px viewport this layout only `
+            + `holds to a ${zoomCeiling.toFixed(1)}px root. SC 1.4.4 asks for 32px (200%)`,
+        ).toBeGreaterThanOrEqual(32);
     });
 
     /**

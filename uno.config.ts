@@ -135,13 +135,16 @@ export default defineConfig({
      * `.button-grid`'s column-count queries "drop a column slightly before the controls
      * actually stop fitting", costing height and no ink. They dropped a column far too
      * LATE: the ladder stopped at two columns, two text-relative controls plus their gap
-     * are 9rem, and a card is only ever as wide as the viewport allows — so past a 32px
-     * root two controls no longer fit a narrow card, the grid held the intro card's copy
-     * column open at its own min-content width, and the card sheared the hero copy.
-     * 136.84 of ink at 320px wide and a 40px root; 47.44 at a 32px root, inside the WCAG
-     * 1.4.4 bracket. The two claims are not opposites by accident: BOTH rest on
-     * comparing a rem bound against a rem control, and the sweep that seemed to confirm
-     * the optimistic one measured the bottom edge while the damage was on the right.
+     * are 9rem, and a card is only ever as wide as the viewport allows — so once the text
+     * is large enough two controls no longer fit a narrow card, the grid held the intro
+     * card's copy column open at its own min-content width, and the card sheared the hero
+     * copy. 136.84 of text ink at 320px wide and a 40px root; 47.44 at a 32px root, inside
+     * the WCAG 1.4.4 bracket. On a 320px viewport two controls stop fitting at a 25px root
+     * and the card starts shearing a BUTTON at 28 — an onset an earlier draft of this note
+     * put at 32, which was the first root its text-only sweep happened to sample. The two
+     * claims are not opposites by accident: BOTH rest on comparing a rem bound against a
+     * rem control, and the sweep that seemed to confirm the optimistic one measured the
+     * bottom edge while the damage was on the right.
      *
      * The ladder reaches one column now and `tests/control-geometry.test.ts` asserts the
      * arithmetic, which is what makes the rem box safe to keep rather than merely
