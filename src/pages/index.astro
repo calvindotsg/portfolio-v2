@@ -94,9 +94,9 @@ import {iconClass} from "../lib/icons";
  *
  * Closed now, and closed differently for the two quantities involved — which are worth
  * keeping apart, because quoting one of them as "nothing clips" is the error that let this
- * ship. The control's box stayed text-relative and `.button-grid`'s column ladder gained
- * the rung it was missing, so it drops to a single column once two controls no longer fit;
- * BasicLayout.astro owns the arithmetic and the bound. CONTROL BOXES sheared past the clip
+ * ship. The control's box stayed text-relative and the control row stopped counting columns
+ * at all — it wraps, so its minimum width is one control however large the reader's text;
+ * BasicLayout.astro owns that argument. CONTROL BOXES sheared past the clip
  * edge at seven configurations, up to 142 at 320px and a 40px root, and are now 0 at every
  * one — that is the functional half, and no text-node sweep could see it. TEXT ink goes to
  * 0 at five of its six; the sixth, 320px at a 40px root, drops 136.84 -> 34.58, which is

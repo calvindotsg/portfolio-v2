@@ -46,7 +46,7 @@ import portfolioImage from '../assets/me.webp'
                 <h6 class="text-sm font-light m-0 text-[var(--text)]">welcome</h6>
                 {WELCOME.description.map((item, index) => (<h1 class="m-0 font-light text-xl">{index === 0 && <span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span>} {item}</h1>))}
             </div>
-            <div class="button-grid">
+            <div class="control-row">
                 <ThemeSwitcher/>
                 {LINKS.map(({link, logo, name}) => (<a href={link} target="_blank" class="control">
                     <span class={`${iconClass(logo)} shrink-0`} aria-hidden="true"></span>

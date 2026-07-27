@@ -44,11 +44,16 @@ export default defineConfig({
      * before any of this was measured.
      *
      * The hand-written media queries in the codebase were converted in the same pass
-     * and have to stay in step by hand: three in BasicLayout.astro for `.button-grid`
-     * (it was two until the column ladder gained the rung it needed — that file has
-     * the arithmetic), one in IntroCard.astro that deliberately mirrors `md`.
-     * A px query left among rem ones does not fail loudly — it simply parts
-     * company with its variant siblings once the reader enlarges the text.
+     * and have to stay in step by hand. There is ONE left — in IntroCard.astro, and it
+     * deliberately mirrors `md`. A px query left among rem ones does not fail loudly:
+     * it simply parts company with its variant siblings once the reader enlarges the
+     * text, which is why the count is worth keeping small and worth stating here.
+     *
+     * It was four. Three of them granted the control row a column count (4/3/2/1 at
+     * 40rem, 25rem and 13rem) and all three are gone: that row wraps now, so it needs
+     * no bound at all and there is nothing left to keep in step. Two of those bounds
+     * had no variant sibling to move with in the first place, which is the shape of
+     * hand-maintained CSS worth deleting rather than converting — see BasicLayout.astro.
      */
     theme: {
         breakpoints: {sm: "40rem", md: "48rem", lg: "64rem", xl: "80rem", "2xl": "96rem"},
@@ -131,8 +136,8 @@ export default defineConfig({
      * is unchanged, because at the default root size this is the same box.
      *
      * THE KNOCK-ON THIS PARAGRAPH USED TO PREDICT WAS BACKWARDS, and it cost a shipped
-     * defect, so it is corrected here rather than quietly replaced. It said
-     * `.button-grid`'s column-count queries "drop a column slightly before the controls
+     * defect, so it is corrected here rather than quietly replaced. It said the control
+     * row's column-count queries "drop a column slightly before the controls
      * actually stop fitting", costing height and no ink. They dropped a column far too
      * LATE: the ladder stopped at two columns, two text-relative controls plus their gap
      * are 9rem, and a card is only ever as wide as the viewport allows — so once the text
@@ -146,10 +151,17 @@ export default defineConfig({
      * rem control, and the sweep that seemed to confirm the optimistic one measured the
      * bottom edge while the damage was on the right.
      *
-     * The ladder reaches one column now and `tests/control-geometry.test.ts` asserts the
-     * arithmetic, which is what makes the rem box safe to keep rather than merely
-     * preferable. What the old paragraph got right is the conclusion: a px bound left
-     * behind to part company with every other breakpoint was never the answer.
+     * THE BOUND IS GONE ENTIRELY NOW, which is the answer to the class rather than to the
+     * instance. The ladder was first extended to reach one column, with the bound derived
+     * from a fitted budget and asserted at every width; then the counting was deleted
+     * outright — the control row wraps, so its minimum content width is one control at
+     * every text size, and there is no number left to get wrong. That is what makes the
+     * rem box safe to keep rather than merely preferable. What the old paragraph got right
+     * is its conclusion: a px bound left behind to part company with every other
+     * breakpoint was never the answer. What it got wrong generalises past the sign of the
+     * error — a hand-tuned count compared against a text-relative box has to be re-tuned
+     * every time either side moves, and the two times it was wrong here were in opposite
+     * directions. `tests/control-geometry.test.ts` asserts the invariant that replaced it.
      *
      * What the build before last did here was accidental and is still worth knowing:
      * `max-h-[50px]` let the anchors grow to 50px and then stopped them, which is why
@@ -166,10 +178,13 @@ export default defineConfig({
      * width could never win; it can, and that is exactly why the token has to be
      * absent rather than merely early.
      *
-     * `.button-grid` deliberately keeps `auto` tracks (BasicLayout). Now that
-     * every item is one size the tracks are equal without being told, so the
-     * width lives in exactly one place; hard-coding 4rem tracks there would let
-     * the two drift apart and bring back the ragged columns.
+     * NOTHING OUTSIDE THIS SHORTCUT MAY RESTATE THE WIDTH, and the container the
+     * controls sit in is where that would most naturally happen. It used to size
+     * them with `auto` tracks for exactly this reason; it is a wrapping row now
+     * (BasicLayout) and the same rule holds with one fewer moving part — an item's
+     * width comes from here, so a track size, a basis or a hard-coded 4rem on the
+     * row would let the two drift apart and bring back the ragged columns. The
+     * control-geometry test forbids all three on a control.
      *
      * The offset plate is written as ONE complete arbitrary value — offsets,
      * blur and colour together. Splitting it into a geometry utility and a
@@ -204,14 +219,22 @@ export default defineConfig({
      * (a 44px square, for comparison, has room for 2px of content beside the old
      * `px-5`, which is why that number was rejected).
      *
-     * `shrink-0` on the surface was NOT belt-and-braces when it was added, and it
-     * is worth keeping now that the case which proved it has gone: the two goal
-     * CTAs were flex items, flex-shrink outranks a declared width, and they
-     * measured 47.80px at lg with the width already in place. Nothing wearing this
-     * class is a flex item today — all seven are direct children of `.button-grid`
-     * and therefore grid items — so the token is currently inert. It stays because the next
-     * control to be dropped into a flex row would silently lose the box otherwise,
-     * and because the failure it prevents is invisible until measured.
+     * `shrink-0` on the surface IS LOAD-BEARING, and it is worth knowing that it has
+     * been all three things in turn — necessary, inert, and necessary again — because
+     * that is why it was never removed. It was added for a real measured failure: the
+     * two goal CTAs were flex items, flex-shrink outranks a declared width, and they
+     * measured 47.80px at lg with the width already in place. Removing those CTAs left
+     * all seven remaining controls as grid items of a column ladder, where nothing
+     * shrinks, and the token went inert — an earlier draft of this note said so and
+     * argued for keeping it anyway, on the grounds that the next control dropped into a
+     * flex row would silently lose its box.
+     *
+     * That is exactly what happened, to all seven at once: the ladder is gone and the
+     * control row wraps, so every control is a flex item again and flex-shrink is once
+     * more the one thing standing between a declared 64px box and a compressed one on a
+     * narrow viewport. Keeping a token whose justification had expired turned out to
+     * cost nothing and save the defect; `tests/control-geometry.test.ts` asserts it
+     * (`pins the box against a flex parent`) rather than leaving it to hold by luck.
      *
      * The icon spans carry `shrink-0` at both call sites rather than relying on
      * there being slack. It costs one already-emitted rule and it is what stops

@@ -48,7 +48,7 @@ const {title, description} = Astro.props;
  * `tests/card-fill.test.ts` now forbids an absolute one anywhere inside a card.
  * Swept as ink past each card's BOTTOM clip edge: 0 at every viewport from 320 to 2560
  * wide, at every root size from 16px to 40px. Name the edge — the right edge was NOT zero
- * when that sweep was published, and it took its own change to close (the column-ladder
+ * when that sweep was published, and it took its own change to close (the control-row
  * note further down this file, and index.astro). A card grows vertically with its content
  * and never horizontally, which is the whole reason the two edges needed separate work.
  *
@@ -231,101 +231,108 @@ const schema = {
         --on-brand: #0B0B0B; /* darkslate-900 — dark ink, the fill is pale here */
     }
 
-    .button-grid {
-        display: grid;
-        grid-template-columns: repeat(4, auto); /* Maximum 4 buttons per row */
-        justify-content: start; /* Left align the grid */
-        gap: 1rem; /* Consistent spacing between rows and columns */
-    }
+    /* THE CONTROL ROW WRAPS, AND IT DOES NOT COUNT. Three hand-written width
+       queries used to grant it 4/3/2/1 columns; they are deleted, and what
+       replaces them is one declaration that cannot be tuned wrong.
 
-    /* Both bounds are in `rem` to stay in step with the UnoCSS breakpoints, which
-       are text-relative (uno.config.ts explains why). 40rem is the `sm` boundary
-       restated; 25rem has no variant sibling and is this grid's own. At the 16px
-       root they are the 640px and 400px that shipped before. */
-    @media (max-width: 40rem) {
-        .button-grid {
-            grid-template-columns: repeat(3, auto); /* 3 buttons per row on smaller screens */
-        }
-    }
+       WHY THE LADDER WENT. A column count is an approximation of "how many fit",
+       maintained by hand against bounds that had to be kept in step with the
+       breakpoints by hand, and it approximated wrong twice in a row — first
+       stopping at two columns, then needing a fourth rung at a bound (13rem) that
+       took a fitted budget to derive. The mechanism is worth restating because it
+       is the reason a count can never be right here: two controls plus their
+       separation are a fixed 9rem, since the control's box is text-relative, but A
+       CARD'S WIDTH IS NOT — a card grows vertically with its content and never
+       horizontally, because it is as wide as the viewport allows. So past some
+       reader text size any fixed count exceeds the card, this row held the intro
+       card's copy column open at its own minimum width, and the card's clipping
+       sheared the hero copy and the controls both.
 
-    @media (max-width: 25rem) {
-        .button-grid {
-            grid-template-columns: repeat(2, auto); /* 2 buttons per row on very small screens */
-        }
-    }
+       WHAT REPLACES IT IS AN INVARIANT, not a smaller number. A wrapping row's
+       minimum content width is its LARGEST ITEM, not the sum of a row of them —
+       every item here is one declared box, so that minimum is exactly one control
+       at every viewport and every text size. The row can therefore never hold the
+       copy column wider than one control, which is the defect class rather than an
+       instance of it, and there is no bound left to keep in step with anything.
 
-    /* THE LADDER HAS TO REACH ONE, and the rung was missing until this shipped a
-       real defect. Two controls plus their gap are 9rem — 4rem each and 1rem
-       between — because the control's box is text-relative. A CARD'S WIDTH IS NOT:
-       it is as wide as the viewport allows and no wider. So past some text size two
-       controls stop fitting, and the intro card's copy column takes its
-       min-content width from this grid: measured 360.00 at a 40px root, inside a
-       card whose content box is 158.00 at a 320px viewport, and the hero copy laid
-       out at 360 and was sheared by the card's own clipping.
+       TWO THINGS ARE NOW LOAD-BEARING that were not while this was a two-dimensional
+       layout, and both are asserted in tests/control-geometry.test.ts rather than
+       left to hold by luck. The control's own `shrink-0` stops the box being
+       compressed below its declared width, which the ladder made irrelevant and
+       this makes decisive again (uno.config.ts has the history — it once measured a
+       control at 47.80px). And every child of this row has to BE a control: one
+       child with a wider minimum width would restore exactly the defect above, so
+       the row's minimum is only one control for as long as that holds.
 
-       TWO QUANTITIES WERE LOST AND THEY HAVE DIFFERENT ANSWERS, which one sweep of
-       mine reported as one number and should not have. Text ink past the clip edge:
-       136.84 at 320 wide and a 40px root, 96.84 at 360, 81.84 at 375, 42.84 at 414,
-       and at a 32px root — 200% text-only zoom, the WCAG 1.4.4 bracket — 47.44 at
-       320 and 7.44 at 360. This rung takes FIVE of those six to zero; the sixth,
-       320 at a 40px root, drops to 34.58 for a different reason given below.
+       MEASURED, against the ladder it replaces rather than against the defect both
+       of them fix. Text ink past a card's right clip edge and control boxes past it
+       are 0 at every one of the 32 configurations either was measured at, with the
+       one documented residual unchanged: at 320 wide and a 40px root one
+       unbreakable hero word still overruns by 34.58, which is this card's own
+       padding eating 120 of 320 and is not this row's doing. Deleting the rungs
+       also removes the last two rem bounds that had no variant sibling to move with.
+       What the ladder's absence used to cost — the text figures, the control-box
+       figures, and the two different onset text sizes they imply — is recorded once,
+       in uno.config.ts's note on the control box, rather than restated here.
 
-       The other quantity is the CONTROL BOXES, which no text-node sweep can see and
-       which matter more, because a sheared button is lost functionality rather than
-       lost prose. Measured against the same clip edge: 142 at 320 wide and a 40px
-       root, 102 at 360, 87 at 375, 48 at 414, 50 at 320/root 32, 10 at 360/root 32,
-       and 4 at 320/root 28 — a configuration the text sweep called clean, so the
-       onset is a 28px root and not the 32 quoted elsewhere. This rung takes ALL of
-       those to zero, at every configuration, including the one where text still
-       loses 34.58.
+       IT CHANGES THE DEFAULT TEXT SIZE, which the ladder deliberately did not, and
+       that is a design change carried on purpose rather than a side effect: the row
+       now fits as many controls as there is room for instead of as many as a rung
+       allows. At a 16px root, 360 and 375 wide go from 2 per row over 4 rows to 3
+       over 3 (document height 1856 -> 1792), 414 goes from 3 to 4, and 320 is
+       unchanged at 2. Wider viewports gain more, because the old top rung capped
+       every one of them at 4: at 1024 and a 24px root all seven now sit on one row.
+       14 of the swept configurations get shorter, by up to 160px.
 
-       WHY 13rem AND NOT 9. The bound has to clear the 9rem the controls need PLUS
-       everything between the viewport and this grid, all of it text-relative and so
-       none of it payable out of a rem budget: `main`'s own padding on both sides
-       (1rem), this card's LEFT padding (1.5rem), and the card's two 1px borders —
-       2.5rem + 2px, which is 42 CSS pixels at the default text size and 102 at a
-       40px root, where it leaves a 320px viewport just 218 to lay out in. The
-       card's RIGHT padding is deliberately not in that sum: clipping happens at the
-       PADDING box, so content may run through it without losing a pixel. Charging
-       it as well rejects this working bound; charging none of it accepts 9rem, which
-       was measured shearing 47px. The tightest bound the budget actually allows is
-       just under 11.56rem, and 11rem was built and measured losing 7.44 at 360 wide
-       and a 32px root. 13rem is that boundary plus deliberate slack, because slack
-       is the right direction to be wrong in — firing a rung early costs height the
-       page can scroll, firing it late costs ink.
+       TWO GET TALLER, and the reason is the whole trade rather than a wrinkle in it.
+       At 320 and 360 wide at a 24px root the row drops to one control per row where
+       the ladder seated two, and the page grows 372px and 330px. Measured, because
+       the mechanism is not what it looks like: the ladder was not fitting two
+       controls into the room available, it was DEMANDING room for two and getting
+       it. Its minimum width of 216 held the copy column open to 216, and at that
+       text size 216 still landed 42px inside the card's clip edge, so it fitted. A
+       wrapping row demands nothing, so the copy column shrinks to the 174 actually
+       on offer and two controls no longer fit it.
 
-       `tests/control-geometry.test.ts` now asserts this arithmetic at every width
-       rather than trusting the number, and it charges the same terms. Read that test
-       before re-tuning the bound: an earlier version of it compared against the bare
-       viewport and stayed green for anything from 9rem up.
+       That demand is not separable into a good half and a bad half — it is one
+       behaviour. The same "hold the column open to N controls regardless of the
+       room" that won 372px of height here is exactly what sheared 142px of BUTTON
+       at 320 and a 40px root. Trading two configurations that grow and stay
+       scrollable for a class of configurations that silently deleted functionality
+       is the trade, stated plainly, and it is why this is the better engineering
+       rather than merely the tidier CSS.
 
-       It cannot touch the default text size, by construction rather than by luck:
-       13rem is 208 CSS pixels at a 16px root and only reaches the 320px of the
-       narrowest real viewport once the root passes 24.6px, i.e. above 150% zoom.
-       Measured — document height is identical to the previous revision at all
-       seven widths at a 16px root, and the controls keep the same 2/3/4 per row.
+       Worth knowing for whoever wants that height back: below `md` the portrait is
+       positioned out of flow, but its wrapper is still an in-flow sibling of the
+       copy column and spends 24 of the card's 198 usable pixels there. Recovering
+       those would seat two controls at both of the configurations above. That is a
+       fix to the mobile hero, not to this row, and it is deliberately not made here.
 
-       One residual is deliberately left, because it is a different defect: at 320
-       wide and a 40px root one hero word still overruns by 34.58, and that is the
-       card's padding eating 120 of 320, not this grid. It is unchanged by this
-       rung and unchanged by reverting the control to an absolute box. It sits
-       outside the 1.4.4 bracket in the sense that matters — at a 32px root no
-       control and no text is lost at 320 wide or anything wider — but say it that
-       way and not as "the page loses nothing", because a viewport narrower than
-       320 does lose some (5.23 of hero copy at 280 wide), and 320 is the floor this
-       page is designed to.
+       THE HONEST LIMIT IS UNCHANGED, because it never was the ladder's to fix: once
+       ONE control plus the chrome between it and the viewport exceeds that viewport,
+       the control itself is clipped and no layout here can help. That happens beyond
+       roughly a 48px root on a 320px phone — past 300% zoom, comfortably clear of
+       the 200% SC 1.4.4 asks for — and the test asserts that margin as a number so
+       it cannot rot. Fixing it needs a control that shrinks or a card that scrolls
+       sideways.
 
-       AND THERE IS NO RUNG BELOW ONE, which is the honest limit of this whole
-       approach. Once a single control plus the chrome above exceeds the viewport,
-       no column count can help: the button itself is clipped. That happens beyond
-       roughly a 48px root on a 320px phone, i.e. past 300% zoom — comfortably clear
-       of the 200% that SC 1.4.4 asks for, and the test asserts that margin as a
-       number so it cannot rot silently. Fixing it needs a control that shrinks or a
-       card that scrolls sideways; neither is a ladder. */
-    @media (max-width: 13rem) {
-        .button-grid {
-            grid-template-columns: repeat(1, auto);
-        }
+       ONE WHOLE CLASS OF CHANGE HERE STOPPED BEING DANGEROUS, which is the clearest
+       single argument for this shape. The separation below used to be able to delete
+       functionality: widened to 6rem under the column layout it pushed a control past
+       the card's clip edge at 12 of the 32 measured configurations, worst 89px, and
+       12px of it AT THE DEFAULT TEXT SIZE. The same widening was built against this
+       row and measures 0 at all 32, because a separation only applies between items
+       that share a line and the minimum here is one item on a line by itself. So it
+       can make this row taller and never wider, and the test that used to have to
+       re-resolve it at every width no longer does.
+
+       `justify-content` is deliberately absent: a wrapping row packs its items at
+       the start of the line already, so declaring it restated the default. The
+       ladder needed it to stop content-sized tracks stretching. */
+    .control-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem; /* separates the controls from each other, on both axes */
     }
 
     /* Card entrance — replaces the JS stagger. Pure CSS, no client bundle.
