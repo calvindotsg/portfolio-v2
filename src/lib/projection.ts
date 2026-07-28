@@ -184,7 +184,7 @@ export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonl
  * The card's third line, or null to render nothing.
  *
  * EVERY STRING HERE IS WIDTH-BUDGETED. The ceiling is the goal card's ROW content
- * width — **158px at 1024px wide, 177 at 1100, 190 from 1152 up** — and the widest
+ * width — **182px at 1024px wide, 201 at 1100, 214 from 1152 up** — and the widest
  * single line that fits at 1024 is about 156.7px of ink. Measured at 12px in the
  * page's own stack:
  *
