@@ -106,7 +106,27 @@ const description = goal === undefined
                 </a>
             </p>
             <div class="flex flex-col gap-2">
-                <h1 class="text-3xl font-bold m-0">{heading}</h1>
+                <!-- `break-anywhere` IS WHAT STOPS THE DOCUMENT SCROLLING SIDEWAYS UNDER TEXT ZOOM,
+                     and the mechanism is not about this heading. Every text column on the home page
+                     sits inside a card that clips, so a word too long for 320px is absorbed there;
+                     this heading is the site's only un-clipped text column, so ITS minimum intrinsic
+                     width sets the document's. Measured at 320px: the word "patches" alone wants
+                     311.8px at a 44px root, plus main's own padding, and the page carried a 14px
+                     horizontal scroll (36px at a 48px root).
+
+                     THE FAMILIAR UTILITY DOES NOT WORK HERE, which was measured after shipping it by
+                     mistake. `overflow-wrap: break-word` breaks the rendered line but is defined
+                     NOT to affect intrinsic minimum sizing, so the heading still demanded 311.8px
+                     and the horizontal scroll was unchanged to the pixel. This class is
+                     `overflow-wrap: anywhere`, which is the same break behaviour with the intrinsic
+                     minimum included — the whole of what is needed. Do not "tidy" it back; the bib
+                     name in Patch.astro uses the other value legitimately, because it sits in a grid
+                     cell that already bounds it.
+
+                     With `anywhere`: docOverflow 0 at 320px out to a 48px root, on all three
+                     routes. Nothing changes at any ordinary size — neither value breaks a word that
+                     has another way to fit. -->
+                <h1 class="text-3xl font-bold m-0 break-anywhere">{heading}</h1>
                 <p class="text-sm max-w-[60ch] m-0">{lede}</p>
             </div>
             <nav class="patch-filter" aria-label={PATCHES.filter_label}>

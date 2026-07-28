@@ -5,7 +5,9 @@ import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
 import {EVENTS, GOAL_YEAR, GOALS, PATCHES, type RaceEvent} from "../src/lib/constants";
-import {bookedAhead, formatPatchDate, patchState, type PatchState, patchWall, UPDATED_AT} from "../src/lib/projection";
+import {
+    bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
+} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
 import {decl, isKeyframeStep, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
 
@@ -218,6 +220,67 @@ describe("a bib's date line", () => {
         for (const event of EVENTS) {
             expect(formatPatchDate(event), `${event.name} has no printable date`).toBeTruthy();
         }
+    });
+
+    /**
+     * `<time datetime>` names ONE instant and HTML has no interval form, so a tour
+     * wrapped in a single `<time>` would tell a machine that nine days of riding
+     * happened on the start date. The segments are how each endpoint gets to claim
+     * only itself; the dash claims nothing.
+     */
+    it("gives each endpoint of a span its own date, and the dash none", () => {
+        expect(patchDateSegments(ev({date: "2026-07-12"})))
+            .toEqual([{text: "12 JUL 2026", iso: "2026-07-12"}]);
+        expect(patchDateSegments(ev({date: "2026-11-07", end_date: "2026-11-15"})))
+            .toEqual([{text: "7", iso: "2026-11-07"}, {text: "–"}, {text: "15 NOV 2026", iso: "2026-11-15"}]);
+        expect(patchDateSegments(ev({date: "2026-11-30", end_date: "2026-12-02"})))
+            .toEqual([{text: "30 NOV", iso: "2026-11-30"}, {text: " – "}, {text: "2 DEC 2026", iso: "2026-12-02"}]);
+        expect(patchDateSegments(ev({date: "2026-12-30", end_date: "2027-01-02"})))
+            .toEqual([{text: "30 DEC 2026", iso: "2026-12-30"}, {text: " – "}, {text: "2 JAN 2027", iso: "2027-01-02"}]);
+        expect(patchDateSegments(ev({date: "2026-13-01"}))).toBeNull();
+    });
+
+    /**
+     * The drift this pair of representations invites, closed structurally: whatever a
+     * reader sees is the segments joined, so the range on screen cannot come to
+     * disagree with the dates a machine reads. Checked over every shape the calendar
+     * offers AND over the live fixture, since a new event could introduce a fourth.
+     */
+    it("keeps the printed line and the segments the same string, in every shape", () => {
+        const shapes = [
+            ev({date: "2026-07-12"}),
+            ev({date: "2026-07-12", end_date: "2026-07-12"}),
+            ev({date: "2026-11-07", end_date: "2026-11-15"}),
+            ev({date: "2026-11-30", end_date: "2026-12-02"}),
+            ev({date: "2026-12-30", end_date: "2027-01-02"}),
+            ev({date: "not-a-date"}),
+            ...EVENTS,
+        ];
+        for (const event of shapes) {
+            const joined = patchDateSegments(event)?.map((s) => s.text).join("") ?? null;
+            expect(joined, `${event.date}..${event.end_date ?? event.date}`).toBe(formatPatchDate(event));
+        }
+    });
+
+    /**
+     * Asserted on the component rather than on the built page: whether a multi-day
+     * event is on the wall is a property of the fixture, and the markup rule is not.
+     */
+    it("renders one <time> per endpoint, never one around the whole range", async () => {
+        const container = await AstroContainer.create();
+        const render = async (event: RaceEvent) =>
+            parseHTML(await container.renderToString(Patch, {props: {event, state: "booked"}})).document;
+
+        const tour = await render(ev({date: "2026-11-07", end_date: "2026-11-15", km: 1022}));
+        const times = [...tour.querySelectorAll("time")];
+        expect(times.map((t) => t.getAttribute("datetime"))).toEqual(["2026-11-07", "2026-11-15"]);
+        for (const t of times) {
+            expect(t.textContent, "a <time> must not contain the whole range").not.toContain("–");
+        }
+        expect(tour.querySelector(".bib-date")?.textContent?.replace(/\s+/g, " ").trim()).toBe("7–15 NOV 2026");
+
+        const day = await render(ev({date: "2026-08-02"}));
+        expect([...day.querySelectorAll("time")].map((t) => t.getAttribute("datetime"))).toEqual(["2026-08-02"]);
     });
 });
 
@@ -640,6 +703,44 @@ describe("the sport mark reads as text on the surface it lands on", () => {
         ).toEqual([]);
     });
 
+    /**
+     * THE THIRD WAY THE MODEL CAN BE WRONG, and the one the two guards above do not
+     * cover: `rules` drops every rule inside an at-rule, so a nested rule that changes a
+     * colour the assertions below certify is not refused — it is invisible.
+     *
+     * That is correct for the at-rules the bib actually has. A forced-colours or a print
+     * override is not the sighted-on-screen case at all: its colours come from the OS or
+     * from paper rather than from the theme block, so resolving them against the theme
+     * would be meaningless. It is NOT correct for a viewport query. `@media (min-width:
+     * 40rem) { .bib { --ink: … } }` applies to the same sighted reader on the same
+     * screen, and dropping it would leave every ratio below certifying a colour the
+     * browser paints at one width and not another.
+     *
+     * So the discriminator is whether the condition can be true in the default screen
+     * context, not which feature it names: anything gated on paper, on forced colours or
+     * on a contrast preference is out of the model by construction; anything else that
+     * touches a modelled property must go red and be taught to the resolver.
+     */
+    it("keeps every at-rule that repaints the bib out of the sighted screen case", () => {
+        const OUT_OF_MODEL = /print|forced-colors|prefers-contrast|monochrome/;
+        const READ = /(?:^|;)\s*(?:color|background-color|opacity|--[\w-]+)\s*:/;
+        const nested = parseRules(css).filter((r) => r.nested && !isKeyframeStep(r));
+        expect(nested.length, "no nested rules parsed — this assertion would be vacuous").toBeGreaterThan(0);
+
+        const offenders = nested
+            .filter((r) => READ.test(r.body))
+            .filter((r) => r.selectors.some((s) => /\.bib\b|\.bib--|\.bib-/.test(s)))
+            .filter((r) => !OUT_OF_MODEL.test(r.at))
+            .map((r) => `${r.at} { ${r.selectors.join(",")} { ${r.body.slice(0, 60)} } }`);
+
+        expect(
+            offenders,
+            "this at-rule repaints the bib in a context the sighted screen reader is also in,"
+            + " and the colour model in this file drops every nested rule — so the ratios below"
+            + " would certify a colour the browser does not always paint. Teach the resolver.",
+        ).toEqual([]);
+    });
+
     it("resolves the mark through .bib-sport rather than by looking a token up by name", () => {
         // The chain has to START at the element that paints, or every ratio below
         // certifies a token nothing is wired to.
@@ -872,6 +973,40 @@ describe("nothing inside the wall's card is pinned to a device pixel", () => {
      * hole: it is the same 3.4px across whatever size the reader's text is, exactly
      * as it would be on paper. It carries no text and cannot clip anything.
      */
+    /**
+     * PRINT IS THE ONE CONTEXT WHERE A THEME TOKEN IS A BUG. Chrome's default
+     * `print-color-adjust: economy` drops the face and keeps the ink, so a finished bib
+     * printed the pale half of the palette onto white paper — a review measured 2.43:1,
+     * and in the dark theme that ink is #FAFAFA. Paper is white whichever theme the
+     * reader had on screen, so every `var(--text)`/`var(--background)` in a print rule
+     * carries an assumption that is only true half the time.
+     *
+     * Asserted structurally rather than by ratio: this suite has no print rendering, and
+     * a literal-colour rule is the thing that makes the printed ratio knowable at all.
+     */
+    it("prints the bib as ink on paper, with no theme token deciding the ink", () => {
+        const printRules = parseRules(pageCss(PAGES.all))
+            .filter((r) => r.at.includes("print"))
+            .filter((r) => r.selectors.some((s) => /\.bib\b|\.bib--/.test(s)));
+        expect(printRules.length, "the bib must carry a print treatment").toBeGreaterThan(0);
+
+        const bib = printRules.find((r) => r.selectors.some((s) => /^\.bib\[/.test(s)))!;
+        expect(bib, "the base .bib must be the one that drops the face").toBeTruthy();
+        expect(decl(bib.body, "background-image"), "the pin holes are punched out of a face there is none of")
+            .toBe("none");
+        expect(decl(bib.body, "--face"), "an inverted face cannot survive print-color-adjust: economy")
+            .toBe("transparent");
+
+        for (const rule of printRules) {
+            for (const prop of ["--ink", "--face", "--sport", "color", "background-color", "border-color"] as const) {
+                const value = decl(rule.body, prop);
+                expect(value ?? "", `${rule.selectors.join(",")} { ${prop} } must not read a theme token in print`)
+                    .not.toMatch(/var\(--(text|background|card-background|accent)\b/);
+            }
+        }
+        expect(decl(bib.body, "--ink"), "the printed ink must be a literal colour").toMatch(/^#[0-9a-fA-F]{3,6}$/);
+    });
+
     it("keeps the pin holes in device pixels, which is what a punched hole is", () => {
         const rules: Rule[] = parseRules(pageCss(PAGES.all));
         const bib = rules.find((r) => r.selectors.some((s) => /^\.bib\[/.test(s)) && decl(r.body, "background-image"));

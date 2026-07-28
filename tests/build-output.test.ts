@@ -738,7 +738,8 @@ describe("the stylesheet ships no rule nobody wears", () => {
     //   container     `container-type: inline-size` on the bib, which is what makes
     //                 its distance size against the bib instead of the viewport
     //   transform     `transform: rotate(180deg)`, the vertical "KM" down the edge
-    //   uppercase     `text-transform: uppercase`, on four of the bib's own elements
+    //   uppercase     `text-transform: uppercase`, on three of the bib's own elements —
+    //                 its meta row, its unit and its name
     //   outline       the one word in this group that is prose. It names the treatment
     //                 Calvin chose for an un-earned bib and appears in the reasoning
     //                 for every part of it; rewording it would cut the code loose from

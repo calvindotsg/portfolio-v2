@@ -1,6 +1,9 @@
 import {describe, expect, it} from "vitest";
 
-import {ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, LINKS, METADATA, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
+import {
+    ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, goalForSport, LINKS, METADATA, NOW,
+    type Sport, THEME_TOGGLE, WELCOME,
+} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {kmFromMeters} from "../scripts/fetch-strava-progress.mjs";
 
@@ -146,6 +149,26 @@ describe("GOALS", () => {
             expect(goal.goal_logo, `${goal.goal_name} goal_logo`).not.toBe("");
             expect(goal.measurable_unit, `${goal.goal_name} measurable_unit`).not.toBe("");
         }
+    });
+
+    /**
+     * `goalForSport` is total by construction — `Sport` is read off `RAW_GOALS`, so the
+     * type admits nothing `GOALS` lacks — and a review of the patch wall pointed out
+     * that the type was the ONLY thing saying so. What breaks it is an edit rather than
+     * an input: a `.filter(…)` added to the map that builds `GOALS` leaves the type
+     * unchanged and the lookup empty. So the totality is checked here, and the function
+     * throws with the sport's name instead of handing back a non-null `undefined`.
+     *
+     * Derived from GOALS rather than from a list of sports written here, so a third goal
+     * joins this assertion by existing.
+     */
+    it("resolves every sport a goal declares, and names the sport when it cannot", () => {
+        expect(GOALS.length, "no goals — this assertion would be vacuous").toBeGreaterThan(0);
+        for (const goal of GOALS) {
+            expect(goalForSport(goal.sport), `${goal.sport} must resolve to its own goal`).toBe(goal);
+        }
+        // The unreachable branch, reached the only way it can be: past the type.
+        expect(() => goalForSport("swimming" as Sport)).toThrow(/swimming/);
     });
 });
 
