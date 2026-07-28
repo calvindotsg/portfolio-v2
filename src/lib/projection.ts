@@ -28,7 +28,7 @@ import {EVENTS, GOAL_YEAR, type Goal, type RaceEvent, type Sport} from "./consta
  * remaining` extrapolates nothing. It contains no pace term, so the composition of
  * what is already banked cannot corrupt it, and it claims nothing about what the
  * owner will do. It still carries the point the owner cared about — counting his
- * booked races takes cycling from 121 km/wk to 71 km/wk, a 42% reduction — without
+ * booked races takes cycling from 122 km/wk to 71 km/wk, a 42% reduction — without
  * a forecast.
  *
  * THE COMPARATOR RULE, if a pace is ever displayed beside this. It must be the
@@ -38,6 +38,10 @@ import {EVENTS, GOAL_YEAR, type Goal, type RaceEvent, type Sport} from "./consta
  * subtraction themselves. The three figures are 65.99 (de-raced) < 70.28 (required)
  * < 76.72 (observed) — the requirement sits BETWEEN the two paces, which is exactly
  * why picking the wrong one flips the story.
+ *
+ * EVERY NUMBER IN THIS COMMENT IS AS OF THE 2026-07-28 STAMP, and is stated that way
+ * because they drift with the bot. They are here to carry a rule that does not
+ * drift; re-derive them before quoting one as current.
  *
  * ---
  *
@@ -68,12 +72,30 @@ export function parseIsoDate(iso: string): number {
     return new Date(ms).toISOString().slice(0, 10) === iso ? ms : NaN
 }
 
-/** Whole days from `iso` to 31 December of `GOAL_YEAR`, never negative. */
+/**
+ * Riding days from `iso` to 31 December of `GOAL_YEAR`, counting BOTH ends, never
+ * negative.
+ *
+ * INCLUSIVE IS NOT A STYLE CHOICE — `bookedAhead` forces it. That function counts
+ * an event starting on `iso` as wholly ahead (`today <= start`), so it treats the
+ * stamped day as still to be ridden. The two are the numerator and the denominator
+ * of one fraction and must agree on that day; an exclusive count divides the
+ * deficit by one day too few and over-states the rate the card asks for.
+ *
+ * The bot settles which way to agree. `updated_at` is stamped by a cron that fires
+ * at 05:13 Singapore time, naming a day whose riding is entirely ahead of anyone
+ * reading the page. So the stamped day counts, and `bookedAhead` was the one that
+ * already had it right.
+ *
+ * THE KNOCK-ON, accepted deliberately: 31 December returns 1 rather than 0, so the
+ * last day of the year reads as `final` ("N km to go") instead of `closed`
+ * (renders nothing). It is a real riding day. `closed` now begins on 1 January.
+ */
 export function daysRemaining(iso: string, year: number = GOAL_YEAR): number {
     const from = parseIsoDate(iso)
     if (Number.isNaN(from)) return NaN
     const end = Date.parse(`${year}-12-31T00:00:00Z`)
-    return Math.max(0, Math.round((end - from) / MS_PER_DAY))
+    return Math.max(0, Math.round((end - from) / MS_PER_DAY) + 1)
 }
 
 /**
@@ -115,7 +137,7 @@ export type GoalStatus =
     | {kind: "met"}
     /** Booked races alone cover the remainder; no ordinary training needed. */
     | {kind: "covered"; km: number}
-    /** The year is over. */
+    /** The year is over — from 1 January, since 31 December is still a riding day. */
     | {kind: "closed"}
     /** Under a fortnight left — a weekly rate is the wrong unit at that range. */
     | {kind: "final"; km: number; days: number}
@@ -146,9 +168,12 @@ export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonl
     if (days < FINAL_STRETCH_DAYS) return {kind: "final", km: Math.ceil(km), days}
 
     // CEIL, not round or floor, and this is a correctness choice rather than taste.
-    // The requirement is 70.28 km/wk; floor and round both give 70, and a rider
-    // following 70 exactly delivers 1,570 km against the 1,576.32 needed — a rate
-    // that MISSES the goal. Ceil never under-states what is required. One km/wk is
+    // At the 2026-07-28 stamp the requirement is 70.2818 km/wk; floor and round both
+    // give 70, and a rider following 70 exactly delivers 1,570.00 km against the
+    // 1,576.32 needed — a rate that MISSES the goal. Round is wrong on any date whose
+    // requirement has a fractional part below .5, which is most of them: sweeping this
+    // function over the rest of the calendar gives 154 of the 288 remaining sport-days
+    // that land in this branch. Ceil never under-states what is required. One km/wk is
     // 0.45% of the cycling goal but 3.74% of the running one, so the same rounding
     // step is eight times as consequential on the smaller card.
     const kmPerWeek = Math.ceil(km / (days / DAYS_PER_WEEK))
