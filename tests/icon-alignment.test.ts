@@ -266,15 +266,22 @@ describe("an inline icon is centred on its text's cap band", () => {
      * It sits in the card's corner, not in a line of prose, so there is no cap line for
      * the baseline nudge to centre it on — its container centres it instead.
      *
+     * The next-race chip's chevron joins this group for the same reason: the chip is an
+     * `inline-flex` anchor, so the glyph is a flex item and is blockified. That makes TWO
+     * flex-hosted icons per goal card — the bar's sport glyph and the chevron — which is
+     * why the count below multiplies rather than adds.
+     *
      * Be careful quoting a number here, because two files legitimately count differently.
-     * This group TOTALS eleven — six social links, two goal bars, both toggle glyphs and
-     * this one — so there are ten others. Only ten are ever laid out at once, since the
-     * toggle hides whichever glyph is not current, which is why `Now.astro` says "nine
-     * other icons" for the set that sentence is about: the ones that actually rely on a
-     * container to centre them.
+     * This group TOTALS thirteen — six social links, two goal bars, two next-race chevrons,
+     * both toggle glyphs and this one — so there are twelve others. Only twelve are ever
+     * laid out at once, since the toggle hides whichever glyph is not current. `Now.astro`
+     * says "nine other icons" for a set that predates the chevrons; that sentence is about
+     * the ones relying on a container to centre them and is counted separately there.
      */
     const TOGGLE_GLYPHS = 2;
-    const EXPECTED_FLEX_HOSTED = LINKS.length + GOALS.length + TOGGLE_GLYPHS
+    /** Per goal card: the progress bar's sport glyph, and the next-race chip's chevron. */
+    const FLEX_ICONS_PER_GOAL = 2;
+    const EXPECTED_FLEX_HOSTED = LINKS.length + GOALS.length * FLEX_ICONS_PER_GOAL + TOGGLE_GLYPHS
         + [NOW.explainer_icon].length;
     const EXPECTED_INLINE_HOSTED = [WELCOME.greeting_icon, ...CAREER.map((c) => c.icon), FOOTER.icon].length;
     const EXPECTED_ICONS = EXPECTED_FLEX_HOSTED + EXPECTED_INLINE_HOSTED;

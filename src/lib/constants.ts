@@ -19,12 +19,12 @@ import stravaProgress from "../data/strava-progress.json"
  * sport-scoped path shapes tried, every one either 404s or redirects to /login.
  * A logged-out visitor meets a login wall whichever Strava URL they are given.
  *
- * THAT NO LONGER SETTLES WHAT A GOAL CARD MAY LINK TO, and the note used to read as
- * though it did. This site now serves its own per-sport page — `/patches/cycling`
- * and `/patches/running`, one prerendered route each, no login anywhere — so
- * "there is nowhere to send them" has stopped being true. What is still open is the
- * separate question of whether a goal card should spend a control on it at all;
- * see the note on {@link Goal}.
+ * THAT NEVER SETTLED WHAT A GOAL CARD MAY LINK TO, and the note used to read as
+ * though it did. This site serves its own per-sport page — `/patches/cycling` and
+ * `/patches/running`, one prerendered route each, no login anywhere — and each goal
+ * card now carries a link to its own, so "there is nowhere to send them" has stopped
+ * being true twice over. The paragraph above is still the answer for STRAVA: a second
+ * Strava control would go to this same profile and meet the same wall.
  */
 const STRAVA_PROFILE_URL = "https://www.strava.com/athletes/37641259/";
 
@@ -96,24 +96,23 @@ export const ABOUT_ME: {
 }
 
 /**
- * A goal card reports a figure; it does not offer a way out to the service the
- * figure came from. Each card used to carry a call to action beside its numbers,
- * and both pointed at {@link STRAVA_PROFILE_URL} — the same place the social link
- * in the intro card reaches, so the page spent three of its nine controls on one
- * destination that a logged-out visitor cannot see anyway. The remaining link is
- * the intro card's, where a visitor already looks for somewhere to follow.
+ * A goal card's way out is this site's own patch wall, not the service the figure came
+ * from — and the absence of `website_url`, `cta_label` and `cta_logo` here is what that
+ * decision looks like in the data.
  *
- * That is why there is no `website_url`, `cta_label` or `cta_logo` here.
+ * Each card used to carry a call to action pointing at {@link STRAVA_PROFILE_URL}, the
+ * same place the intro card's social link reaches, so the page spent three of its nine
+ * controls on one destination a logged-out visitor cannot see. Both were removed. The
+ * link that replaced them is a component rather than three fields on this type
+ * (`components/NextRace.astro`) because it is not a configured destination: the href is
+ * derived from the goal's own `sport`, and what it announces is derived from the
+ * calendar. There is nothing for an editor to fill in, which is the point — see
+ * {@link NEXT_RACE} for the strings, which are the only part a person edits.
  *
- * ONE OF THE TWO REASONS FOR THAT HAS SINCE EXPIRED, and saying so is the point of
- * this paragraph — the argument above was "the destination is behind a login" AND
- * "the page was spending three controls on one place", and only the second still
- * holds. `/patches/<sport>` is this site's own page, prerendered and public, so a
- * per-goal link now has somewhere real to go. What has NOT been decided is whether
- * a goal card should carry one: that is a control on the page's one-screen budget
- * and a fourth thing competing for a reader's attention on a card whose job is to
- * report a number. Decide it as a design change; do not read the absence of these
- * three fields as still resting on the login wall.
+ * SETTLED 2026-07-28, so the earlier "what has NOT been decided is whether a goal card
+ * should carry a link at all" is spent. It does. The budget question that paragraph
+ * raised was real and was answered by measurement rather than by taste: the card gave a
+ * line back to pay for it. Goal.astro records the arithmetic.
  */
 export type Goal = {
     total_goal: number
@@ -445,6 +444,63 @@ export const PATCHES: {
     home_label: "Home",
     home_icon: "ri:arrow-left-line",
     filter_label: "Filter by sport",
+}
+
+/**
+ * THE GOAL CARD'S LINE ABOUT ITS SPORT'S NEXT RACE, and every string here is budgeted
+ * against **158px** — the goal card's row content width at 1024px wide, which is the
+ * narrowest the lg layout produces. Measured on the built page at 1024, the widest line
+ * the calendar can produce is a three-digit day count:
+ *
+ *     "Next race in 268 days"   121.84px of ink, 148.38px of chip, in a 158px row
+ *
+ * so the headroom is **9.62px**, and a three-digit count is the worst case because a
+ * year has no fourth digit. Lengthen one of these strings and measure the card again;
+ * but note the width is not the constraint that bites first — the HEIGHT is, and it has
+ * 2px left (see the budget note in components/Goal.astro).
+ *
+ * `{days}` and `{count}` are substituted. There is a separate singular for one patch
+ * because "1 patches earned" is the kind of thing that ships and stays.
+ *
+ * WHY A COUNTDOWN RATHER THAN A DATE. The date is one click away on the wall, and the
+ * question a card beside a training figure answers is "how long have I got", which a
+ * date makes the reader compute. The date is what the bib prints; this is what the goal
+ * card prints, and they are different questions about the same race.
+ *
+ * `earned` IS NOT A FALLBACK, it is the other half of the year. Nothing is booked for a
+ * sport every January before its first race and again from the morning after its last,
+ * and on those days the honest thing for this line to offer is what has been earned. It
+ * keeps the link to the wall permanent, which matters for a reason unrelated to copy:
+ * the wall would otherwise be an indexed page nothing on the site links to.
+ */
+export const NEXT_RACE: {
+    today: string
+    tomorrow: string
+    in_days: string
+    under_way: string
+    earned: string
+    earned_one: string
+    none: string
+    /** Screen-reader-only, appended to the visible text. `{sport}` is substituted. */
+    destination: string
+    /**
+     * The chip's affordance, and it is not decoration. The chip's only other cue that it
+     * leads somewhere is a hairline border, which is a COLOUR — and SC 1.4.1 does not
+     * accept colour as the sole carrier while SC 1.4.11 would then hold that hairline to
+     * 3:1, which a 32%-of-text blend does not reach. A glyph is a shape, inherits the
+     * text colour, and answers both. Safelisted in uno.config.ts like every other icon.
+     */
+    icon: string
+} = {
+    today: "Next race is today",
+    tomorrow: "Next race is tomorrow",
+    in_days: "Next race in {days} days",
+    under_way: "Race under way now",
+    earned: "{count} patches earned",
+    earned_one: "1 patch earned",
+    none: "See the patch wall",
+    destination: "— {sport} patch wall",
+    icon: "ri:arrow-right-s-line",
 }
 
 /**

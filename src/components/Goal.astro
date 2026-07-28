@@ -2,47 +2,57 @@
 import Card from "./Card/index.astro";
 import type {Goal} from "../lib/constants";
 import {goalStatusLine} from "../lib/projection";
+import NextRace from './NextRace.astro';
 import ProgressBar from './ProgressBar.astro';
 
 interface Props {
     goal: Goal;
 }
 
-// This card reports a figure and offers no way out to the service the figure came
-// from. It used to carry a styled control beside its numbers, as did the other goal
-// card, and both went to the same Strava profile the intro card's social link
-// already reaches — three of the page's nine controls spent on one destination that
-// a logged-out visitor meets a login wall at. See the note on the Strava URL in
-// constants.ts before adding a per-goal link back; there is no per-sport URL to
-// point one at.
+// THE WAY OUT OF THIS CARD IS THE PATCH WALL, not Strava.
 //
-// The figures row therefore holds a single child now, so the utility that used to
-// distribute it against the control went with the control: with one child it can only
-// ever resolve to the start edge, and a token that cannot change anything reads as a
-// constraint that does. That is a statement about THAT token, not a principle applied
-// to the file — other inert layout tokens remain here deliberately, because they are
-// load-bearing the moment a second child returns and this change did not touch the
-// lines they sit on.
+// It used to carry a styled control beside its numbers, as did the other goal card, and
+// both went to the same Strava profile the intro card's social link already reaches —
+// three of the page's nine controls spent on one destination a logged-out visitor meets
+// a login wall at. Both were removed. What returns here is not that control: it goes to
+// this site's own /patches/<sport>, which needs no account, and it earns its place by
+// carrying information (how long until the next race) rather than only a destination.
+// The note on the Strava URL in constants.ts still applies to any Strava link.
+//
+// The figures row's layout tokens are the ones left in place for exactly this: they were
+// kept when the control went, on the argument that they become load-bearing the moment a
+// second child returns. It has.
 
-// ONE extra line, and the count is a measured budget rather than a preference.
-// The right-hand stack has 58px of free height at its tightest lg configuration —
-// any viewport whose height puts `main` on its 46rem floor while lg is still
-// active, so 1024x600, 1280x720 and 1152x700 all tie. A text-xs line costs 20px in
-// each of the two goal cards, so one line each leaves 18px and two leaves nothing:
-// at zero the flex column starts CONTRACTING its children, and it takes the Now
-// card down with the goal cards (154 -> 149.39px) even though nothing was added
-// to it.
+// FOUR ROWS IN THE FIGURES COLUMN AND THE BUDGET IS NOW SPENT, so read this before
+// adding a fifth.
 //
-// BE PRECISE ABOUT WHAT TWO LINES COSTS, because an earlier draft of this comment
-// overstated a true fact into a false one. It said a two-line variant "loses
-// glyphs at the DEFAULT text size" — three independent rebuilds measured 0 ink
-// lost across 43, 170 and 170 lg configurations, and shearing begins only at FOUR
-// lines. The contraction above is the real cost and it carries the one-line budget
-// on its own; the clipping claim was never measured.
+// The right-hand stack (index.astro) has 58px of free height at its tightest lg
+// configuration — any viewport whose height puts `main` on its 46rem floor while lg is
+// still active, so 1024x600, 1152x700 and 1280x720 all tie. A text-xs row costs 20px in
+// each of the two goal cards and the next-race chip costs 24px, so:
 //
-// Nothing in the suite can see either effect: there is no layout engine in the
-// tests, so a two-line variant runs green. The guard is the width bound in
-// tests/projection.test.ts plus the browser sweep in the PR, never a green run.
+//     one status line each        leaves 18px      (what shipped before the chip)
+//     status line + the chip      leaves  2px      measured, this build
+//
+// At zero the flex column starts CONTRACTING its children and takes the Now card down
+// with the goal cards (154 -> 149.39px) even though nothing was added to it. THE CHIP
+// FITS ONLY BECAUSE A LINE WAS GIVEN BACK FOR IT: "Last year's: N km" used to sit
+// between the figure and the status line, and one of the two goals has no figure for it
+// (running's `progress_last_year` is null, so that card spent 20px printing a dash).
+// `progress_last_year` is still configured and nothing renders it — deliberately, so it
+// is one edit from returning, and the January checklist in constants.ts still asks for
+// it. If it comes back, something else has to leave.
+//
+// BE PRECISE ABOUT WHAT AN EXTRA ROW COSTS, because an earlier draft of this comment
+// overstated a true fact into a false one. It said a two-line variant "loses glyphs at
+// the DEFAULT text size" — three independent rebuilds measured 0 ink lost across 43,
+// 170 and 170 lg configurations, and shearing begins only at FOUR extra lines. The
+// contraction above is the real cost and it carries the budget on its own.
+//
+// Nothing in the suite can see either effect: there is no layout engine in the tests, so
+// a taller variant runs green. The guards are the width bound in tests/projection.test.ts,
+// the text-relative-sizing assertion in tests/rendered-html.test.ts, and the browser
+// sweep in the PR — never a green run.
 //
 // (The verb above is deliberately not the obvious one — the obvious one is a flex
 // utility, and UnoCSS scans this comment, so writing it emits a real CSS rule that
@@ -62,12 +72,10 @@ const statusLine = goalStatusLine(goal);
                          unit={goal.measurable_unit}
             />
             <div class="mt-4 flex items-center text-xs font-light">
-                <div class="flex flex-col space-y-1">
+                <div class="flex flex-col space-y-1 w-full">
                     <span>{goal.current_progress} {goal.measurable_unit} of {goal.total_goal} {goal.measurable_unit}</span>
-                    <span>Last year's: {goal.progress_last_year !== null
-                        ? `${goal.progress_last_year} ${goal.measurable_unit}`
-                        : <><span aria-hidden="true">–</span><span class="sr-only">first year back</span></>}</span>
                     {statusLine && <span>{statusLine}</span>}
+                    <NextRace goal={goal}/>
                 </div>
             </div>
         </div>

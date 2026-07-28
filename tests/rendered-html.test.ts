@@ -4,6 +4,8 @@ import {beforeAll, describe, expect, it} from "vitest";
 
 import Index from "../src/pages/index.astro";
 import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
+import {nextRace, nextRaceLine} from "../src/lib/projection";
+import {decl, pageCss, parseRules} from "./helpers/css";
 import {iconClass} from "../src/lib/icons";
 
 let doc: Document;
@@ -273,13 +275,143 @@ describe("page content", () => {
             // Composed phrases, not bare numbers: "1000" alone also appears in
             // ABOUT_ME prose, so a bare containment cannot fail for the card.
             expect(text).toContain(`${goal.current_progress} ${goal.measurable_unit} of ${goal.total_goal} ${goal.measurable_unit}`);
-            if (goal.progress_last_year !== null) {
-                expect(text).toContain(`Last year's: ${goal.progress_last_year} ${goal.measurable_unit}`);
+        }
+    });
+
+    /**
+     * THE LINE THIS REPLACED WAS "Last year's: N km", and the swap is the whole reason the
+     * next-race chip fits: the right-hand stack had 18px of unspent height at its tightest
+     * lg configuration, two goal cards share it, and a chip is 24px. Giving a line back is
+     * what paid for it. The figure is still configured (`progress_last_year`) and nothing
+     * renders it — see the note in Goal.astro.
+     *
+     * Asserted against the same derivation the card used rather than against a phrase
+     * written here: which race is next is a function of the bot's stamp, and a literal
+     * would be a bot-triggered failed deploy the morning after any race.
+     */
+    it("gives every goal card a chip leading to its own sport's wall", () => {
+        for (const goal of GOALS) {
+            const chip = [...doc.querySelectorAll(".next-race")]
+                .find((a) => a.getAttribute("href") === `/patches/${goal.sport}`);
+            expect(chip, `${goal.goal_name} must offer a way to its wall`).toBeTruthy();
+
+            const name = (chip!.textContent ?? "").replace(/\s+/g, " ").trim();
+            const next = nextRace(goal.sport);
+            if (next !== null) {
+                expect(name, "the announced name must carry the race the countdown is about")
+                    .toContain(next.event.name);
             } else {
-                // null renders as a visible dash (with an sr-only explanation),
-                // never as a literal "null" or an empty figure.
-                expect(text).toContain("Last year's: –");
+                expect(name, "with nothing booked the chip offers the patches earned instead")
+                    .toMatch(/patch/i);
             }
+            expect(name, "and where the link goes").toContain(goal.goal_name.toLowerCase());
+        }
+        expect([...doc.querySelectorAll(".next-race")].length, "one chip per goal, no more")
+            .toBe(GOALS.length);
+    });
+
+    /**
+     * Every branch of the countdown, asked of the component instead of the calendar.
+     * Reading these off the built page would make the coverage depend on where in the
+     * year the build happens — "under way" is true for nine days of it.
+     */
+    it("words the countdown for every state a year passes through", () => {
+        const race = (daysAway: number, underWay = false) =>
+            ({event: {date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling" as const}, daysAway, underWay});
+
+        expect(nextRaceLine(race(0), 0)).toBe("Next race is today");
+        expect(nextRaceLine(race(1), 0)).toBe("Next race is tomorrow");
+        expect(nextRaceLine(race(5), 0)).toBe("Next race in 5 days");
+        expect(nextRaceLine(race(-3, true), 2), "under way outranks the day count").toBe("Race under way now");
+        expect(nextRaceLine(null, 0)).toBe("See the patch wall");
+        expect(nextRaceLine(null, 1), "not \"1 patches\"").toBe("1 patch earned");
+        expect(nextRaceLine(null, 4)).toBe("4 patches earned");
+
+        // No branch may leak a placeholder or count backwards, whatever the copy becomes.
+        const every = [race(0), race(1), race(5), race(37), race(-9, true), null];
+        for (const n of every) {
+            for (const earned of [0, 1, 4]) {
+                const line = nextRaceLine(n, earned);
+                expect(line, "a line the card would print blank").not.toBe("");
+                expect(line, `"${line}" leaks a placeholder`).not.toMatch(/\{[a-z]+}/);
+                expect(line, `"${line}" counts backwards`).not.toMatch(/-\d/);
+            }
+        }
+    });
+
+    /**
+     * THE CHIP'S HAIRLINE IS THE THING THAT SAYS "CONTROL", so SC 1.4.11 holds it to 3:1
+     * against the card — and no stylesheet read can see that, because the authored value
+     * is `color-mix(… var(--text) N%, transparent)`, which is 18:1 before the alpha
+     * touches it. This assertion does the blend itself, which is the only form of it that
+     * can fail: shipped at 32% it composites to 2.13:1 in light and 2.81:1 in dark, and at
+     * 40% to 2.68:1 in light. Both passed every other assertion in this suite.
+     *
+     * The light pair is the binding one and it is easy to get wrong by hand: the lighter
+     * colour is the CARD at #F5F5F5, not white, so the headroom is smaller than a
+     * paper-white calculation suggests.
+     */
+    it("composites the chip's border to 3:1 against the card it sits on, in both themes", () => {
+        const css = pageCss();
+        const rule = parseRules(css)
+            .filter((r) => !r.nested)
+            .find((r) => r.selectors.some((sel) => /\.next-race\[/.test(sel)) && decl(r.body, "border") !== undefined);
+        expect(rule, "the chip must declare a border").toBeTruthy();
+
+        const mix = decl(rule!.body, "border")!.match(/var\(--text\)\s+([\d.]+)%/);
+        expect(mix, `the border must blend --text by a percentage: ${decl(rule!.body, "border")}`).toBeTruthy();
+        const alpha = Number(mix![1]) / 100;
+
+        const themeBlock = (theme: string) => {
+            const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
+            expect(block, `the ${theme} theme must ship`).toBeTruthy();
+            return Object.fromEntries(
+                [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], m[2]]),
+            ) as Record<string, string>;
+        };
+        const rgb = (hex: string) => {
+            const h = hex.replace("#", "");
+            const full = h.length === 3 ? [...h].map((c) => c + c).join("") : h;
+            return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+        };
+        const chan = (v: number) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+        const lum = (c: number[]) => 0.2126 * chan(c[0]) + 0.7152 * chan(c[1]) + 0.0722 * chan(c[2]);
+        const ratio = (a: number[], b: number[]) => {
+            const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+            return (x + 0.05) / (y + 0.05);
+        };
+
+        for (const theme of ["light", "dark"]) {
+            const t = themeBlock(theme);
+            const card = rgb(t["--card-background"]);
+            const ink = rgb(t["--text"]);
+            const border = ink.map((c, i) => c * alpha + card[i] * (1 - alpha));
+            expect(
+                ratio(border, card),
+                `${theme}: the chip's border composites to ${ratio(border, card).toFixed(2)}:1 against the card at `
+                + `${Math.round(alpha * 100)}% of --text. It is the only mark identifying the chip as a control, `
+                + `so SC 1.4.11 asks 3:1.`,
+            ).toBeGreaterThanOrEqual(3);
+        }
+    });
+
+    /**
+     * The chip is 24px on purpose and the number is font-relative, so the card can clip
+     * it if either becomes absolute. This is the CSS half of that; the geometry half is a
+     * browser sweep in the PR, since the suite has no layout engine.
+     */
+    it("sizes the chip in the reader's own text, never in device pixels", () => {
+        const rules = parseRules(pageCss()).filter((r) => r.selectors.some((s) => /\.next-race\b/.test(s)));
+        expect(rules.length, "no chip rules found — this assertion would be vacuous").toBeGreaterThan(0);
+        for (const rule of rules) {
+            for (const prop of ["height", "min-height", "max-height", "font-size"] as const) {
+                const value = decl(rule.body, prop);
+                if (value === undefined) continue;
+                expect(value, `${rule.selectors.join(",")} { ${prop}: ${value} } must be text-relative`)
+                    .not.toMatch(/\d\s*(px|pt|pc|in|cm|mm|q)\b/i);
+            }
+            expect(decl(rule.body, "height"), "a fixed height in a clipping card deletes text")
+                .toBeUndefined();
         }
     });
 

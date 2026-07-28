@@ -7,8 +7,9 @@ import {EVENTS, GOAL_YEAR, GOALS, type Goal} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {
     UPDATED_AT, bookedAhead, daysRemaining, formatDateline, goalStatus, goalStatusLine,
-    parseIsoDate, stampYearMatchesGoalYear,
+    nextRace, parseIsoDate, patchesEarned, patchWall, stampYearMatchesGoalYear,
 } from "../src/lib/projection";
+import type {RaceEvent} from "../src/lib/constants";
 import {nextProgress, serialise, singaporeDate} from "../scripts/fetch-strava-progress.mjs";
 
 /**
@@ -324,6 +325,96 @@ describe("EVENTS", () => {
         for (const e of EVENTS) {
             expect(e, `${e.name} priority would be read by nothing`).not.toHaveProperty("priority");
         }
+    });
+});
+
+/**
+ * The goal card's countdown. Every assertion passes its own `iso` and its own events:
+ * which race is next is a function of the day, and the bot moves the day nightly.
+ */
+describe("the next race for a sport", () => {
+    const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
+        ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", ...over});
+
+    const CALENDAR: readonly RaceEvent[] = [
+        ev({name: "ride-past", date: "2026-01-10"}),
+        ev({name: "ride-next", date: "2026-06-20"}),
+        ev({name: "ride-later", date: "2026-09-01"}),
+        ev({name: "run-next", date: "2026-07-04", sport: "running"}),
+    ];
+
+    it("is the soonest booked race of that sport, and counts the days to it", () => {
+        expect(nextRace("cycling", "2026-06-15", CALENDAR))
+            .toEqual({event: expect.objectContaining({name: "ride-next"}), daysAway: 5, underWay: false});
+        expect(nextRace("running", "2026-06-15", CALENDAR)?.daysAway).toBe(19);
+    });
+
+    /**
+     * The one thing a caller cannot be left to work out. A multi-day race stays booked
+     * for every day it runs, so mid-tour the START is behind the stamp and `daysAway`
+     * goes negative — "in -3 days" is the sentence this flag exists to prevent.
+     */
+    it("names a race that has begun rather than counting backwards to its start", () => {
+        const tour = ev({name: "tour", date: "2026-06-10", end_date: "2026-06-20"});
+        const mid = nextRace("cycling", "2026-06-13", [tour]);
+        expect(mid?.daysAway).toBe(-3);
+        expect(mid?.underWay).toBe(true);
+        expect(nextRace("cycling", "2026-06-10", [tour]), "the start day itself is not under way yet")
+            .toEqual({event: tour, daysAway: 0, underWay: false});
+        expect(nextRace("cycling", "2026-06-21", [tour]), "finished, so nothing is booked").toBeNull();
+    });
+
+    it("returns null when the sport has nothing booked, which is an ordinary day", () => {
+        expect(nextRace("cycling", "2026-12-31", CALENDAR), "every race run").toBeNull();
+        expect(nextRace("running", "2026-06-15", []), "none entered").toBeNull();
+        expect(nextRace("cycling", "not-a-date", CALENDAR)).toBeNull();
+    });
+
+    /**
+     * The reason `nextRace` reads the wall instead of sorting again: the card and the
+     * wall must not be able to disagree about which race is next. Swept over the year
+     * against live EVENTS, so it holds however the calendar moves.
+     */
+    it("always names the first booked bib of that sport's wall, on every day of the year", () => {
+        const wrong: string[] = [];
+        for (let day = 0; day < 366; day++) {
+            const iso = new Date(Date.UTC(GOAL_YEAR, 0, 1 + day)).toISOString().slice(0, 10);
+            for (const goal of GOALS) {
+                const first = patchWall(goal.sport, iso).find((p) => p.state === "booked")?.event.name ?? null;
+                const next = nextRace(goal.sport, iso)?.event.name ?? null;
+                if (first !== next) wrong.push(`${iso} ${goal.sport}: wall says ${first}, card says ${next}`);
+            }
+        }
+        expect(wrong.slice(0, 5)).toEqual([]);
+    });
+
+    it("counts the patches already earned, which is what the card offers instead", () => {
+        expect(patchesEarned("cycling", "2026-06-15", CALENDAR)).toBe(1);
+        expect(patchesEarned("cycling", "2026-01-01", CALENDAR)).toBe(0);
+        expect(patchesEarned("cycling", "2026-12-31", CALENDAR)).toBe(3);
+        expect(patchesEarned("running", "2026-12-31", CALENDAR)).toBe(1);
+    });
+
+    /**
+     * The two halves have to partition the sport's wall on every day, or the card can
+     * show "nothing booked" while a bib is still an outline — or claim a next race and a
+     * patch count that do not add up to the races that exist.
+     */
+    it("accounts for every race of the sport between the two branches", () => {
+        const wrong: string[] = [];
+        for (let day = 0; day < 366; day++) {
+            const iso = new Date(Date.UTC(GOAL_YEAR, 0, 1 + day)).toISOString().slice(0, 10);
+            for (const goal of GOALS) {
+                const wall = patchWall(goal.sport, iso);
+                const booked = wall.filter((p) => p.state === "booked").length;
+                const hasNext = nextRace(goal.sport, iso) !== null;
+                if ((booked > 0) !== hasNext) wrong.push(`${iso} ${goal.sport}: ${booked} booked but next=${hasNext}`);
+                if (patchesEarned(goal.sport, iso) + booked !== wall.length) {
+                    wrong.push(`${iso} ${goal.sport}: earned + booked != wall`);
+                }
+            }
+        }
+        expect(wrong.slice(0, 5)).toEqual([]);
     });
 });
 

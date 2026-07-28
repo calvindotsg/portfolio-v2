@@ -1,5 +1,5 @@
 import stravaProgress from "../data/strava-progress.json"
-import {EVENTS, GOAL_YEAR, type Goal, type RaceEvent, type Sport} from "./constants"
+import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, type Sport} from "./constants"
 
 /**
  * WHAT THIS FILE REFUSES TO COMPUTE, and why that is the whole design.
@@ -415,4 +415,80 @@ export function patchDateSegments(event: RaceEvent): PatchDateSegment[] | null {
 export function formatPatchDate(event: RaceEvent): string | null {
     const segments = patchDateSegments(event)
     return segments === null ? null : segments.map((s) => s.text).join("")
+}
+
+/**
+ * THE NEXT RACE FOR A SPORT, and it is deliberately the FIRST ENTRY OF THAT SPORT'S
+ * WALL rather than a second sort over {@link EVENTS}.
+ *
+ * {@link patchWall} already orders booked races ascending ahead of finished ones, so
+ * its first booked entry is by definition the next one. Re-deriving that here with
+ * another comparator is how the goal card and the wall come to disagree about which
+ * race is next — the same failure the wall's own docstring describes for the fixture,
+ * one level up. One derivation, two consumers.
+ *
+ * `daysAway` COUNTS FROM THE STAMP TO THE START DAY and can be NEGATIVE, which is not
+ * a bug to clamp: a multi-day event stays booked for every day it runs (you earn the
+ * bib at the finish line), so mid-tour the start is behind the stamp while the race is
+ * still the next one. `underWay` is that case named, so a caller does not have to
+ * decide what "in -3 days" means.
+ *
+ * Returns null when the sport has nothing booked — every race run, or none entered.
+ * That is a state the site passes through every January and again the morning after
+ * the last race, so it is an ordinary branch and not an error.
+ */
+export type NextRace = {
+    event: RaceEvent
+    /** Days from the stamp to the START day. Negative while a multi-day race runs. */
+    daysAway: number
+    /** True when the race has begun and has not finished. */
+    underWay: boolean
+}
+
+export function nextRace(
+    sport: Sport,
+    iso: string = UPDATED_AT,
+    events: readonly RaceEvent[] = EVENTS,
+): NextRace | null {
+    const next = patchWall(sport, iso, events).find((p) => p.state === "booked")
+    if (next === undefined) return null
+    const start = parseIsoDate(next.event.date)
+    const today = parseIsoDate(iso)
+    if (Number.isNaN(start) || Number.isNaN(today)) return null
+    const daysAway = Math.round((start - today) / MS_PER_DAY)
+    return {event: next.event, daysAway, underWay: daysAway < 0}
+}
+
+/** Patches already earned for a sport — what the card offers when nothing is booked. */
+export function patchesEarned(
+    sport: Sport,
+    iso: string = UPDATED_AT,
+    events: readonly RaceEvent[] = EVENTS,
+): number {
+    return patchWall(sport, iso, events).filter((p) => p.state === "finished").length
+}
+
+/**
+ * THE SENTENCE THE GOAL CARD PRINTS, and it lives here rather than in the component so
+ * that the tests can assert the wording rules against the real thing. A component that
+ * assembled this inline would leave the suite either untested or asserting a copy of the
+ * branch — which is a test that cannot fail.
+ *
+ * Two shapes of day, not a happy path and a fallback. While a race is booked the line
+ * counts down to it; while none is, it offers what has been earned. Nothing is booked for
+ * a sport every January before its first race and again from the morning after its last,
+ * so both are ordinary.
+ *
+ * `underWay` is checked BEFORE the day count for the reason it exists: mid-tour the start
+ * is behind the stamp, and the arithmetic branch would print "in -3 days".
+ */
+export function nextRaceLine(next: NextRace | null, earned: number): string {
+    if (next === null) {
+        if (earned === 0) return NEXT_RACE.none
+        return earned === 1 ? NEXT_RACE.earned_one : NEXT_RACE.earned.replace("{count}", String(earned))
+    }
+    if (next.underWay) return NEXT_RACE.under_way
+    if (next.daysAway === 0) return NEXT_RACE.today
+    if (next.daysAway === 1) return NEXT_RACE.tomorrow
+    return NEXT_RACE.in_days.replace("{days}", String(next.daysAway))
 }
