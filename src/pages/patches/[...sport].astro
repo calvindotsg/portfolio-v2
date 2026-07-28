@@ -82,9 +82,17 @@ const lede = goal === undefined
     <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
         <div class="flex flex-col gap-4">
             <p>
+                <!-- `min-h-6` is 1.5rem, which is the floor this codebase already set for a small
+                     link: the Now card's explainer anchor is sized the same way and its comment
+                     records why — 24px at the default text size is SC 2.5.8's AA minimum on the
+                     nose, and a font-relative box grows with the reader's text instead of staying
+                     put. Without it this link measures 60.25 x 20 and is the only control on the
+                     site under that floor. Measured: it does not actually FAIL 2.5.8, because the
+                     spacing exception applies at 143.82px to the nearest other target — so this is
+                     the repo's own standard rather than the specification's. -->
                 <a
                         href="/"
-                        class="inline-flex items-center gap-2 text-sm text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out"
+                        class="inline-flex items-center gap-2 min-h-6 text-sm text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out"
                 >
                     <span class={iconClass(PATCHES.home_icon)} aria-hidden="true"></span>{PATCHES.home_label}
                 </a>
