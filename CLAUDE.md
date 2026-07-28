@@ -32,18 +32,21 @@ earned bibs are called patches.
 
 ### Styling System
 - **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
-  `blocklist`, **two shortcuts** — `control` (the styled control's whole box,
-  including the offset-plate shadow; every styled control wears it, and it
-  deliberately has no variants) and `text-link` (the site's other kind of
-  control: a link that is a run of words, worn by the goal cards' way out, the
-  wall's way back, and each role card's company name) — the presets, and a
-  `theme` key holding **only** the five breakpoints.
-  Every link on the site must carry a perceivable signifier; a build-wide gate in
-  `tests/build-output.test.ts` walks every `<a>` on every page and enforces it,
-  because its absence let five links ship drawn exactly like the prose beside them. Those are presetWind3's own defaults restated in `rem`,
+  `blocklist`, **two shortcuts**, the presets, and a `theme` key holding **only**
+  the five breakpoints. Those are presetWind3's own defaults restated in `rem`,
   which is load-bearing rather than cosmetic — see the note there. No colour or
   shadow token lives in `theme`; those are CSS custom properties in
   `BasicLayout.astro`
+- **The two shortcuts are the site's two kinds of control**: `control` (the
+  styled control's whole box, including the offset-plate shadow; every styled
+  control wears it, and it deliberately has no variants) and `text-link` (a link
+  that is a run of words — the goal cards' way out, the wall's way back, and each
+  role card's company name). Every link must carry a signifier a reader can
+  perceive, and a build-wide gate in `tests/build-output.test.ts` walks every
+  `<a>` on every page to enforce it — its absence let five links ship drawn
+  exactly like the prose beside them. A bib is the exception the gate names
+  explicitly: the whole bib is the anchor and its signifier is the action row
+  inside it, drawn in the bib's own idiom rather than as a text link
 - **Text-relative sizing**: every breakpoint, `main`'s height clamp, the card
   heading's space and the control box are font-relative, so the page grows with
   the reader's text instead of clipping it. `tests/page-fit.test.ts` and

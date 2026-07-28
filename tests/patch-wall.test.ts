@@ -586,16 +586,16 @@ describe("dist/patches", () => {
             expect(row, `${event.name} links out, so it must say so in words`).toBeTruthy();
             expect(bib.tagName.toLowerCase(), "a bib wearing the row must actually link").toBe("a");
 
-            const label = row!.querySelector(".bib-go-label");
-            expect(label?.textContent?.trim(), "the row's words are the configured label").toBe(PATCHES.strava_name);
+            expect(row!.textContent?.replace(/\s+/g, " ").trim(),
+                "the row's words are the configured label").toBe(PATCHES.strava_name);
 
             // THE POINT OF THE WHOLE CHANGE: the words are on screen. `sr-only` is what the
             // previous revision shipped and is the defect this guards, so it is named directly
             // rather than inferred — a class check is what the markup can actually answer, and
             // the rendered half is the browser sweep in the PR.
-            expect(label?.classList.contains("sr-only"),
-                "the label must be VISIBLE — an sr-only label is the arrangement two reviewers could not see")
-                .toBe(false);
+            // THE POINT OF THE WHOLE CHANGE: the words are on screen, as a text node in the row
+            // rather than behind an sr-only span. Asserted as an absence, because that is the
+            // arrangement that shipped and that two reviewers could not see.
             expect(row!.querySelector(".sr-only"),
                 "and nothing in the row may be visually hidden: the glyph is decorative and the words carry it")
                 .toBeNull();
@@ -618,38 +618,50 @@ describe("dist/patches", () => {
     });
 
     /**
-     * THE ACTION ROW MUST NOT BE DRAWN LIKE THE CAPTION DIRECTLY ABOVE IT.
+     * THE ACTION ROW MUST NOT BE DRAWN LIKE THE CAPTIONS AROUND IT, and it must not be drawn like
+     * a web link either. Both halves are the assertion; the second was added after the first
+     * revision got it wrong.
      *
      * `ELAPSED 9:41:31` sits immediately above the row in the same 10px uppercase letterspaced
-     * idiom, and four other lines on the bib share `opacity: 0.8`. A row that joined that group
-     * would be a control drawn exactly like the captions around it — which is the defect this
-     * whole change exists to fix, re-committed one element further down.
+     * idiom, and four lines on the bib — the date, the tag, the elapsed label and the place —
+     * share `opacity: 0.8`. A row that joined that group would be a control drawn exactly like
+     * the captions around it, which is this whole change's defect re-committed one element down.
      *
-     * Two properties, both read from the shipped stylesheet: the row carries a text decoration
-     * (the cue that survives a phone, where there is no hover), and it is NOT dimmed.
+     * The other way to get it wrong is to reach for the site's TEXT-LINK idiom. A bib is a
+     * printed artifact whose every row is undecorated, and the whole bib is the anchor — so a
+     * rule under 15px of ink inside a 260px target is both foreign vocabulary and a false
+     * statement about where to aim. That is asserted rather than merely commented, because it
+     * was shipped once and only caught by eye.
+     *
+     * So what this pins is the pair of properties that actually carry the row: full ink, and the
+     * bib's emphatic weight. Read from the shipped stylesheet.
      */
-    it("draws the action row as a control rather than as another caption", () => {
+    it("draws the action row as a bib annotation — not as a caption, and not as a web link", () => {
         const rules = parseRules(pageCss(PAGES.all));
+        const owned = rules.filter((r) => r.selectors.some((s) => /\.bib-go\b/.test(s)));
+        expect(owned.length, "no .bib-go rules — this assertion would be vacuous").toBeGreaterThan(0);
 
-        const labelRules = rules.filter((r) => r.selectors.some((s) => /\.bib-go-label\b/.test(s)) && !r.at);
-        expect(labelRules.length, "no unconditional .bib-go-label rule — this assertion would be vacuous")
-            .toBeGreaterThan(0);
-        // BOTH SPELLINGS, and that is not defensiveness: the minifier collapses
-        // `text-decoration: underline` + `text-decoration-thickness` into the `text-decoration`
-        // shorthand, while the `text-link` shortcut emits `text-decoration-line`. A gate matching
-        // only one of them goes red on correct CSS the first time the other minifier path wins.
-        const decorated = labelRules.some((r) => {
-            const v = decl(r.body, "text-decoration") ?? decl(r.body, "text-decoration-line");
-            return v !== undefined && /underline/i.test(v);
-        });
-        expect(decorated, "the row's label must carry a text decoration — on a phone it is the only "
-            + "cue there is, and the bib sets text-decoration: none on the anchor itself").toBe(true);
+        const weight = owned.map((r) => decl(r.body, "font-weight")).find((v) => v !== undefined);
+        expect(Number(weight ?? 400),
+            "the row must carry the bib's emphatic weight — it is what separates a control from the "
+            + "four captions once the decoration is (correctly) gone").toBeGreaterThanOrEqual(700);
 
-        for (const r of rules.filter((x) => x.selectors.some((s) => /\.bib-go\b/.test(s)))) {
+        for (const r of owned) {
             const o = decl(r.body, "opacity");
             expect(o === undefined || Number(o) >= 1,
                 `${r.selectors.join(",")} dims the action row to ${o} — the four captions on this bib are `
                 + "the dimmed ones, and a control drawn like them is the defect being fixed").toBe(true);
+        }
+
+        // BOTH SPELLINGS, and that is not defensiveness: the minifier collapses a
+        // `text-decoration` pair into the shorthand, while the `text-link` shortcut emits
+        // `text-decoration-line`. A gate matching one spelling would miss the other.
+        for (const r of rules.filter((x) => x.selectors.some((s) => /\.bib-go(-label)?\b/.test(s)))) {
+            const v = decl(r.body, "text-decoration") ?? decl(r.body, "text-decoration-line");
+            expect(v === undefined || !/underline/i.test(v),
+                `${r.selectors.join(",")} rules the action row's text. The bib is a printed artifact `
+                + "with no decorated rows, and the whole bib is the anchor — so a rule under the label "
+                + "imports web vocabulary AND advertises 15px of a 260px target").toBe(true);
         }
     });
 

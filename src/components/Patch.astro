@@ -122,7 +122,7 @@ const Tag = activity === null ? "div" : "a";
     {activity !== null && (
             <p class="bib-go">
                 <span class={`${iconClass(PATCHES.strava_icon)} bib-icon bib-go-mark`} aria-hidden="true"></span>
-                <span class="bib-go-label">{PATCHES.strava_name}</span>
+                {PATCHES.strava_name}
             </p>
     )}
     {/* THE NOTICE FOLLOWS THE ACTION ROW, and the order is the point: the announced name now ends
@@ -553,29 +553,83 @@ const Tag = activity === null ? "div" : "a";
         overflow-wrap: anywhere;
         align-items: center;
         gap: 0.4em;
-        margin: 0;
+        margin: 0.25rem 0 0;
+        padding-top: 0.5rem;
         font-size: 0.625rem;
         font-weight: 800;
         letter-spacing: 0.14em;
         text-transform: uppercase;
+        /*
+         * THE PERFORATION IS THIS ROW'S OWN BACKGROUND, NOT A PSEUDO-ELEMENT, and four separate
+         * gates in this repo are why. It was built as `::before` first, and that version tripped
+         * every one of them at once:
+         *
+         *   the bib's colour resolver (patch-wall.test.ts) refuses any rule reaching a bib
+         *   through a combinator or pseudo, because it models the cascade as a class subset and
+         *   would otherwise read the rule as applying when it does not;
+         *   the absolute-height gate, since a 1px pseudo needs a pinned `height`;
+         *   the every-class-has-a-rule gate, once the label's own rule went away with the
+         *   text decoration; and this file's own not-dimmed assertion, whose selector matched `::before`
+         *   and read the perforation's alpha as the ROW being dimmed.
+         *
+         * Painting it here needs no box, no height and no opacity: the alpha lives in the colour
+         * via `color-mix`, which is how `.bib--booked` already tones its border, and the dots sit
+         * on the row's own padding. One rule, one class, and every gate satisfied by construction
+         * rather than by exemption.
+         */
+        background-image: radial-gradient(circle at 1.5px 0.5px,
+            color-mix(in srgb, currentColor 45%, transparent) 0 1px, transparent 1.2px);
+        background-size: 6px 1px;
+        background-repeat: repeat-x;
+        background-position: top left;
     }
 
     /*
-     * The one decorated thing on a bib, and that is what makes it read as a link rather than as
-     * another data row. `.bib` sets `text-decoration: none` on the anchor itself, so nothing
-     * else here carries one — including `ELAPSED 9:41:31` directly above, which is otherwise in
-     * the same 10px uppercase idiom and would be easy to mistake this for.
+     * THE TEAR-OFF PERFORATION ABOVE IS THE ONE PIECE OF THIS CHANGE THAT IS NOT A FIX.
      *
-     * The declaration's own value is blocklisted in uno.config.ts: UnoCSS reads authored CSS in
-     * `src/**`, so without that entry this line emits a utility rule that no element wears and
-     * the orphan gate fails the build. Same mechanism as `tabular-nums`.
+     * A race bib is perforated above the stub that carries your result — the part you hand in,
+     * or the part you keep. What sits below that line is where this ride's result actually
+     * lives, so the device is not decoration: it is the bib's own material vocabulary saying
+     * the same thing the words say. That is the whole argument for it, and if the row ever
+     * stops leading somewhere the perforation has to go with it.
+     *
+     * IT BORROWS THE PIN-HOLES' CONSTRUCTION BUT NOT THEIR GEOMETRY OR THEIR TOKEN, and both
+     * departures were measured rather than reasoned.
+     *
+     * The obvious move is to draw a perforation exactly like a corner pin-hole — same
+     * `radial-gradient`, same 1.7px-to-1.8px antialiasing band, same `--hole` token, on the
+     * argument that a perforation and a pin-hole are the same event on real paper. It was built
+     * that way first and rendered wrong twice over. At 1.7px on a 6px tile the dots very nearly
+     * touch, so a RUN of them reads as a heavy dashed rule rather than as holes — a pin-hole
+     * gets its character from being isolated. And `--hole` at full strength is the card colour
+     * against an inverted face, the strongest mark this palette can make; on a row meant to be
+     * a quiet piece of stationery it shouted.
+     *
+     * So: 1px dots on the same 6px tile, in the row's own ink at 45%. Fine enough to read as
+     * perforation, quiet enough to stay behind the words it introduces. `currentColor` rather
+     * than a token means it follows the row into forced colours without naming anything.
      */
-    .bib-go-label {
-        text-decoration: underline;
-        text-decoration-thickness: from-font;
-        text-underline-offset: 0.22em;
-    }
 
+    /*
+     * NO TEXT DECORATION HERE, AND THAT IS THE WHOLE OF WHY THIS ROW LOOKS THE WAY IT DOES.
+     *
+     * A first revision drew this label the way the three text links elsewhere on the site are
+     * drawn. It was wrong twice over, and both reasons are worth keeping because the mistake is
+     * an easy one to repeat:
+     *
+     *   IT IS THE WRONG VOCABULARY. A bib is a printed artifact. Every row on it is uppercase,
+     *   letterspaced and undecorated, and `.bib` sets `text-decoration: none` on the anchor
+     *   deliberately. A ruled link is a WEB convention imported into a paper one, and it read as
+     *   exactly that — the one element on the bib that did not belong to the bib.
+     *
+     *   IT DESCRIBED THE WRONG TARGET. The whole bib is the anchor, ~260px of it. A decoration
+     *   under 15px of ink advertises those 15px as the control, so it does not merely fail to
+     *   help — it tells the reader something false about where to aim.
+     *
+     * What carries the affordance instead is all bib-native: an imperative verb phrase that says
+     * what using it does, the brand glyph beside it, and FULL INK at the bib's emphatic weight
+     * against four dimmed captions. On this bib only the distance is louder.
+     */
     /*
      * THE ROW IS DECLARED ON THE LINKED BIB, NOT ON `.bib`, and that is a height decision rather
      * than tidiness. `.bib` carries ONE shared `grid-template-areas` with a 0.3rem `row-gap`, so
@@ -680,7 +734,7 @@ const Tag = activity === null ? "div" : "a";
      * these blocks sat "at the foot of the sheet"; they did not — `.bib-time`, `.bib-time-label`,
      * `.bib-time-value` and `.bib-name` were all below them, which was harmless only because
      * none of those four happened to touch a property an override sets. Adding the action row
-     * broke that coincidence: its base `.bib-go-label` rule landed below the print block, and the
+     * broke that coincidence: its base `.bib-go` rule landed below the print at-rule, and the
      * print override measured DEAD in the built stylesheet — offset 3680 against a base rule at
      * 3955. Caught by reading emitted rule offsets out of `dist`, which is the only place source
      * order is observable; nothing in the suite and nothing in review saw it.
@@ -713,14 +767,28 @@ const Tag = activity === null ? "div" : "a";
         }
 
         /*
-         * `LinkText` on the row, so it is coloured as a link rather than as body text. The
-         * decoration needs no help: `text-decoration-line` is not a forced property, so the cue
-         * that actually carries the affordance survives the mode untouched. That is the quiet
-         * advantage this treatment has over the bare glyph it replaced — the old mark could be
-         * erased by the mode and needed the rule above to exist at all.
+         * `LinkText` on the row, so it is coloured as a link rather than as body text — and in
+         * this mode that colour is doing real work, because the row carries no text decoration
+         * (see the plain rule above for why a rule on a bib is the wrong vocabulary). The words
+         * and the perforation both survive; this is what makes them read as a control.
          */
         .bib-go {
             color: LinkText;
+        }
+
+        /*
+         * THE PERFORATION IS A BACKGROUND IMAGE, WHICH THIS MODE DISCARDS, so it is redrawn in
+         * the one channel forced colours does not touch: border-style and border-width. Same
+         * trade the two bib treatments make a few rules up — a distinction drawn differently is
+         * worth more than a faithful one that cannot be drawn at all.
+         *
+         * The dots become dashes, which is the closest a border can come to a row of holes. It
+         * is not the pin-holes' language any more, but nothing in this mode is: the corner holes
+         * disappear here too, for exactly the same reason.
+         */
+        .bib-go {
+            background-image: none;
+            border-top: 1px dashed CanvasText;
         }
     }
 
@@ -731,13 +799,19 @@ const Tag = activity === null ? "div" : "a";
         }
 
         /*
-         * ON PAPER THE ROW IS AN INSTRUCTION NOBODY CAN FOLLOW, so it keeps its words and gives
-         * up its link drawing. The sheet already reduces every bib to a black outline; a
-         * decorated label there would advertise a control that cannot be operated, while the
-         * words still tell a reader where the ride was recorded.
+         * Chrome's default `print-color-adjust: economy` drops backgrounds, so the perforation
+         * goes the same way the pin-holes and the bib's face already do on paper. Redrawn as a
+         * dashed rule in literal black, matching the decision the print at-rule above makes for
+         * every other line on the bib: paper is white whichever theme the reader had on screen,
+         * so a token here would carry an assumption that is only true half the time.
+         *
+         * It is worth keeping in print precisely BECAUSE the link is dead on paper: the
+         * perforation is the part of this row that still means something there — it says this
+         * bib has a stub — while the words become a note about where the ride was recorded.
          */
-        .bib-go-label {
-            text-decoration: none;
+        .bib-go {
+            background-image: none;
+            border-top: 1px dashed #000;
         }
     }
 </style>
