@@ -126,9 +126,13 @@ const Tag = activity === null ? "div" : "a";
             </p>
     )}
     {/* THE NOTICE FOLLOWS THE ACTION ROW, and the order is the point: the announced name now ends
-        "… VIEW ON STRAVA, opens in a new tab", so the warning qualifies the call to action it
+        with the call to action and then the warning, so the warning qualifies the control it
         belongs to instead of trailing the elapsed time. Both are conditional on the LINK rather
         than on the state — an earned bib with no Strava id is an ordinary <div> and opens nothing.
+
+        (The obvious phrasing of what NEW_TAB_NOTICE says is not written here on purpose: that
+        word is a UnoCSS utility, and prose in an `.astro` file is extracted like markup, so
+        naming it emits a rule no element wears and the orphan gate fails the build.)
 
         The measurement in NEW_TAB_NOTICE was taken when this name was 92 characters and the
         destination was announced THIRD, inside the meta row. The action row moved that to last and
