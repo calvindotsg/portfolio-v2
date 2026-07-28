@@ -107,7 +107,14 @@ const schema = {
     <meta property="og:title" content={title}/>
     <meta property="og:description" content={description}/>
     <meta property="og:type" content="website"/>
-    <meta property="og:url" content={Astro.url.origin}/>
+    <!-- THE PAGE'S OWN URL, not the origin. It was the origin from plan 002, when there
+         was one page and the two were the same thing modulo a trailing slash. With four
+         routes that decision inverted into a defect: every /patches page told a social
+         card it WAS the home page, contradicting the canonical link three lines up, so a
+         shared link to /patches/cycling unfurled as calvin.sg. Found by a review panel;
+         `Astro.url.href` is what the canonical already uses, so the two now agree by
+         construction rather than by coincidence. -->
+    <meta property="og:url" content={Astro.url.href}/>
     <meta
             property="og:image"
             content={image}
@@ -168,6 +175,37 @@ const schema = {
      *   --status-halo     that dot's decorative pulsing halo
      *   --brand-ink       a brand-coloured glyph standing in for a word in prose
      *
+     * Plus four for the patch wall, which are two roles seen from both sides:
+     *
+     *   --sport-ride      the cycling mark where it sits on a CARD
+     *   --sport-ride-on-ink   the same mark on an INK-coloured surface
+     *   --sport-run       the running mark on a card
+     *   --sport-run-on-ink    the same mark on ink
+     *
+     * A PATCH IS DRAWN ON ONE OF TWO GROUNDS, and the sport colour has to follow the
+     * ground rather than the theme. A finished bib is inverted — its face is --text —
+     * so the mark on it needs the pale hue in the LIGHT theme. A booked bib has no
+     * face at all and its mark sits on the card, where the light theme needs the DEEP
+     * hue. Same sport, same theme, opposite value; the `-on-ink` half is always the
+     * other half of the pair, which is why the dark block below is the light block
+     * with each pair swapped and nothing else.
+     *
+     * That is not a hypothetical trap. It is exactly how --brand-ink came to sit at
+     * 2.77:1 on a dark face earlier in this project: a token chosen against the card
+     * and then painted on ink. The convention that surfaces it is the one
+     * --on-brand already established — a `-on-` name states the surface it was chosen
+     * against, and a token without one is for the card.
+     *
+     * Held to the 4.5:1 TEXT floor — text, not the 3:1 graphics floor, because the mark
+     * is an icon AND the word beside it. Two instruments agree on all eight
+     * combinations: `tests/patch-wall.test.ts` resolves the chain out of the shipped
+     * stylesheet and does the arithmetic, and a scratchpad probe samples the composited
+     * pixels of the rendered page. BE PRECISE ABOUT WHICH IS WHICH — an earlier draft
+     * of this note said the test measures pixels. It does not, and it cannot: there is
+     * no browser in the suite. That distinction is the whole reason the test also
+     * carries a separate structural guard against a translucent ancestor, which is the
+     * one thing arithmetic over authored colours can never see.
+     *
      * --brand-ink is worn by exactly one thing, the footer heart, and it is NOT
      * --accent even though the two match in light mode. --accent is the
      * interactive affordance, and nothing about that heart responds to a pointer
@@ -214,6 +252,10 @@ const schema = {
         --status-halo: #A82334; /* primary-600 */
         --brand-ink: #A82334; /* primary-600 — 6.52:1 on the card */
         --on-brand: #FAFAFA; /* grey-50 — light ink, the fill is deep here */
+        --sport-ride: #A82334; /* primary-600 — deep, for the card */
+        --sport-ride-on-ink: #F3A3AA; /* primary-200 — pale, for the inverted bib face */
+        --sport-run: #1F4E9C; /* marine-600 */
+        --sport-run-on-ink: #9FC0F0; /* marine-200 */
     }
 
     :root[data-theme='dark'] {
@@ -229,6 +271,10 @@ const schema = {
         --status-halo: #F9CDD3; /* primary-100 */
         --brand-ink: #F3A3AA; /* primary-200 — 9.08:1 on the card */
         --on-brand: #0B0B0B; /* darkslate-900 — dark ink, the fill is pale here */
+        --sport-ride: #F3A3AA; /* primary-200 — pale, for the card */
+        --sport-ride-on-ink: #A82334; /* primary-600 — deep, for the inverted bib face */
+        --sport-run: #9FC0F0; /* marine-200 */
+        --sport-run-on-ink: #1F4E9C; /* marine-600 */
     }
 
     /* THE CONTROL ROW WRAPS, AND IT DOES NOT COUNT. Three hand-written width

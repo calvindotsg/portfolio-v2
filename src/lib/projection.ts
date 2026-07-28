@@ -244,3 +244,113 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
     const [y, m, d] = iso.split("-")
     return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`
 }
+
+// ---------------------------------------------------------------------------
+// The patch wall. Everything below serves /patches; nothing above it reads any
+// of this, and the goal cards are unchanged by it.
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether a bib has been EARNED, derived from the calendar and never stored.
+ *
+ * {@link RaceEvent} has no `done` flag and must not gain one. A stored flag rots in
+ * the one direction nobody notices: a race that has been run keeps rendering as
+ * still-to-come, indefinitely, with the build green and the page confidently wrong.
+ * Derivation cannot do that — the wall is rebuilt on every deploy and the bot
+ * deploys whenever the kilometres move.
+ *
+ * `finished` MEANS THE WHOLE EVENT IS BEHIND THE STAMP, and it is spelled with the
+ * same comparison `bookedAhead` uses for "wholly done" on purpose. The two answer
+ * the same question — has this race happened yet — for two different consumers, and
+ * a wall that calls the Formosa tour finished while the cycling card is still
+ * counting its kilometres as booked is the page contradicting itself on one screen.
+ *
+ * A MULTI-DAY EVENT IN PROGRESS IS THEREFORE `booked`, which is a choice rather than
+ * a fallout of the comparison: you earn the bib at the finish line, not at the start
+ * one, and the outline treatment says exactly "not yet". `bookedAhead` disagrees in
+ * a way that is correct for its own job — it counts the untravelled days of a tour
+ * pro rata, because it is measuring distance rather than completion.
+ *
+ * AN UNPARSEABLE DATE IS `booked`. That direction is deliberate and is the only one
+ * available: the alternative failure renders a race nobody has run as finished, and
+ * a page that claims a result is worse than a page that claims a plan.
+ */
+export type PatchState = "finished" | "booked"
+
+/** The last day an event occupies — its own date unless it spans several. */
+const eventEnd = (event: RaceEvent): string => event.end_date ?? event.date
+
+export function patchState(event: RaceEvent, iso: string = UPDATED_AT): PatchState {
+    const today = parseIsoDate(iso)
+    const end = parseIsoDate(eventEnd(event))
+    if (Number.isNaN(today) || Number.isNaN(end)) return "booked"
+    return today > end ? "finished" : "booked"
+}
+
+export type Patch = {event: RaceEvent, state: PatchState}
+
+/**
+ * The wall: every race, or every race of one sport, NEWEST FIRST.
+ *
+ * SORTED HERE RATHER THAN IN THE FIXTURE, and the reason is a defect that already
+ * shipped once in the design previews for this feature: their captions claimed
+ * newest-first while the array happened to be chronological, and nobody read the
+ * render against the caption. {@link EVENTS} is hand-edited in date order because
+ * that is the order a person adds races in, so relying on it would mean the wall's
+ * ordering is a property of how the list was typed.
+ *
+ * THE ORDER IS TOTAL, which is why `name` breaks the tie rather than leaving it to
+ * the sort's stability. Two races on one date is not hypothetical here — the Phuket
+ * legs are two days apart and a future weekend double is one edit away — and a tie
+ * resolved by fixture position is the same defect as sorting in the fixture, just
+ * narrower.
+ */
+export function patchWall(
+    sport?: Sport,
+    iso: string = UPDATED_AT,
+    events: readonly RaceEvent[] = EVENTS,
+): Patch[] {
+    return events
+        .filter((e) => sport === undefined || e.sport === sport)
+        .map((event) => ({event, state: patchState(event, iso)}))
+        .sort((a, b) =>
+            a.event.date === b.event.date
+                ? (a.event.name < b.event.name ? -1 : a.event.name > b.event.name ? 1 : 0)
+                : (a.event.date < b.event.date ? 1 : -1))
+}
+
+/** "JUL", for a bib's date line. Three letters is what fits beside the sport mark. */
+const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3).toUpperCase())
+
+/**
+ * An event's date as a bib prints it: "12 JUL 2026", or "7–15 NOV 2026" for a tour.
+ *
+ * A SPAN IS COLLAPSED TO WHAT ACTUALLY DIFFERS, so the nine-day tour reads as nine
+ * days without spending a second month and year saying so. The alternative — one
+ * date, the start — understates a 1,022 km event as a single day's ride, on the one
+ * bib where the distance makes that reading absurd.
+ *
+ * Three shapes, and the boundaries between them are the calendar's rather than a
+ * preference: same month and year collapses to `7–15 NOV 2026`; a span crossing a
+ * month keeps both months (`30 NOV – 2 DEC 2026`); a span crossing new year keeps
+ * both years too. The en dash is a range dash and is deliberately not a hyphen.
+ *
+ * Returns null on an unparseable date, for the same reason everything else here
+ * does: the caller renders nothing rather than a guess.
+ */
+export function formatPatchDate(event: RaceEvent): string | null {
+    const start = parseIsoDate(event.date)
+    const end = parseIsoDate(eventEnd(event))
+    if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null
+
+    const part = (iso: string) => {
+        const [y, m, d] = iso.split("-")
+        return {d: String(Number(d)), m: MONTHS_SHORT[Number(m) - 1], y}
+    }
+    const a = part(event.date)
+    const b = part(eventEnd(event))
+    if (start === end) return `${a.d} ${a.m} ${a.y}`
+    if (a.y !== b.y) return `${a.d} ${a.m} ${a.y} – ${b.d} ${b.m} ${b.y}`
+    if (a.m !== b.m) return `${a.d} ${a.m} – ${b.d} ${b.m} ${b.y}`
+    return `${a.d}–${b.d} ${a.m} ${a.y}`
+}

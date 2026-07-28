@@ -1,11 +1,21 @@
 import {defineConfig, presetIcons, presetWind3} from "unocss";
 
-import {CAREER, FOOTER, GOALS, LINKS, NOW, WELCOME} from "./src/lib/constants";
+import {CAREER, FOOTER, GOALS, LINKS, NOW, PATCHES, WELCOME} from "./src/lib/constants";
 import {iconClass} from "./src/lib/icons";
 
 export default defineConfig({
-    /** Icon classes are derived from constants at render time, so UnoCSS never
-     *  sees them literally in source — every configured icon is safelisted here. */
+    /**
+     * Icon classes are derived from constants at render time, so UnoCSS never
+     * sees them literally in source — every configured icon is safelisted here.
+     *
+     * NOTE WHAT IS NOT IN THIS LIST: `EVENTS`. The patch wall draws a sport's icon,
+     * and it gets it from the GOAL that owns the sport (`goalForSport` in
+     * constants.ts) rather than from a table of its own, so the two entries below
+     * for GOALS already cover every bib on the wall. A second sport→icon map beside
+     * EVENTS would ship class tokens this list never saw, and a presetIcons class
+     * with no rule renders as a mask box at zero size — an icon that is silently
+     * absent, with correct markup and a green build.
+     */
     safelist: [
         ...LINKS.map((l) => iconClass(l.logo)),
         ...GOALS.map((g) => iconClass(g.goal_logo)),
@@ -13,6 +23,7 @@ export default defineConfig({
         iconClass(WELCOME.greeting_icon),
         iconClass(FOOTER.icon),
         iconClass(NOW.explainer_icon),
+        iconClass(PATCHES.home_icon),
     ],
     /** UnoCSS extracts from the text of `<style>` blocks too, so the declaration
      *  `position: static` in IntroCard emits a utility rule for a class no

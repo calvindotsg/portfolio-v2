@@ -6,6 +6,7 @@ import {describe, expect, it} from "vitest";
 import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
 import {pageCss} from "./helpers/css";
+import {builtPages, classTokens} from "./helpers/pages";
 
 /**
  * Asserts on what `pnpm build` actually emits. A green build is not evidence the
@@ -28,7 +29,43 @@ describe("dist/", () => {
         expect(read("dist/sitemap-index.xml")).toContain(METADATA.site_url);
     });
 
-    it("emits exactly one stylesheet", () => {
+    /**
+     * EVERY BUILT PAGE MUST BE IN THE SITEMAP, and on this site that is load-bearing
+     * rather than hygiene: nothing links to `/patches` from the home page yet, so the
+     * sitemap is those three routes' ONLY discovery path.
+     *
+     * The gate above only greps the index for the origin, which one page satisfies. A
+     * review panel dropped three of four pages out of `sitemap-0.xml` through an
+     * integration filter and the whole suite stayed green — the PR quadrupled the route
+     * count and this was the assertion that did not widen with it.
+     */
+    it("lists every built page in the sitemap", () => {
+        const urls = new Set(
+            [...read("dist/sitemap-0.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]),
+        );
+        expect(urls.size, "the sitemap must list something").toBeGreaterThan(0);
+        for (const page of builtPages()) {
+            // dist/index.html -> "/", dist/patches/cycling/index.html -> "/patches/cycling/"
+            const path = page.replace(/^dist/, "").replace(/index\.html$/, "");
+            const expected = new URL(path, METADATA.site_url).href;
+            expect(urls.has(expected), `${page} is built but ${expected} is not in the sitemap`).toBe(true);
+        }
+    });
+
+    /**
+     * ONE CHUNK FOR THE WHOLE SITE, which is a claim about how much a visitor
+     * downloads rather than about tidiness: with four pages sharing one layout, one
+     * stylesheet means the second page a reader opens costs no CSS at all.
+     *
+     * IT SURVIVED THE PATCH WALL — measured, because the handover this route was
+     * built from predicted it would not. Adding three routes left the count at one
+     * and renamed the chunk (`index.*.css` to `projection.*.css`, after whichever
+     * module Vite now treats as the entry). What DID change is that Astro's
+     * `inlineStylesheets: "auto"` began inlining a block into every page, where
+     * there was none before. That is the reason `pageCss()` exists and the reason
+     * this assertion is not the interesting one; see the next test.
+     */
+    it("emits exactly one stylesheet, so a second page costs no CSS", () => {
         const css = readdirSync("dist/_astro").filter((f) => f.endsWith(".css"));
         expect(css.length).toBe(1);
     });
@@ -48,24 +85,35 @@ describe("dist/", () => {
      * It is that whatever the page loads, `pageCss()` returns ALL of it. Then the
      * flip is invisible to every caller.
      *
-     * BLIND SPOT, stated rather than implied: in the current single-route build the
-     * page carries NO inline block, so the inline loop below is vacuous. It is here
-     * for the build where that stops being true, which is the build that broke.
+     * THE BLIND SPOT IS CLOSED. When this was written the single-route build carried
+     * no inline block at all, so the inline loop below was vacuous and said so. The
+     * patch wall's three routes are the build that changed it: every page now ships
+     * one inline `<style>` alongside the shared chunk, and the loop below is live on
+     * all four. Asserted over every page rather than the home page, since the
+     * rebalancing is Astro's decision per page and not a property of any one of them.
      */
-    it("hands callers every byte of CSS the page loads, linked and inlined alike", () => {
-        const html = read("dist/index.html");
-        const css = pageCss();
-        const inline = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]!);
-        const linked = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map((m) => m[1]!);
+    it("hands callers every byte of CSS each page loads, linked and inlined alike", () => {
+        let inlineBlocks = 0;
+        for (const page of builtPages()) {
+            const html = read(page);
+            const css = pageCss(page);
+            const inline = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]!);
+            const linked = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map((m) => m[1]!);
+            inlineBlocks += inline.length;
 
-        expect(inline.length + linked.length, "the page must load CSS from somewhere").toBeGreaterThan(0);
-        for (const block of inline) expect(css, "an inlined <style> block is missing from pageCss()").toContain(block);
-        for (const href of linked) expect(css, `${href} is missing from pageCss()`).toContain(read(`dist${href}`));
+            expect(inline.length + linked.length, `${page} must load CSS from somewhere`).toBeGreaterThan(0);
+            for (const block of inline) expect(css, `${page}: an inlined <style> block is missing from pageCss()`).toContain(block);
+            for (const href of linked) expect(css, `${page}: ${href} is missing from pageCss()`).toContain(read(`dist${href}`));
 
-        // Coverage by length too, so a source cannot be dropped while its bytes
-        // happen to appear inside another one.
-        const bytes = [...inline, ...linked.map((h) => read(`dist${h}`))].reduce((n, s) => n + s.length, 0);
-        expect(css.length).toBeGreaterThanOrEqual(bytes);
+            // Coverage by length too, so a source cannot be dropped while its bytes
+            // happen to appear inside another one.
+            const bytes = [...inline, ...linked.map((h) => read(`dist${h}`))].reduce((n, s) => n + s.length, 0);
+            expect(css.length, `${page}: pageCss() is shorter than its own sources`).toBeGreaterThanOrEqual(bytes);
+        }
+        // Non-vacuity for the half that used to be dead: if Astro stops inlining, the
+        // loop above proves nothing about inline blocks and this says so rather than
+        // passing quietly.
+        expect(inlineBlocks, "no page ships an inlined <style> — the inline half of this test is vacuous again").toBeGreaterThan(0);
     });
 
     /**
@@ -108,9 +156,11 @@ describe("dist/", () => {
      */
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
 
-    it("ships no emoji in the page or stylesheet", () => {
-        expect(read("dist/index.html")).not.toMatch(EMOJI);
-        expect(pageCss()).not.toMatch(EMOJI);
+    it("ships no emoji in any page or its stylesheet", () => {
+        for (const page of builtPages()) {
+            expect(read(page), `${page} ships an emoji pictograph`).not.toMatch(EMOJI);
+            expect(pageCss(page), `${page}'s stylesheet ships an emoji pictograph`).not.toMatch(EMOJI);
+        }
     });
 
     it("emits a usable CSS rule for every safelisted icon class", () => {
@@ -494,8 +544,13 @@ describe("dist/", () => {
 describe("hover styles promise only interactions that exist", () => {
     const INTERACTIVE = new Set(["a", "button", "input", "select", "textarea", "summary", "label"]);
 
-    it("applies no hover rule to an element that cannot be interacted with", () => {
-        const css = pageCss();
+    /**
+     * Run against EVERY page. The patch wall is the first thing on this site to put a
+     * hover style on something other than `.control` — the filter row's links and the
+     * back link both take one — and a home-page-only check would never look at either.
+     */
+    it.each(builtPages())("applies no hover rule to an element that cannot be interacted with (%s)", (page) => {
+        const css = pageCss(page);
 
         // Match on SELECTORS, not class tokens. An earlier version only
         // recognised `.token:hover`, so an Astro scoped <style> — the idiomatic
@@ -520,7 +575,7 @@ describe("hover styles promise only interactions that exist", () => {
             .map((s) => s.replace(/(?<!\\)::?[\w-]+(?:\([^)]*\))?/g, ""));
         expect(hovered.length, "the sheet must ship at least one hover rule — the controls have one").toBeGreaterThan(0);
 
-        const doc = parseHTML(read("dist/index.html")).document;
+        const doc = parseHTML(read(page)).document;
         const offenders: string[] = [];
         const matched = new Set<Element>();
         // Deliberately not wrapped in try/catch: a selector this cannot parse
@@ -676,13 +731,97 @@ describe("the stylesheet ships no rule nobody wears", () => {
     // file, so the rule stopped being emitted and the guard below demanded the
     // entry go. `me` survives it: "About me" is still a card title. Exactly the
     // rot this pair of assertions exists to prevent.
-    const KNOWN_ORPHANS = ["ease", "inline", "inline-block", "me", "transition"];
+    // Four came off the patch wall, and each is a REAL DECLARATION rather than a word
+    // in a sentence — the shape that cannot be reworded, which is why they are
+    // recorded here rather than fixed at source:
+    //
+    //   container     `container-type: inline-size` on the bib, which is what makes
+    //                 its distance size against the bib instead of the viewport
+    //   transform     `transform: rotate(180deg)`, the vertical "KM" down the edge
+    //   uppercase     `text-transform: uppercase`, on four of the bib's own elements
+    //   outline       the one word in this group that is prose. It names the treatment
+    //                 Calvin chose for an un-earned bib and appears in the reasoning
+    //                 for every part of it; rewording it would cut the code loose from
+    //                 the decision it implements.
+    //
+    // Blocklisting these instead was rejected. `static` is blocklisted because nothing
+    // would ever legitimately want it; `uppercase`, `transform` and `outline` are
+    // utilities a future author could reasonably write, and a blocklist entry makes
+    // that silently do nothing. A known orphan costs a few dead bytes and keeps the
+    // utility working.
+    const KNOWN_ORPHANS = ["container", "ease", "inline", "inline-block", "me", "outline", "transform", "transition", "uppercase"];
 
-    it("emits a class rule only for classes the page actually uses", () => {
-        const css = pageCss();
-        const worn = new Set(
-            [...read("dist/index.html").matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)),
-        );
+    /**
+     * SCOPED TO THE WHOLE BUILD, not to one page, and the widening is the correct
+     * reading of the question rather than a way to keep a gate quiet.
+     *
+     * Astro emits one shared CSS chunk for every page here. So "this rule has no
+     * wearer" is a fact about the OUTPUT: a class worn only on `/patches` is present
+     * in the home page's stylesheet and absent from its markup, and an index-only
+     * check calls it dead. It called four live classes dead on the first build of the
+     * patch wall. See `builtPages()` for the distinction from `pageCss()`, which is
+     * per-page on purpose and must stay that way.
+     */
+    /**
+     * A SECOND, DIFFERENT KIND OF EXCUSE, kept apart from KNOWN_ORPHANS on purpose.
+     *
+     * These are STATE classes: an element wears one when the site is in a state it can
+     * legitimately be out of. `bib--booked` and `bib-tag` mark a race that has not been
+     * run yet, and on 7 December 2026 — the morning after the last race on the calendar
+     * — nothing on the site is in that state, so both rules ship with no wearer and this
+     * gate goes red on a correct page.
+     *
+     * That is not hypothetical and it is not merely a red test: `netlify.toml` runs the
+     * suite as the build command, and the Strava bot pushes unattended, so it is a
+     * failed production deploy triggered by a bot on a day nobody is watching. Found by
+     * simulating eight future bot pushes rather than by reasoning about it.
+     *
+     * WHY NOT KNOWN_ORPHANS: that list means "a rule that should not exist and we have
+     * not got round to removing", and its anti-rot test demands the rule still ship. A
+     * state class is the opposite — the rule *must* exist, and its absence from the
+     * markup is information about today rather than a defect. Collapsing the two would
+     * make the ratchet mean two things.
+     *
+     * WHY NOT WEAKEN THE GATE: it exists to catch a rule emitted by an ordinary English
+     * word, and it still does. What is excused here is narrow and named, and the class
+     * is not left uncovered — `tests/patch-wall.test.ts` renders `Patch` directly in
+     * both states, so an actually-dead `bib--booked` fails there, on a page and not on a
+     * date.
+     */
+    /**
+     * Rather than a hand-kept list. A list works, and I shipped one first — but it
+     * defers the defect instead of closing it: the next component with a state class
+     * reddens this gate on some future date, unattended, and the author discovers the
+     * rule by reading a failed deploy. A review panel proposed this discriminator and
+     * it is strictly better, so it replaced mine.
+     *
+     * Two conditions, and both are needed:
+     *   - the selector is SCOPED (`[data-astro-cid-…]`), so it came from a component's
+     *     own `<style>` block. UnoCSS output is never scoped, so the gate's real job —
+     *     an ordinary English word in .astro text emitting a utility rule — is untouched.
+     *   - the token appears as an authored quoted literal in some `.astro` file with its
+     *     `<style>` block stripped, i.e. somebody deliberately wrote it into markup.
+     *
+     * A class that exists only inside a `<style>` block and is worn by nothing is still
+     * caught, which is the case that matters: that is a typo or a leftover.
+     */
+    const authoredClasses = (): Set<string> => {
+        const out = new Set<string>();
+        const files = readdirSync("src", {recursive: true, encoding: "utf8"})
+            .filter((f) => f.endsWith(".astro"));
+        for (const f of files) {
+            const src = read(`src/${f}`).replace(/<style[\s\S]*?<\/style>/g, "");
+            for (const m of src.matchAll(/["'`]([^"'`\n]*)["'`]/g)) {
+                for (const token of m[1].split(/\s+/)) if (/^[\w-]+$/.test(token)) out.add(token);
+            }
+        }
+        return out;
+    };
+
+    it("emits a class rule only for classes some page actually uses", () => {
+        const css = builtPages().map((p) => pageCss(p)).join("\n");
+        const worn = new Set(builtPages().flatMap((p) => [...classTokens(p)]));
+        const authored = authoredClasses();
 
         // Every selector the sheet defines, split on commas, with the leading
         // class token extracted. Non-class selectors (`body`, `:root[…]`,
@@ -693,7 +832,10 @@ describe("the stylesheet ships no rule nobody wears", () => {
                 const cls = selector.trim().match(/^\.((?:\\.|[\w-])+)/)?.[1];
                 if (!cls) continue;
                 const token = cls.replace(/\\(.)/g, "$1");
-                if (!worn.has(token) && !KNOWN_ORPHANS.includes(token)) orphans.add(token);
+                if (worn.has(token) || KNOWN_ORPHANS.includes(token)) continue;
+                // A component's own state class, on a day nothing is in that state.
+                if (selector.includes("[data-astro-cid-") && authored.has(token)) continue;
+                orphans.add(token);
             }
         }
         expect(
@@ -705,7 +847,7 @@ describe("the stylesheet ships no rule nobody wears", () => {
     it("still needs every entry on the known-orphan list, so the list cannot rot", () => {
         // Without this, a token fixed at source stays on the list forever and
         // quietly re-opens the hole it was excusing.
-        const css = pageCss();
+        const css = builtPages().map((p) => pageCss(p)).join("\n");
         for (const token of KNOWN_ORPHANS) {
             const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}`;
             expect(
@@ -831,9 +973,18 @@ describe("dist/index.html is prerendered", () => {
         expect(meta('meta[property="og:image"]')).toBe(METADATA.image_url);
         expect(meta('meta[name="twitter:image"]')).toBe(meta('meta[property="og:image"]'));
         expect(meta('meta[name="twitter:card"]')).toBe("summary_large_image");
-        // og:url is origin-only BY DESIGN (plan 002) — never assert it against the
-        // canonical URL or METADATA.site_url, which carry a trailing slash.
-        expect(meta('meta[property="og:url"]')).toBe(new URL(METADATA.site_url).origin);
+        // og:url NAMES THE PAGE, and must agree with the canonical. It was origin-only
+        // from plan 002 — correct while the site had one page, and a defect once it had
+        // four: the three /patches routes each advertised the home page to a social
+        // card while their own rel=canonical said otherwise. Asserted against the
+        // canonical rather than against a literal, so the two cannot drift apart again.
+        for (const page of builtPages()) {
+            const doc = parseHTML(read(page)).document;
+            const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute("href");
+            const ogUrl = doc.querySelector('meta[property="og:url"]')?.getAttribute("content");
+            expect(canonical, `${page} must self-canonicalise`).toBeTruthy();
+            expect(ogUrl, `${page}: og:url ${ogUrl} disagrees with canonical ${canonical}`).toBe(canonical);
+        }
     });
 
     it("serves the portrait as a build-emitted asset, not a runtime image CDN URL", () => {
@@ -900,35 +1051,66 @@ describe("source hygiene", () => {
         }
     });
 
-    it("covers every card with an entrance-stagger delay rule", () => {
+    it("covers every card on every page with an entrance-stagger delay rule", () => {
         // PR #41 added an 8th <main> child while the delay ladder stopped at
         // nth-child(7), so the footer animated on the same frame as the hero.
         // The ladder is hand-written CSS; this is the lockstep check.
+        //
+        // `main > *` is a GLOBAL rule in BasicLayout, so it animates the children of
+        // every page's <main>, not just the home page's. A page whose main outgrew
+        // the ladder would animate its tail on frame zero — the same defect, on a
+        // page nobody thought to re-check. Ask the widest main in the build.
         const layout = read("src/layouts/BasicLayout.astro");
         const rungs = [...layout.matchAll(/nth-child\((\d+)\)\s*\{\s*animation-delay/g)].map((m) => Number(m[1]));
         expect(rungs.length, "the entrance cascade must exist").toBeGreaterThan(0);
-        const cards = parseHTML(read("dist/index.html")).document.querySelector("main")?.children.length ?? 0;
-        expect(cards, "main must render cards").toBeGreaterThan(0);
-        expect(Math.max(...rungs), `main renders ${cards} children but the delay ladder stops at nth-child(${Math.max(...rungs)})`).toBeGreaterThanOrEqual(cards);
+        // A page with no <main> is not a defect — a 404 page is the obvious one — so it
+        // is skipped rather than failed, and the non-vacuity floor moves to "at least
+        // one page was actually checked". Demanding a <main> everywhere would turn an
+        // ordinary future addition into a failed deploy.
+        let checked = 0;
+        for (const page of builtPages()) {
+            const main = parseHTML(read(page)).document.querySelector("main");
+            if (!main) continue;
+            const cards = main.children.length;
+            expect(cards, `${page} renders an empty <main>`).toBeGreaterThan(0);
+            expect(
+                Math.max(...rungs),
+                `${page}: main renders ${cards} children but the delay ladder stops at nth-child(${Math.max(...rungs)})`,
+            ).toBeGreaterThanOrEqual(cards);
+            checked++;
+        }
+        expect(checked, "no page has a <main> — the ladder check is vacuous").toBeGreaterThan(0);
     });
 
-    it("gives every class token in the shipped HTML a rule in the stylesheet", () => {
+    it("gives every class token on every page a rule in the stylesheet it loads", () => {
         // UnoCSS fails silently on unknown utilities and Astro drops nothing:
         // a dead class ships as markup bytes with no effect. After plan 012
         // every remaining token is load-bearing; this keeps it that way.
         // The stylesheet escapes special chars in selectors (`.md\:pr-8`), so
         // unescape before comparing.
-        const html = read("dist/index.html");
-        const css = pageCss();
-        const cssClasses = new Set(
-            [...css.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\(.)/g, "$1")),
-        );
-        const tokens = new Set(
-            [...html.matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/).filter(Boolean)),
-        );
-        expect(tokens.size, "the page must ship class tokens").toBeGreaterThan(50);
-        for (const token of tokens) {
-            expect(cssClasses.has(token), `class "${token}" has no rule in the stylesheet`).toBe(true);
+        //
+        // PER-PAGE, unlike the orphan gate above, and the asymmetry is the point. The
+        // question here is "does this page's own cascade define what its own markup
+        // wears", which a union of every sheet would answer wrong: a rule another
+        // page loaded would excuse a class this one cannot resolve. It is also the
+        // only gate that would catch a presetIcons class the safelist never saw —
+        // an icon with no rule is a mask box at zero size, invisible and green.
+        let checked = 0;
+        for (const page of builtPages()) {
+            const css = pageCss(page);
+            const cssClasses = new Set(
+                [...css.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\(.)/g, "$1")),
+            );
+            const tokens = classTokens(page);
+            // Non-vacuity without a hand-counted number: a page that wears any class at
+            // all is enough for the loop below to mean something, and a legitimate new
+            // page smaller than today's smallest must not fail a gate about rules.
+            expect(tokens.size, `${page} ships no class tokens at all`).toBeGreaterThan(0);
+            for (const token of tokens) {
+                expect(cssClasses.has(token), `${page}: class "${token}" has no rule in the stylesheet it loads`).toBe(true);
+            }
+            checked += tokens.size;
         }
+        expect(checked, "the home page alone ships more tokens than this — the walk is not reaching every page").toBeGreaterThan(50);
     });
 });

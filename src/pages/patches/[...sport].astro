@@ -1,0 +1,242 @@
+---
+import Layout from "../../layouts/BasicLayout.astro";
+import Card from "../../components/Card/index.astro";
+import Patch from "../../components/Patch.astro";
+import {GOAL_YEAR, GOALS, goalForSport, METADATA, PATCHES, type Sport} from "../../lib/constants";
+import {patchWall} from "../../lib/projection";
+import {iconClass} from "../../lib/icons";
+
+/*
+ * THREE PRERENDERED PAGES, NOT ONE PAGE WITH A FILTER: `/patches`, `/patches/cycling`
+ * and `/patches/running`.
+ *
+ * The filter has to survive with no client JavaScript, since this site ships none,
+ * and it has to be linkable, because the whole point of a per-sport view is that a
+ * goal card can send a reader straight to it. Three real URLs are the only shape
+ * that gives both for free. The alternatives were considered and each loses one:
+ *
+ *   - Radio inputs plus `:has()` — zero JS, but the state lives in the DOM and no
+ *     URL names it, so nothing can link to a filtered wall.
+ *   - `#cycling` plus `:target` — linkable, but it is a filter drawn in CSS on a
+ *     page whose markup still contains every bib, so the census, the title and what
+ *     a crawler sees all describe the unfiltered page.
+ *
+ * A navigation also costs nothing to a reader here: the pages are prerendered, the
+ * whole wall is six items, and the back button does the obvious thing.
+ *
+ * THE REST PARAMETER MATCHES ZERO SEGMENTS, which is what makes `/patches` itself
+ * one of the three rather than a fourth file repeating this one.
+ */
+export function getStaticPaths() {
+    return [
+        {params: {sport: undefined}, props: {sport: undefined}},
+        ...GOALS.map((goal) => ({params: {sport: goal.sport}, props: {sport: goal.sport}})),
+    ];
+}
+
+interface Props {
+    sport?: Sport;
+}
+
+const {sport} = Astro.props;
+
+const patches = patchWall(sport);
+const goal = sport === undefined ? undefined : goalForSport(sport);
+
+/*
+ * THE CENSUS IS THE FILTER ROW'S LABEL, rather than a separate line of statistics.
+ * A reader choosing between "all", "ride" and "run" wants to know what each one
+ * costs them, and a count beside the word answers that in the place the question is
+ * asked. It also keeps the page's only summary from being a decoration that has to
+ * be maintained: these numbers cannot disagree with the wall, because they are the
+ * lengths of the same arrays.
+ */
+const filters = [
+    {href: "/patches", label: PATCHES.all_label, count: patchWall().length, active: sport === undefined},
+    ...GOALS.map((g) => ({
+        href: `/patches/${g.sport}`,
+        label: g.short_name,
+        count: patchWall(g.sport).length,
+        active: g.sport === sport,
+    })),
+];
+
+/*
+ * EACH PAGE NAMES ITSELF DIFFERENTLY, and that is not SEO housekeeping — the three
+ * are one browser-tab strip apart and one back-button press apart, so a title
+ * repeated three times is a real navigation cost. The heading and the title are
+ * built from the same two strings for the same reason the goal cards' headings are:
+ * a sport is called what the goal calls it, in one place.
+ */
+const heading = goal === undefined ? PATCHES.heading : `${goal.goal_name} patches`;
+const title = `${heading} · ${GOAL_YEAR} — ${METADATA.name}`;
+
+// The scope sentence has to narrow with the page — "every race" is a claim only
+// /patches can make. See the note on PATCHES.
+const sportWord = goal?.goal_name.toLowerCase() ?? "";
+const lede = goal === undefined
+    ? `${PATCHES.scope_all} ${PATCHES.key}`
+    : `${PATCHES.scope_sport.replace("{sport}", sportWord)} ${PATCHES.key}`;
+
+// The META description narrows too. It was one string across all three routes, which
+// put the "every race" overclaim in front of a crawler on the two pages that show a
+// subset — the same defect as the lede, in the copy nobody looks at.
+const description = goal === undefined
+    ? PATCHES.description_all
+    : PATCHES.description_sport.replace("{sport}", sportWord);
+---
+
+<Layout title={title} description={description}>
+    <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
+        <div class="flex flex-col gap-4">
+            <p>
+                <!-- `min-h-6` is 1.5rem, which is the floor this codebase already set for a small
+                     link: the Now card's explainer anchor is sized the same way and its comment
+                     records why — 24px at the default text size is SC 2.5.8's AA minimum on the
+                     nose, and a font-relative box grows with the reader's text instead of staying
+                     put. Without it this link measures 60.25 x 20 and is the only control on the
+                     site under that floor. Measured: it does not actually FAIL 2.5.8, because the
+                     spacing exception applies at 143.82px to the nearest other target — so this is
+                     the repo's own standard rather than the specification's. -->
+                <a
+                        href="/"
+                        class="inline-flex items-center gap-2 min-h-6 text-sm text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out"
+                >
+                    <span class={iconClass(PATCHES.home_icon)} aria-hidden="true"></span>{PATCHES.home_label}
+                </a>
+            </p>
+            <div class="flex flex-col gap-2">
+                <h1 class="text-3xl font-bold m-0">{heading}</h1>
+                <p class="text-sm max-w-[60ch] m-0">{lede}</p>
+            </div>
+            <nav class="patch-filter" aria-label={PATCHES.filter_label}>
+                {filters.map((f) => (
+                        <a href={f.href} aria-current={f.active ? "page" : undefined}>
+                            {f.label}<span class="patch-filter-count">{f.count}</span>
+                        </a>
+                ))}
+            </nav>
+        </div>
+        <Card>
+            <ul class="patch-wall">
+                {patches.map(({event, state}) => <Patch event={event} state={state}/>)}
+            </ul>
+        </Card>
+    </main>
+</Layout>
+
+<style>
+    /*
+     * THE WALL IS A DENSITY, NOT A COLUMN COUNT. `auto-fill` with a 13rem floor lets
+     * the browser decide how many bibs a row holds, which is the same argument the
+     * control row makes in BasicLayout.astro: a hand-maintained count has to be
+     * re-tuned every time either the box or the reader's text size moves, and it was
+     * wrong twice here before it was deleted. `min(13rem, 100%)` is what stops the
+     * floor exceeding the container on a narrow phone, where a fixed 13rem minimum
+     * overflows instead of collapsing to one column.
+     */
+    .patch-wall {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr));
+        gap: 0.5rem;
+    }
+
+    /*
+     * THE FILTER ROW BORROWS THE WALL'S OWN TWO TREATMENTS: the page you are on is
+     * drawn like a bib you have earned — inverted, solid — and the ones you are not
+     * on are drawn like bibs you have not. It costs no new visual vocabulary and it
+     * means the row and the wall cannot look like two unrelated components.
+     *
+     * `aria-current="page"` is what selects the solid state, so the styling reads
+     * from the same attribute a screen reader does and the two cannot disagree. A
+     * class would let them.
+     *
+     * The current page stays a LINK rather than becoming inert text. It is a real
+     * destination, `aria-current` already says you are there, and removing it from
+     * the tab order mid-row is a worse answer to "this one does nothing" than
+     * letting it do the harmless thing.
+     */
+    .patch-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .patch-filter a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4em;
+        padding: 0.3rem 0.7rem;
+        border: 1px solid color-mix(in srgb, var(--text) 32%, transparent);
+        border-radius: 2px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        text-decoration: none;
+        color: var(--text);
+        transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+    }
+
+    .patch-filter a:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .patch-filter a[aria-current="page"] {
+        background-color: var(--text);
+        border-color: var(--text);
+        color: var(--background);
+    }
+
+    /* The count is quiet against its own label, whichever ground it lands on. */
+    .patch-filter-count {
+        opacity: 0.7;
+    }
+
+    /*
+     * As on the bib: the selected state is carried by background-color, which a
+     * forced-colours mode overrides. `Highlight`/`HighlightText` is the system pair
+     * those modes use for exactly this — the one item in a set that is current.
+     *
+     * `forced-color-adjust: none` is here because a review panel reported that without
+     * it the label renders INVISIBLE in the light forced palette: Chromium paints a
+     * text backplate in Canvas behind text sitting on a forced background, and
+     * `HighlightText` is also white there, so the glyphs would be white on white.
+     *
+     * BE HONEST ABOUT THE EVIDENCE — I COULD NOT REPRODUCE IT, and three attempts to
+     * do so all failed their own calibration. `Emulation.setEmulatedMedia` makes
+     * `(forced-colors: active)` match and makes the system colours resolve, but it does
+     * not appear to reproduce Chromium's actual forced-colors PAINTING; with it on, the
+     * rendering is identical whether this line is present or absent, and a probe that
+     * deliberately sets the ink to the surface colour still reports the label visible.
+     * So the one measurement quoted in an earlier draft of this comment (1586 pixels of
+     * a single colour) came from a probe that was sampling a rectangle the viewport
+     * resize had moved, and it is withdrawn rather than repeated.
+     *
+     * The line stays anyway, and that is a deliberate call rather than deference: it is
+     * the documented way to keep a colour pair you have chosen on purpose, it costs one
+     * declaration, and the failure it guards against is a control whose label cannot be
+     * read. Being wrong about the mechanism costs nothing here; being wrong about the
+     * label costs a user the filter row.
+     *
+     * WHAT IS ACTUALLY OWED: a check in a real OS high-contrast mode, which is the only
+     * thing that renders the backplate. Until then this block is precautionary.
+     *
+     * `border-color` is pinned to `CanvasText` for a reason that IS verifiable without
+     * the backplate: opting out of forcing also stops the base rule's
+     * `border-color: var(--text)` being overridden, so an author token would leak into
+     * forced-colours mode. The pin keeps the border a system colour.
+     */
+    @media (forced-colors: active) {
+        .patch-filter a[aria-current="page"] {
+            forced-color-adjust: none;
+            background-color: Highlight;
+            border-color: CanvasText;
+            color: HighlightText;
+        }
+    }
+</style>

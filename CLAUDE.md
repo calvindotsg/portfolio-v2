@@ -4,7 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a personal portfolio website built with Astro, featuring a bento-style, minimal, single-page design. The site showcases Calvin's professional background, cycling goals, and personal interests.
+This is a personal portfolio website built with Astro, featuring a bento-style,
+minimal design. The home page is a single-screen bento grid showing Calvin's
+professional background, cycling goals, and personal interests; `/patches` is a
+wall of this year's races drawn as bibs, with a prerendered page per sport.
 
 ## Development Commands
 
@@ -71,8 +74,14 @@ preview is byte-identical to what Netlify serves.
   by an inline `<script is:inline>` in `<head>` before first paint
 
 ### Layout Hierarchy
-- `src/layouts/BasicLayout.astro` wraps the single page `src/pages/index.astro`
-- Responsive bento grid layout for different screen sizes
+- `src/layouts/BasicLayout.astro` wraps every page
+- `src/pages/index.astro` — the bento grid, responsive, one screen at the default
+  text size. Its `<main>` owns the height budget and the 32/32 lg grid
+- `src/pages/patches/[...sport].astro` — the patch wall. One rest-parameter route
+  prerenders three pages (`/patches`, `/patches/cycling`, `/patches/running`), so
+  filtering by sport is a real URL rather than client state. Whether a bib is
+  earned is DERIVED from the calendar every build (`patchState` in
+  `projection.ts`) and must never become a stored flag
 
 ## Content Management
 
@@ -83,6 +92,8 @@ All site content is managed through `src/lib/constants.ts`:
 - `GOALS`: Goal progress tracking (cycling, running)
 - `WELCOME`: Hero section content  
 - `NOW`: Current status
+- `EVENTS`: Races entered this year — read by both the projection and the patch wall
+- `PATCHES`: The patch wall's own prose
 - `METADATA`: SEO and site metadata
 
 ## Deployment
