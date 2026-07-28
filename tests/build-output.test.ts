@@ -5,7 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
-import {pageCss} from "./helpers/css";
+import {pageCss, splitSelectorList} from "./helpers/css";
 import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
 /**
@@ -952,12 +952,16 @@ describe("the stylesheet ships no rule nobody wears", () => {
         const worn = new Set(builtPages().flatMap((p) => [...classTokens(p)]));
         const authored = authoredClasses();
 
-        // Every selector the sheet defines, split on commas, with the leading
-        // class token extracted. Non-class selectors (`body`, `:root[…]`,
-        // `main > *`, keyframe stops) are not this test's business.
+        // Every selector the sheet defines, split on the commas that SEPARATE them,
+        // with the leading class token extracted. Non-class selectors (`body`,
+        // `:root[…]`, `main > *`, keyframe stops) are not this test's business.
+        //
+        // The split has to honour escapes: `grid-rows-[repeat(8,min-content)]` carries
+        // a comma of its own, and splitting on it invented two orphan classes that no
+        // rule defines and no element could ever wear. See splitSelectorList.
         const orphans = new Set<string>();
         for (const m of css.matchAll(/(^|[{}])([^{}@]+)\{/g)) {
-            for (const selector of m[2].split(",")) {
+            for (const selector of splitSelectorList(m[2])) {
                 const cls = selector.trim().match(/^\.((?:\\.|[\w-])+)/)?.[1];
                 if (!cls) continue;
                 const token = cls.replace(/\\(.)/g, "$1");

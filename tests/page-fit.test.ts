@@ -275,6 +275,15 @@ describe("the page may grow taller than the viewport", () => {
      * clamp is what makes the page single-screen in the first place — and writing
      * the allowed set as an enumeration of units is the mistake `isDefiniteSize`
      * above already records: the list leaks, the inversion does not.
+     *
+     * A UNIT WAS NEVER GOING TO BE ENOUGH, and the assertions added at the foot of this
+     * test are the half that was missing. Everything above is about text ZOOM, which
+     * moves the root font-size and so moves anything written in rem. SC 1.4.12 is a
+     * different reader doing a different thing: setting line-height, letter-spacing,
+     * word-spacing and paragraph spacing directly, none of which the page can see. The
+     * type grows and every font-relative length on the page holds still. So the budget
+     * has to have no CEILING at all, in any unit, and the rows have to be able to ask
+     * for room — measured before the fix at 1157.7px of ink deleted at 1024x600.
      */
     it("spells the grid's height budget in a unit the reader's text size can move", () => {
         // A length no font-size can move. Zero is exempt: it is unit-agnostic and
@@ -294,29 +303,77 @@ describe("the page may grow taller than the viewport", () => {
             "<main>'s height budget must contain no absolute length: the cards inside it are sized in text, they clip, and a budget the reader's font size cannot move turns their content into deleted ink rather than a scrollbar",
         ).toEqual([]);
 
-        // Non-vacuity, in the direction that matters. Deleting the clamp entirely
-        // satisfies the negative assertion above, so both ends have to be shown to
+        // Non-vacuity, in the direction that matters. Deleting the budget entirely
+        // satisfies the negative assertion above, so the floor has to be shown to
         // exist — and to exist at lg, which is the only place the four-column grid
         // can hold a single screen.
         const atLg = rulesMatching(main).filter((r) => (minWidthOf(r) ?? 0) === LG);
-        for (const prop of ["min-height", "max-height"] as const) {
-            const found = atLg.flatMap((r) => {
+        const floors = atLg.flatMap((r) => {
+            const value = decl(r.body, "min-height");
+            return value ? [value] : [];
+        });
+        expect(
+            floors,
+            "<main> must declare a min-height at the large breakpoint; without it the single-screen contract is gone, and this file's negative assertions all pass for a page that no longer has one",
+        ).not.toEqual([]);
+        // And it must actually be font-relative, which "no absolute length" alone
+        // does not give: `min-height: 100vh` contains no absolute length and does not
+        // grow with the text either.
+        for (const value of floors) {
+            expect(
+                value,
+                `<main>'s min-height at the large breakpoint must be font-relative so the budget grows with the reader's text; found "${value}"`,
+            ).toMatch(/\d\s*r?em\b/);
+        }
+
+        /*
+         * THE BUDGET IS A FLOOR ONLY, and the two halves below are what make that true
+         * rather than decorative.
+         *
+         * It used to be a clamp — a floor, a viewport term and a CAP — and the cap is
+         * how the page failed SC 1.4.12. A reader who applies the criterion's four
+         * metrics changes no font-size, so nothing font-relative moves; the type inside
+         * the cards grows anyway and the grid cannot. Measured on the shipped page, as
+         * ink past each card's clip edge summed over the page: 1157.7px deleted at
+         * 1024x600, 850.7 at 1024x768, 63 at 1440x900 and above. All of it at the BOTTOM
+         * edge — the right edge was 0 at every viewport, because a card grows vertically
+         * with its content and never horizontally.
+         *
+         * So a ceiling of any kind is forbidden here, and so is a definite `height`,
+         * which is the same ceiling spelled differently.
+         */
+        for (const prop of ["max-height", "max-block-size", "height", "block-size"] as const) {
+            const ceilings = atLg.flatMap((r) => {
                 const value = decl(r.body, prop);
-                return value ? [value] : [];
+                return value && value !== "auto" ? [describeRule(r, prop, value)] : [];
             });
             expect(
-                found,
-                `<main> must declare a ${prop} at the large breakpoint; without both ends of the clamp the single-screen contract is gone, and this file's negative assertions all pass for a page that no longer has one`,
-            ).not.toEqual([]);
-            // And each end must actually be font-relative, which "no absolute
-            // length" alone does not give: `min-height: 100vh` contains no absolute
-            // length and does not grow with the text either.
-            for (const value of found) {
-                expect(
-                    value,
-                    `<main>'s ${prop} at the large breakpoint must be font-relative so the budget grows with the reader's text; found "${value}"`,
-                ).toMatch(/\d\s*r?em\b/);
-            }
+                [...new Set(ceilings)],
+                `<main> must not declare ${prop} at the large breakpoint: the grid has to be free to get taller than the viewport when the text inside it does, and a ceiling turns that growth back into deleted ink. Text spacing (SC 1.4.12) moves no font-size, so a font-relative ceiling does not help — it has to be absent`,
+            ).toEqual([]);
+        }
+
+        /*
+         * The other half, and the one with no obvious name. A budget free to grow buys
+         * nothing while the ROWS cannot: `grid-rows-8` compiles to
+         * `repeat(8, minmax(0,1fr))`, whose tracks always sum to exactly the container
+         * and never ask it for more. Both halves were measured separately — the floor
+         * alone leaves 1157.7px lost, the rows alone make it WORSE (they overflow a
+         * still-capped container), and together it is 0 at every viewport.
+         */
+        const templates = atLg.flatMap((r) => {
+            const value = decl(r.body, "grid-template-rows");
+            return value ? [value] : [];
+        });
+        expect(
+            templates,
+            "<main> must declare a row template at the large breakpoint, or the grid it is asserted about does not exist",
+        ).not.toEqual([]);
+        for (const value of templates) {
+            expect(
+                value,
+                `<main>'s row template must let a row grow for its content; "${value}" contains a fraction track, and a fr track sums to the container rather than asking it for room`,
+            ).not.toMatch(/\d\s*fr\b/);
         }
     });
 
