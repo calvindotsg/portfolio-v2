@@ -496,11 +496,15 @@ const Tag = activity === null ? "div" : "a";
     }
 
     /*
-     * A LINKED BIB SAYS SO WITH A GLYPH, NOT WITH A HOVER. There is no hover on a phone,
-     * and this site has already removed one card hover for advertising an affordance that
-     * did not exist — the opposite failure is an affordance that exists and is never
-     * advertised. The Strava mark in the meta row is permanent and is a shape, so it
-     * carries the fact without leaning on colour (SC 1.4.1).
+     * A LINKED BIB SAYS SO IN WORDS, NOT WITH A HOVER. There is no hover on a phone, and this
+     * site has already removed one card hover for advertising an affordance that did not
+     * exist — the opposite failure is an affordance that exists and is never advertised.
+     * The action row at the foot of the bib is permanent and is TEXT, so it carries the fact
+     * without leaning on colour (SC 1.4.1).
+     *
+     * That used to read "the Strava mark in the meta row", which described a 7.5x10px glyph
+     * that no longer exists there — see `.bib-go`. The mark was the whole cue and was not
+     * enough; the words are.
      *
      * The hover and focus outline is the second cue rather than the only one. It is an
      * OUTLINE rather than the border, and that is what makes its contrast answerable: an

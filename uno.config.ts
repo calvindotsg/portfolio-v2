@@ -38,21 +38,20 @@ export default defineConfig({
      *  tracking, line height — is authored CSS, and splitting one type treatment
      *  across two mechanisms is how the pair drifts. */
     /*
-     * `underline` IS BLOCKED FOR BOTH OF THE REASONS A TOKEN CAN NEED BLOCKING HERE, which is
-     * why it is worth spelling out rather than appending to the list.
+     * `underline` IS BLOCKED AS AN ENGLISH WORD, not as a declaration value — and the difference
+     * is worth stating, because an earlier revision of this comment claimed both and was wrong.
      *
-     * `static` and `tabular-nums` are blocked for ONE reason: they are real DECLARATION VALUES
-     * this codebase has to write in CSS, and the extractor reads authored CSS under `src/**`.
-     * `underline` is both of the following:
+     * `static` and `tabular-nums` are blocked for the declaration-value reason: this codebase has
+     * to write them in authored CSS, and the extractor reads `src/**`. `underline` was briefly in
+     * that category too — the bib's action row carried `text-decoration: underline` — but the
+     * owner rejected a decoration on a bib as the wrong vocabulary for a printed artifact, that
+     * declaration was deleted, and the justification here was left behind describing code that no
+     * longer exists. A review panel found it five times over.
      *
-     *   a declaration value — Patch.astro writes `text-decoration: underline` on the action
-     *   row's label, exactly the `tabular-nums` case;
-     *   an ordinary English word — the treatment is now this site's named idiom, so the
-     *   components wearing it explain themselves, and any sentence containing the word emits
-     *   the same rule from a comment.
-     *
-     * Either way the emitted `.underline{}` has no wearer, and the orphan gate in
-     * tests/build-output.test.ts fails the build on a rule nothing wears.
+     * The entry still earns its place on the remaining reason alone: the treatment is this site's
+     * named idiom, so the components wearing it explain themselves in prose, and any sentence
+     * containing the word emits a real `.underline{}` rule that no element wears — which the
+     * orphan gate in tests/build-output.test.ts fails the build on.
      *
      * Blocking the token does NOT disarm the shortcut: a shortcut's expansion is resolved after
      * extraction, so `.text-link` still ships `text-decoration-line: underline`. That is
@@ -377,13 +376,26 @@ export default defineConfig({
      * another size. The offset is in `em` for the same reason every length in a card is
      * font-relative here.
      *
+     * `self-start` IS THE HIT BOX, AND IT BELONGS IN THE SHORTCUT RATHER THAN ON EACH WEARER.
+     * A column flex container stretches its items across the cross axis, so an anchor that is a
+     * flex item has a box the full width of its parent however narrow its words are — 182px of
+     * navigating card for ~45px of ink on the role cards, where the rest is blank. EventsLink
+     * records this at length and fixed it locally; the wall's Home link is not a flex item and
+     * never had the problem; the role cards' company link had it, silently, until making the
+     * link VISIBLE turned a box nobody aimed at into one people will.
+     *
+     * That asymmetry is the argument for putting it here: a treatment that tells a reader "this
+     * is a link" has to also be honest about where the link is, so the two belong in the same
+     * object. EventsLink keeps its own `align-self` as well — it is tested there, against a
+     * selector this shortcut's rule would not satisfy, and the two agree.
+     *
      * NOT the `control` box, and the reason is the one EventsLink.astro gives for having no
      * border: the offset plate is this site's mark for a 48px styled control, and wearing it on
      * a 24px text link would either dilute the mark or claim a size these are not.
      */
     shortcuts: {
         "control": "text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
-        "text-link": "underline decoration-from-font underline-offset-[0.18em] text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out",
+        "text-link": "underline decoration-from-font underline-offset-[0.18em] self-start text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out",
     },
     presets: [
         presetWind3(),

@@ -589,10 +589,6 @@ describe("dist/patches", () => {
             expect(row!.textContent?.replace(/\s+/g, " ").trim(),
                 "the row's words are the configured label").toBe(PATCHES.strava_name);
 
-            // THE POINT OF THE WHOLE CHANGE: the words are on screen. `sr-only` is what the
-            // previous revision shipped and is the defect this guards, so it is named directly
-            // rather than inferred — a class check is what the markup can actually answer, and
-            // the rendered half is the browser sweep in the PR.
             // THE POINT OF THE WHOLE CHANGE: the words are on screen, as a text node in the row
             // rather than behind an sr-only span. Asserted as an absence, because that is the
             // arrangement that shipped and that two reviewers could not see.

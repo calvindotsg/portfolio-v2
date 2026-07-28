@@ -514,13 +514,19 @@ describe("page content", () => {
 
         // AND THE DECORATION MUST ACTUALLY SHIP. The class on the element proves intent; this
         // proves the rule exists, which is a different claim — `underline` is blocklisted in
-        // uno.config.ts (it is both an English word and a declaration value in Patch.astro), and
+        // uno.config.ts (as an English word — the idiom is explained in prose all over `src/`), and
         // an over-broad block would silently empty the shortcut with every class check green.
         //
-        // BOTH SPELLINGS: the shortcut emits `text-decoration-line`, while the minifier collapses
-        // Patch.astro's pair into the `text-decoration` shorthand. A gate that knew only one
-        // would go red on correct CSS the day the other path wins.
+        // BOTH SPELLINGS, because which one ships is a minifier decision rather than an authored
+        // one: a `text-decoration` shorthand and a `text-decoration-line` longhand are the same
+        // declaration, and a gate that knew only one would go red on correct CSS.
+        //
+        // AND IT MUST BE UNCONDITIONAL. The first version of this probe accepted any matching
+        // rule, so a `:hover` decoration satisfied it — which is exactly the affordance this
+        // change exists to replace, since neither reader who reported the defect had a pointer.
+        const STATEFUL = /:hover|:focus|:active|:visited/;
         const decorated = rules.some((r) => {
+            if (r.selectors.every((sel) => STATEFUL.test(sel))) return false;
             const v = decl(r.body, "text-decoration-line") ?? decl(r.body, "text-decoration");
             return v !== undefined && /underline/i.test(v);
         });
@@ -613,6 +619,32 @@ describe("page content", () => {
             "the control must opt out of its column's cross-axis stretch with a value that actually "
             + "shrink-wraps it, or its clickable box is the whole width of the card rather than the "
             + "words a reader aims at. `align-self: stretch` is the default and does not count",
+        ).toBe(true);
+
+        // AND THE SHARED IDIOM MUST SHRINK-WRAP TOO, which the assertion above cannot see.
+        //
+        // It reads `.events-link` rules, and this control keeps its own `align-self` in its scoped
+        // sheet — so the shortcut could lose the property entirely and every clause above would
+        // still pass. That is not hypothetical: the role cards' company link is a flex item of a
+        // column with no cross-axis control of its own, and before `self-start` was folded into
+        // `text-link` it presented 182px of navigating card for 45px of ink. A review panel found
+        // it by hand because nothing here was looking, and the mutation that removes `self-start`
+        // from the shortcut survived a full green run — twice.
+        //
+        // Asserted on the SHORTCUT's own rule, since that is what every future wearer inherits.
+        const shared = parseRules(pageCss()).filter((r) => r.selectors.some((sel) => /\.text-link\b/.test(sel)));
+        expect(shared.length, "no .text-link rule — this assertion would be vacuous").toBeGreaterThan(0);
+        const sharedOptsOut = shared.some((r) => {
+            const align = decl(r.body, "align-self");
+            return (align !== undefined && SHRINK_WRAPS.includes(align.trim()))
+                || decl(r.body, "width") === "max-content"
+                || decl(r.body, "width") === "fit-content";
+        });
+        expect(
+            sharedOptsOut,
+            "the text-link idiom must shrink-wrap. A treatment that tells a reader this is a link has "
+            + "to be honest about WHERE the link is, and a column flex container stretches its items — "
+            + "so without this a wearer advertises its words and navigates on blank space",
         ).toBe(true);
     });
 

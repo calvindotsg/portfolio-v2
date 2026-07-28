@@ -712,8 +712,18 @@ describe("every link on every page says that it is one", () => {
         // The bordered-chip case is only a signifier while the border is really shipped, so the
         // rule is read rather than assumed. Same reasoning as the decoration check on the goal
         // card's control: a class proves intent and a rule proves the drawing.
+        //
+        // AND THE RULE MUST BE UNCONDITIONAL, which the first version of this probe did not
+        // require. It accepted ANY `.patch-filter` rule carrying a border — including
+        // `.patch-filter a:hover`, which is a signifier only for a reader who has a pointer.
+        // A hover-only affordance is the precise defect this whole gate exists to catch, so a
+        // gate that accepts one is worse than no gate: deleting the chips' permanent border left
+        // the suite green at 264/264. It also matched `.patch-filter-count`, a sibling class that
+        // draws nothing, because `\b` treats the hyphen as a boundary — hence the descendant-`a`
+        // requirement rather than a bare class match.
+        const STATEFUL = /:hover|:focus|:active|:visited|:target|\[aria-current/;
         const chipIsDrawn = parseRules(pageCss(page)).some(
-            (r) => r.selectors.some((s) => /\.patch-filter\b/.test(s))
+            (r) => r.selectors.some((sel) => /\.patch-filter\b[^,]*\ba\b/.test(sel) && !STATEFUL.test(sel))
                 && (decl(r.body, "border") ?? decl(r.body, "border-color")) !== undefined,
         );
 
