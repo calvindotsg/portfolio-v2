@@ -42,10 +42,12 @@ earned bibs are called patches.
 - **Text-relative sizing**: every breakpoint, `main`'s height clamp, the card
   heading's space and the control box are font-relative, so the page grows with
   the reader's text instead of clipping it. `tests/page-fit.test.ts` and
-  `tests/card-fill.test.ts` forbid an absolute length in the first three; the
-  control box is gated by `tests/control-geometry.test.ts` (the `control`
-  shortcut's own width and height) and `tests/rendered-html.test.ts`
-  (`.events-link`). Read the rationale before re-pinning one to pixels
+  `tests/card-fill.test.ts` forbid an absolute length in the first three, and
+  card-fill catches an absolute *height* inside any card, the control box
+  included; only `tests/control-geometry.test.ts` gates that box's width. The goal
+  cards' `.events-link` is a different idiom — no box, just a font-relative floor,
+  gated by `tests/rendered-html.test.ts`. Read the rationale before re-pinning one
+  to pixels
 - **Theme Support**: dark/light mode via CSS custom properties on
   `:root[data-theme]` in `src/layouts/BasicLayout.astro`; that block's header
   comment defines each token's role and the progress-bar polarity rule — read it
