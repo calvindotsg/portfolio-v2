@@ -18,8 +18,11 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 
 ## Features
 
-- Bento-style, minimal design: a single-screen home page, plus a patch wall of
-  this year's races at `/patches`
+- Bento-style, minimal design: a single-screen home page, plus **My events** at
+  `/patches` — this year's races drawn as bibs, one prerendered page per sport.
+  A *patch* is a race completed and earned, so the page is headed by the events
+  and only the earned bibs are patches; "patch wall" survives as the URL and the
+  metaphor, not as anything the site calls itself
 - Fully responsive layout
 - Dark/Light mode support
 - Optimized for performance, accessibility, and SEO

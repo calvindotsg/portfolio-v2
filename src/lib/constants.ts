@@ -317,8 +317,15 @@ export type RaceEvent = {
      *
      * IT IS ELAPSED, NOT MOVING, AND THE BIB SAYS SO. The two are far apart on these
      * rides — 8:32:05 elapsed against 5:03:55 moving — so an unlabelled time invites a
-     * reader to divide it into the distance and get 18.8 km/h where the ride was 27.7.
-     * The label is not decoration; it names which clock.
+     * reader to divide it into the distance printed beside it and get 18.8 km/h for a
+     * ride that moved at 31.7. The label is not decoration; it names which clock.
+     *
+     * BOTH FIGURES ARE THE EVENT'S 160.59 km, and keeping them in one scope is the
+     * point of quoting them at all. An earlier revision paired 18.8 with 27.7, which
+     * are not the same ride divided two ways: 18.8 is the EVENT's distance over
+     * elapsed, 27.7 is the ACTIVITY's 140.49 km over moving. The two consistent pairs
+     * are 18.8/31.7 (event scope, which is what the bib prints) and 16.5/27.7
+     * (activity scope). The conclusion was right either way; the arithmetic was not.
      *
      * NOTE WHICH SCOPE THIS IS. It is the race's own time, from the activity the race was
      * recorded as. The bib prints it beside the EVENT's distance, and on 10 July those
