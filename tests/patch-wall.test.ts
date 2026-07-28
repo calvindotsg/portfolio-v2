@@ -4,7 +4,7 @@ import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
-import {EVENTS, GOAL_YEAR, GOALS, PATCHES, type RaceEvent} from "../src/lib/constants";
+import {EVENTS, GOAL_YEAR, GOALS, PATCHES, type RaceEvent, stravaActivityUrl} from "../src/lib/constants";
 import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
 } from "../src/lib/projection";
@@ -390,13 +390,119 @@ describe("dist/patches", () => {
         const rendered = async (state: PatchState) =>
             parseHTML(await container.renderToString(Patch, {props: {event, state}})).document;
 
+        // Selected by CLASS, not by element name. The bib is no longer the list item: a
+        // race with a verified Strava activity renders its bib as an anchor inside the
+        // cell, so `querySelector("li")` now finds the wrapper and reads none of the
+        // treatment classes. Everything else in this file was already class-based, which
+        // is what kept the change to one component and one assertion.
         const booked = await rendered("booked");
         expect(booked.querySelector(".bib-tag")?.textContent?.trim()).toBe(PATCHES.booked_label);
-        expect(booked.querySelector("li")?.classList.contains("bib--booked")).toBe(true);
+        expect(booked.querySelector(".bib")?.classList.contains("bib--booked")).toBe(true);
 
         const finished = await rendered("finished");
         expect(finished.querySelector(".bib-tag"), "a finished bib is the unmarked case").toBeNull();
-        expect(finished.querySelector("li")?.classList.contains("bib--booked")).toBe(false);
+        expect(finished.querySelector(".bib")?.classList.contains("bib--booked")).toBe(false);
+    });
+
+    /**
+     * A FINISHED BIB'S WHOLE BOX IS THE LINK, and this is asserted from the built page
+     * because the shape only exists there: the bib renders as an anchor inside its list
+     * item, and the previous structure was one element.
+     *
+     * CONDITIONAL ON THE ID, NOT ON THE STATE. Round the Island finishes on 3 August with
+     * no activity recorded and must render as an ordinary finished bib, so the two halves
+     * below are both real cases rather than a happy path and a guard. Driven from EVENTS,
+     * so a race added with or without an id joins whichever half it belongs to.
+     */
+    it("makes the whole bib a link exactly where the race has a verified activity", () => {
+        const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
+        expect(bibs.length, "no bibs — this assertion would be vacuous").toBe(EVENTS.length);
+
+        const linked = EVENTS.filter((e) => e.strava_activity_id !== undefined);
+        expect(linked.length, "no event carries an activity id — this assertion would be vacuous")
+            .toBeGreaterThan(0);
+        expect(linked.length, "and no event carries one — the unlinked half would be vacuous")
+            .toBeLessThan(EVENTS.length);
+
+        for (const event of EVENTS) {
+            const bib = bibs.find((b) => b.querySelector(".bib-name")?.textContent === event.name)!;
+            expect(bib, `${event.name} must render a bib`).toBeTruthy();
+            const url = stravaActivityUrl(event);
+
+            if (url === null) {
+                expect(bib.tagName.toLowerCase(), `${event.name} has no activity id, so its bib must not be a link`)
+                    .not.toBe("a");
+                expect(bib.querySelector(".bib-strava"), `${event.name} must wear no Strava mark`).toBeNull();
+                continue;
+            }
+
+            expect(bib.tagName.toLowerCase(), `${event.name} has an activity id, so the whole bib is the link`).toBe("a");
+            expect(bib.getAttribute("href")).toBe(url);
+            expect(bib.getAttribute("target"), "matching Now.astro and IntroCard.astro").toBe("_blank");
+            expect(bib.getAttribute("rel"), "this site uses a bare target and lets the browser imply noopener; "
+                + "introducing rel on one link out of three makes the convention look accidental").toBeNull();
+            expect(bib.getAttribute("aria-label"), "an aria-label would REPLACE the bib's text with a summary")
+                .toBeNull();
+
+            // The accessible name is name-from-content, so it must be a superset of what
+            // is on screen — including the transcription of the aria-hidden glyph.
+            const name = (bib.textContent ?? "").replace(/\s+/g, " ").trim();
+            for (const part of [event.name, event.country, String(event.km).split(".")[0], PATCHES.strava_name]) {
+                expect(name, `the announced name must carry "${part}"`).toContain(part);
+            }
+        }
+    });
+
+    /**
+     * THE MARK IS A SHAPE AND IT IS PERMANENT. A hover cannot carry this — there is no
+     * hover on a phone, and this repo has already removed one card hover for advertising
+     * an affordance that did not exist. The glyph is aria-hidden, so the fact it carries
+     * has to exist in text too, which is what the sr-only span is for; a mark that is
+     * information and is hidden from everything is SC 1.1.1's exact case.
+     */
+    it("marks a linked bib with a shape, and says in text what the shape means", () => {
+        const doc = parseHTML(read(PAGES.all)).document;
+        const marks = [...doc.querySelectorAll(".bib-strava")];
+        expect(marks.length, "no Strava marks — this assertion would be vacuous")
+            .toBe(EVENTS.filter((e) => e.strava_activity_id !== undefined).length);
+
+        for (const mark of marks) {
+            const glyph = mark.querySelector(`span[class~="${iconClass(PATCHES.strava_icon)}"]`);
+            expect(glyph, "the mark must be the configured glyph, and it must have a rule — an icon class "
+                + "UnoCSS never generated renders as a mask box at zero size").toBeTruthy();
+            expect(glyph?.getAttribute("aria-hidden")).toBe("true");
+            expect(mark.querySelector(".sr-only")?.textContent?.trim(), "and the glyph must be transcribed")
+                .toBe(PATCHES.strava_name);
+            expect(mark.closest(".bib")?.tagName.toLowerCase(), "a bib wearing the mark must actually link")
+                .toBe("a");
+        }
+    });
+
+    /**
+     * THE TIME IS LABELLED, and the label is the assertion rather than a nicety. Elapsed
+     * and moving are far apart on these rides — 8:32:05 against 5:03:55 — so a bare time
+     * invites a reader to divide it into the distance above it and be 9 km/h wrong.
+     */
+    it("prints a finished race's elapsed time, labelled, and only where there is one", () => {
+        const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
+        const timed = EVENTS.filter((e) => e.elapsed_time !== undefined);
+        expect(timed.length, "no event carries a time — this assertion would be vacuous").toBeGreaterThan(0);
+        expect(timed.length, "and every event does — the absent half would be vacuous").toBeLessThan(EVENTS.length);
+
+        for (const event of EVENTS) {
+            const bib = bibs.find((b) => b.querySelector(".bib-name")?.textContent === event.name)!;
+            const row = bib.querySelector(".bib-time");
+            if (event.elapsed_time === undefined) {
+                expect(row, `${event.name} has no time, so its bib must print no time row`).toBeNull();
+                continue;
+            }
+            expect(row, `${event.name} must print its time`).toBeTruthy();
+            expect(row!.querySelector(".bib-time-value")?.textContent?.trim()).toBe(event.elapsed_time);
+            expect(
+                row!.querySelector(".bib-time-label")?.textContent?.trim(),
+                "an unlabelled time does not say which clock it is",
+            ).toBe(PATCHES.elapsed_label);
+        }
     });
 
     /**

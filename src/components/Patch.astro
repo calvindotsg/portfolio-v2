@@ -1,5 +1,5 @@
 ---
-import {goalForSport, PATCHES, type RaceEvent} from "../lib/constants";
+import {goalForSport, PATCHES, type RaceEvent, stravaActivityUrl} from "../lib/constants";
 import {patchDateSegments, type PatchState} from "../lib/projection";
 import {iconClass} from "../lib/icons";
 
@@ -42,13 +42,45 @@ const {event, state} = Astro.props;
  * away — SC 1.4.1 does not accept a visual treatment as the only carrier of
  * information. A finished bib needs no tag because it is the unmarked case: the
  * wall's own copy says what a solid bib means.
+ *
+ * THE WHOLE BIB IS THE LINK WHERE THERE IS ONE, and the tag it renders as is therefore
+ * dynamic. Safe, because every selector involved is class-based — `.bib`, `.bib--booked`,
+ * `.bib-meta` — as are `structuralSelector` and the colour model in patch-wall.test.ts;
+ * an element-name selector here would have made this a rewrite. `container-type` stays on
+ * whichever element wears `.bib`, or the hero's `22cqi` loses its container.
+ *
+ * IT IS CONDITIONAL ON THE ID, NOT ON THE STATE, and the difference is a real case rather
+ * than a hypothetical: Round the Island finishes on 3 August with no activity recorded,
+ * and must render as an ordinary finished bib. A bot-push simulation covers that date.
+ *
+ * `target="_blank"` and NO `rel`, matching this site's existing convention — Now.astro and
+ * IntroCard.astro both use a bare `target="_blank"` and browsers imply `noopener`.
+ * Introducing `rel` on one link out of three is how a convention starts to look accidental.
+ *
+ * NO `aria-label`. The accessible name is the bib's whole text — "12 Jul 2026 Ride 158.13
+ * KM MBG DCR 2026 - Krabi to Phuket Thailand Elapsed 9:41:31 on Strava" — which is verbose
+ * and is a true superset of what is on screen, this repo's rule. An aria-label would
+ * REPLACE all of that with a summary. The one addition is `PATCHES.strava_name`, and it is
+ * a transcription rather than an extra: the glyph is aria-hidden and carries real
+ * information, so SC 1.1.1 wants that information in text somewhere.
  */
 const date = patchDateSegments(event);
 const goal = goalForSport(event.sport);
 const [whole, fraction] = event.km.toFixed(2).split(".");
+const activity = stravaActivityUrl(event);
+// `div` rather than `li`: the LIST ITEM is the cell wrapper now, and a second one nested
+// inside it is invalid HTML that no test in this repo reads markup strictly enough to see.
+// Caught by looking at the built page, which is the only place it showed.
+const Tag = activity === null ? "div" : "a";
 ---
 
-<li class:list={["bib", `bib--${event.sport}`, state === "booked" && "bib--booked"]}>
+<li class="bib-cell">
+<Tag
+        class:list={["bib", `bib--${event.sport}`, state === "booked" && "bib--booked",
+                     activity !== null && "bib--linked"]}
+        href={activity ?? undefined}
+        target={activity === null ? undefined : "_blank"}
+>
     <p class="bib-meta">
         {/* One <time> per endpoint, never one around the whole range: `datetime` names a
             single instant, so a tour wrapped in one would tell a machine that nine days
@@ -63,14 +95,45 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
             <span class="bib-word">{goal.short_name}</span>
         </span>
         {state === "booked" && <span class="bib-tag">{PATCHES.booked_label}</span>}
+        {activity !== null && (
+                <span class="bib-strava">
+                    <span class={`${iconClass(PATCHES.strava_icon)} bib-icon`} aria-hidden="true"></span>
+                    <span class="sr-only">{PATCHES.strava_name}</span>
+                </span>
+        )}
     </p>
     <p class="bib-value">{whole}<span class="bib-fraction">.{fraction}</span></p>
     <p class="bib-unit">{goal.measurable_unit}</p>
     <p class="bib-name">{event.name}</p>
     <p class="bib-place">{event.country}</p>
+    {event.elapsed_time && (
+            <p class="bib-time">
+                <span class="bib-time-label">{PATCHES.elapsed_label}</span>
+                <span class="bib-time-value">{event.elapsed_time}</span>
+            </p>
+    )}
+</Tag>
 </li>
 
 <style>
+    /*
+     * THE GRID ITEM IS THE CELL, THE BIB IS INSIDE IT. One wrapper, for one reason: where
+     * a race has a verified activity the bib itself is an anchor, and an anchor cannot be
+     * a child of `.patch-wall` — that is a list and its children are list items.
+     *
+     * `display: grid` here rather than nothing, so the bib fills a cell the wall's row has
+     * stretched. Without it a bib in a row with a taller neighbour sits at its own height
+     * and the row goes ragged, which is a defect the previous single-element structure got
+     * for free and this one has to ask for.
+     *
+     * The cell carries no treatment of its own. Every class-based selector this file and
+     * tests/patch-wall.test.ts use still lands on `.bib`, so the structure changed and the
+     * colour model did not.
+     */
+    .bib-cell {
+        display: grid;
+    }
+
     /*
      * THE BIB'S OWN BOX. Four locals do all the work of the two treatments, so a
      * treatment is a set of values rather than a second copy of the layout:
@@ -98,7 +161,7 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
         container-type: inline-size;
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-areas: "date date" "value unit" "name name" "place place";
+        grid-template-areas: "date date" "value unit" "name name" "place place" "time time";
         align-content: start;
         row-gap: 0.3rem;
         padding: 0.7rem 0.8rem 0.65rem;
@@ -186,6 +249,19 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
         .bib--booked {
             border-width: 1px;
         }
+
+        /* The mode discards --accent along with everything else, so the outline would vanish
+           and a linked bib would be indistinguishable from an unlinked one in the only
+           channel it had left. LinkText is the colour reserved for exactly this, and it
+           is a system colour rather than a token, so it is set here. */
+        .bib--linked {
+            border-color: LinkText;
+        }
+
+        .bib--linked:hover,
+        .bib--linked:focus-visible {
+            outline-color: LinkText;
+        }
     }
 
     /*
@@ -207,6 +283,11 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
      * both of which print.
      */
     @media print {
+        .bib--linked:hover,
+        .bib--linked:focus-visible {
+            outline: none;
+        }
+
         .bib {
             --face: transparent;
             --hole: transparent;
@@ -251,7 +332,8 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
      * mark keeps the hue it was measured as.
      */
     .bib-date,
-    .bib-tag {
+    .bib-tag,
+    .bib-time-label {
         opacity: 0.8;
     }
 
@@ -376,6 +458,82 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
         letter-spacing: 0.14em;
         text-transform: uppercase;
         opacity: 0.8;
+    }
+
+    /*
+     * A LINKED BIB SAYS SO WITH A GLYPH, NOT WITH A HOVER. There is no hover on a phone,
+     * and this site has already removed one card hover for advertising an affordance that
+     * did not exist — the opposite failure is an affordance that exists and is never
+     * advertised. The Strava mark in the meta row is permanent and is a shape, so it
+     * carries the fact without leaning on colour (SC 1.4.1).
+     *
+     * The hover and focus outline is the second cue rather than the only one. It is an
+     * OUTLINE rather than the border, and that is what makes its contrast answerable: an
+     * outline paints outside the bib, so the surface it must clear is the card, which is
+     * the pair `--accent` is already held to 3:1 against in tests/build-output.test.ts.
+     * The border would have painted against the bib's own face, which differs by state
+     * and by theme — four pairs to hold instead of one.
+     */
+    .bib {
+        text-decoration: none;
+    }
+
+    .bib--linked:hover,
+    .bib--linked:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
+    .bib-strava {
+        display: inline-flex;
+        align-items: center;
+        margin-inline-start: auto;
+    }
+
+    /*
+     * THE TIME IS LABELLED, and the label is the point rather than a caption. Elapsed and
+     * moving are far apart on a long ride — 8:32:05 against 5:03:55 on the 10 July bib —
+     * so a bare time invites a reader to divide it into the distance printed above it and
+     * conclude 18.8 km/h where the ride was 27.7.
+     *
+     * The label is dimmed with the date, the tag and the place, which puts it under the
+     * same composited-contrast assertion as those three: the authored ink is `--background`
+     * on `--text`, 18.86:1 before any opacity touches it, so the floor is only checkable
+     * from the composite. The VALUE is not dimmed — it is the second real figure on the
+     * bib after the distance, and the only one that says what the day cost.
+     */
+    .bib-time {
+        grid-area: time;
+        display: flex;
+        /*
+         * IT WRAPS, and that is not defensive tidiness — it was measured. At a 40px root
+         * on a 320px viewport the bib is 150px wide and `ELAPSED 9:41:31` wants 72.44px
+         * more than it has, so the time ran off the right edge of a box that clips. The
+         * label and the value are two words with a natural break between them, so the
+         * value simply drops to its own line and nothing is lost. `.bib-meta` wraps for
+         * the same reason and has since it was written.
+         *
+         * The sweep that found it could not see it at first: the wall's instrument had no
+         * visually-hidden exclusion, and the sr-only text this bib introduced buried a
+         * real 72px loss under thousands of pixels of fake one.
+         */
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.45em;
+        margin: 0;
+        font-size: 0.625rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .bib-time-label {
+        font-weight: 700;
+    }
+
+    .bib-time-value {
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.08em;
     }
 
     .bib-name {
