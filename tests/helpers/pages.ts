@@ -40,3 +40,26 @@ export function classTokens(page: string): Set<string> {
             .flatMap((m) => m[1].split(/\s+/).filter(Boolean)),
     );
 }
+
+/**
+ * EVERY EMITTED CSS CHUNK, as `{file, css}` — for questions about the BUILD'S FILE
+ * LAYOUT, which is the one thing `pageCss()` cannot answer.
+ *
+ * `pageCss()` unions a page's inline blocks with the chunks it links, which is right for
+ * "what does the cascade do here" and useless for "is this rule shipped twice": a shared
+ * chunk is inside every page's union by construction, so every rule would look duplicated.
+ * Asking whether two FILES carry the same rule needs the files.
+ *
+ * It is a named helper rather than a `readdirSync` in a test on purpose. The suite has a
+ * gate forbidding chunk reads from test files — sixteen call sites once guessed a chunk
+ * filename and read one arbitrary file as if it were the page's CSS — and the rule that
+ * keeps that gate honest is layered rather than listed: the helpers own build-level reads
+ * and say which question they answer, tests go through them.
+ */
+export function cssChunks(): {file: string, css: string}[] {
+    const dir = "dist/_astro";
+    const chunks = readdirSync(dir).filter((f) => f.endsWith(".css")).sort()
+        .map((file) => ({file, css: readFileSync(`${dir}/${file}`, "utf8")}));
+    if (chunks.length === 0) throw new Error("dist/_astro ships no CSS — every chunk assertion would be vacuous");
+    return chunks;
+}

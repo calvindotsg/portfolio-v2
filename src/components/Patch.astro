@@ -67,6 +67,7 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
     <p class="bib-value">{whole}<span class="bib-fraction">.{fraction}</span></p>
     <p class="bib-unit">{goal.measurable_unit}</p>
     <p class="bib-name">{event.name}</p>
+    <p class="bib-place">{event.country}</p>
 </li>
 
 <style>
@@ -97,7 +98,7 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
         container-type: inline-size;
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-areas: "date date" "value unit" "name name";
+        grid-template-areas: "date date" "value unit" "name name" "place place";
         align-content: start;
         row-gap: 0.3rem;
         padding: 0.7rem 0.8rem 0.65rem;
@@ -351,6 +352,30 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
         letter-spacing: 0.2em;
         text-transform: uppercase;
         opacity: 0.7;
+    }
+
+    /*
+     * WHERE THE RACE IS, on its own line under the name rather than appended to it.
+     *
+     * The name row already wraps to two lines on the longest event the calendar holds, so
+     * a middot and a country on the same line would make the wrap point depend on the
+     * length of two unrelated strings. Its own row costs 15px flat on a page that
+     * scrolls — /patches has no height clamp, unlike the home page — and it is one grid
+     * area rather than a nested box.
+     *
+     * It is dimmed with the date and the tag rather than set at full ink: the place is
+     * context for the race, not a second name for it. That puts it under the same
+     * composited-contrast assertion as those two, which is where the 4.5:1 floor is
+     * actually checked — the authored ink is 18.86:1 and tells you nothing.
+     */
+    .bib-place {
+        grid-area: place;
+        margin: 0;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        opacity: 0.8;
     }
 
     .bib-name {

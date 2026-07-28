@@ -6,7 +6,7 @@ import {describe, expect, it} from "vitest";
 import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
 import {pageCss} from "./helpers/css";
-import {builtPages, classTokens} from "./helpers/pages";
+import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
 /**
  * Asserts on what `pnpm build` actually emits. A green build is not evidence the
@@ -97,21 +97,58 @@ describe("dist/", () => {
     });
 
     /**
-     * ONE CHUNK FOR THE WHOLE SITE, which is a claim about how much a visitor
-     * downloads rather than about tidiness: with four pages sharing one layout, one
-     * stylesheet means the second page a reader opens costs no CSS at all.
+     * NO PAGE'S CSS IS DUPLICATED ACROSS PAGES — which is what "how much does a visitor
+     * download" actually reduces to, and it is NOT the same claim as "exactly one chunk".
      *
-     * IT SURVIVED THE PATCH WALL — measured, because the handover this route was
-     * built from predicted it would not. Adding three routes left the count at one
-     * and renamed the chunk (`index.*.css` to `projection.*.css`, after whichever
-     * module Vite now treats as the entry). What DID change is that Astro's
-     * `inlineStylesheets: "auto"` began inlining a block into every page, where
-     * there was none before. That is the reason `pageCss()` exists and the reason
-     * this assertion is not the interesting one; see the next test.
+     * THIS ASSERTION USED TO SAY `css.length === 1` and the docstring called that "a
+     * claim about how much a visitor downloads". It was really a claim about a BYTE
+     * COUNT: Astro's `inlineStylesheets: "auto"` inlines a component's scoped CSS up to
+     * ~4kB and emits a chunk past it, so "one chunk" held only while `Patch.astro`'s
+     * block stayed under the threshold. Adding one 15px line to the bib crossed it, and
+     * the count went to two with nothing wrong.
+     *
+     * Measured both ways before rewriting this, because the change had to be shown to be
+     * neutral rather than assumed:
+     *
+     *     visitor path            before (1 chunk + inline)      after (2 chunks)
+     *     / only                  26.3kB                         26.3kB
+     *     / then /patches         26.3 + 4.1 inline = 30.4kB     26.3 + 4.2 = 30.5kB
+     *     all three patch pages   26.3 + 3 x 4.1 = 38.6kB        26.3 + 4.2 = 30.5kB
+     *
+     * So the split costs one extra request on the first wall page and SAVES 8kB across
+     * the wall, because a chunk is cached where an inline block is re-sent per page. The
+     * old assertion would have blocked that as a regression.
+     *
+     * What is left is the property that cannot be satisfied by luck: the same rule must
+     * not ship twice. `pageCss()` stays per-page for the separate question of what the
+     * cascade does on one page.
      */
-    it("emits exactly one stylesheet, so a second page costs no CSS", () => {
-        const css = readdirSync("dist/_astro").filter((f) => f.endsWith(".css"));
-        expect(css.length).toBe(1);
+    it("ships no CSS rule on more than one route's worth of files", () => {
+        // Selector text is the unit: a rule duplicated across two chunks is bytes every
+        // visitor to both pages pays twice, which is the thing the old count stood in for.
+        const selectorsOf = (css: string) =>
+            new Set([...css.matchAll(/(^|})\s*([^{}@]+)\{/g)].map((m) => m[2].trim()).filter(Boolean));
+        const seen = new Map<string, string>();
+        const shared: string[] = [];
+        for (const {file, css} of cssChunks()) {
+            for (const selector of selectorsOf(css)) {
+                const first = seen.get(selector);
+                if (first !== undefined && first !== file) shared.push(`${selector} in ${first} and ${file}`);
+                else seen.set(selector, file);
+            }
+        }
+        expect(shared.slice(0, 5), "these rules are emitted in more than one chunk").toEqual([]);
+
+        // And no page may load a chunk while also inlining the same rules.
+        for (const page of builtPages()) {
+            const html = read(page);
+            const inline = [...html.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
+            if (inline === "") continue;
+            const linked = [...html.matchAll(/rel="stylesheet" href="([^"]+)"/g)]
+                .map((m) => read(`dist${m[1]}`)).join("\n");
+            const both = [...selectorsOf(inline)].filter((sel) => selectorsOf(linked).has(sel));
+            expect(both.slice(0, 5), `${page} both inlines and links these rules`).toEqual([]);
+        }
     });
 
     /**
@@ -166,16 +203,43 @@ describe("dist/", () => {
      * and wrong the moment a second route exists, which is the worst shape a test
      * helper can have. Fifteen call sites had it; this stops the sixteenth.
      *
-     * The two survivors in this file are deliberate: they count emitted files as an
-     * output-hygiene check, and never read a rule out of one.
+     * The survivors in this file are deliberate: they count emitted files as an
+     * output-hygiene check and never read a rule out of one. A test that legitimately
+     * needs the rules PER FILE — "is this selector shipped twice" is such a question, and
+     * `pageCss()` cannot answer it because a shared chunk is inside every page's union —
+     * goes through `cssChunks()` in the helpers layer instead.
      */
     it("routes every CSS read in the suite through pageCss()", () => {
         const files = readdirSync("tests", {recursive: true, encoding: "utf8"})
             .filter((f) => f.endsWith(".ts"));
         const offenders = files.filter((f) => {
-            if (f === "helpers/css.ts") return false;                     // defines pageCss; documents the idiom
+            // The HELPERS layer owns build-level reads — `pageCss()` is defined in one of
+            // them and `cssChunks()` in another — and each says which question it answers.
+            // Exempting the directory rather than a growing list of filenames is what keeps
+            // this gate structural: a test that needs chunk files goes through a named
+            // helper, which is the behaviour being enforced, not an exception to it.
+            if (f.startsWith("helpers/")) return false;
             const src = read(`tests/${f}`);
-            return /readdirSync\("dist\/_astro"\)[\s\S]{0,120}?endsWith\("\.css"\)[\s\S]{0,120}?readFileSync|read\(`dist\/_astro\//.test(src);
+            // ANY literal path INTO the asset directory, whichever function does the
+            // reading. The previous pattern matched two spellings only — a
+            // readdirSync-then-readFileSync chain, and this file's own `read` helper — so a
+            // plain readFileSync of a named chunk inside that directory walked straight
+            // through it while the docstring above claimed "every CSS read in the suite".
+            // Verified by injecting exactly that in a scratch test file: the old pattern
+            // passed it, this one fails it.
+            //
+            // LISTING the directory stays legal, which is why the path has to go DEEPER
+            // than the directory itself: the JavaScript-count gate below lists it and never
+            // opens a file, and that is the output-hygiene use this rule was always fine
+            // with.
+            //
+            // NOTE THE SELF-REFERENCE TRAP — this comment cannot spell the path it is
+            // matching, or the gate reports this file. It did, once.
+            //
+            // A computed path still evades this, and that is stated rather than papered
+            // over: a regex over source cannot follow a variable. The helpers layer is
+            // where computed chunk paths are supposed to live, and it is exempt.
+            return /["'`]dist\/_astro\/[^"'`]/.test(src);
         });
         expect(offenders, "read the page's CSS with pageCss(), not by guessing a chunk filename").toEqual([]);
     });

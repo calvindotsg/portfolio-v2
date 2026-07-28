@@ -30,7 +30,7 @@ const PAGES = {
 } as const;
 
 const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
-    ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", ...over});
+    ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over});
 
 describe("a bib's state is derived from the calendar, never stored", () => {
     it("is finished only once the whole event is behind the stamp", () => {
@@ -397,6 +397,22 @@ describe("dist/patches", () => {
         const finished = await rendered("finished");
         expect(finished.querySelector(".bib-tag"), "a finished bib is the unmarked case").toBeNull();
         expect(finished.querySelector("li")?.classList.contains("bib--booked")).toBe(false);
+    });
+
+    /**
+     * Compared against {@link EVENTS} rather than against a list of countries written
+     * here: `country` is human-edited, so a mismatch is wanted feedback, and a literal
+     * would have to be updated in two places every time a race is added.
+     */
+    it("prints each race's country on its own bib", () => {
+        const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
+        expect(bibs.length, "no bibs — this assertion would be vacuous").toBe(EVENTS.length);
+        const byName = new Map(EVENTS.map((e) => [e.name, e.country]));
+        for (const bib of bibs) {
+            const name = bib.querySelector(".bib-name")?.textContent ?? "";
+            expect(bib.querySelector(".bib-place")?.textContent, `${name} must print its country`)
+                .toBe(byName.get(name));
+        }
     });
 
     it("prints every distance to two decimals, split so the fraction can be set small", () => {

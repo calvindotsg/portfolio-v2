@@ -19,6 +19,17 @@ import stravaProgress from "../data/strava-progress.json"
  * sport-scoped path shapes tried, every one either 404s or redirects to /login.
  * A logged-out visitor meets a login wall whichever Strava URL they are given.
  *
+ * PER-ACTIVITY URLS ARE THE SAME WALL, and this paragraph exists because the opposite
+ * was believed on good-looking evidence. `curl` gets **HTTP 200 with no redirect** from
+ * `strava.com/activities/<id>`, which reads as "public" and was recorded as such. It is
+ * not: fetched and read, the page for a logged-out visitor is
+ * *"Log in to see 'MBG DCR 2026 Krabi to Phuket'"* and a sign-up prompt. The title is
+ * there; the distance, the date and the time are not. Checked on both of the owner's two
+ * finished 2026 rides (19279762093 and 19254155835) on 2026-07-28.
+ *
+ * So a status code is not an answer to "can a reader see this" — READ THE PAGE. That
+ * distinction is the whole reason {@link RaceEvent} has no `strava_activity_id`.
+ *
  * THAT NEVER SETTLED WHAT A GOAL CARD MAY LINK TO, and the note used to read as
  * though it did. This site serves its own per-sport page — `/patches/cycling` and
  * `/patches/running`, one prerendered route each, no login anywhere — and each goal
@@ -222,6 +233,22 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * are absent rather than left for a future editor to fill in expecting them to do
  * something.
  *
+ * DELIBERATELY NO `strava_activity_id`, and the reason is a measurement rather than a
+ * preference. Linking a finished bib to its Strava activity was planned and dropped:
+ * a logged-out reader lands on a login wall, so the bib would spend the page's strongest
+ * treatment on a dead end. See {@link STRAVA_PROFILE_URL}, where the evidence is — the
+ * URL returns 200, which is what made this look available.
+ *
+ * DELIBERATELY NO `elapsed_time`, YET, and this one is only blocked on the data. A
+ * race's finishing time is immutable history, so it belongs beside `km` and `name` here
+ * rather than in the bot's JSON: the bot exists to track a total that MOVES, and
+ * fetching an unchanging number nightly would add a second API endpoint, an
+ * event-to-activity mapping, a new bot-owned key, and a new way for an unattended push
+ * to turn the deploy red — for a figure that was true the moment the race ended. The two
+ * finished races' times are not in this repository and cannot be read off Strava without
+ * an account, so they have to be typed in. Add the field WITH the values: a rendered line
+ * no event fills makes its CSS an orphan, which `tests/build-output.test.ts` fails.
+ *
  * Named `RaceEvent` because `Event` is a live DOM global in this module.
  */
 export type RaceEvent = {
@@ -232,15 +259,34 @@ export type RaceEvent = {
     name: string
     km: number
     sport: Sport
+    /**
+     * Where the race is, as a country name a reader would say out loud.
+     *
+     * REQUIRED RATHER THAN OPTIONAL, deliberately. Every bib prints it, so an event
+     * without one is a bib with a blank line — and `pnpm check` is the first half of
+     * Netlify's build command, so making it required means the next race added cannot
+     * quietly omit it. Optional would put that guarantee in a test that has to be
+     * written and remembered; the type does it for free.
+     *
+     * A NAME, NOT AN ISO CODE AND NOT A FLAG. This string is printed for a person to
+     * read, so "SG" would make them expand it; a flag emoji would be the only emoji on
+     * the site, and `tests/build-output.test.ts` gates against emoji shipping at all —
+     * neither theme can tone one, and a screen reader announces it as a country name
+     * anyway, which is exactly this string. {@link METADATA.address_country} is an ISO
+     * code for the opposite reason: schema.org's `addressCountry` is consumed by a
+     * machine. Same fact, two audiences, so two spellings is correct here rather than a
+     * duplication to unify.
+     */
+    country: string
 }
 
 export const EVENTS: readonly RaceEvent[] = [
-    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling"},
-    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling"},
-    {date: "2026-08-02", name: "Round the Island Bike Adventure", km: 121.98, sport: "cycling"},
-    {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running"},
-    {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling"},
-    {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running"},
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling", country: "Thailand"},
+    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling", country: "Thailand"},
+    {date: "2026-08-02", name: "Round the Island Bike Adventure", km: 121.98, sport: "cycling", country: "Singapore"},
+    {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
+    {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
+    {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running", country: "Singapore"},
 ]
 
 /**
