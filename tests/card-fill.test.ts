@@ -604,6 +604,15 @@ describe("a card sizes to its content, not to its grid area", () => {
                 why: "the 1px box is the clip technique itself, not a box any reader sees ink in",
                 matches: (el) => el.classList.contains("sr-only"),
             },
+            {
+                what: "the goal card's progress rule",
+                why: "it holds no ink, so there is nothing in it for a text size to clip. 2px is a"
+                    + " stroke weight, not a container: a hairline that grew with the reader's type"
+                    + " would stop being a hairline and start being a bar, which is the object this"
+                    + " design deliberately stopped being. Its WIDTH is what carries the data and"
+                    + " that is a percentage",
+                matches: (el) => el.classList.contains("measure"),
+            },
         ];
 
         const hasAbsoluteLength = (value: string) =>
@@ -653,8 +662,15 @@ describe("a card sizes to its content, not to its grid area", () => {
         // green. Every element whose top edge coincides with the body's top edge —
         // the first-child chain below the heading — can add to that space, so all
         // of them are checked. A later sibling cannot, and is not.
-        const bars = [...document.querySelectorAll("[role=progressbar]")];
-        expect(bars.length, "no progress bar found — this assertion would be vacuous").toBeGreaterThan(0);
+        // THE ANCHOR USED TO BE THE PROGRESS BAR, because the bar was the first thing
+        // under the goal cards' headings and the margin in question was its own. It is
+        // not any more: the hero figure is, and the bar is a later SIBLING whose 0.25rem
+        // top margin is deliberate and cannot stack with the heading's space because the
+        // hero sits between them. So the anchor moved with the layout rather than the
+        // guard being dropped — a walk that no longer reaches the element it was written
+        // for is exactly the way this assertion goes quietly vacuous.
+        const firstUnderHeading = [...document.querySelectorAll(".goal-figure")];
+        expect(firstUnderHeading.length, "no goal figure found — this assertion would be vacuous").toBeGreaterThan(0);
 
         const headed = allCards.filter((c) => c.querySelector("h2"));
         expect(headed.length, "every titled card must be counted here, or the path below its heading goes unchecked").toBe(6);
@@ -689,12 +705,12 @@ describe("a card sizes to its content, not to its grid area", () => {
                 }
             }
         }
-        // Non-vacuity in the direction that matters: every bar must be on a path we
-        // actually walked, or the assertion could be true of nothing.
-        for (const bar of bars) {
+        // Non-vacuity in the direction that matters: every goal card's figure must be on
+        // a path we actually walked, or the assertion could be true of nothing.
+        for (const hero of firstUnderHeading) {
             expect(
-                checked.some((el) => el === bar || el.contains(bar as never)),
-                "a progress bar sits outside every heading-to-body path this assertion walks, so its own top margin is unchecked",
+                checked.some((el) => el === hero || el.contains(hero as never)),
+                "a goal card's figure sits outside every heading-to-body path this assertion walks, so its own top margin is unchecked",
             ).toBe(true);
         }
     });

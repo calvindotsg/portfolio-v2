@@ -469,6 +469,16 @@ export function patchesEarned(
 }
 
 /**
+ * Where the countdown stops counting in days and starts counting in weeks.
+ *
+ * A FORTNIGHT RATHER THAN A WEEK, because the rung it would otherwise print is the one
+ * that reads worst: "in 1 week" is vaguer than "in 9 days" while being no shorter, and a
+ * single week is a span a reader already holds in days. Starting at 14 means the smallest
+ * week count this can produce is two, which is also why there is no singular string.
+ */
+const DAYS_BEFORE_WEEKS = 14
+
+/**
  * THE SENTENCE THE GOAL CARD PRINTS, and it lives here rather than in the component so
  * that the tests can assert the wording rules against the real thing. A component that
  * assembled this inline would leave the suite either untested or asserting a copy of the
@@ -481,6 +491,12 @@ export function patchesEarned(
  *
  * `underWay` is checked BEFORE the day count for the reason it exists: mid-tour the start
  * is behind the stamp, and the arithmetic branch would print "in -3 days".
+ *
+ * THE WEEK COUNT IS FLOORED, AND THAT DIRECTION IS DELIBERATE. 61 days is eight weeks and
+ * five days; floored it reads "in 8 weeks", which says the race arrives sooner than it
+ * does, and rounded it would read "in 9 weeks", which says there is a week of preparation
+ * that does not exist. Of the two ways to be wrong by up to six days, the one that leaves
+ * the reader early is the safe one. The exact date is on the bib either way.
  */
 export function nextRaceLine(next: NextRace | null, earned: number): string {
     if (next === null) {
@@ -490,5 +506,6 @@ export function nextRaceLine(next: NextRace | null, earned: number): string {
     if (next.underWay) return NEXT_RACE.under_way
     if (next.daysAway === 0) return NEXT_RACE.today
     if (next.daysAway === 1) return NEXT_RACE.tomorrow
-    return NEXT_RACE.in_days.replace("{days}", String(next.daysAway))
+    if (next.daysAway < DAYS_BEFORE_WEEKS) return NEXT_RACE.in_days.replace("{days}", String(next.daysAway))
+    return NEXT_RACE.in_weeks.replace("{weeks}", String(Math.floor(next.daysAway / 7)))
 }

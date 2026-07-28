@@ -266,21 +266,27 @@ describe("an inline icon is centred on its text's cap band", () => {
      * It sits in the card's corner, not in a line of prose, so there is no cap line for
      * the baseline nudge to centre it on — its container centres it instead.
      *
-     * The next-race chip's chevron joins this group for the same reason: the chip is an
-     * `inline-flex` anchor, so the glyph is a flex item and is blockified. That makes TWO
-     * flex-hosted icons per goal card — the bar's sport glyph and the chevron — which is
-     * why the count below multiplies rather than adds.
+     * The events control's chevron joins this group for the same reason: the control is
+     * an `inline-flex` anchor, so the glyph is a flex item and is blockified.
+     *
+     * IT IS ONE PER GOAL CARD NOW, NOT TWO. The progress bar used to carry the sport's
+     * icon riding the end of its fill; the bar is a 2px rule and carries no ink at all,
+     * so the chevron is the goal card's only flex-hosted glyph. Each goal's `goal_logo`
+     * is still configured and still safelisted — the patch wall draws it on every bib —
+     * it simply has no home on the HOME page any more, which is why the assertion in
+     * tests/rendered-html.test.ts about icons rendering here was narrowed rather than
+     * this count being fudged.
      *
      * Be careful quoting a number here, because two files legitimately count differently.
-     * This group TOTALS thirteen — six social links, two goal bars, two next-race chevrons,
-     * both toggle glyphs and this one — so there are twelve others. Only twelve are ever
-     * laid out at once, since the toggle hides whichever glyph is not current. `Now.astro`
-     * says "nine other icons" for a set that predates the chevrons; that sentence is about
-     * the ones relying on a container to centre them and is counted separately there.
+     * This group TOTALS eleven — six social links, two chevrons, both toggle glyphs and
+     * this one — so there are ten others. Only ten are ever laid out at once, since the
+     * toggle hides whichever glyph is not current. `Now.astro` says "nine other icons"
+     * for a set that predates the chevrons; that sentence is about the ones relying on a
+     * container to centre them and is counted separately there.
      */
     const TOGGLE_GLYPHS = 2;
-    /** Per goal card: the progress bar's sport glyph, and the next-race chip's chevron. */
-    const FLEX_ICONS_PER_GOAL = 2;
+    /** Per goal card: the events control's chevron, and nothing else since the bar lost its glyph. */
+    const FLEX_ICONS_PER_GOAL = 1;
     const EXPECTED_FLEX_HOSTED = LINKS.length + GOALS.length * FLEX_ICONS_PER_GOAL + TOGGLE_GLYPHS
         + [NOW.explainer_icon].length;
     const EXPECTED_INLINE_HOSTED = [WELCOME.greeting_icon, ...CAREER.map((c) => c.icon), FOOTER.icon].length;

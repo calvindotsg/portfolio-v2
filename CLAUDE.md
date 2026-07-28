@@ -7,7 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a personal portfolio website built with Astro, featuring a bento-style,
 minimal design. The home page is a single-screen bento grid showing Calvin's
 professional background, cycling goals, and personal interests; `/patches` is a
-wall of this year's races drawn as bibs, with a prerendered page per sport.
+wall of this year's races drawn as bibs, with a prerendered page per sport. A patch
+is a race **completed and earned** — an outline bib is an event that has not become one
+yet, which is why the wall's headings say "events" and only earned bibs are called
+patches.
 
 ## Development Commands
 
@@ -77,12 +80,15 @@ preview is byte-identical to what Netlify serves.
 - `src/layouts/BasicLayout.astro` wraps every page
 - `src/pages/index.astro` — the bento grid, responsive, one screen at the default
   text size. Its `<main>` owns the height budget and the 32/32 lg grid. The
-  right-hand stack (both goal cards plus Now) has **2px** of unspent height left at
+  right-hand stack (both goal cards plus Now) has **4.4px** of unspent height left at
   the tightest lg viewport — read the budget note in `components/Goal.astro` before
   adding a line to any of those three cards
-- Each goal card carries a next-race chip linking to `/patches/<sport>`
-  (`components/NextRace.astro`). It is the only path from the home page to the wall,
-  and `tests/build-output.test.ts` walks the link graph from `/` to keep it that way
+- A goal card's body is a hero figure, a 2px progress rule spanning the body, the
+  required rate, the countdown, and a control (`components/EventsLink.astro`) reading
+  `My <sport> events ›`. That control is the only path from the home page to
+  `/patches/<sport>`, and `tests/build-output.test.ts` walks the link graph from `/`
+  to keep it that way — and asserts the destination is headed with the control's own
+  words, which is a pairing no single-page test can see
 - `src/pages/patches/[...sport].astro` — the patch wall. One rest-parameter route
   prerenders three pages (`/patches`, `/patches/cycling`, `/patches/running`), so
   filtering by sport is a real URL rather than client state. Whether a bib is
@@ -96,11 +102,13 @@ All site content is managed through `src/lib/constants.ts`:
 - `CAREER`: Professional experience
 - `ABOUT_ME`: Personal description
 - `GOALS`: Goal progress tracking (cycling, running)
-- `NEXT_RACE`: the goal cards' next-race chip copy — width-budgeted, see the note there
+- `NEXT_RACE`: the goal cards' countdown ladder and the control's label — width-budgeted,
+  and the label is also the heading of the page it opens; see the note there
 - `WELCOME`: Hero section content  
 - `NOW`: Current status
 - `EVENTS`: Races entered this year — read by both the projection and the patch wall
-- `PATCHES`: The patch wall's own prose
+- `PATCHES`: the wall's own prose. Its heading is `My events`; "patch wall" survives in
+  the URL and the metaphor, not as a visible title
 - `METADATA`: SEO and site metadata
 
 ## Deployment

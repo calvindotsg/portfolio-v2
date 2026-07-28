@@ -2,7 +2,7 @@
 import Layout from "../../layouts/BasicLayout.astro";
 import Card from "../../components/Card/index.astro";
 import Patch from "../../components/Patch.astro";
-import {GOAL_YEAR, GOALS, goalForSport, METADATA, PATCHES, type Sport} from "../../lib/constants";
+import {GOAL_YEAR, GOALS, goalForSport, METADATA, NEXT_RACE, PATCHES, type Sport} from "../../lib/constants";
 import {patchWall} from "../../lib/projection";
 import {iconClass} from "../../lib/icons";
 
@@ -67,13 +67,23 @@ const filters = [
  * repeated three times is a real navigation cost. The heading and the title are
  * built from the same two strings for the same reason the goal cards' headings are:
  * a sport is called what the goal calls it, in one place.
+ *
+ * A SPORT PAGE IS HEADED WITH THE VERY STRING ITS CONTROL WEARS, not with a parallel
+ * template, and that is what stops the two drifting. The goal card offers "My cycling
+ * events" and this page answers to the same three words; the previous pairing said
+ * "events" on the control and "Cycling patches" at the top, so the vocabulary broke at
+ * the click. Reading NEXT_RACE.control here makes that break impossible rather than
+ * merely corrected. (The all-sports page cannot use it — there is no sport to substitute —
+ * so PATCHES.heading carries that one.)
  */
-const heading = goal === undefined ? PATCHES.heading : `${goal.goal_name} patches`;
-const title = `${heading} · ${GOAL_YEAR} — ${METADATA.name}`;
-
 // The scope sentence has to narrow with the page — "every race" is a claim only
 // /patches can make. See the note on PATCHES.
 const sportWord = goal?.goal_name.toLowerCase() ?? "";
+
+const heading = goal === undefined
+    ? PATCHES.heading
+    : NEXT_RACE.control.replace("{sport}", sportWord);
+const title = `${heading} · ${GOAL_YEAR} — ${METADATA.name}`;
 const lede = goal === undefined
     ? `${PATCHES.scope_all} ${PATCHES.key}`
     : `${PATCHES.scope_sport.replace("{sport}", sportWord)} ${PATCHES.key}`;
@@ -110,9 +120,15 @@ const description = goal === undefined
                      and the mechanism is not about this heading. Every text column on the home page
                      sits inside a card that clips, so a word too long for 320px is absorbed there;
                      this heading is the site's only un-clipped text column, so ITS minimum intrinsic
-                     width sets the document's. Measured at 320px: the word "patches" alone wants
-                     311.8px at a 44px root, plus main's own padding, and the page carried a 14px
-                     horizontal scroll (36px at a 48px root).
+                     width sets the document's.
+
+                     THE WORST WORD IS NO LONGER "patches" — the headings are "My events" and
+                     "My {sport} events" now, so it is "running", and the page it bites on moved
+                     with it. Re-measured at 320px with the class removed, as horizontal document
+                     overflow: /patches/running carries 19px at a 48px root, 76px at 56 and 132px
+                     at 64, while /patches and /patches/cycling are clean until 56. The previous
+                     headings were worse at every one of those points (36px and 44px at a 48px
+                     root), so the rename bought headroom here rather than spending it.
 
                      THE FAMILIAR UTILITY DOES NOT WORK HERE, which was measured after shipping it by
                      mistake. `overflow-wrap: break-word` breaks the rendered line but is defined
@@ -123,9 +139,12 @@ const description = goal === undefined
                      name in Patch.astro uses the other value legitimately, because it sits in a grid
                      cell that already bounds it.
 
-                     With `anywhere`: docOverflow 0 at 320px out to a 48px root, on all three
-                     routes. Nothing changes at any ordinary size — neither value breaks a word that
-                     has another way to fit. -->
+                     With `anywhere`: docOverflow 0 at 320px out to a 64px root, on all three
+                     routes — two roots further than the previous headings reached. The 22px that
+                     appears at a 72px root is NOT this heading and is unchanged by the rename:
+                     identical on a build of the previous revision, so it is something else on the
+                     page and predates all of this. Nothing changes at any ordinary size — neither
+                     value breaks a word that has another way to fit. -->
                 <h1 class="text-3xl font-bold m-0 break-anywhere">{heading}</h1>
                 <p class="text-sm max-w-[60ch] m-0">{lede}</p>
             </div>
