@@ -503,6 +503,15 @@ describe("dist/patches", () => {
         // Both are outside the WCAG 1.4.4 bracket, which tops out at a 32px root, so neither is
         // a conformance failure — which is presumably how two passes over that file walked past
         // the tag. The ink still lands on the card at 1.045:1 and is lost.
+        //
+        // TWO ESCAPERS ARE DELIBERATELY NOT IN THIS LIST, and naming them is the point — a list
+        // that silently omits known instances is the failure this comment is about. Measured on
+        // both trees at 320px: `.bib-word` ("Ride"/"Run") escapes 9.22px at a 44px root and
+        // 38.84 at 48, and the `<time>` element inside `.bib-date` escapes 6.91 at 48. Both are
+        // pre-existing, both are unchanged by this branch, and neither is fixed here because the
+        // remedy is not free the way it is for the four above: `anywhere` on a three-letter sport
+        // word breaks it mid-word ("Ri/de"), which is a legibility trade rather than a fix, and
+        // that is the owner's call. Recorded, not smuggled in.
         for (const cls of ["bib-time", "bib-place", "bib-tag", "bib-go"]) {
             const owned = rules.filter((r) => r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel)));
             expect(owned.length, `no rule for .${cls} — this assertion would be vacuous`).toBeGreaterThan(0);
