@@ -291,8 +291,9 @@ describe("NOW", () => {
     });
 
     /**
-     * The explainer is an icon with no visible words, so this string is the whole of
-     * what a screen reader announces for it. Two things are asserted, and the second
+     * The explainer is an icon with no visible words, so this string OPENS what a screen
+     * reader announces for it — the whole name is this plus NEW_TAB_NOTICE, which the
+     * anchor carries as a second sr-only span. Two things are asserted, and the second
      * is the one worth having.
      *
      * It must SAY WHAT THE DESTINATION EXPLAINS, not gesture at it. The wording this
@@ -306,7 +307,7 @@ describe("NOW", () => {
         expect(NOW.explainer_name.trim().length, "an icon-only link with no accessible name announces as its URL").toBeGreaterThan(0);
         expect(
             NOW.explainer_name.toLowerCase(),
-            `the explainer's whole accessible name is "${NOW.explainer_name}"; it has to name what the link explains, because there is no visible text beside it to supply the subject`,
+            `the explainer's accessible name opens with "${NOW.explainer_name}"; it has to name what the link explains, because there is no visible text beside it to supply the subject`,
         ).toContain("now page");
     });
 });

@@ -1,7 +1,7 @@
 ---
 import Card from "./Card/index.astro";
 import Pulse from "./Pulse.astro";
-import {NOW} from "../lib/constants";
+import {NEW_TAB_NOTICE, NOW} from "../lib/constants";
 import {iconClass} from "../lib/icons";
 
 /*
@@ -56,6 +56,11 @@ import {iconClass} from "../lib/icons";
         >
             <span class={`${iconClass(NOW.explainer_icon)} shrink-0`} aria-hidden="true"></span>
             <span class="sr-only">{NOW.explainer_name}</span>
+            {/* A second sr-only span rather than a longer explainer_name: that string is
+                the SUBJECT half of the name — what the destination explains — and this one
+                says what the link DOES, which is only useful once the reader knows what the
+                link is. Announced together: "What's a /now page? (opens in a new tab)". */}
+            <span class="sr-only">{NEW_TAB_NOTICE}</span>
         </a>
         <Pulse/>
     </Fragment>

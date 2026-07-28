@@ -1,5 +1,5 @@
 ---
-import {goalForSport, PATCHES, type RaceEvent, stravaActivityUrl} from "../lib/constants";
+import {goalForSport, NEW_TAB_NOTICE, PATCHES, type RaceEvent, stravaActivityUrl} from "../lib/constants";
 import {patchDateSegments, type PatchState} from "../lib/projection";
 import {iconClass} from "../lib/icons";
 
@@ -121,6 +121,11 @@ const Tag = activity === null ? "div" : "a";
                 <span class="bib-time-value">{event.elapsed_time}</span>
             </p>
     )}
+    {/* LAST CHILD, so the warning lands at the END of a 92-character accessible name
+        rather than third in it — see NEW_TAB_NOTICE in constants.ts, which records the
+        measurement. Conditional on the LINK, not on the state: an earned bib with no
+        Strava id is an ordinary <div> and opens nothing. */}
+    {activity !== null && <span class="sr-only">{NEW_TAB_NOTICE}</span>}
 </Tag>
 </li>
 

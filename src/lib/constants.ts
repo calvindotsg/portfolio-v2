@@ -471,6 +471,47 @@ export const WELCOME: {
 }
 
 /**
+ * WHAT A LINK SAYS WHEN IT WILL OPEN A NEW TAB, and it is deliberately worn by only
+ * two of this site's nine outbound links.
+ *
+ * The tab itself stays. The usual objection — that forcing a new tab destroys the
+ * back button — has a PREMISE, that the reader needs to get back, and it does not
+ * hold here: the source page is never left, so closing or switching a tab is both
+ * cheaper and more certain than Back. That was the maintainer's call and the
+ * argument is his.
+ *
+ * What the tab does leave is a reader who cannot see it happen, finds Back does
+ * nothing, and is told nothing about why. WCAG SC 3.2.5 (AAA) and technique G201
+ * ask for the warning in advance; this is it.
+ *
+ * WHY NOT ON THE SIX INTRO-CARD LINKS. Their context change is conventional for a row
+ * of outbound icons, and six identical suffixes in a row is exactly the noise G201's
+ * own guidance warns about — it makes the list harder to scan by voice, not easier.
+ *
+ * "Social" is the wrong word for one of them and the exception is worth naming rather
+ * than papering over: `/resume.pdf` is same-origin and is not a social profile. It gets
+ * the same silence for a DIFFERENT reason — its own name already says "View résumé
+ * (PDF)", so the format is announced and a PDF opening in its own tab is the behaviour
+ * a reader expects from that name. If the six are ever split, that is the seam.
+ * The two that wear it are the ones where the destination is unexpected: a race bib
+ * that reads as page content, and an information icon that reads as a disclosure.
+ *
+ * IT IS A SEPARATE ELEMENT, NOT A SUFFIX ON AN EXISTING STRING, and that is measured
+ * rather than stylistic. Appending it to {@link PATCHES.strava_name} would bury it
+ * mid-name, because `.bib-strava` sits in the meta row and the accessible name is
+ * assembled in DOM order:
+ *
+ *     "12 JUL 2026 RIDE ON STRAVA 158.13 KM MBG DCR 2026 - KRABI TO PHUKET
+ *      THAILAND ELAPSED 9:41:31"
+ *
+ * As the anchor's LAST child it lands where a warning is useful — at the end, after
+ * the reader knows what the link is. Read the result off the accessibility tree, not
+ * off `textContent`: accname is not string concatenation, and it is the AX tree that
+ * showed the mid-string position in the first place.
+ */
+export const NEW_TAB_NOTICE = "(opens in a new tab)";
+
+/**
  * The Now card. `description` is the status line; the three `explainer_*` fields
  * are the link out to what a "/now page" even is.
  *
@@ -480,9 +521,11 @@ export const WELCOME: {
  * was hand-rolled precisely because the link had to share its row. See
  * `src/components/Now.astro`.
  *
- * `explainer_name` is the link's WHOLE accessible name, announced verbatim: the icon
- * beside it is aria-hidden and there is no visible text left, so this string is all a
- * screen reader gets. It says what the destination explains rather than gesturing at
+ * `explainer_name` is the SUBJECT HALF of the link's accessible name, announced
+ * verbatim and FIRST: the icon beside it is aria-hidden and there is no visible text,
+ * so a screen reader gets this string followed by {@link NEW_TAB_NOTICE}. Read off the
+ * accessibility tree, the whole name is "What's a /now page? (opens in a new tab)".
+ * It used to be the whole name, and the sentence saying so outlived the second span. It says what the destination explains rather than gesturing at
  * it — "what's that ?" reads fine beside the word it follows and says nothing at all
  * when read out of a list of links.
  */
