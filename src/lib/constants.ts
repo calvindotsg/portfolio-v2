@@ -115,10 +115,10 @@ export const ABOUT_ME: {
  * same place the intro card's social link reaches, so the page spent three of its nine
  * controls on one destination a logged-out visitor cannot see. Both were removed. The
  * link that replaced them is a component rather than three fields on this type
- * (`components/NextRace.astro`) because it is not a configured destination: the href is
- * derived from the goal's own `sport`, and what it announces is derived from the
- * calendar. There is nothing for an editor to fill in, which is the point — see
- * {@link NEXT_RACE} for the strings, which are the only part a person edits.
+ * (`components/EventsLink.astro`) because it is not a configured destination: the href
+ * is derived from the goal's own `sport`, and its label from the goal's own name. There
+ * is nothing for an editor to fill in, which is the point — see {@link NEXT_RACE} for
+ * the strings, which are the only part a person edits.
  *
  * SETTLED 2026-07-28, so the earlier "what has NOT been decided is whether a goal card
  * should carry a link at all" is spent. It does. The budget question that paragraph
@@ -438,9 +438,13 @@ export const NOW: {
  * SC 1.4.1 does not accept a visual treatment as the only carrier of information,
  * and a reader who cannot tell a hairline border from a filled one gets the word.
  *
- * `heading` names the metaphor and the two `scope_*` strings plus `key` explain it,
- * in that order, because "patch wall" is a cyclist's phrase rather than a
- * self-evident one.
+ * `heading` NO LONGER NAMES THE METAPHOR, and the two `scope_*` strings plus `key` are
+ * what carry it instead. It used to read "Patch wall", on the argument that the phrase is
+ * a cyclist's rather than a self-evident one and so wants explaining underneath. The
+ * explanation is still there and still in that order; what changed is that the heading
+ * itself now says what is on the page — races, some run and some booked — rather than
+ * naming the drawing. See {@link heading} for why that is a correctness fix and not a
+ * preference, and {@link NEXT_RACE.control}, which is literally the same string.
  *
  * THE LEDE IS TWO SENTENCES BECAUSE ONE OF THEM IS NOT TRUE ON EVERY PAGE. It began
  * as a single string saying "every race I have entered this year", which is a claim
@@ -479,7 +483,16 @@ export const PATCHES: {
     home_icon: string
     filter_label: string
 } = {
-    heading: "Patch wall",
+    /**
+     * "My events", not "Patch wall", and the sport pages take `My {sport} events` from the
+     * same words. The rename came from the goal card's control — see {@link NEXT_RACE} —
+     * and from the rule behind it: a patch is a race COMPLETED AND EARNED, so a page that
+     * shows four booked outlines beside two earned bibs was never wholly a wall of
+     * patches. The heading now names what is on the page; {@link key} still explains what
+     * the two drawings mean, and the bibs themselves carry the character the old heading
+     * was carrying. "Patch wall" survives in the URL, in this prose and in the metaphor.
+     */
+    heading: "My events",
     scope_all: "Every race I have entered this year.",
     scope_sport: "Every {sport} race I have entered this year.",
     key: "The outlines are still ahead of me; the solid bibs are the ones I have finished.",
@@ -493,59 +506,80 @@ export const PATCHES: {
 }
 
 /**
- * THE GOAL CARD'S LINE ABOUT ITS SPORT'S NEXT RACE, and every string here is budgeted
- * against **158px** — the goal card's row content width at 1024px wide, which is the
- * narrowest the lg layout produces. Measured on the built page at 1024, the widest line
- * the calendar can produce is a three-digit day count:
+ * THE GOAL CARD'S LINE ABOUT ITS SPORT'S NEXT RACE, PLUS THE CONTROL BENEATH IT, and
+ * every string here is budgeted against **182px** — the goal card's row content width at
+ * 1024px wide, which is the narrowest the lg layout produces. It was 158px until this
+ * revision: the figures column sat inside a wrapper with 12px of side padding, and that
+ * wrapper went with the pill, so the row is the card's own content box now. Measured on the
+ * built page: 182 at 1024, 201 at 1100, 214 from 1152 up; below lg the row is 254px or wider,
+ * so 182 really is the floor.
  *
- *     "Next race in 268 days"   121.84px of ink, 148.38px of chip, in a 158px row
+ * THE COUNTDOWN AND THE WAY OUT ARE TWO OBJECTS NOW, and that split is the point rather
+ * than a layout detail. One element was reporting a figure AND navigating; each of these
+ * does one job. The countdown is the card's fourth figure and is not interactive at all;
+ * {@link control} is a quiet link that names where it goes.
  *
- * so the headroom is **9.62px**, and a three-digit count is the worst case because a
- * year has no fourth digit. Lengthen one of these strings and measure the card again;
- * but note the width is not the constraint that bites first — the HEIGHT is, and it has
- * 2px left (see the budget note in components/Goal.astro).
+ * IT COUNTS IN WEEKS FROM A FORTNIGHT OUT. Two reasons, and the second is the load-bearing
+ * one. A training block is written in weeks, and the line directly above this one already
+ * reads "N km/wk to go", so the card speaks one unit throughout. And the exact date is on
+ * the bib, one click away on the wall this card links to — so the card answers "how long
+ * have I got" and the bib answers "which day", which are different questions about the
+ * same race. See {@link nextRaceLine} for where the fortnight boundary is and why.
  *
- * `{days}` and `{count}` are substituted. There is a separate singular for one patch
- * because "1 patches earned" is the kind of thing that ships and stays.
- *
- * WHY A COUNTDOWN RATHER THAN A DATE. The date is one click away on the wall, and the
- * question a card beside a training figure answers is "how long have I got", which a
- * date makes the reader compute. The date is what the bib prints; this is what the goal
- * card prints, and they are different questions about the same race.
+ * `{days}`, `{weeks}`, `{count}` and `{sport}` are substituted. There is a separate
+ * singular for one patch because "1 patches earned" is the kind of thing that ships and
+ * stays; there is deliberately NO singular week, because the ladder hands days to
+ * anything under a fortnight and so the smallest week count this can print is two.
  *
  * `earned` IS NOT A FALLBACK, it is the other half of the year. Nothing is booked for a
  * sport every January before its first race and again from the morning after its last,
- * and on those days the honest thing for this line to offer is what has been earned. It
- * keeps the link to the wall permanent, which matters for a reason unrelated to copy:
- * the wall would otherwise be an indexed page nothing on the site links to.
+ * and on those days the honest thing for this line to offer is what has been earned. The
+ * link out no longer depends on it either way, which is what makes `none` free to say the
+ * plain true thing rather than repeat the control's words.
  */
 export const NEXT_RACE: {
     today: string
     tomorrow: string
     in_days: string
+    in_weeks: string
     under_way: string
     earned: string
     earned_one: string
     none: string
-    /** Screen-reader-only, appended to the visible text. `{sport}` is substituted. */
-    destination: string
     /**
-     * The chip's affordance, and it is not decoration. The chip's only other cue that it
-     * leads somewhere is a hairline border, which is a COLOUR — and SC 1.4.1 does not
-     * accept colour as the sole carrier while SC 1.4.11 would then hold that hairline to
-     * 3:1, which a 32%-of-text blend does not reach. A glyph is a shape, inherits the
-     * text colour, and answers both. Safelisted in uno.config.ts like every other icon.
+     * The control's whole visible label, and its whole accessible name. `{sport}` is the
+     * goal's own name lowercased.
+     *
+     * "Events" rather than "patches" is a correctness fix, not a preference: a patch is a
+     * race that has been COMPLETED AND EARNED, and the page this opens shows booked
+     * outlines beside earned bibs. Calling the set "patches" would have named it after
+     * the half of it that exists. It is also the word the calendar itself uses — see
+     * {@link EVENTS} and {@link RaceEvent} — and the word Garmin uses, so a visitor meets
+     * it already knowing it. The wall's three headings were renamed to match; the URL
+     * stays `/patches`, which is a path rather than a claim.
+     *
+     * Measured at 1024: 114.4px of ink for cycling and 117.5px for running in a 182px
+     * row, so every candidate considered fitted and this was decided on meaning.
+     */
+    control: string
+    /**
+     * The control's affordance, and it is not decoration. Nothing else about this element
+     * says it leads somewhere — it has no border and no box — so without a glyph the only
+     * remaining cue would be the hover colour, which SC 1.4.1 does not accept as a sole
+     * carrier and which a phone has no way to produce. A chevron is a shape and inherits
+     * the text colour. Safelisted in uno.config.ts like every other icon.
      */
     icon: string
 } = {
     today: "Next race is today",
     tomorrow: "Next race is tomorrow",
     in_days: "Next race in {days} days",
+    in_weeks: "Next race in {weeks} weeks",
     under_way: "Race under way now",
     earned: "{count} patches earned",
     earned_one: "1 patch earned",
-    none: "See the patch wall",
-    destination: "— {sport} patch wall",
+    none: "No races booked",
+    control: "My {sport} events",
     icon: "ri:arrow-right-s-line",
 }
 

@@ -97,6 +97,52 @@ describe("dist/", () => {
     });
 
     /**
+     * A CONTROL AND THE PAGE IT OPENS MUST USE THE SAME WORDS, and this is the assertion
+     * the previous revision needed and did not have.
+     *
+     * The goal cards offered "My cycling events" and the page that opened was headed
+     * "Cycling patches", so a reader was handed one name and shown another the moment
+     * they arrived. Both strings were individually defensible, both were reviewed, and
+     * nothing could see the pair because no test read two pages at once.
+     *
+     * The rename that fixed it was not a preference either: a patch is a race COMPLETED
+     * AND EARNED, and that page shows booked outlines beside earned bibs, so "patches"
+     * named the wall after a subset of what is on it.
+     *
+     * Asserted across the built pages, in both directions — every goal control must be
+     * headed by its destination, and no OTHER page may claim the same heading, which is
+     * what stops the three walls collapsing back onto one title.
+     */
+    it("heads each destination with the words the control that reaches it wears", () => {
+        const home = parseHTML(read("dist/index.html")).document;
+        const controls = [...home.querySelectorAll(".events-link")];
+        expect(controls.length, "no events controls on the home page — this assertion would be vacuous")
+            .toBe(GOALS.length);
+
+        const headings = new Map<string, string>();
+        for (const control of controls) {
+            const href = control.getAttribute("href")!;
+            const label = (control.textContent ?? "").replace(/\s+/g, " ").trim();
+            const page = `dist${href.replace(/\/$/, "")}/index.html`;
+            expect(existsSync(page), `${href} is linked from a goal card but ${page} was not built`).toBe(true);
+
+            const doc = parseHTML(read(page)).document;
+            expect(
+                doc.querySelector("h1")?.textContent?.replace(/\s+/g, " ").trim(),
+                `the control says "${label}" and ${href} is headed differently — a reader is told one name and shown another`,
+            ).toBe(label);
+            headings.set(href, label);
+        }
+
+        const all = builtPages().map((page) => ({
+            page,
+            h1: parseHTML(read(page)).document.querySelector("h1")?.textContent?.replace(/\s+/g, " ").trim(),
+        })).filter((p) => p.h1);
+        expect(new Set(all.map((p) => p.h1)).size, `two pages share a heading: ${all.map((p) => `${p.page} "${p.h1}"`).join(", ")}`)
+            .toBe(all.length);
+    });
+
+    /**
      * NO PAGE'S CSS IS DUPLICATED ACROSS PAGES — which is what "how much does a visitor
      * download" actually reduces to, and it is NOT the same claim as "exactly one chunk".
      *
@@ -414,9 +460,6 @@ describe("dist/", () => {
         return undefined;
     };
 
-    const paints = (css: string, classes: string | null | undefined, prop: string, tokens: Record<string, string>) =>
-        painted(css, classes, prop, tokens)?.hex;
-
     /** The raw value a class list resolves for `prop`, per the shipped rules. */
     const decl = (css: string, classes: string | null | undefined, prop: string) => {
         for (const token of classes?.split(/\s+/) ?? []) {
@@ -430,35 +473,34 @@ describe("dist/", () => {
         return undefined;
     };
 
-    it("paints the goal icon at 3:1 against the progress bar in both themes", () => {
-        const css = sheet();
+    /**
+     * THIS USED TO ASSERT THE GLYPH'S 3:1 AGAINST THE FILL IT RODE. The bar is a 2px rule
+     * now and carries no ink at all, so that pair no longer exists — but the assertion is
+     * kept in this inverted form rather than deleted, because the defect it caught is one
+     * step away at all times. The icon inherited --text, near-white in dark mode, and sat
+     * at 1.89:1 on the fill; --on-brand exists because of it.
+     *
+     * So: the bar must stay a pure graphic. Put a glyph back and this goes red with the
+     * instruction to restore the ratio check, instead of the ratio check silently passing
+     * over an element it can no longer find. A conditional test that skips when the glyph
+     * is absent would have looked like coverage and been none.
+     */
+    it("keeps the bar a pure graphic, so no ink has to read on the fill", () => {
         const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
         expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
 
-        for (const track of bars) {
-            const fill = track.querySelector(".progress-fill");
+        for (const bar of bars) {
+            const fill = bar.querySelector(".progress-fill");
             expect(fill, "each progress bar must render a fill").toBeTruthy();
-            for (const theme of ["light", "dark"]) {
-                const tokens = themeTokens(css, theme);
-                const trackBg = paints(css, track.getAttribute("class"), "background-color", tokens);
-                const fillBg = paints(css, fill?.getAttribute("class"), "background-color", tokens);
-                // Resolve in CASCADE order: an element's own `color` beats one inherited
-                // from its parent, so the span must be consulted BEFORE the fill. Reading
-                // the fill first would let an ink utility added to the span reintroduce
-                // the exact 1.89:1 defect with this test still green. Falling through both
-                // means the icon inherits --text from <body> — the original defect.
-                const ink = paints(css, fill?.querySelector("span")?.getAttribute("class"), "color", tokens)
-                    ?? paints(css, fill?.getAttribute("class"), "color", tokens)
-                    ?? tokens["--text"];
-                expect(fillBg, `${theme}: the fill must paint a resolvable background`).toBeTruthy();
-                expect(trackBg, `${theme}: the track must paint a resolvable background`).toBeTruthy();
-                expect(ink, `${theme}: the icon must resolve an ink color`).toBeTruthy();
-
-                expect(
-                    contrast(ink!, fillBg!),
-                    `${theme}: icon ${ink} on fill ${fillBg} is ${contrast(ink!, fillBg!).toFixed(2)}:1 — SC 1.4.11 needs 3:1`,
-                ).toBeGreaterThanOrEqual(3);
-            }
+            expect(
+                (bar.textContent ?? "").trim(),
+                "the bar must carry no text — if it does, it needs the ink-on-fill ratio check this test replaced",
+            ).toBe("");
+            expect(
+                bar.querySelectorAll("*").length,
+                "the bar is the track and the fill and nothing else; a third element means ink is back on it "
+                + "and SC 1.4.11 needs measuring against --on-brand again (it was 1.89:1 in dark mode once)",
+            ).toBe(1);
         }
     });
 
@@ -581,48 +623,26 @@ describe("dist/", () => {
         }
     });
 
-    it("clips the goal icon inside the fill instead of letting it paint on the track", () => {
-        // The structural reason the ink never has to read on the track: the glyph
-        // lives inside the fill and the FILL clips to itself, so overflow in any
-        // direction, under any display/justify/direction, is cut at the fill's
-        // own painted edge and can never land on bare track.
+    it("keeps the fill inside the bar, whatever width it resolves to", () => {
+        // The fill's width comes from an inline custom property computed from bot data.
+        // The track's clip is what makes that safe structurally rather than arithmetically:
+        // it holds however the percentage is derived, including if the clamp in
+        // ProgressBar.astro is ever removed or gets a sign wrong.
         //
-        // Resolved out of the built stylesheet, not from the class token: a
-        // utility UnoCSS fails to emit must go red here. An earlier version of
-        // this test asserted the token `justify-end` instead, which made the
-        // guard depend on `flex` — a token it never checked. Removing `flex`
-        // left the suite green while putting 8px of the glyph on bare track at
-        // 1.76:1 (light) and 1.61:1 (dark).
+        // Resolved out of the built stylesheet, not from the class token: a utility
+        // UnoCSS fails to emit must go red here. An earlier version of this test asserted
+        // a layout token instead, which made the guard depend on a second token it never
+        // checked — and removing that one left the suite green while putting 8px of the
+        // then-glyph on bare track at 1.76:1 (light) and 1.61:1 (dark).
         const css = sheet();
         const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
         expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
         for (const track of bars) {
-            const fill = track.querySelector(".progress-fill")!;
-            expect(
-                decl(css, fill.getAttribute("class"), "overflow"),
-                "the fill must clip its own overflow — that is what keeps the glyph off the track under any layout",
-            ).toBe("hidden");
+            expect(track.querySelector(".progress-fill"), "each progress bar must render a fill").toBeTruthy();
             expect(
                 decl(css, track.getAttribute("class"), "overflow"),
-                "the track clips too, so a fill wider than its box cannot escape the bar",
+                "the track must clip, so a fill wider than its box cannot paint outside the bar",
             ).toBe("hidden");
-
-            const icons = [...track.querySelectorAll("span")];
-            expect(icons.length, "the bar renders exactly one glyph").toBe(1);
-            expect(fill.contains(icons[0]), "the glyph must live inside the fill, not beside it").toBe(true);
-        }
-    });
-
-    it("keeps the glyph riding the fill's leading edge", () => {
-        // A second, separate claim: the clip above guarantees the glyph is never
-        // on the track, but not that it sits where the design puts it. Without
-        // `flex` the glyph would be clipped away entirely at low progress rather
-        // than marking the leading edge.
-        const css = sheet();
-        for (const track of [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')]) {
-            const classes = track.querySelector(".progress-fill")!.getAttribute("class");
-            expect(decl(css, classes, "display"), "the fill lays its glyph out as a flex item").toMatch(/^(inline-)?flex$/);
-            expect(decl(css, classes, "justify-content"), "the glyph rides the leading edge").toBe("flex-end");
         }
     });
 });

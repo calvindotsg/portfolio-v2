@@ -1,49 +1,67 @@
 ---
-import {iconClass} from "../lib/icons";
-
 interface Props {
     currentProgress: number;
     totalGoal: number;
-    goalLogo: string;
     label: string;
     unit: string;
 }
 
-const {currentProgress, totalGoal, goalLogo, label, unit} = Astro.props;
+const {currentProgress, totalGoal, label, unit} = Astro.props;
 
 const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
 
 /**
- * The bar owns its two colours (--progress-fill, --progress-track) rather than
- * borrowing --shadow and a grey from the UnoCSS palette. That was the defect:
- * one shared #D4D4D4 track served both themes, and in dark mode it stood at
- * 12.09:1 against its card while the fill managed 9.08:1 — the *empty* part of
- * the bar was the strongest mark on it, so the bar read backwards. See
- * BasicLayout for the polarity rule the two tokens now encode.
+ * A 2px RULE, NOT A PILL, and the change is one of job rather than of taste.
  *
- * The icon takes --on-brand rather than inheriting --text, which is near-white
- * in dark mode and left it at 1.89:1 on the fill. 3:1 is the bar SC 1.4.11 sets
- * for graphical objects; we hold to it even though the icon is aria-hidden.
+ * This used to be a 24px capsule with the sport's icon riding the end of the fill: the
+ * loudest object on the goal card, and the one carrying the least, because the figure
+ * beside it already said how far and the card's own heading already said which sport.
+ * What is left does exactly one thing — show a fraction — in the site's own structural
+ * idiom, a hairline rule. The boldness it gave up went to the number above it, which is
+ * the thing a visitor came to the card for.
  *
- * The fill clips its OWN overflow, and that is what keeps the icon off the
- * track at low progress — not a contrast ratio between the ink and the track,
- * which no palette can hold while the ink is chosen to read on the fill.
+ * IT SPANS THE BODY, NOT THE FIGURE ABOVE IT. Sized to the text it underlines, it looks
+ * better and it is wrong: the full scale becomes the number's own width, so cycling
+ * (2279.7 / 5000) and running (158.6 / 600) would each be measuring against a different
+ * 100% and the two cards could not be compared. The width is the constraint that makes
+ * the mark mean something; do not trade it for the tighter look.
  *
- * An earlier version leaned on the glyph spilling past the fill's start edge,
- * which is coincident with the track's, so the track's own clipping caught it.
- * True, but it silently depended on the fill laying its child out as a flex
- * item — without that, the end-justification is inert and the spill goes the
- * other way, onto bare track at 1.76:1 — and equally on nobody reversing the
- * row direction, switching to RTL, or changing the display type. Clipping to
- * the fill survives all of those.
+ * THE TWO COLOURS ARE ITS OWN (--progress-track, --progress-fill) rather than --shadow
+ * and a grey from the UnoCSS palette. That was a real defect: one shared #D4D4D4 track
+ * served both themes, and in dark mode it stood at 12.09:1 against its card while the
+ * fill managed 9.08:1 — the *empty* part of the bar was the strongest mark on it, so the
+ * bar read backwards. See BasicLayout for the polarity rule the two tokens now encode.
+ * That rule is the one thing here a redesign must not undo, and it is easier to undo now
+ * that the mark is 2px: at this size the track is nearly a background, and a palette
+ * change that leaves the fill quieter than it will not look obviously wrong in either
+ * theme while still being the same defect.
  *
- * Utility names are deliberately not written literally anywhere in this file's
- * prose: UnoCSS reads comments and emits a rule for anything that parses as one.
+ * SC 1.4.11 STILL APPLIES. It is a graphical object that conveys information, so the
+ * fill is held to 3:1 against the track it sits in. It is no longer held against the ink
+ * that used to ride it: the icon is gone, and with it the reason --on-brand existed on
+ * this element. Put a glyph back and that obligation returns — it was at 1.89:1 in dark
+ * mode before the token was introduced.
+ *
+ * THE TWO COLOURS STAY IN UTILITY CLASSES rather than moving in beside
+ * the geometry, and that is a testability decision worth keeping. tests/build-output.test.ts
+ * resolves each element's painted background out of the SHIPPED stylesheet by class token
+ * — which is what lets it assert the polarity rule above, that the fill is the region
+ * standing further from the card, and that neither colour has been quietly re-coupled to
+ * a token belonging to something else. Move these into `<style>` and four assertions stop
+ * seeing anything.
+ *
+ * The fill no longer clips its own overflow. That clip existed to stop the glyph painting
+ * on bare track at low progress, and with the glyph gone it guarded nothing; the track
+ * still clips, which is the structural guarantee that a fill can never paint outside the
+ * bar whatever its width resolves to.
+ *
+ * Utility names are deliberately not written literally anywhere in this file's prose:
+ * UnoCSS reads comments and emits a rule for anything that parses as one.
  */
 ---
 
 <div
-        class="overflow-hidden bg-[var(--progress-track)] rounded-full h-6"
+        class="measure overflow-hidden bg-[var(--progress-track)]"
         role="progressbar"
         aria-label={label}
         aria-valuemin="0"
@@ -51,16 +69,23 @@ const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
         aria-valuenow={currentProgress}
         aria-valuetext={`${currentProgress} of ${totalGoal} ${unit}`}
 >
-    <div
-            class="progress-fill overflow-hidden h-full bg-[var(--progress-fill)] text-[var(--on-brand)] rounded-full px-2 box-border flex items-center justify-end"
-            style={`--progress: ${percent}%`}
-    >
-        <span aria-hidden="true" class={`${iconClass(goalLogo)} shrink-0 text-base`}></span>
-    </div>
+    <div class="progress-fill bg-[var(--progress-fill)]" style={`--progress: ${percent}%`}></div>
 </div>
 
 <style>
+    /*
+     * A pinned 2px rather than a font-relative height, and it is the one length on this
+     * card that should be pinned. Every other measurement here holds text off other text
+     * and has to scale with the reader's; this is the stroke weight of a drawn line, which
+     * is a hairline at every text size or it is not a hairline. It cannot clip anything
+     * either — there is no ink inside it.
+     */
+    .measure {
+        height: 2px;
+    }
+
     .progress-fill {
+        height: 100%;
         width: var(--progress);
         animation: progress-grow 1.5s ease-in-out 0.3s backwards;
     }
@@ -74,6 +99,24 @@ const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
     @media (prefers-reduced-motion: reduce) {
         .progress-fill {
             animation: none;
+        }
+    }
+
+    /*
+     * Forced colours drop `background` on both halves, so the whole rule would vanish and
+     * take the only drawn indication of progress with it. The pair the mode reserves for
+     * a filled indicator is Highlight on Canvas, and a border is what keeps the track's
+     * extent legible where Canvas matches the page.
+     */
+    @media (forced-colors: active) {
+        .measure {
+            border: 1px solid CanvasText;
+            box-sizing: content-box;
+        }
+
+        .progress-fill {
+            forced-color-adjust: none;
+            background: Highlight;
         }
     }
 </style>

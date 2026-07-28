@@ -29,8 +29,14 @@ export default defineConfig({
     /** UnoCSS extracts from the text of `<style>` blocks too, so the declaration
      *  `position: static` in IntroCard emits a utility rule for a class no
      *  element wears. A comment can be reworded around; a real declaration
-     *  cannot, so the token is blocked instead. */
-    blocklist: ["static"],
+     *  cannot, so the token is blocked instead.
+     *
+     *  `tabular-nums` is the same case, from `font-variant-numeric: tabular-nums`
+     *  on the goal card's hero figure (Goal.astro). The property is written out
+     *  rather than taken as a utility because the rest of that rule — weight,
+     *  tracking, line height — is authored CSS, and splitting one type treatment
+     *  across two mechanisms is how the pair drifts. */
+    blocklist: ["static", "tabular-nums"],
     /**
      * EVERY BREAKPOINT IS TEXT-RELATIVE, and these five values are presetWind3's
      * own defaults restated in `rem`: 640/768/1024/1280/1536 CSS pixels are

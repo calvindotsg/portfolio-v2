@@ -3,8 +3,8 @@ import {parseHTML} from "linkedom";
 import {beforeAll, describe, expect, it} from "vitest";
 
 import Index from "../src/pages/index.astro";
-import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
-import {nextRace, nextRaceLine} from "../src/lib/projection";
+import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NEXT_RACE, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
+import {nextRace, nextRaceLine, patchesEarned} from "../src/lib/projection";
 import {decl, pageCss, parseRules} from "./helpers/css";
 import {iconClass} from "../src/lib/icons";
 
@@ -274,40 +274,110 @@ describe("page content", () => {
             expect(text).toContain(`My ${goal.goal_name} goal this year`);
             // Composed phrases, not bare numbers: "1000" alone also appears in
             // ABOUT_ME prose, so a bare containment cannot fail for the card.
-            expect(text).toContain(`${goal.current_progress} ${goal.measurable_unit} of ${goal.total_goal} ${goal.measurable_unit}`);
+            //
+            // The card prints its fraction as a hero pair now — "2279.7 / 5000 km" — where
+            // it used to print "2279.7 km of 5000 km". This is the gate on the card's
+            // central figure, so it moved with the copy rather than being loosened: both
+            // numbers and the unit must still be on the page, in that order, in one run.
+            expect(text).toContain(`${goal.current_progress} / ${goal.total_goal} ${goal.measurable_unit}`);
         }
     });
 
     /**
-     * THE LINE THIS REPLACED WAS "Last year's: N km", and the swap is the whole reason the
-     * next-race chip fits: the right-hand stack had 18px of unspent height at its tightest
-     * lg configuration, two goal cards share it, and a chip is 24px. Giving a line back is
-     * what paid for it. The figure is still configured (`progress_last_year`) and nothing
-     * renders it — see the note in Goal.astro.
+     * THE HERO IS aria-hidden AND THE METER SAYS IT INSTEAD, which is only safe while the
+     * meter is actually there saying it. "2279.7 / 5000 km" announces a slash and repeats
+     * what the progress bar beside it already carries in words, so the visual figure is
+     * taken out of the accessibility tree — but that is a pairing, not a property of the
+     * paragraph, and nothing else in this suite would notice if the other half left.
+     *
+     * So: hide the figure only while an element in the same card carries the same two
+     * numbers in an accessible name. Delete the bar, drop its `aria-valuetext`, or reword
+     * it out of agreement with the visible copy, and this goes red.
+     */
+    it("never hides the card's figure without an accessible equivalent beside it", () => {
+        const heroes = [...doc.querySelectorAll(".goal-figure")];
+        expect(heroes.length, "every goal card must print its figure").toBe(GOALS.length);
+
+        for (const hero of heroes) {
+            if (hero.getAttribute("aria-hidden") !== "true") continue;
+            const card = hero.closest("[data-card]");
+            const meter = card?.querySelector('[role="progressbar"]');
+            expect(meter, "the hero is hidden, so the card must carry a meter to announce it").toBeTruthy();
+
+            // AND THE METER MUST BE IN THE ACCESSIBILITY TREE. Asserting only that a
+            // `[role=progressbar]` element EXISTS lets both halves be hidden at once — put
+            // `aria-hidden` on the bar and the card announces neither its figure nor its meter,
+            // with this gate still green. The whole point of the pairing is that exactly one of
+            // them is hidden.
+            for (let el: Element | null = meter!; el && el !== card; el = el.parentElement) {
+                expect(
+                    el.getAttribute("aria-hidden"),
+                    "the meter (or an ancestor inside the card) is aria-hidden while the hero is too, "
+                    + "so the card's central figure is announced by nothing at all",
+                ).not.toBe("true");
+            }
+
+            const spoken = meter!.getAttribute("aria-valuetext") ?? "";
+            const digits = (hero.textContent ?? "").match(/[\d.]+/g) ?? [];
+            expect(digits.length, "the hero must print two figures").toBe(2);
+            for (const d of digits) {
+                expect(spoken, `the hero shows ${d} but the meter announces "${spoken}"`).toContain(d);
+            }
+        }
+    });
+
+    /**
+     * THE COUNTDOWN AND THE WAY OUT ARE TWO ELEMENTS NOW. The card used to carry one
+     * bordered chip that reported the countdown AND navigated; the countdown is an
+     * ordinary line of the card's figures column, and this is the control.
+     *
+     * The visible label IS the accessible name — there is no sr-only completion left to
+     * check — so what this asserts is that the words name the sport whose wall they open,
+     * and that they are the same words that page is headed with. That agreement is the
+     * defect being guarded: the previous pairing said "events" on the control and
+     * "Cycling patches" at the destination, so the vocabulary broke at the click.
+     */
+    it("gives every goal card a control leading to its own sport's events", () => {
+        for (const goal of GOALS) {
+            const control = [...doc.querySelectorAll(".events-link")]
+                .find((a) => a.getAttribute("href") === `/patches/${goal.sport}`);
+            expect(control, `${goal.goal_name} must offer a way to its events`).toBeTruthy();
+
+            const name = (control!.textContent ?? "").replace(/\s+/g, " ").trim();
+            expect(name, "the control must name where it goes").toContain(goal.goal_name.toLowerCase());
+            expect(name, "no aria-label: the announced name is the visible label")
+                .toBe(NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase()));
+            expect(control!.getAttribute("aria-label"), "an aria-label would REPLACE the visible words, not extend them")
+                .toBeNull();
+
+            // That the DESTINATION is headed with these same words is asserted where the
+            // built pages can be read — see tests/build-output.test.ts. Here there is only
+            // the home page.
+        }
+        expect([...doc.querySelectorAll(".events-link")].length, "one control per goal, no more")
+            .toBe(GOALS.length);
+    });
+
+    /**
+     * The countdown is a FIGURE now, not a control, so it must not be inside the link and
+     * must not be a link of its own. Splitting them is the whole design change; a future
+     * tidy-up that wraps the line back into the anchor would restore the element that was
+     * doing two jobs, with every other assertion here still green.
      *
      * Asserted against the same derivation the card used rather than against a phrase
      * written here: which race is next is a function of the bot's stamp, and a literal
      * would be a bot-triggered failed deploy the morning after any race.
      */
-    it("gives every goal card a chip leading to its own sport's wall", () => {
+    it("prints the countdown as a figure, outside the control", () => {
         for (const goal of GOALS) {
-            const chip = [...doc.querySelectorAll(".next-race")]
-                .find((a) => a.getAttribute("href") === `/patches/${goal.sport}`);
-            expect(chip, `${goal.goal_name} must offer a way to its wall`).toBeTruthy();
-
-            const name = (chip!.textContent ?? "").replace(/\s+/g, " ").trim();
-            const next = nextRace(goal.sport);
-            if (next !== null) {
-                expect(name, "the announced name must carry the race the countdown is about")
-                    .toContain(next.event.name);
-            } else {
-                expect(name, "with nothing booked the chip offers the patches earned instead")
-                    .toMatch(/patch/i);
-            }
-            expect(name, "and where the link goes").toContain(goal.goal_name.toLowerCase());
+            const line = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
+            expect(text, `${goal.goal_name} must print its countdown`).toContain(line);
         }
-        expect([...doc.querySelectorAll(".next-race")].length, "one chip per goal, no more")
-            .toBe(GOALS.length);
+        for (const control of [...doc.querySelectorAll(".events-link")]) {
+            const said = (control.textContent ?? "").replace(/\s+/g, " ").trim();
+            expect(said, "the countdown must not be inside the control").not.toMatch(/next race|patch|booked/i);
+            expect(control.querySelector("a"), "and the control holds no nested link").toBeNull();
+        }
     });
 
     /**
@@ -323,12 +393,27 @@ describe("page content", () => {
         expect(nextRaceLine(race(1), 0)).toBe("Next race is tomorrow");
         expect(nextRaceLine(race(5), 0)).toBe("Next race in 5 days");
         expect(nextRaceLine(race(-3, true), 2), "under way outranks the day count").toBe("Race under way now");
-        expect(nextRaceLine(null, 0)).toBe("See the patch wall");
+        expect(nextRaceLine(null, 0)).toBe("No races booked");
         expect(nextRaceLine(null, 1), "not \"1 patches\"").toBe("1 patch earned");
         expect(nextRaceLine(null, 4)).toBe("4 patches earned");
 
+        // THE FORTNIGHT BOUNDARY, pinned from both sides. 13 days is the last day count and
+        // 14 is the first week count, which is what keeps the ladder from ever printing
+        // "in 1 week" — a rung that reads worse than the nine days it would replace, and
+        // the reason there is no singular string to print it with.
+        expect(nextRaceLine(race(13), 0), "the last day count").toBe("Next race in 13 days");
+        expect(nextRaceLine(race(14), 0), "the first week count, and never \"1 week\"").toBe("Next race in 2 weeks");
+
+        // FLOORED, NOT ROUNDED, and the direction is the point: 61 days is 8w 5d, so
+        // "in 8 weeks" says the race arrives sooner than it does and "in 9 weeks" would
+        // promise a week of preparation that does not exist. Of the two ways to be wrong
+        // by up to six days, this is the one that leaves the reader early.
+        expect(nextRaceLine(race(61), 0), "8w 5d floors to 8, it does not round to 9").toBe("Next race in 8 weeks");
+        expect(nextRaceLine(race(20), 0), "2w 6d floors to 2").toBe("Next race in 2 weeks");
+        expect(nextRaceLine(race(21), 0)).toBe("Next race in 3 weeks");
+
         // No branch may leak a placeholder or count backwards, whatever the copy becomes.
-        const every = [race(0), race(1), race(5), race(37), race(-9, true), null];
+        const every = [race(0), race(1), race(5), race(13), race(14), race(37), race(-9, true), null];
         for (const n of every) {
             for (const earned of [0, 1, 4]) {
                 const line = nextRaceLine(n, earned);
@@ -340,69 +425,93 @@ describe("page content", () => {
     });
 
     /**
-     * THE CHIP'S HAIRLINE IS THE THING THAT SAYS "CONTROL", so SC 1.4.11 holds it to 3:1
-     * against the card — and no stylesheet read can see that, because the authored value
-     * is `color-mix(… var(--text) N%, transparent)`, which is 18:1 before the alpha
-     * touches it. This assertion does the blend itself, which is the only form of it that
-     * can fail: shipped at 32% it composites to 2.13:1 in light and 2.81:1 in dark, and at
-     * 40% to 2.68:1 in light. Both passed every other assertion in this suite.
+     * THIS REPLACES A BORDER-CONTRAST ASSERTION, and the replacement is not a relaxation.
      *
-     * The light pair is the binding one and it is easy to get wrong by hand: the lighter
-     * colour is the CARD at #F5F5F5, not white, so the headroom is smaller than a
-     * paper-white calculation suggests.
+     * The chip identified itself as a control with a hairline border, which is a COLOUR,
+     * so SC 1.4.11 held it to 3:1 against the card — and the test that enforced it had to
+     * composite `color-mix(… var(--text) N%, transparent)` by hand, because the authored
+     * value reads as 18:1 before the alpha touches it. It caught two real failures: 32%
+     * composites to 2.13:1 in light and 2.81:1 in dark, 40% to 2.68:1 in light.
+     *
+     * The box is gone, so that obligation is gone with it — but the underlying question
+     * is not "is the border dark enough", it is "what tells a reader this is a control,
+     * other than colour". SC 1.4.1 is the one that never lapses, and the answer has to
+     * survive a phone, where there is no hover to reveal anything. So the chevron is now
+     * load-bearing rather than decorative, and this asserts it is there, that it is a
+     * shape rather than a word, and that no rule has quietly put a border back without
+     * the ratio check that a border needs.
      */
-    it("composites the chip's border to 3:1 against the card it sits on, in both themes", () => {
-        const css = pageCss();
-        const rule = parseRules(css)
-            .filter((r) => !r.nested)
-            .find((r) => r.selectors.some((sel) => /\.next-race\[/.test(sel)) && decl(r.body, "border") !== undefined);
-        expect(rule, "the chip must declare a border").toBeTruthy();
+    it("identifies the control by a shape, not by colour alone", () => {
+        const controls = [...doc.querySelectorAll(".events-link")];
+        expect(controls.length, "no controls found — this assertion would be vacuous").toBe(GOALS.length);
 
-        const mix = decl(rule!.body, "border")!.match(/var\(--text\)\s+([\d.]+)%/);
-        expect(mix, `the border must blend --text by a percentage: ${decl(rule!.body, "border")}`).toBeTruthy();
-        const alpha = Number(mix![1]) / 100;
+        for (const control of controls) {
+            const glyph = control.querySelector(`span[class~="${iconClass(NEXT_RACE.icon)}"]`);
+            expect(glyph, "the control must ship its chevron — on a phone it is the only cue there is").toBeTruthy();
+            expect(glyph?.getAttribute("aria-hidden"), "and the shape is decorative; the label carries the meaning")
+                .toBe("true");
+        }
 
-        const themeBlock = (theme: string) => {
-            const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
-            expect(block, `the ${theme} theme must ship`).toBeTruthy();
-            return Object.fromEntries(
-                [...block!.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{3,6})/g)].map((m) => [m[1], m[2]]),
-            ) as Record<string, string>;
-        };
-        const rgb = (hex: string) => {
-            const h = hex.replace("#", "");
-            const full = h.length === 3 ? [...h].map((c) => c + c).join("") : h;
-            return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
-        };
-        const chan = (v: number) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
-        const lum = (c: number[]) => 0.2126 * chan(c[0]) + 0.7152 * chan(c[1]) + 0.0722 * chan(c[2]);
-        const ratio = (a: number[], b: number[]) => {
-            const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
-            return (x + 0.05) / (y + 0.05);
-        };
-
-        for (const theme of ["light", "dark"]) {
-            const t = themeBlock(theme);
-            const card = rgb(t["--card-background"]);
-            const ink = rgb(t["--text"]);
-            const border = ink.map((c, i) => c * alpha + card[i] * (1 - alpha));
-            expect(
-                ratio(border, card),
-                `${theme}: the chip's border composites to ${ratio(border, card).toFixed(2)}:1 against the card at `
-                + `${Math.round(alpha * 100)}% of --text. It is the only mark identifying the chip as a control, `
-                + `so SC 1.4.11 asks 3:1.`,
-            ).toBeGreaterThanOrEqual(3);
+        // A border would put SC 1.4.11 back in play, and the assertion that used to police
+        // it lives only in this file's history. If one returns, restore that too.
+        for (const rule of parseRules(pageCss()).filter((r) => r.selectors.some((s) => /\.events-link\b/.test(s)))) {
+            for (const prop of ["border", "border-color", "border-width", "outline"] as const) {
+                expect(
+                    decl(rule.body, prop),
+                    `${rule.selectors.join(",")} declares ${prop} — a drawn edge on a control is an identifying `
+                    + "mark under SC 1.4.11 and needs its composited 3:1 measured, which nothing here does any more",
+                ).toBeUndefined();
+            }
         }
     });
 
     /**
-     * The chip is 24px on purpose and the number is font-relative, so the card can clip
+     * FORCED COLOURS DELETE THE CHEVRON UNLESS SOMETHING OPTS IT OUT, and the chevron is the
+     * control's only non-colour cue — so without this the control is identified by colour
+     * alone, which is exactly what SC 1.4.1 forbids and exactly what NEXT_RACE.icon's comment
+     * claims the glyph prevents.
+     *
+     * The mechanism is presetIcons': an icon class paints its artwork as a mask over
+     * `background-color: currentColor`, and `background-color` is a forced property. Measured
+     * on the built page with the mode emulated, before the fix: glyph `rgb(255,255,255)` on a
+     * card of `rgb(255,255,255)` — a ratio of exactly 1. The old bordered chip survived because
+     * its BOX did; this control has no box, so it is a regression rather than an inherited gap.
+     *
+     * Asserted against the shipped stylesheet rather than in a browser because the suite has no
+     * browser — and this is the half that can rot silently. `parseRules` keeps at-rule context,
+     * which is the whole reason the guard can tell a forced-colours rule from an ordinary one.
+     */
+    it("keeps the control's chevron painted when forced colours override background-color", () => {
+        const forced = parseRules(pageCss()).filter(
+            (r) => (r.at ?? "").includes("forced-colors")
+                && r.selectors.some((sel) => /\.events-link-go\b/.test(sel)),
+        );
+        expect(
+            forced.length,
+            "no forced-colors rule targets the chevron — an icon mask paints via background-color, "
+            + "which the mode overrides, so the glyph vanishes and the control is left identified "
+            + "by colour alone",
+        ).toBeGreaterThan(0);
+
+        const adjust = forced.map((r) => decl(r.body, "forced-color-adjust")).find((v) => v !== undefined);
+        expect(adjust, "the glyph must opt out of the override with forced-color-adjust: none").toBe("none");
+
+        const paint = forced.map((r) => decl(r.body, "background-color") ?? decl(r.body, "background")).find((v) => v !== undefined);
+        // Case-INSENSITIVE, and that is not defensive: the minifier lowercases system colour
+        // keywords, so the sheet ships `linktext` however it was authored. A case-sensitive
+        // match here fails on correct CSS — which is how this assertion first went red.
+        expect(paint, "and it must name what it paints instead — a system colour, since tokens are discarded")
+            .toMatch(/linktext|canvastext|highlight/i);
+    });
+
+    /**
+     * The control is 24px on purpose and the number is font-relative, so the card can clip
      * it if either becomes absolute. This is the CSS half of that; the geometry half is a
      * browser sweep in the PR, since the suite has no layout engine.
      */
-    it("sizes the chip in the reader's own text, never in device pixels", () => {
-        const rules = parseRules(pageCss()).filter((r) => r.selectors.some((s) => /\.next-race\b/.test(s)));
-        expect(rules.length, "no chip rules found — this assertion would be vacuous").toBeGreaterThan(0);
+    it("sizes the control in the reader's own text, never in device pixels", () => {
+        const rules = parseRules(pageCss()).filter((r) => r.selectors.some((s) => /\.events-link\b/.test(s)));
+        expect(rules.length, "no control rules found — this assertion would be vacuous").toBeGreaterThan(0);
         for (const rule of rules) {
             for (const prop of ["height", "min-height", "max-height", "font-size"] as const) {
                 const value = decl(rule.body, prop);
@@ -413,6 +522,32 @@ describe("page content", () => {
             expect(decl(rule.body, "height"), "a fixed height in a clipping card deletes text")
                 .toBeUndefined();
         }
+
+        // AND ITS BOX MUST BE ITS WORDS. The control is a flex ITEM of the card's figures
+        // column, and a column stretches its items across the cross axis by default, so
+        // `inline-flex` on the anchor does not shrink-wrap it — the parent decides. Shipped
+        // without this it measured 182px wide at 1024 for 115px of ink, and 67px of empty
+        // card navigated when clicked. Nothing else in this suite can see that: the box is
+        // not text, so no ink assertion moves, and there is no layout engine here to catch
+        // it either. This is the CSS half; the geometry half is in the PR.
+        //
+        // ASSERT THE VALUE, NOT THE PRESENCE. `align-self: stretch` is a declaration too, and it
+        // is the DEFAULT — so a presence check passes on the exact edit it exists to forbid, and
+        // the 182px click target comes straight back with the suite green. Only the values that
+        // actually shrink-wrap the item count.
+        const SHRINK_WRAPS = ["start", "flex-start", "self-start", "baseline", "end", "flex-end", "center"];
+        const optsOut = rules.some((r) => {
+            const align = decl(r.body, "align-self");
+            return (align !== undefined && SHRINK_WRAPS.includes(align.trim()))
+                || decl(r.body, "width") === "max-content"
+                || decl(r.body, "width") === "fit-content";
+        });
+        expect(
+            optsOut,
+            "the control must opt out of its column's cross-axis stretch with a value that actually "
+            + "shrink-wraps it, or its clickable box is the whole width of the card rather than the "
+            + "words a reader aims at. `align-self: stretch` is the default and does not count",
+        ).toBe(true);
     });
 
     it("renders an accessible progress bar per goal", () => {
@@ -447,10 +582,20 @@ describe("page content", () => {
         expect(img?.getAttribute("alt")).toBeTruthy();
     });
 
+    /**
+     * `goal_logo` LEFT THIS LIST DELIBERATELY, and the narrowing is the interesting part.
+     * The sport's icon used to ride the end of the goal card's progress fill; the bar is
+     * a 2px rule now and carries no ink, so neither goal glyph appears on the home page
+     * at all. Both are still configured, still safelisted, and still drawn on every bib —
+     * tests/patch-wall.test.ts asserts that, which is why removing them here loses no
+     * coverage rather than quietly dropping two icons off the site.
+     *
+     * This file renders the HOME page and can only speak for it. An assertion that keeps
+     * naming an icon the page no longer wears is a red build on correct code.
+     */
     it("renders an aria-hidden icon for every icon migrated off emoji", () => {
         const migrated = [
             ...CAREER.map(({icon}) => iconClass(icon)),
-            ...GOALS.map(({goal_logo}) => iconClass(goal_logo)),
             iconClass(WELCOME.greeting_icon),
             iconClass(FOOTER.icon),
         ];

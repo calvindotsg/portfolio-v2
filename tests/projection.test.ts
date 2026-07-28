@@ -25,7 +25,7 @@ import {nextProgress, serialise, singaporeDate} from "../scripts/fetch-strava-pr
  * The two measured budgets, both at a 16px root in Chromium against the page's own
  * font stack, at the tightest configuration each element reaches:
  *
- *   goal-card text column   158px   (1024px wide; 177 at 1100, 190 from 1152 up)
+ *   goal-card text column   182px   (1024px wide; 201 at 1100, 214 from 1152 up)
  *   footer text column      182px   (1024px wide; 201 at 1100, 214 from 1152 up)
  *
  * A character COUNT is the wrong invariant — 26 characters of wide glyphs exceed
@@ -237,7 +237,7 @@ describe("required rate", () => {
     });
 
     /**
-     * The width ceiling is the goal card's ROW content width: **158px at 1024px
+     * The width ceiling is the goal card's ROW content width: **182px at 1024px
      * wide, 177 at 1100, 190 from 1152 up**. There is no layout engine here, so this
      * pins the two things a text-only test CAN pin — the fixed literals, and a
      * character ceiling for the generated branches — and between them they force a
@@ -253,8 +253,8 @@ describe("required rate", () => {
      * `ovY 0`. The shorter wording ships because it is plainer, not because the longer
      * one broke. The real ceiling is ~156.7px of single-line ink at 1024.
      */
-    it("emits only literals that were measured against the goal card's 158px row", () => {
-        // Measured at 12px against the 158px ceiling: "Goal met" 50.22px,
+    it("emits only literals that were measured against the goal card's 182px row", () => {
+        // Measured at 12px against the 182px ceiling: "Goal met" 50.22px,
         // "Races cover it" 78.78px. Both fit with room to spare.
         const MEASURED = new Set(["Goal met", "Races cover it"]);
         const base = goalBySport("running");
