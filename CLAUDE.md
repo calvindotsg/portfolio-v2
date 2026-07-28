@@ -4,11 +4,11 @@
 
 This is a personal portfolio website built with Astro, featuring a bento-style,
 minimal design. The home page is a single-screen bento grid showing Calvin's
-professional background, cycling goals, and personal interests; `/patches` is a
-wall of this year's races drawn as bibs, with a prerendered page per sport. A patch
-is a race **completed and earned** — an outline bib is an event that has not become one
-yet, which is why the wall's headings say "events" and only earned bibs are called
-patches.
+professional background, his cycling and running goals, and personal interests;
+`/patches` is a wall of this year's races drawn as bibs, with a prerendered page
+per sport. A patch is a race **completed and earned** — an outline bib is an event
+that has not become one yet, which is why the wall's headings say "events" and only
+earned bibs are called patches.
 
 ## Commands
 
@@ -17,7 +17,10 @@ patches.
   the `dist/` assertions have real artifacts; that setup honours `SKIP_BUILD=1` to
   reuse an existing `dist/` while iterating
 - `pnpm eslint` and `pnpm check` — not `lint`, not `typecheck`; neither of those
-  script names exists. Netlify's build command is `pnpm check && pnpm test`
+  script names exists. Netlify's build command is `pnpm check && pnpm test`.
+  `eslint` globs `src/**/*.{js,astro}` only, so a clean run says nothing about
+  the `.ts` files — those are gated by `pnpm check` (tsconfig includes `**/*`)
+  and by the suite
 - `pnpm preview` serves the built `dist/` directory locally on
   http://localhost:4321 — the site is a static build with no adapter, so the
   preview is byte-identical to what Netlify serves
@@ -39,8 +42,10 @@ patches.
 - **Text-relative sizing**: every breakpoint, `main`'s height clamp, the card
   heading's space and the control box are font-relative, so the page grows with
   the reader's text instead of clipping it. `tests/page-fit.test.ts` and
-  `tests/card-fill.test.ts` forbid an absolute length in each of those places;
-  read the rationale before re-pinning one to pixels
+  `tests/card-fill.test.ts` forbid an absolute length in the first three; the
+  control box is gated by `tests/control-geometry.test.ts` (the `control`
+  shortcut's own width and height) and `tests/rendered-html.test.ts`
+  (`.events-link`). Read the rationale before re-pinning one to pixels
 - **Theme Support**: dark/light mode via CSS custom properties on
   `:root[data-theme]` in `src/layouts/BasicLayout.astro`; that block's header
   comment defines each token's role and the progress-bar polarity rule — read it
