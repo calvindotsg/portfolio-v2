@@ -614,18 +614,40 @@ export const PATCHES: {
      */
     elapsed_label: string
     /**
-     * The mark on a bib that links out, and it is what makes the link visible at all.
+     * The glyph on the bib's action row. It names the destination — it no longer has to
+     * carry the affordance by itself, which is the correction below.
      *
      * A hover state is not an option — there is no hover on a phone, and this site has
      * already removed one card hover for advertising an affordance that did not exist;
-     * the opposite failure is an affordance that exists and is never advertised. A glyph
-     * is a shape, so it satisfies SC 1.4.1 without leaning on colour, and it names the
-     * destination rather than merely marking one. Safelisted in uno.config.ts: this is a
-     * second reference to a class LINKS already carries, and relying on that coincidence
-     * is how a bib ships a mask box at zero size with a green build.
+     * the opposite failure is an affordance that exists and is never advertised.
+     * Safelisted in uno.config.ts: this is a second reference to a class LINKS already
+     * carries, and relying on that coincidence is how a bib ships a mask box at zero size
+     * with a green build.
      */
     strava_icon: string
-    /** sr-only, transcribing {@link strava_icon}. The glyph is information, not decoration. */
+    /**
+     * THE ACTION ROW'S VISIBLE LABEL. It used to be an `sr-only` transcription of
+     * {@link strava_icon}, and that was the defect rather than the fix.
+     *
+     * The argument for a bare glyph was that a shape satisfies SC 1.4.1 without leaning on
+     * colour. True, and beside the point: a mark can be a legal carrier of information and
+     * still be unreadable. Measured on the shipped build at 390x844, the glyph rendered
+     * 7.5 x 10px — **75px² on a 324 x 141px bib, 0.16% of it** — monochrome, unlabelled,
+     * in a corner, with its only words hidden from everyone who could see the bib. Two
+     * friends reviewing the site did not know a bib could be clicked, and could not tell
+     * which ones could.
+     *
+     * So the words come out of `sr-only` and the mark gets a label. NN/g's rule for exactly
+     * this case is to "combine icons with text labels when icons aren't instantly
+     * recognizable"; the phrasing is imperative because a control should say what happens
+     * when it is used, not name a brand. It is also what answers the SECOND half of the
+     * report — only a bib with a recording carries this row, so the row is what tells a
+     * reader which bibs are clickable, in text rather than by inference from a treatment.
+     *
+     * Announced last now rather than third: it sits at the foot of the bib, where a call to
+     * action belongs, instead of interrupting the meta row between the sport and the
+     * distance. See Patch.astro, which records the whole accessible name.
+     */
     strava_name: string
 } = {
     /**
@@ -650,7 +672,7 @@ export const PATCHES: {
     filter_label: "Filter by sport",
     elapsed_label: "Elapsed",
     strava_icon: "fa6-brands:strava",
-    strava_name: "on Strava",
+    strava_name: "View on Strava",
 }
 
 /**

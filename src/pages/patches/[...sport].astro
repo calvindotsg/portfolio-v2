@@ -108,9 +108,14 @@ const description = goal === undefined
                      site under that floor. Measured: it does not actually FAIL 2.5.8, because the
                      spacing exception applies at 143.82px to the nearest other target — so this is
                      the repo's own standard rather than the specification's. -->
+                <!-- `text-link` is the shared idiom, and this link takes it for the reason
+                     EventsLink.astro takes it: the two are meant to be one object, mirrored —
+                     one goes out to the wall and this one comes back. They were drawn alike by
+                     hand in two places, in the same colour as the body text around them; now
+                     they are drawn alike by construction. See uno.config.ts. -->
                 <a
                         href="/"
-                        class="inline-flex items-center gap-2 min-h-6 text-sm text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out"
+                        class="text-link inline-flex items-center gap-2 min-h-6 text-sm"
                 >
                     <span class={iconClass(PATCHES.home_icon)} aria-hidden="true"></span>{PATCHES.home_label}
                 </a>

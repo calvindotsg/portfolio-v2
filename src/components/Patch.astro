@@ -57,21 +57,25 @@ const {event, state} = Astro.props;
  * IntroCard.astro both use a bare `target="_blank"` and browsers imply `noopener`.
  * Introducing `rel` on one link out of three is how a convention starts to look accidental.
  *
- * NO `aria-label`. The accessible name is the bib's whole text, and it is 92 characters —
- * READ OFF CHROME'S ACCESSIBILITY TREE, not assembled by hand, because this comment got it
- * wrong the first time and no assertion could see that (the guard uses `toContain`, which is
- * order-blind by construction):
+ * NO `aria-label`. The accessible name is the bib's whole text — READ OFF CHROME'S
+ * ACCESSIBILITY TREE, not assembled by hand, because this comment got it wrong the first time
+ * and no assertion could see that (the guard uses `toContain`, which is order-blind by
+ * construction). The name is verbose and is a true superset of what is on screen, this repo's
+ * rule; an aria-label would REPLACE all of it with a summary.
  *
- *     "12 JUL 2026 RIDE ON STRAVA 158.13 KM MBG DCR 2026 - KRABI TO PHUKET THAILAND
- *      ELAPSED 9:41:31"
+ * THE ACTION ROW MOVED THE CALL TO ACTION FROM THIRD PLACE TO LAST, which is the position it
+ * should always have had. It used to sit in the meta row as an `sr-only` transcription of the
+ * glyph, so a listener heard "12 JUL 2026 RIDE ON STRAVA 158.13 KM …" — the destination
+ * announced between the sport and the distance, before the race had even been named. Now the
+ * words are visible, they are the last thing on the bib, and the announcement follows the
+ * reading order:
  *
- * The transcription lands THIRD, not last, because `.bib-strava` sits in the meta row — so a
- * listener hears "Ride on Strava" as a phrase. That is a consequence of putting the glyph
- * where it belongs visually, and it reads acceptably, but it is not what an author would
- * guess. The name is verbose and is a true superset of what is on screen, this repo's rule;
- * an aria-label would REPLACE all of it with a summary. `PATCHES.strava_name` is the one
- * addition and it is a transcription rather than an extra: the glyph is aria-hidden and
- * carries real information, so SC 1.1.1 wants that information in text somewhere.
+ *     "12 JUL 2026 RIDE 158.13 KM MBG DCR 2026 - KRABI TO PHUKET THAILAND
+ *      ELAPSED 9:41:31 VIEW ON STRAVA"
+ *
+ * That is a side effect of a change made for sighted readers, and it is the better ordering on
+ * its own terms. Re-read it off the AX tree rather than trusting this paragraph if the row ever
+ * moves again — the last revision of this comment was falsified by exactly that.
  */
 const date = patchDateSegments(event);
 const goal = goalForSport(event.sport);
@@ -104,12 +108,6 @@ const Tag = activity === null ? "div" : "a";
             <span class="bib-word">{goal.short_name}</span>
         </span>
         {state === "booked" && <span class="bib-tag">{PATCHES.booked_label}</span>}
-        {activity !== null && (
-                <span class="bib-strava">
-                    <span class={`${iconClass(PATCHES.strava_icon)} bib-icon`} aria-hidden="true"></span>
-                    <span class="sr-only">{PATCHES.strava_name}</span>
-                </span>
-        )}
     </p>
     <p class="bib-value">{whole}<span class="bib-fraction">.{fraction}</span></p>
     <p class="bib-unit">{goal.measurable_unit}</p>
@@ -121,10 +119,25 @@ const Tag = activity === null ? "div" : "a";
                 <span class="bib-time-value">{event.elapsed_time}</span>
             </p>
     )}
-    {/* LAST CHILD, so the warning lands at the END of a 92-character accessible name
-        rather than third in it — see NEW_TAB_NOTICE in constants.ts, which records the
-        measurement. Conditional on the LINK, not on the state: an earned bib with no
-        Strava id is an ordinary <div> and opens nothing. */}
+    {activity !== null && (
+            <p class="bib-go">
+                <span class={`${iconClass(PATCHES.strava_icon)} bib-icon bib-go-mark`} aria-hidden="true"></span>
+                {PATCHES.strava_name}
+            </p>
+    )}
+    {/* THE NOTICE FOLLOWS THE ACTION ROW, and the order is the point: the announced name now ends
+        with the call to action and then the warning, so the warning qualifies the control it
+        belongs to instead of trailing the elapsed time. Both are conditional on the LINK rather
+        than on the state — an earned bib with no Strava id is an ordinary <div> and opens nothing.
+
+        (The obvious phrasing of what NEW_TAB_NOTICE says is not written here on purpose: that
+        word is a UnoCSS utility, and prose in an `.astro` file is extracted like markup, so
+        naming it emits a rule no element wears and the orphan gate fails the build.)
+
+        The measurement in NEW_TAB_NOTICE was taken when this name was 92 characters and the
+        destination was announced THIRD, inside the meta row. The action row moved that to last and
+        the name is now 97 characters plus this notice; re-read it off the AX tree rather than
+        trusting either figure. */}
     {activity !== null && <span class="sr-only">{NEW_TAB_NOTICE}</span>}
 </Tag>
 </li>
@@ -272,16 +285,6 @@ const Tag = activity === null ? "div" : "a";
             border-color: LinkText;
         }
 
-        /* The mark is an icon class, so its artwork is a MASK over
-           `background-color: currentColor` — and background-color is a forced property, so
-           without this the glyph paints Canvas on Canvas and the bib's only permanent
-           non-colour cue that it links out disappears. Measured with the mode emulated:
-           glyph rgb(255,255,255) on a bib face of rgb(255,255,255), a ratio of exactly 1.
-           Same fix as EventsLink.astro's chevron. */
-        .bib-strava .bib-icon {
-            forced-color-adjust: none;
-            background-color: LinkText;
-        }
     }
 
     /*
@@ -350,6 +353,26 @@ const Tag = activity === null ? "div" : "a";
     .bib-tag,
     .bib-time-label {
         opacity: 0.8;
+    }
+
+    /*
+     * THE THIRD UNBREAKABLE TOKEN ON A BIB, AND IT WAS MISSED TWICE. `.bib-place` and
+     * `.bib-time` were each given this after escaping the bib; "Booked" is the same shape —
+     * one word with nowhere to break — and nothing had measured it.
+     *
+     * Found on a sweep of ORIGIN/MAIN taken as the baseline for this change, so it predates
+     * everything here: measured against the bib's border box at 320px wide, the tag escapes by
+     * 31.45px at a 44px root and 63.11px at 48. Outside the WCAG 1.4.4 bracket (which tops out
+     * at 32) and therefore not a conformance failure, which is presumably why two passes over
+     * this file walked past it — but the ink lands on the card at 1.045:1, so the word carrying
+     * a bib's STATE is unreadable there, and that state has no other text carrier.
+     *
+     * tests/patch-wall.test.ts now holds all four rows to this rule rather than the two that
+     * had already failed, which is the difference between a gate on a class and a gate on the
+     * instances someone happened to notice.
+     */
+    .bib-tag {
+        overflow-wrap: anywhere;
     }
 
     .bib-sport {
@@ -477,11 +500,15 @@ const Tag = activity === null ? "div" : "a";
     }
 
     /*
-     * A LINKED BIB SAYS SO WITH A GLYPH, NOT WITH A HOVER. There is no hover on a phone,
-     * and this site has already removed one card hover for advertising an affordance that
-     * did not exist — the opposite failure is an affordance that exists and is never
-     * advertised. The Strava mark in the meta row is permanent and is a shape, so it
-     * carries the fact without leaning on colour (SC 1.4.1).
+     * A LINKED BIB SAYS SO IN WORDS, NOT WITH A HOVER. There is no hover on a phone, and this
+     * site has already removed one card hover for advertising an affordance that did not
+     * exist — the opposite failure is an affordance that exists and is never advertised.
+     * The action row at the foot of the bib is permanent and is TEXT, so it carries the fact
+     * without leaning on colour (SC 1.4.1).
+     *
+     * That used to read "the Strava mark in the meta row", which described a 7.5x10px glyph
+     * that no longer exists there — see `.bib-go`. The mark was the whole cue and was not
+     * enough; the words are.
      *
      * The hover and focus outline is the second cue rather than the only one. It is an
      * OUTLINE rather than the border, and that is what makes its contrast answerable: an
@@ -501,36 +528,125 @@ const Tag = activity === null ? "div" : "a";
     }
 
     /*
-     * THESE TWO OVERRIDES HAVE TO SIT AFTER THE RULE THEY OVERRIDE, and they did not.
+     * THE ACTION ROW: WHAT THE BIB DOES, SAID IN WORDS.
      *
-     * They were written inside the forced-colors and print blocks higher up this file, next to
-     * the other rules for those modes, which reads well and does nothing: an at-rule adds no
-     * specificity, so `@media {...}` at line 243 and a plain rule at line 481 are the same
-     * weight and the LATER one wins. Both overrides were dead from the moment they were
-     * written — forced colours kept painting an --accent outline that the mode discards, and print
-     * kept a hover outline on paper.
+     * It replaces a 7.5 x 10px Strava glyph in the meta row whose only text was `sr-only` —
+     * 75px² on a 324 x 141px bib, 0.16% of it, monochrome and unlabelled. That was the whole of
+     * what told a reader a bib could be clicked, and two friends reviewing the site did not see
+     * it. The row answers both halves of what they reported: it says the bib is a control and
+     * what using it does, and because ONLY a bib with a recording carries the row, it is also
+     * what distinguishes the bibs that link from the ones that do not.
      *
-     * Grouping by mode is the readable arrangement and the wrong one. If more mode-specific
-     * bib rules arrive, they belong here at the foot of the sheet, not beside their siblings.
+     * FULL INK, AND EMPHATIC WEIGHT, DELIBERATELY. Every other quiet line on this bib — the
+     * date, the booked tag, the elapsed label, the place — shares `opacity: 0.8`, and dropping
+     * this row into that group would draw the one line that is a control exactly like the four
+     * that are captions. It is the second thing on the bib set at full strength, after the
+     * distance. Keeping it out of the dimmed set also keeps it out of the composited-contrast
+     * sweep's dimmed group, where its authored 18.86:1 is the honest number rather than one
+     * that has to be re-derived through an alpha.
+     *
+     * `flex-wrap` and `overflow-wrap` for the reason `.bib-time` has them and the same trap:
+     * "Strava" is a single unbreakable token, the bib does NOT clip, and ink that escapes a bib
+     * paints onto the card at 1.045:1 — unreadable rather than absent, and unseen by any sweep
+     * that walks only clipping ancestors.
+     *
+     * (The first draft of this comment used the obvious adjective for that, twice, and turned
+     * the orphan gate red: the word is a UnoCSS utility, and prose in an `.astro` file is
+     * extracted like markup. Same footgun `underline` is blocklisted for, one word further on.)
      */
-    @media (forced-colors: active) {
-        .bib--linked:hover,
-        .bib--linked:focus-visible {
-            outline-color: LinkText;
-        }
-    }
-
-    @media print {
-        .bib--linked:hover,
-        .bib--linked:focus-visible {
-            outline: none;
-        }
-    }
-
-    .bib-strava {
-        display: inline-flex;
+    .bib-go {
+        grid-area: go;
+        display: flex;
+        flex-wrap: wrap;
+        overflow-wrap: anywhere;
         align-items: center;
-        margin-inline-start: auto;
+        gap: 0.4em;
+        margin: 0.25rem 0 0;
+        padding-top: 0.5rem;
+        font-size: 0.625rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        /*
+         * THE PERFORATION IS THIS ROW'S OWN BACKGROUND, NOT A PSEUDO-ELEMENT, and four separate
+         * gates in this repo are why. It was built as `::before` first, and that version tripped
+         * every one of them at once:
+         *
+         *   the bib's colour resolver (patch-wall.test.ts) refuses any rule reaching a bib
+         *   through a combinator or pseudo, because it models the cascade as a class subset and
+         *   would otherwise read the rule as applying when it does not;
+         *   the absolute-height gate, since a 1px pseudo needs a pinned `height`;
+         *   the every-class-has-a-rule gate, once the label's own rule went away with the
+         *   text decoration; and this file's own not-dimmed assertion, whose selector matched `::before`
+         *   and read the perforation's alpha as the ROW being dimmed.
+         *
+         * Painting it here needs no box, no height and no opacity: the alpha lives in the colour
+         * via `color-mix`, which is how `.bib--booked` already tones its border, and the dots sit
+         * on the row's own padding. One rule, one class, and every gate satisfied by construction
+         * rather than by exemption.
+         */
+        background-image: radial-gradient(circle at 1.5px 0.5px,
+            color-mix(in srgb, currentColor 45%, transparent) 0 1px, transparent 1.2px);
+        background-size: 6px 1px;
+        background-repeat: repeat-x;
+        background-position: top left;
+    }
+
+    /*
+     * THE TEAR-OFF PERFORATION ABOVE IS THE ONE PIECE OF THIS CHANGE THAT IS NOT A FIX.
+     *
+     * A race bib is perforated above the stub that carries your result — the part you hand in,
+     * or the part you keep. What sits below that line is where this ride's result actually
+     * lives, so the device is not decoration: it is the bib's own material vocabulary saying
+     * the same thing the words say. That is the whole argument for it, and if the row ever
+     * stops leading somewhere the perforation has to go with it.
+     *
+     * IT BORROWS THE PIN-HOLES' CONSTRUCTION BUT NOT THEIR GEOMETRY OR THEIR TOKEN, and both
+     * departures were measured rather than reasoned.
+     *
+     * The obvious move is to draw a perforation exactly like a corner pin-hole — same
+     * `radial-gradient`, same 1.7px-to-1.8px antialiasing band, same `--hole` token, on the
+     * argument that a perforation and a pin-hole are the same event on real paper. It was built
+     * that way first and rendered wrong twice over. At 1.7px on a 6px tile the dots very nearly
+     * touch, so a RUN of them reads as a heavy dashed rule rather than as holes — a pin-hole
+     * gets its character from being isolated. And `--hole` at full strength is the card colour
+     * against an inverted face, the strongest mark this palette can make; on a row meant to be
+     * a quiet piece of stationery it shouted.
+     *
+     * So: 1px dots on the same 6px tile, in the row's own ink at 45%. Fine enough to read as
+     * perforation, quiet enough to stay behind the words it introduces. `currentColor` rather
+     * than a token means it follows the row into forced colours without naming anything.
+     */
+
+    /*
+     * NO TEXT DECORATION HERE, AND THAT IS THE WHOLE OF WHY THIS ROW LOOKS THE WAY IT DOES.
+     *
+     * A first revision drew this label the way the three text links elsewhere on the site are
+     * drawn. It was wrong twice over, and both reasons are worth keeping because the mistake is
+     * an easy one to repeat:
+     *
+     *   IT IS THE WRONG VOCABULARY. A bib is a printed artifact. Every row on it is uppercase,
+     *   letterspaced and undecorated, and `.bib` sets `text-decoration: none` on the anchor
+     *   deliberately. A ruled link is a WEB convention imported into a paper one, and it read as
+     *   exactly that — the one element on the bib that did not belong to the bib.
+     *
+     *   IT DESCRIBED THE WRONG TARGET. The whole bib is the anchor, ~260px of it. A decoration
+     *   under 15px of ink advertises those 15px as the control, so it does not merely fail to
+     *   help — it tells the reader something false about where to aim.
+     *
+     * What carries the affordance instead is all bib-native: an imperative verb phrase that says
+     * what using it does, the brand glyph beside it, and FULL INK at the bib's emphatic weight
+     * against four dimmed captions. On this bib only the distance is louder.
+     */
+    /*
+     * THE ROW IS DECLARED ON THE LINKED BIB, NOT ON `.bib`, and that is a height decision rather
+     * than tidiness. `.bib` carries ONE shared `grid-template-areas` with a 0.3rem `row-gap`, so
+     * adding a sixth area there would charge every bib on the wall for a row that only two of
+     * them render — and `.bib-cell { display: grid }` stretches a bib to its row's height, so
+     * the cost would propagate to each linked bib's row-mates as well.
+     */
+    .bib--linked {
+        grid-template-areas: "date date" "value unit" "name name" "place place" "time time" "go go";
     }
 
     /*
@@ -610,5 +726,100 @@ const Tag = activity === null ? "div" : "a";
         line-height: 1.3;
         text-transform: uppercase;
         overflow-wrap: break-word;
+    }
+
+    /*
+     * ==========================================================================================
+     * MODE OVERRIDES. EVERYTHING BELOW THIS LINE MUST STAY BELOW EVERY PLAIN RULE ABOVE IT.
+     * ==========================================================================================
+     *
+     * An at-rule adds NO specificity, so `@media {...}` and a plain rule are the same weight and
+     * the later one wins. Two overrides in this file were once written up beside their same-mode
+     * siblings and were dead from the moment they were written — forced colours kept painting an
+     * `--accent` outline the mode discards, and print kept a hover outline on paper.
+     *
+     * THE NOTE THAT RECORDED THAT WAS ITSELF STALE, AND I REPRODUCED THE BUG BEHIND IT. It said
+     * these blocks sat "at the foot of the sheet"; they did not — `.bib-time`, `.bib-time-label`,
+     * `.bib-time-value` and `.bib-name` were all below them, which was harmless only because
+     * none of those four happened to touch a property an override sets. Adding the action row
+     * broke that coincidence: its base `.bib-go` rule landed below the print at-rule, and the
+     * print override measured DEAD in the built stylesheet — offset 3680 against a base rule at
+     * 3955. Caught by reading emitted rule offsets out of `dist`, which is the only place source
+     * order is observable; nothing in the suite and nothing in review saw it.
+     *
+     * So the blocks were moved to where the comment always claimed they were. Anything
+     * mode-specific belongs here, at the actual end, and any new plain rule belongs ABOVE.
+     */
+    @media (forced-colors: active) {
+        .bib--linked:hover,
+        .bib--linked:focus-visible {
+            outline-color: LinkText;
+        }
+
+        /*
+         * The mark is an icon class, so its artwork is a MASK over
+         * `background-color: currentColor` — and background-color is a forced property, so
+         * without this the glyph paints Canvas on Canvas and vanishes. Measured on the previous
+         * revision with the mode emulated: glyph rgb(255,255,255) on a bib face of
+         * rgb(255,255,255), a ratio of exactly 1. Same fix as EventsLink.astro's chevron.
+         *
+         * IT MOVED HERE WITH THE GLYPH rather than being deleted alongside the row that used to
+         * carry it. What it protects is smaller than it was — the row's WORDS survive forced
+         * colours whatever happens to the glyph, so the label is no longer identified by a mark
+         * that can disappear — but a brand mark that paints nothing is still a defect, and this
+         * is one declaration.
+         */
+        .bib-go-mark {
+            forced-color-adjust: none;
+            background-color: LinkText;
+        }
+
+        /*
+         * `LinkText` on the row, so it is coloured as a link rather than as body text — and in
+         * this mode that colour is doing real work, because the row carries no text decoration
+         * (see the plain rule above for why a rule on a bib is the wrong vocabulary). The words
+         * and the perforation both survive; this is what makes them read as a control.
+         */
+        .bib-go {
+            color: LinkText;
+        }
+
+        /*
+         * THE PERFORATION IS A BACKGROUND IMAGE, WHICH THIS MODE DISCARDS, so it is redrawn in
+         * the one channel forced colours does not touch: border-style and border-width. Same
+         * trade the two bib treatments make a few rules up — a distinction drawn differently is
+         * worth more than a faithful one that cannot be drawn at all.
+         *
+         * The dots become dashes, which is the closest a border can come to a row of holes. It
+         * is not the pin-holes' language any more, but nothing in this mode is: the corner holes
+         * disappear here too, for exactly the same reason.
+         */
+        .bib-go {
+            background-image: none;
+            border-top: 1px dashed CanvasText;
+        }
+    }
+
+    @media print {
+        .bib--linked:hover,
+        .bib--linked:focus-visible {
+            outline: none;
+        }
+
+        /*
+         * Chrome's default `print-color-adjust: economy` drops backgrounds, so the perforation
+         * goes the same way the pin-holes and the bib's face already do on paper. Redrawn as a
+         * dashed rule in literal black, matching the decision the print at-rule above makes for
+         * every other line on the bib: paper is white whichever theme the reader had on screen,
+         * so a token here would carry an assumption that is only true half the time.
+         *
+         * It is worth keeping in print precisely BECAUSE the link is dead on paper: the
+         * perforation is the part of this row that still means something there — it says this
+         * bib has a stub — while the words become a note about where the ride was recorded.
+         */
+        .bib-go {
+            background-image: none;
+            border-top: 1px dashed #000;
+        }
     }
 </style>

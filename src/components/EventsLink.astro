@@ -25,6 +25,15 @@ const {goal} = Astro.props;
  * control, and wearing it on a 24px text link would either dilute the mark or claim a
  * size this is not.
  *
+ * THAT IDIOM IS NOW A NAMED ONE, `text-link`, and it is what makes this element read as a
+ * link at all. Two friends reviewing the site did not know this could be clicked, and the
+ * measurement says why: at 1024x600 this control and the figure line directly above it were
+ * both rgb(250,250,250) at 12px — a contrast ratio of 1.00:1 between a link and a sentence —
+ * with a 13px chevron the only thing distinguishing them. Both were reading on a phone, where
+ * the hover colour below cannot happen at all. See uno.config.ts for the shortcut's reasoning
+ * and for the measured proof that the treatment moves no box, which is the only reason it fits
+ * the four-row budget this card is already spending in full.
+ *
  * THE LABEL IS THE WHOLE ACCESSIBLE NAME, and there is no sr-only completion any more.
  * The chip had one because the words it showed ("Next race in 8 weeks") named neither the
  * race nor the destination, so the announced name had to add them. These words name the
@@ -49,7 +58,7 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
 ---
 
 <a
-        class="events-link inline-flex items-center text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out"
+        class="events-link text-link inline-flex items-center"
         href={`/patches/${goal.sport}`}
 >{label}<span class={`${iconClass(NEXT_RACE.icon)} events-link-go`} aria-hidden="true"></span></a>
 
@@ -98,9 +107,11 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
         }
 
         /*
-         * WITHOUT THIS THE CHEVRON DISAPPEARS AND THE CONTROL IS IDENTIFIED BY COLOUR ALONE —
-         * which is the one thing the glyph exists to prevent, so the rule above was quietly
-         * undoing the argument in NEXT_RACE.icon.
+         * WITHOUT THIS THE CHEVRON DISAPPEARS IN FORCED COLOURS. That used to leave the control
+         * identified by colour alone; it no longer does, because `text-link`'s decoration is not
+         * a forced property and paints in whatever ink the mode picks. The rule stays anyway —
+         * losing one of two cues is still a loss, and the glyph is what says "this goes
+         * somewhere" as opposed to merely "this is a link".
          *
          * The mechanism is presetIcons': an icon class paints its artwork as a MASK over
          * `background-color: currentColor`, and `background-color` is one of the properties a

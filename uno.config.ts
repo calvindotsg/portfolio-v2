@@ -37,7 +37,32 @@ export default defineConfig({
      *  rather than taken as a utility because the rest of that rule — weight,
      *  tracking, line height — is authored CSS, and splitting one type treatment
      *  across two mechanisms is how the pair drifts. */
-    blocklist: ["static", "tabular-nums"],
+    /*
+     * `underline` IS BLOCKED AS AN ENGLISH WORD, not as a declaration value — and the difference
+     * is worth stating, because an earlier revision of this comment claimed both and was wrong.
+     *
+     * `static` and `tabular-nums` are blocked for the declaration-value reason: this codebase has
+     * to write them in authored CSS, and the extractor reads `src/**`. `underline` was briefly in
+     * that category too — the bib's action row carried `text-decoration: underline` — but the
+     * owner rejected a decoration on a bib as the wrong vocabulary for a printed artifact, that
+     * declaration was deleted, and the justification here was left behind describing code that no
+     * longer exists. A review panel found it five times over.
+     *
+     * The entry still earns its place on the remaining reason alone: the treatment is this site's
+     * named idiom, so the components wearing it explain themselves in prose, and any sentence
+     * containing the word emits a real `.underline{}` rule that no element wears — which the
+     * orphan gate in tests/build-output.test.ts fails the build on.
+     *
+     * Blocking the token does NOT disarm the shortcut: a shortcut's expansion is resolved after
+     * extraction, so `.text-link` still ships `text-decoration-line: underline`. That is
+     * asserted rather than trusted — tests/rendered-html.test.ts reads the declaration back out
+     * of the built stylesheet, so the day this interaction changes, the affordance does not
+     * quietly disappear.
+     *
+     * KNOWN_ORPHANS was the wrong tool and was considered first: it suppresses the gate for a
+     * rule that really is dead, where blocking stops the rule being emitted at all.
+     */
+    blocklist: ["static", "tabular-nums", "underline"],
     /**
      * EVERY BREAKPOINT IS TEXT-RELATIVE, and these five values are presetWind3's
      * own defaults restated in `rem`: 640/768/1024/1280/1536 CSS pixels are
@@ -303,8 +328,74 @@ export default defineConfig({
      * which is what the blocklist above is about. The orphan-rule test is the
      * backstop if that ever changes.
      */
+    /*
+     * TWO SHORTCUTS, AND THEY ARE THE SITE'S TWO KINDS OF CONTROL. This file used to say there
+     * was one, deliberately; that sentence is retired rather than edited, because what changed
+     * is not the count but the discovery that the site had a second kind of control all along
+     * and had never named it.
+     *
+     *   `control`    the styled box — 64x48, bordered, wearing the offset plate. Six social
+     *                links and the theme toggle.
+     *   `text-link`  a link that is a run of words inside a sentence or a column of figures.
+     *                The goal cards' way out, the wall's way back, and the company name on each
+     *                role card.
+     *
+     * WHY THE SECOND ONE EXISTS: THREE LINKS WERE DRAWN EXACTLY LIKE STATIC TEXT. Two friends
+     * reviewing the site did not know the goal card's "My cycling events" could be clicked, and
+     * that turned out to be one instance of a class. Measured on the shipped build at 1024x600,
+     * the goal-card control against the figure line directly above it:
+     *
+     *     colour     rgb(250,250,250)  vs  rgb(250,250,250)   — a contrast ratio of 1.00:1
+     *     font-size  12px              vs  12px
+     *     decoration none
+     *
+     * So the only thing separating a link from a sentence was a 13px chevron. The company name
+     * on the role cards was worse still — the same `text-xs font-light` as the date line above
+     * it, no glyph, no hover, nothing. Both cited sources say the same thing: a text decoration
+     * is the remedy when the colour delta is under 3:1 (Berkeley DAP's card-UI guidance), and a
+     * link must "differ from static text" (NN/g, "Beyond Blue Links"). It is also the ONLY cue
+     * here that survives a phone, where the hover colour cannot happen — and a phone is where
+     * both reports came from.
+     *
+     * IT IS A SHORTCUT RATHER THAN THREE COPIES because the three links must not drift apart.
+     * They already had three spellings of the same intent, and EventsLink.astro's own comment
+     * records that its control and the wall's "Home" link are meant to be the same object,
+     * mirrored. One name is what makes that true rather than aspirational.
+     *
+     * THE TREATMENT COSTS NO LAYOUT, WHICH IS THE ONLY REASON IT IS AFFORDABLE HERE. The
+     * right-hand stack has 4.4px of unspent height at its tightest lg configuration and a
+     * text-xs line costs 20px in each of two cards (see Goal.astro), so anything that added a
+     * row was out. Measured on the built page by injecting this treatment and re-reading every
+     * box under `main` at 390x844, 1024x600 and 1440x900: ZERO boxes moved, the goal card stayed
+     * 232.8px and the stack's unspent height stayed 4.41px. A weight bump was measured too — it
+     * is also affordable (it moves the four links' own widths and no card height) and is the
+     * escalation if this ever reads too quiet.
+     *
+     * `from-font` rather than a length: the face ships its own decoration position and
+     * thickness, so this tracks the type instead of pinning a hairline that would go wrong at
+     * another size. The offset is in `em` for the same reason every length in a card is
+     * font-relative here.
+     *
+     * `self-start` IS THE HIT BOX, AND IT BELONGS IN THE SHORTCUT RATHER THAN ON EACH WEARER.
+     * A column flex container stretches its items across the cross axis, so an anchor that is a
+     * flex item has a box the full width of its parent however narrow its words are — 182px of
+     * navigating card for ~45px of ink on the role cards, where the rest is blank. EventsLink
+     * records this at length and fixed it locally; the wall's Home link is not a flex item and
+     * never had the problem; the role cards' company link had it, silently, until making the
+     * link VISIBLE turned a box nobody aimed at into one people will.
+     *
+     * That asymmetry is the argument for putting it here: a treatment that tells a reader "this
+     * is a link" has to also be honest about where the link is, so the two belong in the same
+     * object. EventsLink keeps its own `align-self` as well — it is tested there, against a
+     * selector this shortcut's rule would not satisfy, and the two agree.
+     *
+     * NOT the `control` box, and the reason is the one EventsLink.astro gives for having no
+     * border: the offset plate is this site's mark for a 48px styled control, and wearing it on
+     * a 24px text link would either dilute the mark or claim a size these are not.
+     */
     shortcuts: {
         "control": "text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
+        "text-link": "underline decoration-from-font underline-offset-[0.18em] self-start text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out",
     },
     presets: [
         presetWind3(),
