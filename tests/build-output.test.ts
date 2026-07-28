@@ -30,9 +30,10 @@ describe("dist/", () => {
     });
 
     /**
-     * EVERY BUILT PAGE MUST BE IN THE SITEMAP, and on this site that is load-bearing
-     * rather than hygiene: nothing links to `/patches` from the home page yet, so the
-     * sitemap is those three routes' ONLY discovery path.
+     * EVERY BUILT PAGE MUST BE IN THE SITEMAP. This was once the wall's ONLY discovery
+     * path — nothing on the home page linked to it — and the goal cards' next-race chips
+     * have since closed that, which is why the assertion after this one exists. The
+     * sitemap still matters and is still asserted; it is no longer load-bearing alone.
      *
      * The gate above only greps the index for the origin, which one page satisfies. A
      * review panel dropped three of four pages out of `sitemap-0.xml` through an
@@ -50,6 +51,49 @@ describe("dist/", () => {
             const expected = new URL(path, METADATA.site_url).href;
             expect(urls.has(expected), `${page} is built but ${expected} is not in the sitemap`).toBe(true);
         }
+    });
+
+    /**
+     * EVERY BUILT PAGE IS REACHABLE FROM `/` BY FOLLOWING LINKS — a walk, not a
+     * "somebody links to it" check.
+     *
+     * The wall shipped with nothing on the home page pointing at it, so it was an indexed
+     * page a reader could only arrive at from a search result; the goal cards' next-race
+     * chips closed that, and a fix nothing asserts has a shelf life.
+     *
+     * IT HAS TO BE A WALK FROM THE ROOT, and that is not pedantry — the first version of
+     * this gate asked only whether some other page linked to each one, and the mutation
+     * that removes the chips SURVIVED it: `/patches` and `/patches/cycling` link to each
+     * other, so an island of pages satisfies "linked from somewhere else" while being
+     * exactly as unreachable as before. Verified by injecting that mutation both before
+     * and after this rewrite.
+     *
+     * Stated over the whole build rather than as "the home page links to
+     * /patches/cycling", so a fourth route joins the gate by existing.
+     */
+    it("reaches every built page from the site root by following links", () => {
+        const pathOf = (page: string) => page.replace(/^dist/, "").replace(/index\.html$/, "");
+        const byPath = new Map(builtPages().map((page) => [pathOf(page), page]));
+        expect(byPath.has("/"), "the site root must be built").toBe(true);
+
+        const seen = new Set<string>(["/"]);
+        const queue = ["/"];
+        let followed = 0;
+        while (queue.length > 0) {
+            const path = queue.shift()!;
+            for (const m of read(byPath.get(path)!).matchAll(/href="(\/[^"#?]*)"/g)) {
+                const href = m[1].endsWith("/") ? m[1] : `${m[1]}/`;
+                followed++;
+                if (!byPath.has(href) || seen.has(href)) continue;
+                seen.add(href);
+                queue.push(href);
+            }
+        }
+        expect(followed, "no internal links followed — this assertion would be vacuous").toBeGreaterThan(1);
+        expect(
+            [...byPath.keys()].filter((path) => !seen.has(path)),
+            "these pages are built and in the sitemap but cannot be reached from / by following links",
+        ).toEqual([]);
     });
 
     /**

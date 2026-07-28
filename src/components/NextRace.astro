@@ -1,0 +1,123 @@
+---
+import {type Goal, NEXT_RACE} from "../lib/constants";
+import {nextRace, nextRaceLine, patchesEarned} from "../lib/projection";
+import {iconClass} from "../lib/icons";
+
+interface Props {
+    goal: Goal;
+}
+
+const {goal} = Astro.props;
+
+/*
+ * THE GOAL CARD'S ONE LINE ABOUT THE NEXT RACE, and the whole of what it is allowed to
+ * be is decided by a height budget rather than by taste.
+ *
+ * The right-hand stack has 18px of unspent height at its tightest lg configuration and
+ * 82px at its roomiest — measured, on the built page, at both. Two goal cards share it,
+ * so anything added here costs twice, and past the leftover the flex column starts
+ * CONTRACTING all three of its cards, Now included, which clips rather than scrolls. So
+ * the ceiling for this element is about 9px per card of NEW height, and a chip that
+ * reads as a chip is 24px. It fits because the card gives a line back for it (see
+ * Goal.astro), not because there was room.
+ *
+ * That budget, not restraint, is why this is not a drawn bib. A bib is 116px tall and
+ * needs 13rem of width to size its own number; the goal card's row is 158px wide at
+ * 1024. Neither dimension is available. What the card can carry is the ANSWER a bib
+ * would make the reader work out — how long until the next one — plus the way to the
+ * bib itself.
+ *
+ * ONE ELEMENT, NOT THREE. The countdown, the affordance and the destination are the
+ * same object: the whole chip is the link. Three separate things (a patch, a countdown,
+ * a button) would each need their own box, and three boxes is three times the height
+ * that does not exist.
+ *
+ * IT WEARS THE BOOKED BIB'S HAIRLINE, deliberately, so that a reader who follows this
+ * link lands on a wall where the thing they were just told about is drawn in the same
+ * outline. But at 40% RATHER THAN THE BIB'S 32%, and the difference is the whole of
+ * SC 1.4.11: this border is around a CONTROL, and 32% composites to 2.13:1 in light and
+ * 2.81:1 in dark against the card — measured from the rendered pixel — where an
+ * identifying mark is held to 3:1. 40% was not enough either (2.68 light); 48% is, and
+ * the reason the arithmetic is easy to get wrong is that the light side of the pair is
+ * the CARD at #F5F5F5, not white. The bib keeps 32%
+ * because its outline is a second channel behind the word "Booked" rather than the only
+ * thing identifying a control.
+ *
+ * It must NOT wear the offset plate: that box is this codebase's mark for a 48px styled
+ * control, and spending it on a 24px chip would either make the chip a control it is not
+ * or dilute the mark.
+ *
+ * THE ACCESSIBLE NAME IS COMPLETED IN sr-only TEXT rather than in `aria-label`. The
+ * words on screen are budgeted to 158px and cannot also name the race and the
+ * destination; appending them keeps the announced name a superset of what is on screen,
+ * which is the rule an aria-label would break.
+ */
+const next = nextRace(goal.sport);
+const earned = patchesEarned(goal.sport);
+
+const sportWord = goal.goal_name.toLowerCase();
+const destination = NEXT_RACE.destination.replace("{sport}", sportWord);
+---
+
+<a class="next-race" href={`/patches/${goal.sport}`}>
+    <span>{nextRaceLine(next, earned)}</span>
+    {next && <span class="sr-only">{next.event.name}</span>}
+    <span class="sr-only">{destination}</span>
+    <span class={`${iconClass(NEXT_RACE.icon)} next-race-go`} aria-hidden="true"></span>
+</a>
+
+<style>
+    /*
+     * `min-height` in `rem` and no height at all: the card clips, so pinning a height
+     * here would delete the text the moment the reader enlarges it. 1.5rem is the floor this
+     * codebase already set for a small link — 24px at the default text size, SC 2.5.8's
+     * AA minimum on the nose, and font-relative so it grows with the text rather than
+     * staying put.
+     *
+     * `max-content` with a `100%` cap rather than the card's full width: the chip should be
+     * as wide as its sentence so the border reads as around the words, but it must not
+     * become the thing that widens the card on a narrow phone.
+     */
+    .next-race {
+        display: inline-flex;
+        align-items: center;
+        min-height: 1.5rem;
+        max-width: 100%;
+        width: max-content;
+        padding: 0 0.5em;
+        border: 1px solid color-mix(in srgb, var(--text) 48%, transparent);
+        border-radius: 2px;
+        color: var(--text);
+        transition: color 300ms ease-in-out, border-color 300ms ease-in-out;
+    }
+
+    .next-race:hover,
+    .next-race:focus-visible {
+        color: var(--accent);
+        border-color: var(--accent);
+    }
+
+    /* `flex: none` for the reason ProgressBar's icon has it: a 1em-square mask box that is
+       allowed to compress renders a deformed glyph, and this one sits after a text run
+       that will happily take the space. `1.1em` because a chevron's drawn stroke occupies
+       less of its box than a letter does of its em, so at 1em it reads a size small. */
+    .next-race-go {
+        flex: none;
+        font-size: 1.1em;
+        margin-inline-start: 0.1em;
+        margin-inline-end: -0.15em;
+    }
+
+    /*
+     * Forced colours override `border-color`, so the hairline becomes the same CanvasText
+     * as every other border on the page and the chip stops reading as its own object.
+     * `LinkText` is the one colour the mode reserves for exactly this, and it is a
+     * system colour rather than a token, so it is set here instead of among the themes.
+     */
+    @media (forced-colors: active) {
+        .next-race {
+            border-color: LinkText;
+            color: LinkText;
+        }
+    }
+</style>

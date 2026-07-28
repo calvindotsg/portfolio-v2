@@ -1,6 +1,6 @@
 import {defineConfig, presetIcons, presetWind3} from "unocss";
 
-import {CAREER, FOOTER, GOALS, LINKS, NOW, PATCHES, WELCOME} from "./src/lib/constants";
+import {CAREER, FOOTER, GOALS, LINKS, NEXT_RACE, NOW, PATCHES, WELCOME} from "./src/lib/constants";
 import {iconClass} from "./src/lib/icons";
 
 export default defineConfig({
@@ -24,6 +24,7 @@ export default defineConfig({
         iconClass(FOOTER.icon),
         iconClass(NOW.explainer_icon),
         iconClass(PATCHES.home_icon),
+        iconClass(NEXT_RACE.icon),
     ],
     /** UnoCSS extracts from the text of `<style>` blocks too, so the declaration
      *  `position: static` in IntroCard emits a utility rule for a class no
