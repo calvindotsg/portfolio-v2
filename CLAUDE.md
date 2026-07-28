@@ -1,3 +1,5 @@
+# CLAUDE.md
+
 ## Project Overview
 
 This is a personal portfolio website built with Astro, featuring a bento-style,
@@ -11,16 +13,14 @@ patches.
 ## Commands
 
 - `pnpm test` — the change gate the sections below refer to. It runs `pnpm build`
-  first (`globalSetup` in `vitest.config.ts`), so the `dist/` assertions have real
-  artifacts; `SKIP_BUILD=1 pnpm test` reuses an existing `dist/` while iterating
+  first (`globalSetup` in `vitest.config.ts` points at `tests/setup/build.ts`), so
+  the `dist/` assertions have real artifacts; that setup honours `SKIP_BUILD=1` to
+  reuse an existing `dist/` while iterating
 - `pnpm eslint` and `pnpm check` — not `lint`, not `typecheck`; neither of those
   script names exists. Netlify's build command is `pnpm check && pnpm test`
-
-## Local Preview
-
-`pnpm preview` serves the built `dist/` directory locally on
-http://localhost:4321 — the site is a static build with no adapter, so the
-preview is byte-identical to what Netlify serves.
+- `pnpm preview` serves the built `dist/` directory locally on
+  http://localhost:4321 — the site is a static build with no adapter, so the
+  preview is byte-identical to what Netlify serves
 
 ## Key Architecture Points
 
