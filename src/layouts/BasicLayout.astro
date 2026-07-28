@@ -107,7 +107,14 @@ const schema = {
     <meta property="og:title" content={title}/>
     <meta property="og:description" content={description}/>
     <meta property="og:type" content="website"/>
-    <meta property="og:url" content={Astro.url.origin}/>
+    <!-- THE PAGE'S OWN URL, not the origin. It was the origin from plan 002, when there
+         was one page and the two were the same thing modulo a trailing slash. With four
+         routes that decision inverted into a defect: every /patches page told a social
+         card it WAS the home page, contradicting the canonical link three lines up, so a
+         shared link to /patches/cycling unfurled as calvin.sg. Found by a review panel;
+         `Astro.url.href` is what the canonical already uses, so the two now agree by
+         construction rather than by coincidence. -->
+    <meta property="og:url" content={Astro.url.href}/>
     <meta
             property="og:image"
             content={image}

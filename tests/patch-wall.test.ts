@@ -720,11 +720,15 @@ describe("the sport mark reads as text on the surface it lands on", () => {
         const ground = face === "transparent" ? t["--card-background"] : face;
 
         const doc = parseHTML(read(PAGES.all)).document;
-        const dimmed = [...doc.querySelectorAll(".bib *")]
+        // `.bib *` was too narrow: the filter row carries its own `opacity` on
+        // `.patch-filter-count` and was unguarded by this, which a review panel found.
+        // It measures fine today (7.03:1 at worst of four states) — but "fine today"
+        // measured by hand is exactly what this assertion exists to replace.
+        const dimmed = [...doc.querySelectorAll(".bib *, .patch-filter *")]
             .map((el) => ({el, tokens: (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean)}))
             .map((x) => ({...x, opacity: declared(x.tokens, "opacity")}))
             .filter((x) => x.opacity !== undefined && parseFloat(x.opacity) < 1);
-        expect(dimmed.length, "nothing on a bib is dimmed — this assertion would be vacuous").toBeGreaterThan(0);
+        expect(dimmed.length, "nothing is dimmed — this assertion would be vacuous").toBeGreaterThan(0);
 
         const rgb = (hex: string) => {
             const h = expand(hex);

@@ -120,6 +120,27 @@ describe("GOALS", () => {
         }
     });
 
+    /**
+     * `short_name` reaches the page: it is the word beside the sport icon on every bib,
+     * and that icon is aria-hidden. An empty string therefore ships a bib whose sport is
+     * carried by colour and an icon nobody announces — an SC 1.1.1 hole with a green
+     * build. It had no gate at all until a review panel asked for one.
+     *
+     * Shorter than `goal_name` is asserted because that is WHY the field exists: the long
+     * word wrapped the bib's meta line. A `short_name` equal to or longer than the goal's
+     * name is the field being filled in without its reason.
+     */
+    it("gives every goal a short name that is announceable and actually shorter", () => {
+        for (const goal of GOALS) {
+            expect(goal.short_name.trim(), `${goal.goal_name} short_name is the word beside an aria-hidden icon`).not.toBe("");
+            expect(
+                goal.short_name.length,
+                `${goal.goal_name} short_name "${goal.short_name}" is not shorter than the goal name — the field exists because the long word does not fit a bib`,
+            ).toBeLessThan(goal.goal_name.length);
+        }
+        expect(new Set(GOALS.map((g) => g.short_name)).size, "two sports sharing a short name are indistinguishable on a bib").toBe(GOALS.length);
+    });
+
     it("has a visible progress icon and unit", () => {
         for (const goal of GOALS) {
             expect(goal.goal_logo, `${goal.goal_name} goal_logo`).not.toBe("");

@@ -973,9 +973,18 @@ describe("dist/index.html is prerendered", () => {
         expect(meta('meta[property="og:image"]')).toBe(METADATA.image_url);
         expect(meta('meta[name="twitter:image"]')).toBe(meta('meta[property="og:image"]'));
         expect(meta('meta[name="twitter:card"]')).toBe("summary_large_image");
-        // og:url is origin-only BY DESIGN (plan 002) — never assert it against the
-        // canonical URL or METADATA.site_url, which carry a trailing slash.
-        expect(meta('meta[property="og:url"]')).toBe(new URL(METADATA.site_url).origin);
+        // og:url NAMES THE PAGE, and must agree with the canonical. It was origin-only
+        // from plan 002 — correct while the site had one page, and a defect once it had
+        // four: the three /patches routes each advertised the home page to a social
+        // card while their own rel=canonical said otherwise. Asserted against the
+        // canonical rather than against a literal, so the two cannot drift apart again.
+        for (const page of builtPages()) {
+            const doc = parseHTML(read(page)).document;
+            const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute("href");
+            const ogUrl = doc.querySelector('meta[property="og:url"]')?.getAttribute("content");
+            expect(canonical, `${page} must self-canonicalise`).toBeTruthy();
+            expect(ogUrl, `${page}: og:url ${ogUrl} disagrees with canonical ${canonical}`).toBe(canonical);
+        }
     });
 
     it("serves the portrait as a build-emitted asset, not a runtime image CDN URL", () => {
@@ -1093,7 +1102,10 @@ describe("source hygiene", () => {
                 [...css.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\(.)/g, "$1")),
             );
             const tokens = classTokens(page);
-            expect(tokens.size, `${page} must ship class tokens`).toBeGreaterThan(20);
+            // Non-vacuity without a hand-counted number: a page that wears any class at
+            // all is enough for the loop below to mean something, and a legitimate new
+            // page smaller than today's smallest must not fail a gate about rules.
+            expect(tokens.size, `${page} ships no class tokens at all`).toBeGreaterThan(0);
             for (const token of tokens) {
                 expect(cssClasses.has(token), `${page}: class "${token}" has no rule in the stylesheet it loads`).toBe(true);
             }
