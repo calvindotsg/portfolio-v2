@@ -221,9 +221,14 @@ describe("required rate", () => {
         // Year over — from 1 JANUARY. 31 December is the last riding day, not the
         // first dead one, so it belongs to `final`; see `daysRemaining`.
         expect(goalStatus({...base, raw_progress: 0}, "2027-01-01").kind).toBe("closed");
-        // Final fortnight: an absolute total, not a weekly rate.
+        // Final fortnight: an absolute total, not a weekly rate. Both sides of the
+        // boundary, because the day count that decides it is what this PR changed —
+        // 18 December is the fourteenth-last day and still gets a rate, 19 December is
+        // the thirteenth and does not. Without both, `FINAL_STRETCH_DAYS` can be moved
+        // a day in either direction with the suite still green.
+        expect(goalStatus({...base, raw_progress: 0}, "2026-12-18").kind).toBe("rate");
+        expect(goalStatus({...base, raw_progress: 0}, "2026-12-19").kind).toBe("final");
         expect(goalStatus({...base, raw_progress: 0}, "2026-12-31").kind).toBe("final");
-        expect(goalStatus({...base, raw_progress: 0}, "2026-12-25").kind).toBe("final");
         // Unparseable input renders nothing rather than a guess.
         expect(goalStatus(base, "2026-02-30").kind).toBe("unknown");
         expect(goalStatus({...base, total_goal: 0}, AS_OF).kind).toBe("unknown");
