@@ -290,21 +290,48 @@ export function patchState(event: RaceEvent, iso: string = UPDATED_AT): PatchSta
 export type Patch = {event: RaceEvent, state: PatchState}
 
 /**
- * The wall: every race, or every race of one sport, NEWEST FIRST.
+ * The wall: every race, or every race of one sport, NEXT RACE FIRST — the booked
+ * races in ascending date order, then the finished ones in descending.
+ *
+ * WHY NOT NEWEST-FIRST, WHICH THIS REPLACED. One flat descending sort means "most
+ * recent thing at the top", and on a calendar that runs past today that buries the
+ * race the owner is actually training for at the BOTTOM of the booked group, three
+ * further-away races above it. Both groups therefore start at today and move away
+ * from it, in opposite directions: booked counts forward (2 Aug, 27 Sep, 7–15 Nov,
+ * 6 Dec) and finished counts back (12 Jul, 10 Jul).
+ *
+ * WHICH MAKES THE STATE PART OF THE SORT KEY, and that is the one thing here that
+ * can surprise a caller: this order is a function of `iso`, so the same fixture
+ * reorders itself as races fall behind the stamp — and on the day after the last
+ * race the booked run empties and the whole wall is plain descending. That is the
+ * intended behaviour, not a degenerate case, and it is why the tests assert the
+ * shape of the order at pinned dates rather than the order of today's calendar.
+ *
+ * THE GROUP BOUNDARY IS NOT DRAWN, because the bibs already draw it: a booked bib is
+ * an outline wearing the word BOOKED and a finished one is a solid inverted face, so
+ * the two runs read as two blocks with nothing between them. A heading or rule would
+ * belong to the page, not to this function.
  *
  * SORTED HERE RATHER THAN IN THE FIXTURE, and the reason is a defect that already
- * shipped once in the design previews for this feature: their captions claimed
- * newest-first while the array happened to be chronological, and nobody read the
- * render against the caption. {@link EVENTS} is hand-edited in date order because
- * that is the order a person adds races in, so relying on it would mean the wall's
- * ordering is a property of how the list was typed.
+ * shipped once in the design previews for this feature: their captions claimed an
+ * order the array happened to supply, and nobody read the render against the
+ * caption. {@link EVENTS} is hand-edited in date order because that is the order a
+ * person adds races in, so relying on it would mean the wall's ordering is a
+ * property of how the list was typed.
  *
  * THE ORDER IS TOTAL, which is why `name` breaks the tie rather than leaving it to
- * the sort's stability. Two races on one date is not hypothetical here — the Phuket
- * legs are two days apart and a future weekend double is one edit away — and a tie
- * resolved by fixture position is the same defect as sorting in the fixture, just
- * narrower.
+ * the sort's stability: a tie resolved by fixture position is the same defect as
+ * sorting in the fixture, just narrower. {@link EVENTS} has no same-day pair today —
+ * the two Phuket legs are two days apart — so the tie is exercised by a fixture in
+ * the tests rather than by the calendar, and a weekend double is one edit away.
+ *
+ * THE TIEBREAK IS ASCENDING IN BOTH GROUPS, deliberately out of step with the dates.
+ * Reversing it inside the finished group would make the printed order of two
+ * same-day races depend on whether they have happened yet, which is a stranger rule
+ * than one alphabetical tiebreak that never moves.
  */
+const STATE_RANK: Record<PatchState, number> = {booked: 0, finished: 1}
+
 export function patchWall(
     sport?: Sport,
     iso: string = UPDATED_AT,
@@ -313,10 +340,14 @@ export function patchWall(
     return events
         .filter((e) => sport === undefined || e.sport === sport)
         .map((event) => ({event, state: patchState(event, iso)}))
-        .sort((a, b) =>
-            a.event.date === b.event.date
-                ? (a.event.name < b.event.name ? -1 : a.event.name > b.event.name ? 1 : 0)
-                : (a.event.date < b.event.date ? 1 : -1))
+        .sort((a, b) => {
+            if (a.state !== b.state) return STATE_RANK[a.state] - STATE_RANK[b.state]
+            if (a.event.date !== b.event.date) {
+                const earlierFirst = a.event.date < b.event.date ? -1 : 1
+                return a.state === "booked" ? earlierFirst : -earlierFirst
+            }
+            return a.event.name < b.event.name ? -1 : a.event.name > b.event.name ? 1 : 0
+        })
 }
 
 /** "JUL", for a bib's date line. Three letters is what fits beside the sport mark. */

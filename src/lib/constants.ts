@@ -387,6 +387,12 @@ export const NOW: {
  * row both say which page you are on, so the overclaim is survivable and it is still
  * an overclaim, written where a reader looks for what the page contains.
  *
+ * `key` NAMES THE OUTLINES FIRST because the wall shows them first: it is sorted next
+ * race first, so a legend that opened with the solid bibs would introduce the two
+ * treatments in the opposite order to the one the reader meets them in. The sentence
+ * is otherwise about treatment rather than order, so it survives the booked run
+ * emptying on the day after the last race.
+ *
  * So `scope_all` and `scope_sport` are alternatives and `key` follows either. The
  * `{sport}` in `scope_sport` is replaced with the goal's own name, which is the same
  * string the heading uses — a sport is called one thing on this site.
@@ -415,7 +421,7 @@ export const PATCHES: {
     heading: "Patch wall",
     scope_all: "Every race I have entered this year.",
     scope_sport: "Every {sport} race I have entered this year.",
-    key: "The solid bibs are the ones I have finished; the outlines are still ahead of me.",
+    key: "The outlines are still ahead of me; the solid bibs are the ones I have finished.",
     description_all: "Every race Calvin has entered this year, finished and still to come, drawn as race bibs.",
     description_sport: "Every {sport} race Calvin has entered this year, finished and still to come, drawn as race bibs.",
     all_label: "All",
