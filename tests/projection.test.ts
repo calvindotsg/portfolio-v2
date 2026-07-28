@@ -524,11 +524,19 @@ describe("the rendered page", () => {
         expect(times[0]!.textContent).toBe(formatDateline());
     });
 
-    it("gives the footer card its second lg row, without which the dateline shears", () => {
-        // Measured: without this the dateline loses 5px of glyphs at the DEFAULT
-        // 16px text size, at every viewport whose height puts `main` on its floor.
+    it("gives the footer card the lg rows the dateline needs", () => {
+        // Measured: with one row the dateline loses 5px of glyphs at the DEFAULT 16px
+        // text size, at every viewport whose height puts `main` on its floor.
+        //
+        // It is THREE rows now, and the third is what pays for content-sized rows. Two
+        // rows put this card in row 8 plus an implicit row worth 0px, so its area was
+        // 92px for 105px of content and its own bottom padding was the 13px being cut.
+        // Under a fraction template that clipping is invisible; under the content-sized
+        // one it became the single largest term in the grid's height, and the whole page
+        // paid 13px for it. A third row costs nothing either way — rows 9 and 10 already
+        // exist, empty, from the career cards' six-row spans.
         const card = document.querySelector("main")!.lastElementChild!;
-        expect(card.getAttribute("class")).toContain("lg:row-span-2");
+        expect(card.getAttribute("class")).toContain("lg:row-span-3");
     });
 
     it("adds exactly ONE status line per goal card", () => {

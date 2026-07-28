@@ -71,26 +71,71 @@ const dateline = formatDateline();
  *
  * ---
  *
- * THE HEIGHT BUDGET BELOW IS SPELLED IN THE READER'S OWN TEXT SIZE, and that is the
- * whole of what lets this page stop being single-screen when someone enlarges it.
+ * THE HEIGHT BUDGET BELOW IS A FLOOR, NOT A CLAMP, AND THE ROWS SIZE TO THEIR
+ * CONTENT. Between them that is the whole of what lets this page stop being
+ * single-screen when the text inside it grows, by whatever means it grew.
  *
- * `main` is clamped between a floor and a cap around a viewport height. Both ends
- * used to be absolute — 736px and 800px — which meant the grid's height could not
- * move while every card's contents scaled with the root font-size, and every card
- * clips. The difference was not pushed below the fold, it was deleted: the page did
- * not even scroll, because `main` still fitted the viewport exactly. Measured as ink
- * past each card's clip edge summed over the page, at 1024x800: 4.8px lost at a 17px
- * root, 196 at 18, 457 at 20, 966 at 22, 1596 at 24.
+ * `main` used to be clamped between a floor and a CAP around a viewport height, and
+ * both ends used to be absolute — 736px and 800px. Absolute was the first defect:
+ * the grid's height could not move while every card's contents scaled with the root
+ * font-size, and every card clips, so the difference was not pushed below the fold,
+ * it was deleted. Measured as ink past each card's clip edge summed over the page, at
+ * 1024x800: 4.8px lost at a 17px root, 196 at 18, 457 at 20, 966 at 22, 1596 at 24.
+ * Writing both ends in `rem` closed that, because the reader's zoom moves the root
+ * font-size and a rem budget moves with it.
  *
- * 46rem and 50rem are those same two numbers at the 16px root every browser ships,
- * so at the default text size nothing changes — verified rect for rect, including
- * every ink rect on the page, across 186 configurations (31 widths from 320 to 2560,
- * three viewport heights, both themes): zero differences. Above it the budget grows
- * at the rate the text grows, `main` exceeds the viewport, and the body's floor in
- * BasicLayout lets the page scroll. The viewport term in the middle of the clamp
- * stays in `vh` deliberately and must: it is what makes the page single-screen at
- * all, and a floor of 50rem instead would push a 760px-tall viewport into scrolling
- * at the DEFAULT text size, which is a regression rather than a fix.
+ * THE CAP ITSELF WAS THE SECOND DEFECT, and no unit could have closed it. WCAG SC
+ * 1.4.12 lets a reader set line-height, letter-spacing, word-spacing and paragraph
+ * spacing directly; none of those touches the root font-size, so the type inside the
+ * cards grows while every font-relative length on this page — the budget, the
+ * breakpoints, the card padding — stays exactly where it was. The grid could not
+ * follow, and the cards clipped. Measured on the revision before this one, ink past
+ * each card's clip edge with the criterion's four metrics applied: 1157.7px deleted at
+ * 1024x600, 850.7 at 1024x768, and 63 at 1440x900 and every larger viewport. All of it
+ * on the BOTTOM edge; the right edge was 0 everywhere, because a card grows vertically
+ * with its content and never horizontally.
+ *
+ * So the cap is gone, `min-height` carries the whole clamp on its own, and the row
+ * template is `min-content` rather than eight equal fractions. THE TWO HALVES DO
+ * DIFFERENT JOBS, and each was measured alone against a real build.
+ *
+ * Removing the cap is what closes SC 1.4.12, and it closes it on its own: with the
+ * eight-fraction template left exactly as it was, the loss is 0px at 1024x600,
+ * 1024x768, 1280x800, 1440x900 and 1920x1080. A fraction track sums to its container
+ * only while that container has a DEFINITE height; once `min-height` is the only
+ * constraint the height is indefinite, so each track resolves against its own content
+ * contribution and grows. Measured on that build at 1440x900: eight tracks of 90px
+ * with the criterion off, eight of 136px with it on.
+ *
+ * Content-sized rows without freeing the cap are still WORSE than shipping neither,
+ * because the tracks then overflow a container that still clips.
+ *
+ * What the content-sized template buys is the DEFAULT-size page, not the criterion.
+ * Under the freed floor the eight fraction tracks all round up to the tallest one, so
+ * the grid asks for far more room than its content needs: this branch with the
+ * fraction template restored measures 810px at the default text size, and the same
+ * change made on the previous revision alone measures 912px, against 797px as
+ * shipped. At 1280x800 that is the difference between fitting and scrolling. Both
+ * halves are kept, and together it is 0px lost at every viewport.
+ *
+ * WHAT IT COSTS A READER WHO CHANGES NOTHING. The grid now asks for 797px where it was
+ * given 800, so from a 797px-tall viewport up nothing scrolls that did not scroll
+ * before. Below that the page grows: at 1024x768 and 1366x768 the document goes 768 to
+ * 797px and gains a 29px scroll where it used to fit exactly, by squeezing every row
+ * 5px and eating the footer card's bottom padding. BE PRECISE ABOUT WHAT SCROLLS:
+ * measured at both of those viewports, the text ink below the fold is ZERO. The 29px
+ * is 5px of the footer card's own box plus `main`'s bottom padding, so the cost is a
+ * scrollbar, not a line of copy. An earlier draft of this paragraph said only that the
+ * page stops fitting, which reads as content going under the fold and overstates it. Rect-diffed against a build of the
+ * previous revision across ten lg viewports: no card moves horizontally or changes
+ * width, the intro card gains 5px, the footer 14px — that is its own padding coming
+ * back — and everything below the first row shifts down 5px.
+ *
+ * The 50rem term survives inside the floor, and it is doing a different job there: it
+ * caps how tall the grid STRETCHES on a tall viewport, not how tall it may GROW. The
+ * `vh` term in the middle stays for the reason it always did — it is what makes the
+ * page single-screen at all, and a flat 50rem floor would push a 760px-tall viewport
+ * into scrolling at the DEFAULT text size, which is a regression rather than a fix.
  *
  * The budget is only half of it. The other half is that the breakpoints are
  * text-relative too, for the reason in uno.config.ts — freeing the height alone still
@@ -135,7 +180,7 @@ const dateline = formatDateline();
         description={METADATA.description}
 >
     <main
-            class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-6xl overflow-hidden relative w-full sm:p-4 md:grid-cols-2 md:gap-3 md:p-6 lg:h-screen lg:grid-rows-8 lg:grid-cols-4 lg:gap-4 lg:min-h-[46rem] lg:max-h-[50rem]"
+            class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-6xl overflow-hidden relative w-full sm:p-4 md:grid-cols-2 md:gap-3 md:p-6 lg:grid-rows-[repeat(8,min-content)] lg:grid-cols-4 lg:gap-4 lg:min-h-[clamp(46rem,100vh,50rem)]"
     >
         <IntroCard/>
         <!-- The lg grid is packed exactly 32/32 cells. Adding a goal card requires
@@ -156,7 +201,7 @@ const dateline = formatDateline();
         </div>
         <AboutMe/>
         <Career/>
-        <!-- THE SECOND lg ROW IS WHAT MAKES THE DATELINE FIT, and it is free.
+        <!-- THE EXTRA lg ROWS ARE WHAT MAKE THE DATELINE FIT, and they are free.
              This card was one row holding a two-line paragraph. Its box already
              overflowed by 6px at 1440x900 and 14px at 1024x600 — which cuts NO ink,
              because that is the last line's leading and descender space inside 24px
@@ -169,19 +214,30 @@ const dateline = formatDateline();
              configurations; an earlier draft attached the 1440x900 number to the
              floor configs and so understated this fix by 8px.
 
-             The row costs nothing because the grid already computes TEN row tracks —
+             The rows cost nothing because the grid already computes TEN row tracks —
              the eight explicit ones plus two implicit zero-height rows created by
-             the career cards' six-row spans — so the second row spends only the 16px
+             the career cards' six-row spans — so each extra row spends only a 16px
              gap that was already being spent on nothing. Measured across 40
              configurations: 0 ink lost, and every other card byte-identical in x, y,
              width and height. The footer alone grows 76 -> 92px.
+
+             IT IS THREE ROWS NOW, and the third is what pays for the content-sized row
+             template above. At two rows this card is auto-placed into row 8 plus an
+             implicit row worth 0px, so its area was 92px for 106px of content — the
+             14px being cut was its own bottom padding, which is why no ink probe ever
+             saw it. A fraction template hides that; a content-sized one has to charge
+             the whole page for it, and the grid asked for 813px instead of 797. With
+             the third row this card stops driving the template at all: 106px of
+             content into an area of 106px where the grid is content-driven and 109px
+             from an 800px-tall viewport up, and the page pays nothing. (An earlier
+             draft said "105px into 108px"; 108 occurs at no real viewport.)
 
              The single-line property is load-bearing, not tidiness. A dateline long
              enough to wrap reopens the same 5px loss WITH the row-span in place; the
              footer's text column is 182px at 1024px wide, and the worst date the
              calendar can produce ("Updated 30 September 2026") measures 165.75px.
              tests/projection.test.ts pins that bound. -->
-        <Card colSpan="md:col-span-1" rowSpan="md:row-span-1 lg:row-span-2">
+        <Card colSpan="md:col-span-1" rowSpan="md:row-span-1 lg:row-span-3">
             <p class="text-xs">
                 {FOOTER.prefix} <span class="text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}
             </p>

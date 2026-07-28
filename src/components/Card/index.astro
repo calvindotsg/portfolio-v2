@@ -44,19 +44,24 @@
 // help either, it hurts: those rows' 32px of gaps go back into the eight real rows,
 // every row grows to 80px, and the goal band gets WORSE, 63px to 75px.
 //
-// The 92px is the reference viewport's, not a constant, and not one of a short list
-// either. Every figure in this comment is also AT THE DEFAULT 16px ROOT: the clamp
-// is written in rem now (index.astro), so all of it scales with the reader's text and
-// none of these numbers is a fixture of the layout.
-// `main` takes the viewport height, capped at 800px over a 736px floor, and
-// its computed row template is ten tracks — the eight explicit ones plus two implicit
-// tracks at zero height — so nine gaps of 16px are spent and a row is
-// (clamp(736, viewport, 800) - 48 of padding - 144 of gaps) / 8. That is a continuum
-// from 68px at the floor to 76px from a 800px viewport up, 72px at 768px tall, so a
-// row costs 84px to 92px including its gap. The argument holds across the whole
-// range, not just at those three points: 206, 206 and 170px of content each need
-// three rows at EVERY integer row height in it, nine against the eight the column
-// has. The arithmetic still has to be re-run, not quoted, if these spans change.
+// THE ARITHMETIC IN THE PARAGRAPH ABOVE DESCRIBES A ROW TEMPLATE THIS PAGE NO LONGER
+// HAS, and the conclusion survives while the numbers do not. `main`'s rows sized to a
+// fraction of a capped height when it was written — a row was
+// (clamp(736, viewport, 800) - 48 of padding - 144 of gaps) / 8, a continuum from 68px
+// at the floor to 76px from an 800px viewport up, so 84px to 92px including its gap.
+// Those figures are why a three-row card could not become a two-row one.
+//
+// The template is `min-content` now (index.astro, and the reason is SC 1.4.12), so a row
+// is as tall as the tallest thing spanning it and there is no per-row constant to quote.
+// Measured at 1440x900 and the default root: 77.25px for rows 1-4, 74px for 5-7, 62px for
+// row 8, and two implicit tracks at 7.5px (they are 6px at viewport heights <= 797,
+// which is the value an earlier draft of this line quoted against the wrong viewport). The reason a card cannot give up a row is
+// unchanged and is now nearly tautological — a row holds what is in it — but any
+// re-derivation has to read the live template rather than divide a height by eight.
+//
+// Every figure in this comment is AT THE DEFAULT 16px ROOT, and none of them is a fixture
+// of the layout: the budget is in rem (index.astro), so it all scales with the reader's
+// text. Re-run the arithmetic, do not quote it, if these spans change.
 //
 // So the card stops stretching instead. It takes its content's height and sits at
 // the top of its area, which leaves the body directly under the heading where it
@@ -70,7 +75,8 @@
 // The block-size cap is the other half and it is not decoration, but be exact about
 // what it can hold. A percentage cap resolves against the PARENT's height, and the
 // parent is the grid area only for the five cards that are direct grid items; for the
-// three inside the right-hand stack it is the stack's own height — 720px at 1440x900,
+// three inside the right-hand stack it is the stack's own height — 705px at 1440x900
+// since the row template went content-sized (it was 720px under the eight fractions),
 // over 500px more than any one of them asks for — so the cap cannot bind there at all,
 // and what keeps those three inside their column is the stack, not the cap. Either
 // way the percentage needs a parent height that is already decided, which is true
@@ -83,7 +89,18 @@
 // into main's bottom padding. At the 736px floor it holds two more, about-me and the
 // HeyMax role card, whose content outgrows their shorter areas there.
 //
-// Two cards keep the height they ship with today exactly: the intro card at 352px,
+// THE CAP NOW BINDS ON NOTHING, and that is the point rather than an argument for
+// deleting it. With `min-content` rows every card's area is at least its content, so
+// 100% of the area can no longer be smaller than what the card holds. It stays as the
+// thing that stops a card escaping its area if some future template goes back to giving
+// rows a size of their own — the same reason `overflow-hidden` stays on a card that
+// currently clips nothing. What it used to cut is worth knowing, because nothing could see it:
+// the footer card sat in row 8 plus an implicit row worth 0px, so the cap held it at 92px
+// for 106px of content and ate 14px of its own bottom padding. No ink probe could see that
+// — padding is not ink — and it is why the footer now asks for a third lg row.
+//
+// Two cards kept the height they shipped with when this was written: the intro card at
+// 352px — it is 357px now, because content-sized rows give it what it asks for —
 // which is exempt anyway (below), and the footer at 76px. Now does not — it goes
 // 168px to 170px, and that is the point rather than a side effect, because the 2px it
 // used to spill past its own padding edge is now inside it. The five roomy cards

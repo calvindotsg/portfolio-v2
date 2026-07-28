@@ -57,10 +57,15 @@ earned bibs are called patches.
 ### Layout Hierarchy
 - `src/layouts/BasicLayout.astro` wraps every page
 - `src/pages/index.astro` — the bento grid, responsive, one screen at the default
-  text size. Its `<main>` owns the height budget and the 32/32 lg grid. The
-  right-hand stack (both goal cards plus Now) has **4.4px** of unspent height left at
-  the tightest lg viewport — read the budget note in `components/Goal.astro` before
-  adding a line to any of those three cards
+  text size from a 797px-tall viewport up. Its `<main>` owns the height budget and the
+  32/32 lg grid. That budget is a **floor with no ceiling**, and the lg rows size to
+  their content (`min-content`, not `grid-rows-8`): both halves are required by WCAG
+  SC 1.4.12, which lets a reader enlarge the type without touching any font-size the
+  page can see, so a grid that cannot grow deletes the difference. Read the note in
+  `index.astro` before putting any ceiling — `max-height`, `height`, or a fraction row
+  track — back on `<main>`. The right-hand stack no longer has a fixed height to
+  exhaust, so the old "remove something before adding a line" rule is retired;
+  `components/Goal.astro` records what it used to cost
 - A goal card's body is a hero figure, a 2px progress rule spanning the body, the
   required rate, the countdown, and a control (`components/EventsLink.astro`) reading
   `My <sport> events ›`. That control is the only path from the home page to

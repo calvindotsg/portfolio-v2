@@ -100,6 +100,49 @@ export type Rule = {
     at: string,
 };
 
+/**
+ * A SELECTOR LIST SPLIT ON ITS OWN COMMAS, not on every comma it contains.
+ *
+ * `head.split(",")` was the idiom here, and it is wrong for any class name holding a
+ * comma — which is every UnoCSS arbitrary value with more than one argument.
+ * `grid-rows-[repeat(8,min-content)]` escapes to `.lg\:grid-rows-\[repeat\(8\,min-content\)\]`
+ * and a naive split tears it into `.lg\:grid-rows-\[repeat\(8\` and `min-content\)\]`.
+ *
+ * Neither fragment is a valid selector, so every guard shaped "no rule anywhere may do
+ * X to element Y" either throws — which is how this was found — or, worse, quietly
+ * matches nothing and reports that the rule does not exist. That is the silent-pass
+ * shape this whole file exists to prevent, and it had been sitting one arbitrary value
+ * away the entire time.
+ *
+ * Commas inside brackets, parens and strings are not separators either; a real selector
+ * list can carry all three (`:is(a,b)`, `[title="x,y"]`). Escapes win over everything,
+ * because a backslash makes the next character literal wherever it appears.
+ */
+export function splitSelectorList(head: string): string[] {
+    const out: string[] = [];
+    let cur = "", depth = 0, quote = "";
+    for (let i = 0; i < head.length; i++) {
+        const ch = head[i]!;
+        if (ch === "\\") {
+            cur += head.slice(i, i + 2);
+            i++;
+            continue;
+        }
+        if (quote) {
+            cur += ch;
+            if (ch === quote) quote = "";
+            continue;
+        }
+        if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue; }
+        if (ch === "(" || ch === "[") depth++;
+        else if (ch === ")" || ch === "]") depth--;
+        if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
+        cur += ch;
+    }
+    out.push(cur.trim());
+    return out.filter(Boolean);
+}
+
 /** Every rule in a minified sheet, at every at-rule depth. */
 export function parseRules(css: string): Rule[] {
     const rules: Rule[] = [];
@@ -150,7 +193,7 @@ export function parseRules(css: string): Rule[] {
                 );
             }
             rules.push({
-                selectors: head.split(",").map((s) => s.trim()).filter(Boolean),
+                selectors: splitSelectorList(head),
                 body,
                 nested: atStack.length > 0,
                 at: atStack.join(" "),
@@ -185,6 +228,31 @@ export function px(value: string | undefined): number | null {
     const m = value.match(/^(-?[\d.]+)(px|rem)$/);
     if (!m) return null;
     return parseFloat(m[1]) * (m[2] === "rem" ? 16 : 1);
+}
+
+/**
+ * EVERY SPELLING OF A ROW TRACK LIST, because two of the three are shorthands and a
+ * guard that reads only the longhand cannot see them.
+ *
+ * `grid-template` and `grid` both RESET `grid-template-rows`, so either one overrides
+ * a longhand a guard did read — inside the same rule after minification, or from a
+ * later rule at the same specificity. This is not hypothetical on this repo:
+ * `control-geometry.test.ts` records the identical hole (`grid-template` beating the
+ * longhand it read) as one of four that defeated its predecessor with the suite green.
+ *
+ * Listed longhand-first only for readability; every caller must screen ALL of them
+ * rather than take the first that is present, or the other spelling walks through.
+ */
+export const ROW_TEMPLATE_PROPS = ["grid-template-rows", "grid-template", "grid"] as const;
+
+/**
+ * The ROWS half of whatever spelling was read. The shorthands are `<rows> / <columns>`,
+ * and the columns half must not be screened: this page's columns are legitimately
+ * `repeat(4, minmax(0, 1fr))`, so charging a shorthand's whole value for containing
+ * `fr` reds a clean build.
+ */
+export function rowTracks(prop: string, value: string): string {
+    return prop === "grid-template-rows" ? value.trim() : value.split("/")[0]!.trim();
 }
 
 /**

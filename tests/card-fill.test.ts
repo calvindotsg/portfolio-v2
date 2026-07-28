@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, pageCss, parseRules, px, structuralSelector} from "./helpers/css";
+import {appliesAt, decl, effectiveDecl, isKeyframeStep, maxWidthOf, minWidthOf, pageCss, parseRules, px, ROW_TEMPLATE_PROPS, rowTracks, structuralSelector} from "./helpers/css";
 
 /**
  * A card takes its content's height, never its grid area's.
@@ -35,15 +35,21 @@ import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, pageCss, parseR
  * right-hand column the three cards want 206, 206 and 170px, and a row there
  * costs its own height plus the 16px gap, so each of them needs three rows —
  * nine rows for the eight the column has. The row height is a CONTINUUM, not a
- * short list of values: `main` takes the viewport height clamped between 736 and
- * 800px, and 8 rows share what is left after 48px of padding and 9 gaps (8 rows
- * plus two implicit zero-height ones make 10 tracks), so the row is
- * (clamp(736,vh,800) - 48 - 144) / 8, i.e. anything in 68…76px and a row cost of
- * 84…92px. Measured: 68px at a 600px-tall viewport (the 736px floor), 69.75px at
- * 750px — a FRACTIONAL row height, which is what makes an enumeration of values
- * wrong rather than merely incomplete — and 76px from 800px up (the cap). The
- * column is over-subscribed at every one of them (three rows each, nine against
- * eight, checked by arithmetic across the range).
+ * short list of values. IT DESCRIBED A TEMPLATE THIS PAGE NO LONGER HAS, and the
+ * arithmetic is kept because the conclusion outlived it. While `main` was clamped
+ * between 736 and 800px with eight fraction rows, 8 rows shared what was left after
+ * 48px of padding and 9 gaps (8 rows plus two implicit zero-height ones make 10
+ * tracks), so a row was (clamp(736,vh,800) - 48 - 144) / 8 — anything in 68…76px,
+ * a row cost of 84…92px, measured at 68px on a 600px-tall viewport and 76px from
+ * 800px up, and FRACTIONAL at 69.75px on a 750px one, which is what made an
+ * enumeration of values wrong rather than merely incomplete.
+ *
+ * The template is `min-content` now and the ceiling is gone (index.astro), so a row
+ * is as tall as the tallest thing spanning it and there is no continuum to quote:
+ * measured at 1440x900 and the default root, 77.25px for rows 1-4, 74px for 5-7,
+ * 62px for row 8 and two implicit tracks at 7.5px. The column is still
+ * over-subscribed — three rows each, nine against eight — which is the part that
+ * matters here, and it is now nearly tautological rather than arithmetic.
  *
  * Cutting a goal card to two rows does not help: it gets 168px and pushes its last
  * line 29px past its INNER edge, of which 5px falls outside the clip and is ink
@@ -396,7 +402,14 @@ describe("a card sizes to its content, not to its grid area", () => {
             return m ? parseInt(m[1], 10) : null;
         };
         for (const width of widthsToCheck(wrapper)) {
-            const rowCount = countOf(effectiveValue(main, "grid-template-rows", width));
+            // Read through the SHORTHANDS as well: `grid-template` and `grid` reset
+            // `grid-template-rows`, so a longhand-only read either misses the winning
+            // declaration or — worse here — reports "no repeated row template" and
+            // reds a build whose rows are spelled `grid-template: … / …`.
+            // `effectiveDecl` resolves the three against each other in the order the
+            // rule body declares them, which is the order that actually decides.
+            const rowDecl = effectiveDecl(rulesMatching(main), [...ROW_TEMPLATE_PROPS], width);
+            const rowCount = countOf(rowDecl ? rowTracks(rowDecl.prop, rowDecl.value) : undefined);
             const colCount = countOf(effectiveValue(main, "grid-template-columns", width));
             expect(rowCount, `<main> declares no repeated row template at ${width}px, so the stack's span cannot be checked against it`).not.toBeNull();
             expect(colCount, `<main> declares no repeated column template at ${width}px`).not.toBeNull();
