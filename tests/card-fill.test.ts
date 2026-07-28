@@ -1,8 +1,8 @@
 import {describe, expect, it} from "vitest";
-import {readdirSync, readFileSync} from "node:fs";
+import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, parseRules, px, structuralSelector} from "./helpers/css";
+import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, pageCss, parseRules, px, structuralSelector} from "./helpers/css";
 
 /**
  * A card takes its content's height, never its grid area's.
@@ -95,7 +95,7 @@ import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, parseRules, px,
  * suite green. Only the emitted sheet knows.
  */
 describe("a card sizes to its content, not to its grid area", () => {
-    const css = readFileSync(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`, "utf8");
+    const css = pageCss();
     const {document} = parseHTML(readFileSync("dist/index.html", "utf8"));
     const rules = parseRules(css);
 

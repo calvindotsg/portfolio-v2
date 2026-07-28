@@ -1,8 +1,8 @@
 import {describe, expect, it} from "vitest";
-import {readdirSync, readFileSync} from "node:fs";
+import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {appliesBelow, decl, effectiveDecl, isKeyframeStep, minWidthOf, parseRules, structuralSelector, widthConditions} from "./helpers/css";
+import {appliesBelow, decl, effectiveDecl, isKeyframeStep, minWidthOf, pageCss, parseRules, structuralSelector, widthConditions} from "./helpers/css";
 
 /**
  * The page must be allowed to be taller than the viewport.
@@ -70,7 +70,7 @@ import {appliesBelow, decl, effectiveDecl, isKeyframeStep, minWidthOf, parseRule
  * a green suite here is necessary and nowhere near sufficient.
  */
 describe("the page may grow taller than the viewport", () => {
-    const css = readFileSync(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`, "utf8");
+    const css = pageCss();
     const {document} = parseHTML(readFileSync("dist/index.html", "utf8"));
     const rules = parseRules(css);
 

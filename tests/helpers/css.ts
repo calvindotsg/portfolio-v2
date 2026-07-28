@@ -1,3 +1,5 @@
+import {readFileSync} from "node:fs";
+
 /**
  * Reading the BUILT stylesheet as data.
  *
@@ -23,6 +25,69 @@
  *    unbalanced `)` and the selector engine throws, which invites a `try/catch`
  *    that swallows exactly the rules a guard most needs to see.
  */
+
+/**
+ * EVERY BYTE OF CSS A BUILT PAGE LOADS, in cascade order.
+ *
+ * Use this instead of reaching into `dist/_astro` for a stylesheet. The old idiom,
+ * repeated at fifteen call sites, was
+ *
+ *     readdirSync("dist/_astro").find((f) => f.endsWith(".css"))
+ *
+ * and it is wrong in two independent ways the moment this site has a second page.
+ *
+ * WRONG ONE — `find` takes the FIRST match of an unordered directory listing. Vite
+ * splits CSS per entry, so with two pages there can be several chunks and the one
+ * `find` happens to return is arbitrary. Every rule in the others is invisible, and
+ * a test that cannot see a rule reports that the rule does not exist — which for a
+ * guard shaped "no rule anywhere may do X" is a silent pass.
+ *
+ * WRONG TWO, and this is the one that actually fires here — Astro's default
+ * `inlineStylesheets: "auto"` moves a small sheet INTO the page as a `<style>`
+ * block. Adding one four-line page to this site rebalanced the chunks and pushed
+ * 2,889 bytes — the whole layout `<style>`, `body`, and every theme custom property
+ * on `:root[data-theme]` — inline, where no call site was looking. Measured: 16 of
+ * 176 tests went red across four files, with nothing wrong with the page. Two of
+ * them were contrast assertions that could no longer resolve `--text`.
+ *
+ * So the question a test wants answered is not "what is in dist/_astro" but "what
+ * CSS does this page load, in what order", and the page's own `<head>` is the only
+ * thing that knows. Links and inline blocks are returned interleaved in document
+ * order, so later-wins reasoning over the result stays sound.
+ *
+ * IT IS PER-PAGE ON PURPOSE. Concatenating every page's CSS would let a rule that
+ * only `/patches` loads satisfy an assertion about the home page. Pass the page you
+ * mean; the default is the home page because that is what every existing caller
+ * meant.
+ */
+export function pageCss(page = "dist/index.html"): string {
+    const html = readFileSync(page, "utf8");
+    const parts: string[] = [];
+    const re = /<link\b[^>]*>|<style\b[^>]*>([\s\S]*?)<\/style>/gi;
+    for (const m of html.matchAll(re)) {
+        if (m[0].startsWith("<style")) {
+            parts.push(m[1]!);
+            continue;
+        }
+        if (!/rel=["']?stylesheet/i.test(m[0])) continue;
+        const href = m[0].match(/href=["']([^"']+)["']/)?.[1];
+        if (!href) continue;
+        // Root-relative is what Astro emits; anything else is a remote sheet this
+        // build has no business shipping, and a caller asserting over the cascade
+        // must not be handed a partial answer as if it were the whole one.
+        if (!href.startsWith("/")) {
+            throw new Error(
+                `${page} links a stylesheet this helper cannot read from disk: "${href}". `
+                + `Every assertion built on pageCss() would silently lose those rules.`,
+            );
+        }
+        parts.push(readFileSync(`dist${href}`, "utf8"));
+    }
+    if (parts.length === 0) {
+        throw new Error(`${page} loads no CSS at all — pageCss() would hand every caller an empty sheet.`);
+    }
+    return parts.join("\n");
+}
 
 export type Rule = {
     /** Comma-separated selectors, split and trimmed. */
