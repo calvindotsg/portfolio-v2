@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
 This is a personal portfolio website built with Astro, featuring a bento-style,
@@ -12,49 +10,22 @@ is a race **completed and earned** — an outline bib is an event that has not b
 yet, which is why the wall's headings say "events" and only earned bibs are called
 patches.
 
-## Development Commands
+## Commands
 
-```bash
-# Start development server
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Type checking
-pnpm check
-
-# Tests (renders the page and asserts on the output)
-pnpm test
-
-# Linting
-pnpm eslint
-```
-
-Note: `pnpm preview` serves the built `dist/` directory locally on
-http://localhost:4321 — the site is a static build with no adapter, so the
-preview is byte-identical to what Netlify serves.
-
-## Tech Stack & Architecture
-
-- **Framework**: Astro with static output (`output: "static"`) — every page is
-  prerendered at build time; there is no adapter and no server runtime
-- **UI Components**: Astro components only — no client-side UI framework
-- **Styling**: UnoCSS (atomic CSS framework)
-- **Icons**: Iconify collections `@iconify-json/fa6-brands` and `@iconify-json/ri`
-- **Animation**: CSS animations only
-- **Deployment**: Netlify, serving the prerendered `dist/` directory
+- `pnpm test` — the change gate the sections below refer to. It runs `pnpm build`
+  first (`globalSetup` in `vitest.config.ts` points at `tests/setup/build.ts`), so
+  the `dist/` assertions have real artifacts; that setup honours `SKIP_BUILD=1` to
+  reuse an existing `dist/` while iterating
+- `pnpm eslint` and `pnpm check` — not `lint`, not `typecheck`; neither of those
+  script names exists. Netlify's build command is `pnpm check && pnpm test`
+- `pnpm preview` serves the built `dist/` directory locally on
+  http://localhost:4321 — the site is a static build with no adapter, so the
+  preview is byte-identical to what Netlify serves
 
 ## Key Architecture Points
 
-### Component Structure
-- **Astro Components**: Main UI components (`.astro` files) for static content
-- **Card System**: Reusable card layout in `src/components/Card/index.astro`
-
-### Configuration & Content
-- **Constants**: All site content and configuration centralized in `src/lib/constants.ts`
-- **Personal Data**: Update `constants.ts` to modify personal details, career info, goals, and metadata
-- **Site Config**: Main site configuration in `astro.config.mjs` (site URL, integrations)
+- **UI Components**: Astro components only — no client-side UI framework
+- **Animation**: CSS animations only
 
 ### Styling System
 - **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
@@ -97,27 +68,14 @@ preview is byte-identical to what Netlify serves.
 
 ## Content Management
 
-All site content is managed through `src/lib/constants.ts`:
-- `LINKS`: Social media and external links
-- `CAREER`: Professional experience
-- `ABOUT_ME`: Personal description
-- `GOALS`: Goal progress tracking (cycling, running)
+All site content is managed through `src/lib/constants.ts`. The entries below
+are the ones carrying non-obvious constraints; the rest are self-explanatory in
+the file:
 - `NEXT_RACE`: the goal cards' countdown ladder and the control's label — width-budgeted,
   and the label is also the heading of the page it opens; see the note there
-- `WELCOME`: Hero section content  
-- `NOW`: Current status
 - `EVENTS`: Races entered this year — read by both the projection and the patch wall
 - `PATCHES`: the wall's own prose. Its heading is `My events`; "patch wall" survives in
   the URL and the metaphor, not as a visible title
-- `METADATA`: SEO and site metadata
-
-## Deployment
-
-The site is a fully static build deployed to Netlify:
-- Every page is prerendered to `dist/` at build time
-- No adapter, no serverless function, and no middleware
-- Automatic sitemap generation
-- `robots.txt` shipped in the build output
 
 ## Memories
 
