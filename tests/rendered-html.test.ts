@@ -317,7 +317,7 @@ describe("page content", () => {
      */
     it("words the countdown for every state a year passes through", () => {
         const race = (daysAway: number, underWay = false) =>
-            ({event: {date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling" as const}, daysAway, underWay});
+            ({event: {date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling" as const, country: "Nowhere"}, daysAway, underWay});
 
         expect(nextRaceLine(race(0), 0)).toBe("Next race is today");
         expect(nextRaceLine(race(1), 0)).toBe("Next race is tomorrow");

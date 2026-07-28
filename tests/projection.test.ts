@@ -315,6 +315,10 @@ describe("EVENTS", () => {
             }
             expect(Number.isFinite(e.km) && e.km >= 0, `${e.name} km`).toBe(true);
             expect(e.name.trim().length, "an unnamed event renders as a blank patch").toBeGreaterThan(0);
+            // Required by the type, so this cannot be a missing key — it can be an empty
+            // one, which renders as a blank line on the bib rather than as no line.
+            expect(e.country.trim().length, `${e.name} has no country, so its bib prints a blank line`)
+                .toBeGreaterThan(0);
             // The join. A sport matching no goal contributes to no projection and
             // throws nothing — it is invisible without this.
             expect(sports.has(e.sport), `${e.name} sport "${e.sport}" matches no goal`).toBe(true);
@@ -334,7 +338,7 @@ describe("EVENTS", () => {
  */
 describe("the next race for a sport", () => {
     const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
-        ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", ...over});
+        ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over});
 
     const CALENDAR: readonly RaceEvent[] = [
         ev({name: "ride-past", date: "2026-01-10"}),
