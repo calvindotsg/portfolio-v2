@@ -100,7 +100,8 @@ pnpm test
 pnpm test:watch
 ```
 
-Three suites, all under `tests/`:
+Ten suites under `tests/`, plus shared helpers in `tests/helpers/`. The three
+that carry most of the weight:
 
 - `tests/rendered-html.test.ts` — renders `src/pages/index.astro` in-process with
   Astro's Container API and asserts on the result: page title, meta description,
@@ -112,8 +113,12 @@ Three suites, all under `tests/`:
   collection, the cycling figures are finite and within range, and the SEO title
   and description stay within useful lengths.
 - `tests/build-output.test.ts` — asserts on what `pnpm build` actually emits into
-  `dist/`: `robots.txt` pointing at the sitemap, the sitemap index, exactly one
-  stylesheet, and the public assets the page links to.
+  `dist/`: `robots.txt` pointing at the sitemap, the sitemap index, zero external
+  JavaScript, no serverless function, and the public assets the page links to.
+
+The rest are geometry and content gates — `page-fit`, `card-fill`,
+`control-geometry`, `icon-alignment`, `mobile-hero-contrast`, `patch-wall` and
+`projection`. Deliberately no exact count in prose: read it from `pnpm test`.
 
 `pnpm test` runs `pnpm build` once as a global setup so the build-output suite
 has real artifacts. Set `SKIP_BUILD=1` to reuse an existing `dist/` while
