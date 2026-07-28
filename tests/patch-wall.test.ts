@@ -104,21 +104,82 @@ describe("a bib's state is derived from the calendar, never stored", () => {
 });
 
 describe("the wall's order", () => {
-    it("is newest first", () => {
-        const dates = patchWall().map((p) => p.event.date);
-        expect(dates).toEqual([...dates].sort().reverse());
+    /**
+     * The wall is sorted NEXT RACE FIRST, so its order is a function of the day as
+     * well as of the fixture. Every assertion in this block therefore passes its own
+     * `iso` and its own events: an expected order taken from today's calendar at the
+     * default stamp would be a hand-counted property of the date, and the bot moves
+     * the stamp nightly.
+     *
+     * `SPREAD` straddles a pinned midpoint — three races behind it, three ahead, in
+     * shuffled fixture order so nothing here can pass on fixture position.
+     */
+    const MID = "2026-06-15";
+    const SPREAD: readonly RaceEvent[] = [
+        ev({name: "ahead-far", date: "2026-09-01"}),
+        ev({name: "done-old", date: "2026-01-05"}),
+        ev({name: "ahead-next", date: "2026-06-20"}),
+        ev({name: "done-recent", date: "2026-06-14"}),
+        ev({name: "ahead-mid", date: "2026-07-04"}),
+        ev({name: "done-mid", date: "2026-03-10"}),
+    ];
+
+    it("opens with the next race and closes with the oldest finish", () => {
+        expect(patchWall(undefined, MID, SPREAD).map((p) => p.event.name)).toEqual([
+            "ahead-next", "ahead-mid", "ahead-far",
+            "done-recent", "done-mid", "done-old",
+        ]);
+    });
+
+    it("puts a race still running today at the very front, not among the finishes", () => {
+        // A tour is booked for every day it runs, so mid-event it is the next race.
+        const tour = ev({name: "tour", date: "2026-06-10", end_date: "2026-06-20"});
+        expect(patchWall(undefined, MID, [...SPREAD, tour]).map((p) => p.event.name)[0]).toBe("tour");
+    });
+
+    /**
+     * The invariant the page actually relies on, asserted across a whole year so it
+     * cannot depend on which side of today the fixture happens to sit. This is the
+     * one assertion here that runs against live {@link EVENTS} — the fixture is
+     * human-edited, and the shape below stays true however the calendar moves,
+     * including on the day the booked run empties.
+     */
+    it("keeps both runs pointing away from today, on every day of the year", () => {
+        const wrong: string[] = [];
+        for (let day = 0; day < 366; day++) {
+            const iso = new Date(Date.UTC(GOAL_YEAR, 0, 1 + day)).toISOString().slice(0, 10);
+            const wall = patchWall(undefined, iso);
+            const states = wall.map((p) => p.state);
+            if (states.lastIndexOf("booked") > states.indexOf("finished") && states.includes("finished")) {
+                wrong.push(`${iso}: a booked bib is printed after a finished one`);
+            }
+            const booked = wall.filter((p) => p.state === "booked").map((p) => p.event.date);
+            const finished = wall.filter((p) => p.state === "finished").map((p) => p.event.date);
+            if (booked.join() !== [...booked].sort().join()) wrong.push(`${iso}: booked run is not ascending`);
+            if (finished.join() !== [...finished].sort().reverse().join()) {
+                wrong.push(`${iso}: finished run is not descending`);
+            }
+        }
+        expect(wrong.slice(0, 5)).toEqual([]);
     });
 
     /**
      * Total, so the order cannot depend on how EVENTS happens to be typed. Sorting in
      * the fixture is the defect this replaced — the design previews for this feature
-     * captioned themselves newest-first while relying on the array being
-     * chronological — and a tie left to sort stability is the same defect, narrower.
+     * captioned themselves in an order the array happened to supply — and a tie left
+     * to sort stability is the same defect, narrower.
+     *
+     * Asserted in BOTH groups and in both fixture orders, because the dates run in
+     * opposite directions there while this tiebreak deliberately does not.
      */
-    it("breaks a same-day tie by name rather than by fixture position", () => {
-        const sameDay = [ev({name: "Zulu", date: "2026-05-05"}), ev({name: "Alpha", date: "2026-05-05"})];
-        expect(patchWall(undefined, UPDATED_AT, sameDay).map((p) => p.event.name)).toEqual(["Alpha", "Zulu"]);
-        expect(patchWall(undefined, UPDATED_AT, [...sameDay].reverse()).map((p) => p.event.name)).toEqual(["Alpha", "Zulu"]);
+    it("breaks a same-day tie by name, ascending in both groups", () => {
+        const sameDay = [
+            ev({name: "Zulu ahead", date: "2026-08-08"}), ev({name: "Alpha ahead", date: "2026-08-08"}),
+            ev({name: "Zulu done", date: "2026-05-05"}), ev({name: "Alpha done", date: "2026-05-05"}),
+        ];
+        const expected = ["Alpha ahead", "Zulu ahead", "Alpha done", "Zulu done"];
+        expect(patchWall(undefined, MID, sameDay).map((p) => p.event.name)).toEqual(expected);
+        expect(patchWall(undefined, MID, [...sameDay].reverse()).map((p) => p.event.name)).toEqual(expected);
     });
 
     it("partitions the whole wall between the sports, losing and duplicating nothing", () => {
