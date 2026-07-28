@@ -4,7 +4,7 @@ import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
-import {EVENTS, GOAL_YEAR, GOALS, PATCHES, type RaceEvent, stravaActivityUrl} from "../src/lib/constants";
+import {EVENTS, GOAL_YEAR, GOALS, NEW_TAB_NOTICE, PATCHES, type RaceEvent, stravaActivityUrl} from "../src/lib/constants";
 import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
 } from "../src/lib/projection";
@@ -1209,5 +1209,91 @@ describe("nothing inside the wall's card is pinned to a device pixel", () => {
         expect(bib, "the bib must declare its holes").toBeTruthy();
         expect(decl(bib!.body, "background-image")).toContain("radial-gradient");
         expect(decl(bib!.body, "background-image")).toContain("7px");
+    });
+});
+
+/**
+ * THE NEW-TAB WARNING, and specifically WHERE IT LANDS.
+ *
+ * The bib opens a new tab and keeps doing so — the maintainer's call, and the argument
+ * is recorded on NEW_TAB_NOTICE in constants.ts. What it owes a reader who cannot see
+ * that happen is the warning WCAG SC 3.2.5 and technique G201 ask for, in advance.
+ *
+ * "In advance" is why the position is asserted rather than the presence. The obvious
+ * implementation — appending it to PATCHES.strava_name — puts it THIRD in a 92-character
+ * accessible name, because `.bib-strava` sits in the meta row and accname is assembled
+ * in DOM order. A presence-only assertion passes for that, so it would not be a gate.
+ *
+ * EVERYTHING HERE RENDERS THE COMPONENT DIRECTLY with a synthetic event, for the reason
+ * this file already records twice: reading it off the built wall makes the coverage
+ * depend on the calendar holding a linked race today, which is false for the whole of
+ * any January and would turn an unattended bot deploy red.
+ */
+describe("a bib that opens a new tab says so, last", () => {
+    const linked: RaceEvent = {
+        date: `${GOAL_YEAR}-07-10`, name: "A Race With A Recording", km: 100, sport: "cycling",
+        country: "Thailand", elapsed_time: "5:00:00", strava_activity_id: "1234567890123",
+    };
+    const unlinked: RaceEvent = {
+        date: `${GOAL_YEAR}-07-10`, name: "A Race With No Recording", km: 100, sport: "cycling",
+        country: "Thailand", elapsed_time: "5:00:00",
+    };
+    const render = async (event: RaceEvent, state: PatchState = "finished") =>
+        parseHTML(await (await AstroContainer.create()).renderToString(Patch, {props: {event, state}})).document;
+
+    /**
+     * ALL the rendered text, and it must not be read off `document.body`.
+     *
+     * A container render is a fragment, so linkedom leaves `body` EMPTY while
+     * `documentElement` holds the markup — measured, 0 characters against 32. Every
+     * "this text is absent" assertion written against `body.textContent` therefore
+     * passes without looking at anything, and one here did: it survived a mutation that
+     * announced a new tab on a bib that opens none. The guard below is what makes the
+     * absence assertions mean something, because an empty haystack cannot fail them.
+     */
+    const allText = (doc: Document) => {
+        const text = doc.documentElement?.textContent ?? "";
+        expect(text.length, "nothing rendered — every absence assertion below would be vacuous").toBeGreaterThan(0);
+        return text;
+    };
+
+    it("puts the warning inside the anchor, as its LAST child", async () => {
+        const doc = await render(linked);
+        const anchor = doc.querySelector("a.bib");
+        expect(anchor, "a bib with a verified activity must render as an anchor").toBeTruthy();
+        expect(anchor!.getAttribute("target")).toBe("_blank");
+
+        const notice = [...anchor!.querySelectorAll(".sr-only")]
+            .filter((el) => el.textContent?.includes(NEW_TAB_NOTICE));
+        expect(notice.length, "exactly one new-tab warning per link, or it is announced twice").toBe(1);
+
+        // THE POSITION, which is the whole assertion. `lastElementChild` is what makes
+        // appending to strava_name — the implementation this replaced — go red: that puts
+        // the warning in the meta row, third in the name, where it warns nobody.
+        expect(
+            anchor!.lastElementChild?.textContent?.trim(),
+            "the warning must be the anchor's last child so it lands at the END of the accessible name; "
+            + "inside the meta row it is announced third, before the reader knows what the link is",
+        ).toBe(NEW_TAB_NOTICE);
+    });
+
+    it("says nothing on a bib that opens nothing", async () => {
+        const doc = await render(unlinked);
+        expect(doc.querySelector("a.bib"), "no activity id means no link").toBeNull();
+        expect(
+            allText(doc).includes(NEW_TAB_NOTICE),
+            "a bib with no recording is a plain div and navigates nowhere; warning about a tab it never opens is a lie",
+        ).toBe(false);
+    });
+
+    it("is conditional on the LINK, not on the state", async () => {
+        // An earned bib with no id is a real case, not a hypothetical: Round the Island
+        // finishes with no recording. A booked bib with an id would be one too.
+        const finishedNoLink = await render(unlinked, "finished");
+        const bookedNoLink = await render(unlinked, "booked");
+        for (const doc of [finishedNoLink, bookedNoLink]) {
+            expect(doc.querySelector("a.bib")).toBeNull();
+            expect(allText(doc).includes(NEW_TAB_NOTICE)).toBe(false);
+        }
     });
 });

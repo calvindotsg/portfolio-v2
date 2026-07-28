@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import {beforeAll, describe, expect, it} from "vitest";
 
 import Index from "../src/pages/index.astro";
-import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NEXT_RACE, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
+import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NEW_TAB_NOTICE, NEXT_RACE, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
 import {nextRace, nextRaceLine, patchesEarned} from "../src/lib/projection";
 import {decl, pageCss, parseRules} from "./helpers/css";
 import {iconClass} from "../src/lib/icons";
@@ -191,11 +191,17 @@ describe("page content", () => {
         // CONCATENATION of the subtree, so a second sr-only span beside this one is
         // announced as part of the name — "Link Link Link. What's a /now page?" satisfied a
         // `toContain` check while constants.ts no longer owned what a reader hears.
+        //
+        // BOTH strings are named here, IN ORDER, for that reason. The second is the
+        // new-tab warning, and it goes last on purpose: it says what the link DOES, which
+        // is only useful once the reader knows what the link IS. Ordering the pair the
+        // other way announces "opens in a new tab, what's a /now page?", and a set
+        // comparison would call that correct.
         const srOnly = [...link!.querySelectorAll(".sr-only")].map((s) => s.textContent?.trim()).filter(Boolean);
         expect(
             srOnly,
-            "the explainer link's accessible name must come from constants.ts and be the whole of it; extra hidden text concatenates into what is announced",
-        ).toEqual([NOW.explainer_name]);
+            "the explainer link's announced text must come from constants.ts and be the whole of it, in order; extra hidden text concatenates into what is announced",
+        ).toEqual([NOW.explainer_name, NEW_TAB_NOTICE]);
 
         // The anchor holds exactly two things: the glyph and the name. Asserted on the
         // shape rather than on the text, because the "no visible words" check below
@@ -205,12 +211,18 @@ describe("page content", () => {
         const kids = [...link!.children];
         expect(
             kids.map((k) => k.tagName.toLowerCase()),
-            "the explainer anchor must contain exactly a glyph and an sr-only name",
-        ).toEqual(["span", "span"]);
+            "the explainer anchor must contain exactly a glyph, an sr-only name and the sr-only new-tab warning",
+        ).toEqual(["span", "span", "span"]);
         expect(kids[0].getAttribute("class"), "the first child must be the icon glyph").toMatch(/(^|\s)i-/);
         expect(kids[0].textContent?.trim(), "the glyph carries no text of its own").toBe("");
-        expect(kids[1].getAttribute("class"), "the second child must be the sr-only name").toMatch(/(^|\s)sr-only(\s|$)/);
-        expect(kids[1].children.length, "the name must be plain text, not a wrapper that a child can un-hide").toBe(0);
+        for (const i of [1, 2]) {
+            expect(kids[i].getAttribute("class"), `child ${i} must be sr-only`).toMatch(/(^|\s)sr-only(\s|$)/);
+            expect(kids[i].children.length, "hidden text must be plain, not a wrapper a child can un-hide").toBe(0);
+        }
+        expect(
+            kids[kids.length - 1].textContent?.trim(),
+            "the new-tab warning must be the anchor's LAST child, so it lands at the end of the accessible name",
+        ).toBe(NEW_TAB_NOTICE);
 
         // No `title` either. It paints a tooltip — visible words back — and per HTML-AAM it
         // is a name/description fallback that some AT combinations append, i.e. exactly the
@@ -967,3 +979,49 @@ describe("footer", () => {
         expect(painted, "the ink wrapper must paint only the glyph, or the whole sentence is re-toned").toBe("");
     });
 });
+
+/**
+ * THE SILENCE IS A DECISION, so it needs a gate too.
+ *
+ * Six of this page's outbound links open a new tab and say nothing about it: the
+ * intro card's social row. That is deliberate — the context change is conventional for
+ * a social row, and six identical suffixes in a row is the noise technique G201's own
+ * guidance warns about, making the list harder to scan by voice rather than easier.
+ * NEW_TAB_NOTICE in constants.ts carries the reasoning.
+ *
+ * Without this assertion the obvious "improvement" is to announce it everywhere, which
+ * nothing else here would catch: every other test on this page is satisfied by MORE
+ * hidden text, not less.
+ */
+describe("the new-tab warning is on the two links that earn it, and no others", () => {
+    it("stays off the intro card's social row", () => {
+        const intro = [...doc.querySelectorAll("[data-card]")].find((c) => c.querySelector("h1"));
+        expect(intro, "no intro card — the assertion below would be vacuous").toBeTruthy();
+
+        const social = [...intro!.querySelectorAll("a")]
+            .filter((a) => a.getAttribute("target") === "_blank");
+        expect(
+            social.length,
+            "the intro card must still hold the outbound social links this asserts silence about",
+        ).toBe(LINKS.length);
+
+        for (const a of social) {
+            expect(
+                a.textContent?.includes(NEW_TAB_NOTICE),
+                `${a.getAttribute("href")} announces the new tab; the social row is deliberately silent — see NEW_TAB_NOTICE`,
+            ).toBe(false);
+        }
+    });
+
+    it("is on exactly one link on this page", () => {
+        // The home page has one: the Now card's explainer. The bib is on /patches and is
+        // asserted at component level in patch-wall.test.ts, where it is date-independent.
+        const announcing = [...doc.querySelectorAll("a")]
+            .filter((a) => a.textContent?.includes(NEW_TAB_NOTICE));
+        expect(
+            announcing.map((a) => a.getAttribute("href")),
+            "exactly the Now explainer announces a new tab on the home page",
+        ).toEqual([NOW.explainer_url]);
+    });
+});
+
