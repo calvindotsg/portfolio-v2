@@ -52,10 +52,29 @@ describe("date handling", () => {
         expect(Number.isNaN(parseIsoDate("not-a-date"))).toBe(true);
     });
 
-    it("counts days to 31 December and never goes negative", () => {
-        expect(daysRemaining("2026-07-27")).toBe(157);
-        expect(daysRemaining("2026-12-31")).toBe(0);
+    /**
+     * INCLUSIVE OF BOTH ENDS, and the pairing with `bookedAhead` is the whole point —
+     * these two are the denominator and the numerator of one fraction. `bookedAhead`
+     * counts an event starting today as wholly ahead, so today is a riding day, so it
+     * must be inside the day count too. Counting it in one place and not the other
+     * over-states the required rate by a day's worth, silently.
+     *
+     * The last assertion pins the pairing directly rather than trusting the two
+     * literals to stay in step: on the day an event starts, that event's kilometres
+     * are still owed, and the day it falls on is still available to ride them.
+     */
+    it("counts BOTH ends, agreeing with bookedAhead about today, and never goes negative", () => {
+        expect(daysRemaining("2026-07-27")).toBe(158);   // 27 Jul .. 31 Dec inclusive
+        expect(daysRemaining("2026-12-31")).toBe(1);     // the last day is a riding day
+        expect(daysRemaining("2027-01-01")).toBe(0);     // and the year is over the day after
         expect(daysRemaining("2027-03-01")).toBe(0);
+
+        // The pairing, stated as an invariant. Round the Island is a single-day
+        // cycling event on 2 August: on that date it is still booked ahead, and the
+        // day count must still contain the day it will be ridden on.
+        const eventDay = "2026-08-02";
+        expect(bookedAhead("cycling", eventDay)).toBeGreaterThan(bookedAhead("cycling", "2026-08-03"));
+        expect(daysRemaining(eventDay) - daysRemaining("2026-08-03")).toBe(1);
     });
 
     /**
@@ -123,9 +142,15 @@ describe("booked race distance", () => {
  * freezes the very "Updated …" dateline this feature adds, because the deploy that
  * would refresh it is the one being blocked.
  *
- * Not theoretical, and not distant: measured, `cycling_km: 2309.7` — one 30 km ride
- * — already fails, and the Round the Island booking drains out of `bookedAhead` on
- * 3 August, taking the required rate 71 → 74 → 80.
+ * Not theoretical, not distant, and no longer hypothetical: this fired in production
+ * six hours after the feature merged. The bot's own push took running 152.7 → 158.6,
+ * which moves the required rate 18 → 17, and the merged assertion had the literal 18
+ * in it. The honest expectancy for a test coupled to bot-written data is ONE BOT
+ * CYCLE, not whatever change size the arithmetic makes look distant.
+ *
+ * The same holds for the cycling card: `cycling_km: 2309.7` — one 30 km ride — is
+ * already enough, and the Round the Island booking drains out of `bookedAhead` on
+ * 3 August, taking the required rate 70 → 73 → 79.
  *
  * `EVENTS` is deliberately left live: it is human-edited, so a red test there is
  * wanted feedback rather than noise.
@@ -138,19 +163,30 @@ const at = (sport: string, raw: number): Goal => ({...goalBySport(sport), raw_pr
 describe("required rate", () => {
     it("produces the figures the page rendered when this was written", () => {
         expect(goalStatus(at("cycling", CYCLING_KM), AS_OF)).toEqual(
-            expect.objectContaining({kind: "rate", kmPerWeek: 71}));
+            expect.objectContaining({kind: "rate", kmPerWeek: 70, days: 158}));
         expect(goalStatus(at("running", RUNNING_KM), AS_OF)).toEqual(
-            expect.objectContaining({kind: "rate", kmPerWeek: 18}));
+            expect.objectContaining({kind: "rate", kmPerWeek: 18, days: 158}));
     });
 
     it("rounds UP, because a rounded-down rate followed exactly MISSES the goal", () => {
-        // Cycling needs 70.2818 km/wk. Floor and round both give 70, which over the
-        // remaining 22.43 weeks delivers 1570.00 km against 1576.32 needed.
-        const cycling = goalStatus(at("cycling", CYCLING_KM), AS_OF);
-        if (cycling.kind !== "rate") throw new Error("expected a rate");
-        const weeks = cycling.days / 7;
-        expect(cycling.kmPerWeek * weeks).toBeGreaterThanOrEqual(cycling.km);
-        expect((cycling.kmPerWeek - 1) * weeks).toBeLessThan(cycling.km);
+        // TWO DATES, because one of them does not discriminate. At AS_OF the
+        // requirement is 69.8370 km/wk: floor gives 69 and misses, but round gives 70
+        // and clears, so this date alone cannot tell ceil from round. One day later
+        // the requirement is 70.2818 and round gives 70, delivering 1570.00 km against
+        // 1576.32 needed — the case that rules round out. Measured over the rest of
+        // the calendar, round under-states on 154 of the 288 remaining sport-days.
+        for (const iso of [AS_OF, "2026-07-28"]) {
+            const cycling = goalStatus(at("cycling", CYCLING_KM), iso);
+            if (cycling.kind !== "rate") throw new Error(`expected a rate at ${iso}`);
+            const weeks = cycling.days / 7;
+            expect(cycling.kmPerWeek * weeks, iso).toBeGreaterThanOrEqual(cycling.km);
+            expect((cycling.kmPerWeek - 1) * weeks, iso).toBeLessThan(cycling.km);
+        }
+        // The discriminating assertion, stated outright: on 28 July, round is wrong.
+        const day2 = goalStatus(at("cycling", CYCLING_KM), "2026-07-28");
+        if (day2.kind !== "rate") throw new Error("expected a rate");
+        expect(Math.round(day2.km / (day2.days / 7))).toBeLessThan(day2.km / (day2.days / 7));
+        expect(day2.kmPerWeek).toBe(71);
     });
 
     it("reads raw_progress and IGNORES the display-clamped field", () => {
@@ -176,9 +212,11 @@ describe("required rate", () => {
         expect(goalStatus({...base, raw_progress: base.total_goal}, AS_OF).kind).toBe("met");
         // Booked races alone cover the remainder.
         expect(goalStatus({...base, raw_progress: 560}, AS_OF).kind).toBe("covered");
-        // Year over.
-        expect(goalStatus({...base, raw_progress: 0}, "2026-12-31").kind).toBe("closed");
+        // Year over — from 1 JANUARY. 31 December is the last riding day, not the
+        // first dead one, so it belongs to `final`; see `daysRemaining`.
+        expect(goalStatus({...base, raw_progress: 0}, "2027-01-01").kind).toBe("closed");
         // Final fortnight: an absolute total, not a weekly rate.
+        expect(goalStatus({...base, raw_progress: 0}, "2026-12-31").kind).toBe("final");
         expect(goalStatus({...base, raw_progress: 0}, "2026-12-25").kind).toBe("final");
         // Unparseable input renders nothing rather than a guess.
         expect(goalStatus(base, "2026-02-30").kind).toBe("unknown");
@@ -352,9 +390,11 @@ describe("the rendered page", () => {
         // DRIVEN FROM THE GENERATOR, never from hand-copied strings. The previous
         // filter listed `Booked races cover it` — the REJECTED wording, which no
         // branch can emit — and omitted `Races cover it`, which ships. So the
-        // `covered` branch went unchecked, and on 31 December, when both goals return
+        // `covered` branch went unchecked, and on the first day both goals return
         // `closed` and both lines are null, the old literal list would have counted 0
-        // against an expected 2 and failed with a message about stack height.
+        // against an expected 2 and failed with a message about stack height. That day
+        // is 1 January, not 31 December — the last day of the year is a riding day and
+        // renders a `final` line; see `daysRemaining`.
         const expected = GOALS.map((g) => goalStatusLine(g)).filter((l): l is string => l !== null);
         const wanted = new Set(expected);
         const lines = [...document.querySelectorAll("[data-card]")]
