@@ -57,12 +57,21 @@ const {event, state} = Astro.props;
  * IntroCard.astro both use a bare `target="_blank"` and browsers imply `noopener`.
  * Introducing `rel` on one link out of three is how a convention starts to look accidental.
  *
- * NO `aria-label`. The accessible name is the bib's whole text — "12 Jul 2026 Ride 158.13
- * KM MBG DCR 2026 - Krabi to Phuket Thailand Elapsed 9:41:31 on Strava" — which is verbose
- * and is a true superset of what is on screen, this repo's rule. An aria-label would
- * REPLACE all of that with a summary. The one addition is `PATCHES.strava_name`, and it is
- * a transcription rather than an extra: the glyph is aria-hidden and carries real
- * information, so SC 1.1.1 wants that information in text somewhere.
+ * NO `aria-label`. The accessible name is the bib's whole text, and it is 92 characters —
+ * READ OFF CHROME'S ACCESSIBILITY TREE, not assembled by hand, because this comment got it
+ * wrong the first time and no assertion could see that (the guard uses `toContain`, which is
+ * order-blind by construction):
+ *
+ *     "12 JUL 2026 RIDE ON STRAVA 158.13 KM MBG DCR 2026 - KRABI TO PHUKET THAILAND
+ *      ELAPSED 9:41:31"
+ *
+ * The transcription lands THIRD, not last, because `.bib-strava` sits in the meta row — so a
+ * listener hears "Ride on Strava" as a phrase. That is a consequence of putting the glyph
+ * where it belongs visually, and it reads acceptably, but it is not what an author would
+ * guess. The name is verbose and is a true superset of what is on screen, this repo's rule;
+ * an aria-label would REPLACE all of it with a summary. `PATCHES.strava_name` is the one
+ * addition and it is a transcription rather than an extra: the glyph is aria-hidden and
+ * carries real information, so SC 1.1.1 wants that information in text somewhere.
  */
 const date = patchDateSegments(event);
 const goal = goalForSport(event.sport);
@@ -258,9 +267,15 @@ const Tag = activity === null ? "div" : "a";
             border-color: LinkText;
         }
 
-        .bib--linked:hover,
-        .bib--linked:focus-visible {
-            outline-color: LinkText;
+        /* The mark is an icon class, so its artwork is a MASK over
+           `background-color: currentColor` — and background-color is a forced property, so
+           without this the glyph paints Canvas on Canvas and the bib's only permanent
+           non-colour cue that it links out disappears. Measured with the mode emulated:
+           glyph rgb(255,255,255) on a bib face of rgb(255,255,255), a ratio of exactly 1.
+           Same fix as EventsLink.astro's chevron. */
+        .bib-strava .bib-icon {
+            forced-color-adjust: none;
+            background-color: LinkText;
         }
     }
 
@@ -283,11 +298,6 @@ const Tag = activity === null ? "div" : "a";
      * both of which print.
      */
     @media print {
-        .bib--linked:hover,
-        .bib--linked:focus-visible {
-            outline: none;
-        }
-
         .bib {
             --face: transparent;
             --hole: transparent;
@@ -453,6 +463,7 @@ const Tag = activity === null ? "div" : "a";
     .bib-place {
         grid-area: place;
         margin: 0;
+        overflow-wrap: anywhere;
         font-size: 0.625rem;
         font-weight: 700;
         letter-spacing: 0.14em;
@@ -484,6 +495,33 @@ const Tag = activity === null ? "div" : "a";
         outline-offset: 2px;
     }
 
+    /*
+     * THESE TWO OVERRIDES HAVE TO SIT AFTER THE RULE THEY OVERRIDE, and they did not.
+     *
+     * They were written inside the forced-colors and print blocks higher up this file, next to
+     * the other rules for those modes, which reads well and does nothing: an at-rule adds no
+     * specificity, so `@media {...}` at line 243 and a plain rule at line 481 are the same
+     * weight and the LATER one wins. Both overrides were dead from the moment they were
+     * written — forced colours kept painting an --accent outline that the mode discards, and print
+     * kept a hover outline on paper.
+     *
+     * Grouping by mode is the readable arrangement and the wrong one. If more mode-specific
+     * bib rules arrive, they belong here at the foot of the sheet, not beside their siblings.
+     */
+    @media (forced-colors: active) {
+        .bib--linked:hover,
+        .bib--linked:focus-visible {
+            outline-color: LinkText;
+        }
+    }
+
+    @media print {
+        .bib--linked:hover,
+        .bib--linked:focus-visible {
+            outline: none;
+        }
+    }
+
     .bib-strava {
         display: inline-flex;
         align-items: center;
@@ -506,18 +544,36 @@ const Tag = activity === null ? "div" : "a";
         grid-area: time;
         display: flex;
         /*
-         * IT WRAPS, and that is not defensive tidiness — it was measured. At a 40px root
-         * on a 320px viewport the bib is 150px wide and `ELAPSED 9:41:31` wants 72.44px
-         * more than it has, so the time ran off the right edge of a box that clips. The
-         * label and the value are two words with a natural break between them, so the
-         * value simply drops to its own line and nothing is lost. `.bib-meta` wraps for
-         * the same reason and has since it was written.
+         * IT WRAPS, AND IT BREAKS. Two separate defects, and the first fix did not cover the
+         * second — a review panel found that and the numbers here are the corrected ones.
          *
-         * The sweep that found it could not see it at first: the wall's instrument had no
-         * visually-hidden exclusion, and the sr-only text this bib introduced buried a
-         * real 72px loss under thousands of pixels of fake one.
+         * `flex-wrap` splits the row into two lines. That is necessary and not sufficient:
+         * each line is then sized independently, and `ELAPSED` and `9:41:31` are single
+         * unbreakable tokens, so at a large enough text size each one is individually wider
+         * than the bib and paints OUTSIDE it. Measured against the bib's BORDER box (the
+         * meaningful edge — the 0.8rem of padding inside it is inverted face, where ink is
+         * perfectly legible) at 320px: the label escapes from a 40px root (+9.88px) and the
+         * value from 42px (+1.55px), reaching +75.5 and +47.11 at a 48px root. There the ink
+         * is `--background` on the CARD rather than on the bib's face — 1.045:1, unreadable —
+         * so "9:41:31" reads as "9:41:" and "ELAPSED" as "ELAP".
+         *
+         * `overflow-wrap: anywhere` is what fixes it, and `anywhere` rather than `break-word`
+         * for the reason recorded on the wall's page heading: `break-word` does not affect intrinsic
+         * minimum sizing, so it breaks the rendered line and leaves the overflow. `.bib-place`
+         * takes it too — "SINGAPORE" and "THAILAND" are the same unbreakable-token case and
+         * were escaping EARLIER and further than the time (+28.92px at a 40px root, +98.3 at
+         * 48) since before this row existed. Verified after: every measured escape is negative
+         * at every configuration, i.e. inside the border box.
+         *
+         * TWO INSTRUMENTS MISSED THIS AND THE REASON IS THE SAME. The wall sweep walks only
+         * elements inside a clipping ancestor, and `.bib` does not clip
+         * (`container-type` is not a clip) — so the ink escapes onto the card and the sweep
+         * reports nothing. Before that it excluded no visually-suppressed subtree either, and the
+         * sr-only text this bib introduced buried the real loss under thousands of pixels of
+         * fake one. A page that does not clip needs its own edge measured.
          */
         flex-wrap: wrap;
+        overflow-wrap: anywhere;
         align-items: baseline;
         gap: 0.45em;
         margin: 0;

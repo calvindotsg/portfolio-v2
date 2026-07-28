@@ -344,8 +344,11 @@ describe("EVENTS", () => {
      * catching: the bib would print a result for a day that has not happened.
      */
     it("carries a finishing time only for races that have finished", () => {
+        // No `toBeGreaterThan(0)` on the subset — see the note in tests/patch-wall.test.ts.
+        // `timed` is legitimately empty every January, and the suite is the Netlify build
+        // command. The loop asserts a property OF each timed event; zero of them is a true
+        // state of the calendar, not a broken test.
         const timed = EVENTS.filter((e) => e.elapsed_time !== undefined);
-        expect(timed.length, "no event carries a time — this assertion would be vacuous").toBeGreaterThan(0);
         for (const e of timed) {
             expect(patchState(e), `${e.name} is not finished but carries elapsed_time ${e.elapsed_time}`)
                 .toBe("finished");
@@ -361,8 +364,6 @@ describe("EVENTS", () => {
      */
     it("carries activity ids as digit strings, so none can be rounded into a dead link", () => {
         const linked = EVENTS.filter((e) => e.strava_activity_id !== undefined);
-        expect(linked.length, "no event carries an activity id — this assertion would be vacuous")
-            .toBeGreaterThan(0);
         const seen = new Set<string>();
         for (const e of linked) {
             expect(typeof e.strava_activity_id, `${e.name} activity id must be a string`).toBe("string");
