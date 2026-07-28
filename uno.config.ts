@@ -24,6 +24,7 @@ export default defineConfig({
         iconClass(FOOTER.icon),
         iconClass(NOW.explainer_icon),
         iconClass(PATCHES.home_icon),
+        iconClass(PATCHES.strava_icon),
         iconClass(NEXT_RACE.icon),
     ],
     /** UnoCSS extracts from the text of `<style>` blocks too, so the declaration

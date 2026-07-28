@@ -7,7 +7,7 @@ import {EVENTS, GOAL_YEAR, GOALS, type Goal} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {
     UPDATED_AT, bookedAhead, daysRemaining, formatDateline, goalStatus, goalStatusLine,
-    nextRace, parseIsoDate, patchesEarned, patchWall, stampYearMatchesGoalYear,
+    nextRace, parseIsoDate, patchesEarned, patchState, patchWall, stampYearMatchesGoalYear,
 } from "../src/lib/projection";
 import type {RaceEvent} from "../src/lib/constants";
 import {nextProgress, serialise, singaporeDate} from "../scripts/fetch-strava-progress.mjs";
@@ -328,6 +328,50 @@ describe("EVENTS", () => {
     it("carries no field that nothing reads", () => {
         for (const e of EVENTS) {
             expect(e, `${e.name} priority would be read by nothing`).not.toHaveProperty("priority");
+        }
+    });
+
+    /**
+     * A FINISHING TIME ONLY EXISTS FOR A RACE THAT HAS BEEN RUN, and the direction of
+     * this check is the whole of it: `elapsed_time` implies finished, never the reverse.
+     * Round the Island finishes on 3 August with nothing recorded and is a legitimate
+     * timeless finished bib, so the converse would be a red build on correct data.
+     *
+     * Written against `patchState` at the bot's own stamp rather than against a literal
+     * date. That makes it bot-driven — which is safe here in the one direction that
+     * matters, because a race that has been run stays run. The only way this goes red is
+     * a time typed against a race still ahead, which is exactly the mistake worth
+     * catching: the bib would print a result for a day that has not happened.
+     */
+    it("carries a finishing time only for races that have finished", () => {
+        // No `toBeGreaterThan(0)` on the subset — see the note in tests/patch-wall.test.ts.
+        // `timed` is legitimately empty every January, and the suite is the Netlify build
+        // command. The loop asserts a property OF each timed event; zero of them is a true
+        // state of the calendar, not a broken test.
+        const timed = EVENTS.filter((e) => e.elapsed_time !== undefined);
+        for (const e of timed) {
+            expect(patchState(e), `${e.name} is not finished but carries elapsed_time ${e.elapsed_time}`)
+                .toBe("finished");
+            expect(e.elapsed_time, `${e.name} elapsed_time must read H:MM:SS`).toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
+        }
+    });
+
+    /**
+     * An activity id is an opaque identifier that only ever goes into a URL. Digits only,
+     * and a STRING: 19-digit ids are close enough to Number.MAX_SAFE_INTEGER that a
+     * numeric literal would round one silently, and the rounded id 404s rather than
+     * failing anywhere a build could see.
+     */
+    it("carries activity ids as digit strings, so none can be rounded into a dead link", () => {
+        const linked = EVENTS.filter((e) => e.strava_activity_id !== undefined);
+        const seen = new Set<string>();
+        for (const e of linked) {
+            expect(typeof e.strava_activity_id, `${e.name} activity id must be a string`).toBe("string");
+            expect(e.strava_activity_id, `${e.name} activity id must be digits only`).toMatch(/^\d+$/);
+            // Two races pointing at one ride is the transposition this cannot otherwise
+            // see — both ids are valid, both pages load, and only reading them tells.
+            expect(seen.has(e.strava_activity_id!), `${e.name} shares an activity id with another race`).toBe(false);
+            seen.add(e.strava_activity_id!);
         }
     });
 });

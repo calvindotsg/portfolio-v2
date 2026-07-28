@@ -4,7 +4,7 @@ import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
-import {EVENTS, GOAL_YEAR, GOALS, PATCHES, type RaceEvent} from "../src/lib/constants";
+import {EVENTS, GOAL_YEAR, GOALS, PATCHES, type RaceEvent, stravaActivityUrl} from "../src/lib/constants";
 import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
 } from "../src/lib/projection";
@@ -390,13 +390,193 @@ describe("dist/patches", () => {
         const rendered = async (state: PatchState) =>
             parseHTML(await container.renderToString(Patch, {props: {event, state}})).document;
 
+        // Selected by CLASS, not by element name. The bib is no longer the list item: a
+        // race with a verified Strava activity renders its bib as an anchor inside the
+        // cell, so `querySelector("li")` now finds the wrapper and reads none of the
+        // treatment classes. Everything else in this file was already class-based, which
+        // is what kept the change to one component and one assertion.
         const booked = await rendered("booked");
         expect(booked.querySelector(".bib-tag")?.textContent?.trim()).toBe(PATCHES.booked_label);
-        expect(booked.querySelector("li")?.classList.contains("bib--booked")).toBe(true);
+        expect(booked.querySelector(".bib")?.classList.contains("bib--booked")).toBe(true);
 
         const finished = await rendered("finished");
         expect(finished.querySelector(".bib-tag"), "a finished bib is the unmarked case").toBeNull();
-        expect(finished.querySelector("li")?.classList.contains("bib--booked")).toBe(false);
+        expect(finished.querySelector(".bib")?.classList.contains("bib--booked")).toBe(false);
+    });
+
+    /**
+     * A FINISHED BIB'S WHOLE BOX IS THE LINK, and this is asserted from the built page
+     * because the shape only exists there: the bib renders as an anchor inside its list
+     * item, and the previous structure was one element.
+     *
+     * CONDITIONAL ON THE ID, NOT ON THE STATE. Round the Island finishes on 3 August with
+     * no activity recorded and must render as an ordinary finished bib, so the two halves
+     * below are both real cases rather than a happy path and a guard. Driven from EVENTS,
+     * so a race added with or without an id joins whichever half it belongs to.
+     */
+    it("makes the whole bib a link exactly where the race has a verified activity", () => {
+        const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
+        expect(bibs.length, "no bibs — this assertion would be vacuous").toBe(EVENTS.length);
+
+        // NO NON-VACUITY FLOOR ON THE FILTERED SUBSET, and this is the repo's own hardest-won
+        // test lesson applied to code I wrote a few hours after re-reading it. A
+        // `toBeGreaterThan(0)` over a subset of EVENTS is a hand-counted property of TODAY'S
+        // calendar dressed as an invariant: the subset was empty three weeks ago and is empty
+        // again every January after step 3 of the rollover checklist. The paired
+        // `toBeLessThan(EVENTS.length)` is worse — it asserts that some race must FOREVER lack
+        // a Strava id, which is not a property of this site at all, and it goes red the day the
+        // owner records the last one. A skeptic proved that: at a 31 December 2026 stamp this
+        // file was red for that reason alone while origin/main was green.
+        //
+        // netlify.toml runs the suite as the BUILD command, so either failure is a failed
+        // production deploy triggered by ordinary data entry.
+        //
+        // The loops below need no floor. Each iterates EVENTS — not the subset — and asserts
+        // the equivalence in BOTH directions per event, so they are vacuous only if EVENTS is
+        // empty, which is what the one guard that IS safe checks.
+        expect(EVENTS.length, "EVENTS is empty, so every loop below is vacuous").toBeGreaterThan(0);
+
+        for (const event of EVENTS) {
+            const bib = bibs.find((b) => b.querySelector(".bib-name")?.textContent === event.name)!;
+            expect(bib, `${event.name} must render a bib`).toBeTruthy();
+            const url = stravaActivityUrl(event);
+
+            if (url === null) {
+                expect(bib.tagName.toLowerCase(), `${event.name} has no activity id, so its bib must not be a link`)
+                    .not.toBe("a");
+                expect(bib.querySelector(".bib-strava"), `${event.name} must wear no Strava mark`).toBeNull();
+                continue;
+            }
+
+            expect(bib.tagName.toLowerCase(), `${event.name} has an activity id, so the whole bib is the link`).toBe("a");
+            // THE BASE URL IS WRITTEN OUT HERE, and the duplication is the point. Comparing the
+            // built href against `stravaActivityUrl(event)` alone compares the page to the very
+            // function that produced it: mistype the constant and every bib ships a 404 with the
+            // suite green and `pnpm check` silent — verified by mutating the base and watching
+            // 256/256 pass. The literal is the only thing in the build that can disagree with it.
+            expect(url, `${event.name} must point at strava.com/activities/<id>`)
+                .toBe(`https://www.strava.com/activities/${event.strava_activity_id}`);
+            expect(bib.getAttribute("href")).toBe(url);
+            expect(bib.getAttribute("target"), "matching Now.astro and IntroCard.astro").toBe("_blank");
+            expect(bib.getAttribute("rel"), "this site uses a bare target and lets the browser imply noopener; "
+                + "introducing rel on one link out of three makes the convention look accidental").toBeNull();
+            expect(bib.getAttribute("aria-label"), "an aria-label would REPLACE the bib's text with a summary")
+                .toBeNull();
+
+            // The accessible name is name-from-content, so it must be a superset of what
+            // is on screen — including the transcription of the aria-hidden glyph.
+            const name = (bib.textContent ?? "").replace(/\s+/g, " ").trim();
+            for (const part of [event.name, event.country, String(event.km).split(".")[0], PATCHES.strava_name]) {
+                expect(name, `the announced name must carry "${part}"`).toContain(part);
+            }
+        }
+    });
+
+    /**
+     * A BIB DOES NOT CLIP, so a row that cannot break paints its ink onto the CARD.
+     *
+     * This is the failure the wall's own geometry sweep is structurally blind to: that
+     * instrument walks elements inside a clipping ancestor, and `.bib` sets only
+     * `container-type`, which does not clip. So the escaped ink is invisible to it — and it is
+     * invisible to a reader too, because outside the bib the ink is `--background` on the card
+     * at 1.045:1. Measured before the fix at 320px: "9:41:31" rendered as "9:41:" from a 42px
+     * root, and "SINGAPORE" was escaping from 40px and had been since it was added.
+     *
+     * `anywhere` and NOT `break-word`, which is the distinction the wall's page heading records
+     * at length: `break-word` breaks the rendered line but is defined not to affect intrinsic
+     * minimum sizing, so the box still demands the full token's width and still overflows. A
+     * gate that accepted either value would pass on the fix that does nothing.
+     */
+    it("lets every unbreakable line on a bib break, since the bib does not clip", () => {
+        const rules = parseRules(pageCss(PAGES.all));
+        // Single-token lines: a date wraps at its spaces, a name has several words, but a
+        // country and a labelled time are each one token that must break or escape.
+        for (const cls of ["bib-time", "bib-place"]) {
+            const owned = rules.filter((r) => r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel)));
+            expect(owned.length, `no rule for .${cls} — this assertion would be vacuous`).toBeGreaterThan(0);
+            const wrap = owned.map((r) => decl(r.body, "overflow-wrap") ?? decl(r.body, "word-wrap")).find((v) => v !== undefined);
+            expect(
+                wrap,
+                `.${cls} is one unbreakable token at large text sizes and the bib does not clip, so `
+                + "without a break rule its ink paints onto the card at 1.045:1 and the line is lost",
+            ).toBe("anywhere");
+        }
+    });
+
+    /**
+     * THE WRAPPER IS LOAD-BEARING, so it gets an assertion of its own.
+     *
+     * `.bib-cell { display: grid }` is what makes a bib fill a wall row that a taller
+     * neighbour has stretched; without it a row of bibs goes ragged. That is a geometry
+     * property no test here can measure, but the two facts it rests on are checkable: the
+     * grid item must be the list item, and the bib must be its child rather than the item
+     * itself. Deleting the wrapper, or moving `.bib` back onto the `<li>`, breaks both.
+     */
+    it("keeps the bib inside a cell that can stretch, so a wall row cannot go ragged", () => {
+        const doc = parseHTML(read(PAGES.all)).document;
+        const cells = [...doc.querySelectorAll(".patch-wall > li")];
+        expect(cells.length, "the wall must render one list item per race").toBe(EVENTS.length);
+        for (const cell of cells) {
+            expect(cell.classList.contains("bib-cell"), "every wall item must be a cell").toBe(true);
+            expect(cell.classList.contains("bib"), "the bib must be INSIDE the cell, not be it").toBe(false);
+            expect(cell.querySelector(".bib"), "each cell must hold exactly one bib").toBeTruthy();
+            expect(cell.querySelectorAll(".bib").length).toBe(1);
+        }
+        const rule = parseRules(pageCss(PAGES.all)).find((r) => r.selectors.some((sel) => /\.bib-cell\b/.test(sel)));
+        expect(rule, "the cell must ship a rule — without one it is an inert wrapper").toBeTruthy();
+        expect(decl(rule!.body, "display"), "the cell must stretch its bib to the row's height").toBe("grid");
+    });
+
+    /**
+     * THE MARK IS A SHAPE AND IT IS PERMANENT. A hover cannot carry this — there is no
+     * hover on a phone, and this repo has already removed one card hover for advertising
+     * an affordance that did not exist. The glyph is aria-hidden, so the fact it carries
+     * has to exist in text too, which is what the sr-only span is for; a mark that is
+     * information and is hidden from everything is SC 1.1.1's exact case.
+     */
+    it("marks a linked bib with a shape, and says in text what the shape means", () => {
+        const doc = parseHTML(read(PAGES.all)).document;
+        const marks = [...doc.querySelectorAll(".bib-strava")];
+        expect(marks.length, "no Strava marks — this assertion would be vacuous")
+            .toBe(EVENTS.filter((e) => e.strava_activity_id !== undefined).length);
+
+        for (const mark of marks) {
+            const glyph = mark.querySelector(`span[class~="${iconClass(PATCHES.strava_icon)}"]`);
+            expect(glyph, "the mark must be the configured glyph, and it must have a rule — an icon class "
+                + "UnoCSS never generated renders as a mask box at zero size").toBeTruthy();
+            expect(glyph?.getAttribute("aria-hidden")).toBe("true");
+            expect(mark.querySelector(".sr-only")?.textContent?.trim(), "and the glyph must be transcribed")
+                .toBe(PATCHES.strava_name);
+            expect(mark.closest(".bib")?.tagName.toLowerCase(), "a bib wearing the mark must actually link")
+                .toBe("a");
+        }
+    });
+
+    /**
+     * THE TIME IS LABELLED, and the label is the assertion rather than a nicety. Elapsed
+     * and moving are far apart on these rides — 8:32:05 against 5:03:55 — so a bare time
+     * invites a reader to divide it into the distance above it and be 9 km/h wrong.
+     */
+    it("prints a finished race's elapsed time, labelled, and only where there is one", () => {
+        const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
+        // Same reasoning as the link test above: no floor on the filtered subset. The loop
+        // below covers both branches per event and is vacuous only if EVENTS is.
+        expect(EVENTS.length, "EVENTS is empty, so the loop below is vacuous").toBeGreaterThan(0);
+
+        for (const event of EVENTS) {
+            const bib = bibs.find((b) => b.querySelector(".bib-name")?.textContent === event.name)!;
+            const row = bib.querySelector(".bib-time");
+            if (event.elapsed_time === undefined) {
+                expect(row, `${event.name} has no time, so its bib must print no time row`).toBeNull();
+                continue;
+            }
+            expect(row, `${event.name} must print its time`).toBeTruthy();
+            expect(row!.querySelector(".bib-time-value")?.textContent?.trim()).toBe(event.elapsed_time);
+            expect(
+                row!.querySelector(".bib-time-label")?.textContent?.trim(),
+                "an unlabelled time does not say which clock it is",
+            ).toBe(PATCHES.elapsed_label);
+        }
     });
 
     /**
