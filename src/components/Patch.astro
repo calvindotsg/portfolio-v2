@@ -532,10 +532,11 @@ const Tag = activity === null ? "div" : "a";
      * THE TIME IS LABELLED, and the label is the point rather than a caption. Elapsed and
      * moving are far apart on a long ride — 8:32:05 against 5:03:55 on the 10 July bib —
      * so a bare time invites a reader to divide it into the distance printed above it and
-     * conclude 18.8 km/h for a ride that moved at 31.7. Both of those are the EVENT's
-     * 160.59 km, which is the distance this bib actually prints; see the note on
-     * `elapsed_time` in constants.ts for why an earlier 18.8-against-27.7 pairing was
-     * two different distances rather than one ride under two clocks.
+     * conclude 18.8 km/h, where the recorded ride moved at 27.7 — the event's 160.59 km
+     * over the activity's elapsed clock, against that activity's own 140.49 km over its
+     * own moving clock. The mismatch of scopes is real and is exactly why the label has
+     * to name which clock; see `elapsed_time` in constants.ts, which also records why
+     * 160.59 / 5:03:55 = 31.7 is not a speed anything rode.
      *
      * The label is dimmed with the date, the tag and the place, which puts it under the
      * same composited-contrast assertion as those three: the authored ink is `--background`
