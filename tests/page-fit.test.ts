@@ -478,63 +478,21 @@ describe("the page may grow taller than the viewport", () => {
         }
 
         /*
-         * A CEILING NEED NOT BE A LENGTH, and the property list above can only see
-         * lengths. `contain: size` (and `strict`, which includes it, and
-         * `content-visibility`, which applies it) makes the box's used block size
-         * independent of its content altogether: the grid resolves as if `<main>` held
-         * nothing, and `<main>`'s own `overflow-hidden` deletes the rest. Measured on a
-         * build carrying `@media (width>=64rem){main{contain:size}}` — 2188.7px of ink
-         * deleted at 1024x600 against 1157.7 for the clamp this test replaced, 1462.7 at
-         * 1024x768, 215.6 from 1280 up, and 78px lost at the DEFAULT text size with no
-         * user stylesheet at all. So the invariant is stated against CONTAINMENT rather
-         * than against lengths: nothing here may make `<main>`'s used block size
-         * independent of its content.
+         * The other half, and it is NOT the criterion — say so, because the obvious
+         * reading is wrong. Removing the ceiling above closes SC 1.4.12 on its own:
+         * measured on a real build with the eight-fraction template left untouched,
+         * the loss is 0 at 1024x600, 1024x768, 1280x800, 1440x900 and 1920x1080. A
+         * fraction track sums to its container only while that container has a
+         * DEFINITE height; with `min-height` alone the height is indefinite and each
+         * track grows for its own content (eight tracks of 90px become eight of 136px
+         * at 1440x900 under the criterion's four metrics).
          *
-         * `contain: inline-size` is deliberately allowed — it contains the inline axis,
-         * which is not the axis that clips here, and it was measured at 0 lost ink at
-         * all five viewports, identical to the page without it.
-         *
-         * `aspect-ratio` is on the list for the same reason and was measured the same
-         * way: a definite inline size plus a ratio is a definite BLOCK size, so
-         * `main{aspect-ratio:2/1}` reproduces the contain-size numbers to the decimal —
-         * both collapse the grid onto the `min-height` floor and clip everything above
-         * it. It is a ceiling written as a ratio.
-         *
-         * AT EVERY WIDTH, not just at lg — unlike the length ceilings above, which are
-         * allowed at lg's sibling assertion's discretion and policed there. There is no
-         * width at which the grid wants its height to stop depending on its content, and
-         * an UNGATED `main{contain:size}` is exactly the rule a `atLg`-scoped version of
-         * this check cannot see (verified: it stayed green until this was widened, while
-         * the same rule spelled `max-height` went red on the sibling assertion).
-         */
-        const containments = rulesMatching(main).flatMap((r) => {
-            const found: string[] = [];
-            const contain = decl(r.body, "contain");
-            if (contain && /(?<![\w-])size(?![\w-])|(?<![\w-])strict(?![\w-])/i.test(contain)) {
-                found.push(describeRule(r, "contain", contain));
-            }
-            const visibility = decl(r.body, "content-visibility");
-            if (visibility && visibility.trim().toLowerCase() !== "visible") {
-                found.push(describeRule(r, "content-visibility", visibility));
-            }
-            const ratio = decl(r.body, "aspect-ratio");
-            if (ratio && ratio.trim().toLowerCase() !== "auto") {
-                found.push(describeRule(r, "aspect-ratio", ratio));
-            }
-            return found;
-        });
-        expect(
-            [...new Set(containments)],
-            "<main>'s used block size must keep depending on its content at every width: `contain: size`, `contain: strict`, `content-visibility` and `aspect-ratio` each cap the grid exactly as a max-height does — harder, in fact, because the height stops being a function of the content at all — and the ink goes past `<main>`'s own overflow-hidden and is deleted",
-        ).toEqual([]);
-
-        /*
-         * The other half, and the one with no obvious name. A budget free to grow buys
-         * nothing while the ROWS cannot: `grid-rows-8` compiles to
-         * `repeat(8, minmax(0,1fr))`, whose tracks always sum to exactly the container
-         * and never ask it for more. Both halves were measured separately — the floor
-         * alone leaves 1157.7px lost, the rows alone make it WORSE (they overflow a
-         * still-capped container), and together it is 0 at every viewport.
+         * What a content-sized template defends is the DEFAULT-size page. Eight equal
+         * fractions round every track up to the tallest, so the freed grid asks for
+         * 810px on this revision — 912px on the one before it — where content-sized
+         * rows ask 797px, and at 1280x800 that is the difference between fitting and
+         * scrolling. The rows alone, with the ceiling still in place, are WORSE than
+         * shipping neither (they overflow a container that still clips).
          */
         /*
          * READ THE SHORTHANDS TOO, and read them ALONGSIDE the longhand rather than
@@ -561,7 +519,7 @@ describe("the page may grow taller than the viewport", () => {
         for (const value of templatesUp) {
             expect(
                 fixedTracksIn(value),
-                `<main>'s row template must let every row grow for its content; "${value}" contains a track that cannot`,
+                `<main>'s row template must size every row to its content; "${value}" contains a track that cannot grow — equal fractions and fixed lengths both round a row to something other than what it holds, which is what makes the freed grid ask for 810px at the default text size instead of 797`,
             ).toEqual([]);
         }
     });

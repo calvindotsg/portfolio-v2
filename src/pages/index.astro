@@ -96,18 +96,37 @@ const dateline = formatDateline();
  * with its content and never horizontally.
  *
  * So the cap is gone, `min-height` carries the whole clamp on its own, and the row
- * template is `min-content` rather than eight equal fractions. Both halves are needed
- * and each was measured alone: the floor without content-sized rows still loses all
- * 1157.7px, because `grid-rows-8` compiles to `repeat(8, minmax(0,1fr))` and a
- * fraction track sums to its container instead of asking it for room; content-sized
- * rows without freeing the cap are WORSE than shipping neither, because the tracks
- * then overflow a container that still clips. Together: 0px lost, at every viewport.
+ * template is `min-content` rather than eight equal fractions. THE TWO HALVES DO
+ * DIFFERENT JOBS, and each was measured alone against a real build.
+ *
+ * Removing the cap is what closes SC 1.4.12, and it closes it on its own: with the
+ * eight-fraction template left exactly as it was, the loss is 0px at 1024x600,
+ * 1024x768, 1280x800, 1440x900 and 1920x1080. A fraction track sums to its container
+ * only while that container has a DEFINITE height; once `min-height` is the only
+ * constraint the height is indefinite, so each track resolves against its own content
+ * contribution and grows. Measured on that build at 1440x900: eight tracks of 90px
+ * with the criterion off, eight of 136px with it on.
+ *
+ * Content-sized rows without freeing the cap are still WORSE than shipping neither,
+ * because the tracks then overflow a container that still clips.
+ *
+ * What the content-sized template buys is the DEFAULT-size page, not the criterion.
+ * Under the freed floor the eight fraction tracks all round up to the tallest one, so
+ * the grid asks for far more room than its content needs: this branch with the
+ * fraction template restored measures 810px at the default text size, and the same
+ * change made on the previous revision alone measures 912px, against 797px as
+ * shipped. At 1280x800 that is the difference between fitting and scrolling. Both
+ * halves are kept, and together it is 0px lost at every viewport.
  *
  * WHAT IT COSTS A READER WHO CHANGES NOTHING. The grid now asks for 797px where it was
  * given 800, so from a 797px-tall viewport up nothing scrolls that did not scroll
  * before. Below that the page grows: at 1024x768 and 1366x768 the document goes 768 to
  * 797px and gains a 29px scroll where it used to fit exactly, by squeezing every row
- * 5px and eating the footer card's bottom padding. Rect-diffed against a build of the
+ * 5px and eating the footer card's bottom padding. BE PRECISE ABOUT WHAT SCROLLS:
+ * measured at both of those viewports, the text ink below the fold is ZERO. The 29px
+ * is 5px of the footer card's own box plus `main`'s bottom padding, so the cost is a
+ * scrollbar, not a line of copy. An earlier draft of this paragraph said only that the
+ * page stops fitting, which reads as content going under the fold and overstates it. Rect-diffed against a build of the
  * previous revision across ten lg viewports: no card moves horizontally or changes
  * width, the intro card gains 5px, the footer 14px — that is its own padding coming
  * back — and everything below the first row shifts down 5px.
@@ -204,12 +223,14 @@ const dateline = formatDateline();
 
              IT IS THREE ROWS NOW, and the third is what pays for the content-sized row
              template above. At two rows this card is auto-placed into row 8 plus an
-             implicit row worth 0px, so its area was 92px for 105px of content — the
-             13px being cut was its own bottom padding, which is why no ink probe ever
+             implicit row worth 0px, so its area was 92px for 106px of content — the
+             14px being cut was its own bottom padding, which is why no ink probe ever
              saw it. A fraction template hides that; a content-sized one has to charge
              the whole page for it, and the grid asked for 813px instead of 797. With
-             the third row this card stops driving the template at all: 105px of
-             content into a 108px area, and the page pays nothing.
+             the third row this card stops driving the template at all: 106px of
+             content into an area of 106px where the grid is content-driven and 109px
+             from an 800px-tall viewport up, and the page pays nothing. (An earlier
+             draft said "105px into 108px"; 108 occurs at no real viewport.)
 
              The single-line property is load-bearing, not tidiness. A dateline long
              enough to wrap reopens the same 5px loss WITH the row-span in place; the

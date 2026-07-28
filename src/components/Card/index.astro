@@ -54,7 +54,8 @@
 // The template is `min-content` now (index.astro, and the reason is SC 1.4.12), so a row
 // is as tall as the tallest thing spanning it and there is no per-row constant to quote.
 // Measured at 1440x900 and the default root: 77.25px for rows 1-4, 74px for 5-7, 62px for
-// row 8, and two implicit tracks at 6px. The reason a card cannot give up a row is
+// row 8, and two implicit tracks at 7.5px (they are 6px at viewport heights <= 797,
+// which is the value an earlier draft of this line quoted against the wrong viewport). The reason a card cannot give up a row is
 // unchanged and is now nearly tautological — a row holds what is in it — but any
 // re-derivation has to read the live template rather than divide a height by eight.
 //
@@ -74,7 +75,8 @@
 // The block-size cap is the other half and it is not decoration, but be exact about
 // what it can hold. A percentage cap resolves against the PARENT's height, and the
 // parent is the grid area only for the five cards that are direct grid items; for the
-// three inside the right-hand stack it is the stack's own height — 720px at 1440x900,
+// three inside the right-hand stack it is the stack's own height — 705px at 1440x900
+// since the row template went content-sized (it was 720px under the eight fractions),
 // over 500px more than any one of them asks for — so the cap cannot bind there at all,
 // and what keeps those three inside their column is the stack, not the cap. Either
 // way the percentage needs a parent height that is already decided, which is true
@@ -94,10 +96,11 @@
 // rows a size of their own — the same reason `overflow-hidden` stays on a card that
 // currently clips nothing. What it used to cut is worth knowing, because nothing could see it:
 // the footer card sat in row 8 plus an implicit row worth 0px, so the cap held it at 92px
-// for 105px of content and ate 13px of its own bottom padding. No ink probe could see that
+// for 106px of content and ate 14px of its own bottom padding. No ink probe could see that
 // — padding is not ink — and it is why the footer now asks for a third lg row.
 //
-// Two cards keep the height they ship with today exactly: the intro card at 352px,
+// Two cards kept the height they shipped with when this was written: the intro card at
+// 352px — it is 357px now, because content-sized rows give it what it asks for —
 // which is exempt anyway (below), and the footer at 76px. Now does not — it goes
 // 168px to 170px, and that is the point rather than a side effect, because the 2px it
 // used to spill past its own padding edge is now inside it. The five roomy cards
