@@ -27,8 +27,14 @@ import stravaProgress from "../data/strava-progress.json"
  * there; the distance, the date and the time are not. Checked on both of the owner's two
  * finished 2026 rides (19279762093 and 19254155835) on 2026-07-28.
  *
- * So a status code is not an answer to "can a reader see this" — READ THE PAGE. That
- * distinction is the whole reason {@link RaceEvent} has no `strava_activity_id`.
+ * So a status code is not an answer to "can a reader see this" — READ THE PAGE.
+ *
+ * THE FINISHED BIBS LINK ANYWAY, and that is a decision taken with this paragraph in
+ * front of it rather than in ignorance of it. See {@link RaceEvent.strava_activity_id},
+ * which carries the reasoning and the accepted cost; do not delete those links as an
+ * oversight, and do not delete this evidence as obsolete. What it still rules out is a
+ * second link to the PROFILE — that one adds a wall and reaches nothing the intro card's
+ * social link does not already reach.
  *
  * THAT NEVER SETTLED WHAT A GOAL CARD MAY LINK TO, and the note used to read as
  * though it did. This site serves its own per-sport page — `/patches/cycling` and
@@ -38,6 +44,20 @@ import stravaProgress from "../data/strava-progress.json"
  * Strava control would go to this same profile and meet the same wall.
  */
 const STRAVA_PROFILE_URL = "https://www.strava.com/athletes/37641259/";
+
+/**
+ * Where a finished bib's link points, with {@link RaceEvent.strava_activity_id} appended.
+ *
+ * It is a base rather than a full URL per event so the domain lives in one place: two
+ * spellings of the same host is how one of them ends up on `strava.app.link` or a stale
+ * regional subdomain years later, with nothing failing. The ids themselves stay beside
+ * the races they belong to, because that is the fact being recorded.
+ */
+const STRAVA_ACTIVITY_URL = "https://www.strava.com/activities/";
+
+/** A finished bib's link, or null where the race has no verified activity. */
+export const stravaActivityUrl = (event: RaceEvent): string | null =>
+    event.strava_activity_id === undefined ? null : STRAVA_ACTIVITY_URL + event.strava_activity_id;
 
 /**
  * `name` is the control's whole accessible name, announced verbatim — the icon
@@ -233,21 +253,34 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * are absent rather than left for a future editor to fill in expecting them to do
  * something.
  *
- * DELIBERATELY NO `strava_activity_id`, and the reason is a measurement rather than a
- * preference. Linking a finished bib to its Strava activity was planned and dropped:
- * a logged-out reader lands on a login wall, so the bib would spend the page's strongest
- * treatment on a dead end. See {@link STRAVA_PROFILE_URL}, where the evidence is — the
- * URL returns 200, which is what made this look available.
+ * `strava_activity_id` SHIPS WITH A KNOWN COST, AND THE COST IS NOT A MISTAKE. Keep both
+ * halves of this paragraph: the evidence, so nobody re-proposes the link as an oversight,
+ * and the decision, so nobody removes it as one.
  *
- * DELIBERATELY NO `elapsed_time`, YET, and this one is only blocked on the data. A
- * race's finishing time is immutable history, so it belongs beside `km` and `name` here
- * rather than in the bot's JSON: the bot exists to track a total that MOVES, and
- * fetching an unchanging number nightly would add a second API endpoint, an
- * event-to-activity mapping, a new bot-owned key, and a new way for an unattended push
- * to turn the deploy red — for a figure that was true the moment the race ended. The two
- * finished races' times are not in this repository and cannot be read off Strava without
- * an account, so they have to be typed in. Add the field WITH the values: a rendered line
- * no event fills makes its CSS an orphan, which `tests/build-output.test.ts` fails.
+ * The evidence. A logged-out reader who follows one of these lands on a LOGIN WALL. This
+ * was recorded the other way first, on good-looking evidence: `curl` gets HTTP 200 with no
+ * redirect from `strava.com/activities/<id>`, which reads as "public". Fetched and READ,
+ * the page is *"Log in to see 'MBG DCR 2026 Krabi to Phuket'"* and a sign-up prompt — the
+ * title is there, the distance and the time are not. Checked on both ids below, 2026-07-28.
+ * A status code is not an answer to "can a reader see this".
+ *
+ * The decision. The owner read that and asked for the links anyway. A visitor who has
+ * Strava — which is most of the audience for a wall of race bibs — gets the ride; one who
+ * does not gets a page that at least names it. That is a smaller loss than it looked,
+ * because the bib already prints the distance, the date and the time, so the link adds to
+ * a complete object rather than being the only way to learn anything.
+ *
+ * (The wall leaking the title is also the technique for VERIFYING an id without an
+ * account, which is how the two below were checked rather than trusted: fetch the page and
+ * read which race it names. Two valid ids transposed between events would otherwise
+ * produce a wall nothing on this site could catch.)
+ *
+ * `elapsed_time` IS HAND-ENTERED AND STAYS THAT WAY. A finishing time is immutable
+ * history, so it belongs beside `km` and `name` here rather than in the bot's JSON: the
+ * bot exists to track a total that MOVES, and fetching an unchanging number nightly would
+ * add a second API endpoint, an event-to-activity mapping, a new bot-owned key, and a new
+ * way for an unattended push to turn the deploy red — for a figure that stopped changing
+ * when the race ended.
  *
  * Named `RaceEvent` because `Event` is a live DOM global in this module.
  */
@@ -278,11 +311,44 @@ export type RaceEvent = {
      * duplication to unify.
      */
     country: string
+    /**
+     * How long the race took, as `H:MM:SS`. Absent until the race has been run and the
+     * figure typed in; a bib without one simply prints no time line.
+     *
+     * IT IS ELAPSED, NOT MOVING, AND THE BIB SAYS SO. The two are far apart on these
+     * rides — 8:32:05 elapsed against 5:03:55 moving — so an unlabelled time invites a
+     * reader to divide it into the distance and get 18.8 km/h where the ride was 27.7.
+     * The label is not decoration; it names which clock.
+     *
+     * NOTE WHICH SCOPE THIS IS. It is the race's own time, from the activity the race was
+     * recorded as. The bib prints it beside the EVENT's distance, and on 10 July those
+     * come from slightly different scopes: the day holds two Strava activities — a 22.55km
+     * escort out of Phuket and the 140.49km ride — totalling 163.04 against the event's
+     * 160.59, and whole-day elapsed would be 9:55 rather than 8:32:05. The residual is
+     * +2.45km and it is left alone deliberately; engineering it away would mean the bib
+     * printing a number that is not the race.
+     *
+     * (That day is also why a 20km "silent disagreement" was once reported here and was
+     * not one. A single Strava activity is not a day. Before concluding that a
+     * hand-entered figure disagrees with a recorded one, ask whether the recording is
+     * split.)
+     */
+    elapsed_time?: string
+    /**
+     * The Strava activity this race was recorded as. Present only where the mapping has
+     * been VERIFIED by reading the page — see the note above the type for how, and for
+     * the login wall this knowingly accepts.
+     *
+     * A string rather than a number: it is an opaque identifier that only ever goes into
+     * a URL, and 19-digit ids are close enough to `Number.MAX_SAFE_INTEGER` that treating
+     * them as arithmetic is a category error waiting to round one.
+     */
+    strava_activity_id?: string
 }
 
 export const EVENTS: readonly RaceEvent[] = [
-    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling", country: "Thailand"},
-    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling", country: "Thailand"},
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
+    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31", strava_activity_id: "19279762093"},
     {date: "2026-08-02", name: "Round the Island Bike Adventure", km: 121.98, sport: "cycling", country: "Singapore"},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
     {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
@@ -482,6 +548,27 @@ export const PATCHES: {
     home_label: string
     home_icon: string
     filter_label: string
+    /**
+     * The word before a finished bib's time, and it is load-bearing rather than a caption.
+     * Elapsed and moving are far apart on a long ride — 8:32:05 against 5:03:55 — so a
+     * bare time invites a reader to divide it into the distance and get an average that
+     * is 9 km/h wrong. See {@link RaceEvent.elapsed_time}.
+     */
+    elapsed_label: string
+    /**
+     * The mark on a bib that links out, and it is what makes the link visible at all.
+     *
+     * A hover state is not an option — there is no hover on a phone, and this site has
+     * already removed one card hover for advertising an affordance that did not exist;
+     * the opposite failure is an affordance that exists and is never advertised. A glyph
+     * is a shape, so it satisfies SC 1.4.1 without leaning on colour, and it names the
+     * destination rather than merely marking one. Safelisted in uno.config.ts: this is a
+     * second reference to a class LINKS already carries, and relying on that coincidence
+     * is how a bib ships a mask box at zero size with a green build.
+     */
+    strava_icon: string
+    /** sr-only, transcribing {@link strava_icon}. The glyph is information, not decoration. */
+    strava_name: string
 } = {
     /**
      * "My events", not "Patch wall", and the sport pages take `My {sport} events` from the
@@ -503,6 +590,9 @@ export const PATCHES: {
     home_label: "Home",
     home_icon: "ri:arrow-left-line",
     filter_label: "Filter by sport",
+    elapsed_label: "Elapsed",
+    strava_icon: "fa6-brands:strava",
+    strava_name: "on Strava",
 }
 
 /**
