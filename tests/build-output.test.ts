@@ -739,6 +739,34 @@ describe("the stylesheet ships no rule nobody wears", () => {
      * patch wall. See `builtPages()` for the distinction from `pageCss()`, which is
      * per-page on purpose and must stay that way.
      */
+    /**
+     * A SECOND, DIFFERENT KIND OF EXCUSE, kept apart from KNOWN_ORPHANS on purpose.
+     *
+     * These are STATE classes: an element wears one when the site is in a state it can
+     * legitimately be out of. `bib--booked` and `bib-tag` mark a race that has not been
+     * run yet, and on 7 December 2026 — the morning after the last race on the calendar
+     * — nothing on the site is in that state, so both rules ship with no wearer and this
+     * gate goes red on a correct page.
+     *
+     * That is not hypothetical and it is not merely a red test: `netlify.toml` runs the
+     * suite as the build command, and the Strava bot pushes unattended, so it is a
+     * failed production deploy triggered by a bot on a day nobody is watching. Found by
+     * simulating eight future bot pushes rather than by reasoning about it.
+     *
+     * WHY NOT KNOWN_ORPHANS: that list means "a rule that should not exist and we have
+     * not got round to removing", and its anti-rot test demands the rule still ship. A
+     * state class is the opposite — the rule *must* exist, and its absence from the
+     * markup is information about today rather than a defect. Collapsing the two would
+     * make the ratchet mean two things.
+     *
+     * WHY NOT WEAKEN THE GATE: it exists to catch a rule emitted by an ordinary English
+     * word, and it still does. What is excused here is narrow and named, and the class
+     * is not left uncovered — `tests/patch-wall.test.ts` renders `Patch` directly in
+     * both states, so an actually-dead `bib--booked` fails there, on a page and not on a
+     * date.
+     */
+    const STATE_CLASSES = ["bib--booked", "bib-tag"];
+
     it("emits a class rule only for classes some page actually uses", () => {
         const css = builtPages().map((p) => pageCss(p)).join("\n");
         const worn = new Set(builtPages().flatMap((p) => [...classTokens(p)]));
@@ -752,13 +780,31 @@ describe("the stylesheet ships no rule nobody wears", () => {
                 const cls = selector.trim().match(/^\.((?:\\.|[\w-])+)/)?.[1];
                 if (!cls) continue;
                 const token = cls.replace(/\\(.)/g, "$1");
-                if (!worn.has(token) && !KNOWN_ORPHANS.includes(token)) orphans.add(token);
+                if (!worn.has(token) && !KNOWN_ORPHANS.includes(token) && !STATE_CLASSES.includes(token)) orphans.add(token);
             }
         }
         expect(
             [...orphans].sort(),
             "these classes have a CSS rule but no element — almost always a utility name written as an ordinary English word in .astro text. Reword it, or add it to `blocklist` in uno.config.ts if the word cannot be avoided",
         ).toEqual([]);
+    });
+
+    /**
+     * The state-class list rots differently from the orphan list, so it needs its own
+     * check: an entry here excuses a class from needing a wearer, so if the rule itself
+     * stops shipping the entry is excusing nothing and is quietly widening what the gate
+     * lets through. Whether the class is ever WORN is asserted where it belongs —
+     * `tests/patch-wall.test.ts` renders the component in both states.
+     */
+    it("still ships a rule for every state class, so that list cannot rot either", () => {
+        const css = builtPages().map((p) => pageCss(p)).join("\n");
+        for (const token of STATE_CLASSES) {
+            const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}`;
+            expect(
+                css.includes(`${selector}{`) || css.includes(`${selector},`) || css.includes(`${selector}[`),
+                `${token} no longer ships a rule — remove it from STATE_CLASSES`,
+            ).toBe(true);
+        }
     });
 
     it("still needs every entry on the known-orphan list, so the list cannot rot", () => {

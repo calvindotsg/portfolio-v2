@@ -1,9 +1,11 @@
 import {readFileSync} from "node:fs";
+import {experimental_AstroContainer as AstroContainer} from "astro/container";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
+import Patch from "../src/components/Patch.astro";
 import {EVENTS, GOALS, PATCHES, type RaceEvent} from "../src/lib/constants";
-import {bookedAhead, formatPatchDate, patchState, patchWall, UPDATED_AT} from "../src/lib/projection";
+import {bookedAhead, formatPatchDate, patchState, type PatchState, patchWall, UPDATED_AT} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
 import {decl, isKeyframeStep, pageCss, parseRules, type Rule} from "./helpers/css";
 
@@ -203,19 +205,63 @@ describe("dist/patches", () => {
      * and colour and shape alone are not an acceptable sole carrier. The word is the
      * other channel. A finished bib is the unmarked case and must NOT carry it —
      * otherwise the tag stops meaning anything.
+     *
+     * THIS ASSERTED THE COUNTS FIRST, AND THAT WAS A BOT-TRIGGERED FAILED DEPLOY.
+     * It opened with `expect(booked.length).toBeGreaterThan(0)` as a non-vacuity
+     * floor — a hand-counted property of *today's calendar* dressed as an invariant.
+     * On 7 December 2026, the morning after the last race on the list, every bib is
+     * finished and that floor goes red. `netlify.toml` runs the suite as the build
+     * command and the Strava bot pushes unattended at 05:13 SGT, so the first symptom
+     * would have been a failed production deploy with nobody watching. Simulated: the
+     * suite is green on five future bot pushes and red on 2026-12-07 and 2026-12-31.
+     *
+     * The replacement is an EQUIVALENCE against the same derivation the page used, so
+     * it cannot be vacuous and cannot depend on the date: every bib carries the tag if
+     * and only if the calendar calls it booked. The non-vacuity that remains is a
+     * property of the fixture, not of the day — there are always events to render.
+     *
+     * Proving the tag logic can DISTINGUISH the two states is a separate job, and it
+     * belongs to the component rather than to whatever today happens to look like. See
+     * the container-rendered test below.
      */
-    it("says 'booked' in words on every un-earned bib, and on no earned one", () => {
+    it("says 'booked' in words on exactly the bibs the calendar calls booked", () => {
+        const state = new Map(patchWall().map((p) => [p.event.name, p.state]));
         const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
-        const booked = bibs.filter((b) => b.classList.contains("bib--booked"));
-        const finished = bibs.filter((b) => !b.classList.contains("bib--booked"));
-        expect(booked.length, "no booked bib on the page — this assertion would be vacuous").toBeGreaterThan(0);
-        expect(finished.length, "no finished bib on the page — this assertion would be vacuous").toBeGreaterThan(0);
-        for (const b of booked) {
-            expect(b.querySelector(".bib-tag")?.textContent?.trim(), "an outline is not on its own enough").toBe(PATCHES.booked_label);
+        expect(bibs.length, "the wall must render every event").toBe(EVENTS.length);
+        for (const bib of bibs) {
+            const name = bib.querySelector(".bib-name")?.textContent ?? "";
+            const tag = bib.querySelector(".bib-tag")?.textContent?.trim() ?? null;
+            expect(
+                tag,
+                `"${name}" is ${state.get(name)} at the ${UPDATED_AT} stamp, so its tag must be `
+                + `${state.get(name) === "booked" ? `"${PATCHES.booked_label}"` : "absent"}`,
+            ).toBe(state.get(name) === "booked" ? PATCHES.booked_label : null);
         }
-        for (const b of finished) {
-            expect(b.querySelector(".bib-tag"), "a finished bib is the unmarked case").toBeNull();
-        }
+    });
+
+    /**
+     * THAT THE TAG DISTINGUISHES THE TWO STATES AT ALL, asked of the component instead
+     * of the calendar.
+     *
+     * Rendering `Patch` directly in both states is the only form of this assertion that
+     * is date-independent. Reading it off the built page means the coverage silently
+     * depends on the wall happening to hold one of each today — which is exactly the
+     * coupling that turned the deploy red above, and it will be false again for the
+     * whole of any January before the year's first race.
+     */
+    it("renders the tag for a booked bib and omits it for a finished one, whatever the date", async () => {
+        const container = await AstroContainer.create();
+        const event = EVENTS[0];
+        const rendered = async (state: PatchState) =>
+            parseHTML(await container.renderToString(Patch, {props: {event, state}})).document;
+
+        const booked = await rendered("booked");
+        expect(booked.querySelector(".bib-tag")?.textContent?.trim()).toBe(PATCHES.booked_label);
+        expect(booked.querySelector("li")?.classList.contains("bib--booked")).toBe(true);
+
+        const finished = await rendered("finished");
+        expect(finished.querySelector(".bib-tag"), "a finished bib is the unmarked case").toBeNull();
+        expect(finished.querySelector("li")?.classList.contains("bib--booked")).toBe(false);
     });
 
     it("prints every distance to two decimals, split so the fraction can be set small", () => {
