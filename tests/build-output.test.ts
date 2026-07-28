@@ -5,7 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
-import {pageCss, splitSelectorList} from "./helpers/css";
+import {decl, pageCss, parseRules, splitSelectorList} from "./helpers/css";
 import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
 /**
@@ -669,6 +669,79 @@ describe("dist/", () => {
  * Written against every hover rule in the sheet rather than against the card,
  * so the same mistake on a future element is caught too.
  */
+/**
+ * THE GATE WHOSE ABSENCE LET FIVE LINKS SHIP LOOKING LIKE PROSE.
+ *
+ * Two friends reviewing the site reported that they did not know the goal cards' "My cycling
+ * events" could be clicked, and did not know a bib could be. Auditing the class rather than the
+ * two instances found three more, of which the worst was never reported because nobody could
+ * guess it was a link at all: the company name on each role card carried exactly `text-xs
+ * font-light`, the same two classes as the date line directly above it — no colour delta, no
+ * glyph, no hover. Measured on the shipped build at 1024x600, the goal-card control against its
+ * neighbouring figure line: both rgb(250,250,250), both 12px, no decoration. A contrast ratio of
+ * 1.00:1 between a link and a sentence.
+ *
+ * Every one of those passed every assertion in this suite, because nothing asked the question.
+ *
+ * WHAT COUNTS AS A SIGNIFIER, and the list is deliberately of KINDS rather than of elements:
+ *
+ *   1. `.control`          the styled 64x48 box with the offset plate — six social links
+ *   2. `.text-link`        the shared text-link idiom — goal cards, the wall's Home link, roles
+ *   3. `.patch-filter a`   a bordered chip; the class is on the NAV, so this needs `closest`
+ *   4. an icon-only control whose accessible name is carried by an `sr-only` span (the Now
+ *      card's explainer, which is a 24px icon target and is legitimately not a text link)
+ *   5. `.bib--linked`      the whole bib is the anchor, and its signifier is the visible action
+ *      row inside it — required as a DESCENDANT, so wearing the class is not enough
+ *
+ * NO PER-CATEGORY FLOOR. Asserting that some link of each kind exists would be a hand-counted
+ * property of today's content: zero bibs carry a Strava id every January after the rollover, and
+ * this suite is the Netlify BUILD COMMAND, so that failure is a failed production deploy caused
+ * by ordinary data entry. The loop is vacuous only if a page has no links, which IS checked.
+ *
+ * It reads the shipped stylesheet through `parseRules` and matches selectors by regex rather
+ * than using this file's local `decl(css, classes, prop)` helper, which does a literal `.token{`
+ * lookup and so cannot see `.patch-filter[data-astro-cid-…] a[…]{border:…}` — the exact form
+ * every Astro scoped style in this repo takes.
+ */
+describe("every link on every page says that it is one", () => {
+    it.each(builtPages())("gives each link a signifier a reader can perceive (%s)", (page) => {
+        const doc = parseHTML(read(page)).document;
+        const links = [...doc.querySelectorAll("a")];
+        expect(links.length, `${page} has no links — this assertion would be vacuous`).toBeGreaterThan(0);
+
+        // The bordered-chip case is only a signifier while the border is really shipped, so the
+        // rule is read rather than assumed. Same reasoning as the decoration check on the goal
+        // card's control: a class proves intent and a rule proves the drawing.
+        const chipIsDrawn = parseRules(pageCss(page)).some(
+            (r) => r.selectors.some((s) => /\.patch-filter\b/.test(s))
+                && (decl(r.body, "border") ?? decl(r.body, "border-color")) !== undefined,
+        );
+
+        const unsignified = links.filter((a) => {
+            if (a.classList.contains("control")) return false;
+            if (a.classList.contains("text-link")) return false;
+            if (chipIsDrawn && a.closest(".patch-filter")) return false;
+            // An icon-only control: no visible words at all, and its name comes from an sr-only
+            // span. If it ever grows visible text it stops qualifying here and must wear an
+            // idiom like everything else.
+            const srOnly = a.querySelector(".sr-only");
+            const visibleText = [...a.childNodes]
+                .filter((n) => n.nodeType === 3).map((n) => n.textContent ?? "").join("").trim();
+            if (srOnly && !visibleText) return false;
+            // The whole bib is the anchor; its signifier is the row inside it, not the class.
+            if (a.classList.contains("bib--linked") && a.querySelector(".bib-go")) return false;
+            return true;
+        });
+
+        expect(
+            unsignified.map((a) => `${a.getAttribute("href")} "${(a.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 46)}"`),
+            `${page} ships links drawn like static text. A link needs one of: .control, .text-link, `
+            + "a drawn .patch-filter chip, an sr-only-named icon control, or .bib--linked wrapping a "
+            + "visible .bib-go row. This is the gate whose absence let five links ship unreadable as links",
+        ).toEqual([]);
+    });
+});
+
 describe("hover styles promise only interactions that exist", () => {
     const INTERACTIVE = new Set(["a", "button", "input", "select", "textarea", "summary", "label"]);
 

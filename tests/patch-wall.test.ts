@@ -489,9 +489,21 @@ describe("dist/patches", () => {
      */
     it("lets every unbreakable line on a bib break, since the bib does not clip", () => {
         const rules = parseRules(pageCss(PAGES.all));
-        // Single-token lines: a date wraps at its spaces, a name has several words, but a
-        // country and a labelled time are each one token that must break or escape.
-        for (const cls of ["bib-time", "bib-place"]) {
+        // Single-token lines: a date wraps at its spaces and a name has several words, but each
+        // of these is one token that must break or escape.
+        //
+        // THE LIST WAS THE INSTANCES SOMEONE HAPPENED TO NOTICE, and it was two short. It named
+        // the two rows that had already been caught escaping, so it was a record of past
+        // incidents rather than a gate on the property. Sweeping ORIGIN/MAIN as the baseline for
+        // this change found `.bib-tag` — the word "Booked", the sole text carrier of a bib's
+        // state — escaping the border box by 31.45px at a 44px root and 63.11px at 48, on a
+        // 320px viewport, and it had been doing so since it was written. `.bib-go` is the new
+        // action row and is the same shape ("Strava" does not break).
+        //
+        // Both are outside the WCAG 1.4.4 bracket, which tops out at a 32px root, so neither is
+        // a conformance failure — which is presumably how two passes over that file walked past
+        // the tag. The ink still lands on the card at 1.045:1 and is lost.
+        for (const cls of ["bib-time", "bib-place", "bib-tag", "bib-go"]) {
             const owned = rules.filter((r) => r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel)));
             expect(owned.length, `no rule for .${cls} — this assertion would be vacuous`).toBeGreaterThan(0);
             const wrap = owned.map((r) => decl(r.body, "overflow-wrap") ?? decl(r.body, "word-wrap")).find((v) => v !== undefined);
@@ -528,27 +540,107 @@ describe("dist/patches", () => {
     });
 
     /**
-     * THE MARK IS A SHAPE AND IT IS PERMANENT. A hover cannot carry this — there is no
-     * hover on a phone, and this repo has already removed one card hover for advertising
-     * an affordance that did not exist. The glyph is aria-hidden, so the fact it carries
-     * has to exist in text too, which is what the sr-only span is for; a mark that is
-     * information and is hidden from everything is SC 1.1.1's exact case.
+     * THE AFFORDANCE IS A LABEL A READER CAN SEE, and the previous version of this assertion is
+     * the reason it has to be said that way.
+     *
+     * That version required a shape plus an `sr-only` transcription of it, and it passed on the
+     * build two friends could not use. Measured on the shipped page at 390x844, the mark it was
+     * asserting rendered 7.5 x 10px — 75px² on a 324 x 141px bib, 0.16% of it, monochrome and
+     * unlabelled — with its only words hidden from everyone who could see the bib. Every clause
+     * held; the affordance did not exist for a sighted reader.
+     *
+     * So the property is inverted. The words must be VISIBLE, and the assertion below fails on
+     * exactly the arrangement that used to pass: a glyph whose label is `sr-only`. The glyph is
+     * kept and still aria-hidden, because it names the destination and the visible words now
+     * carry the meaning — which is also what discharges SC 1.1.1 without a second transcription.
+     *
+     * NO FLOOR ON THE LINKED SUBSET. `.toBeGreaterThan(0)` here would be a hand-counted property
+     * of today's calendar: no race carries an activity id every January after the rollover, and
+     * this suite is the Netlify BUILD COMMAND, so that failure is a failed production deploy
+     * triggered by ordinary data entry. The loop iterates EVENTS and covers both branches per
+     * event, so it is vacuous only if EVENTS is empty — which is the one guard that is safe.
      */
-    it("marks a linked bib with a shape, and says in text what the shape means", () => {
+    it("gives a linked bib a visible label saying what using it does", () => {
         const doc = parseHTML(read(PAGES.all)).document;
-        const marks = [...doc.querySelectorAll(".bib-strava")];
-        expect(marks.length, "no Strava marks — this assertion would be vacuous")
-            .toBe(EVENTS.filter((e) => e.strava_activity_id !== undefined).length);
+        expect(EVENTS.length, "EVENTS is empty, so the loop below is vacuous").toBeGreaterThan(0);
+        const bibs = [...doc.querySelectorAll(".bib")];
 
-        for (const mark of marks) {
-            const glyph = mark.querySelector(`span[class~="${iconClass(PATCHES.strava_icon)}"]`);
-            expect(glyph, "the mark must be the configured glyph, and it must have a rule — an icon class "
+        for (const event of EVENTS) {
+            const bib = bibs.find((b) => b.querySelector(".bib-name")?.textContent === event.name)!;
+            const row = bib.querySelector(".bib-go");
+
+            if (stravaActivityUrl(event) === null) {
+                expect(row, `${event.name} has no activity id, so its bib must offer no action row`).toBeNull();
+                continue;
+            }
+
+            expect(row, `${event.name} links out, so it must say so in words`).toBeTruthy();
+            expect(bib.tagName.toLowerCase(), "a bib wearing the row must actually link").toBe("a");
+
+            const label = row!.querySelector(".bib-go-label");
+            expect(label?.textContent?.trim(), "the row's words are the configured label").toBe(PATCHES.strava_name);
+
+            // THE POINT OF THE WHOLE CHANGE: the words are on screen. `sr-only` is what the
+            // previous revision shipped and is the defect this guards, so it is named directly
+            // rather than inferred — a class check is what the markup can actually answer, and
+            // the rendered half is the browser sweep in the PR.
+            expect(label?.classList.contains("sr-only"),
+                "the label must be VISIBLE — an sr-only label is the arrangement two reviewers could not see")
+                .toBe(false);
+            expect(row!.querySelector(".sr-only"),
+                "and nothing in the row may be visually hidden: the glyph is decorative and the words carry it")
+                .toBeNull();
+
+            const glyph = row!.querySelector(`span[class~="${iconClass(PATCHES.strava_icon)}"]`);
+            expect(glyph, "the row keeps the configured glyph, and it must have a rule — an icon class "
                 + "UnoCSS never generated renders as a mask box at zero size").toBeTruthy();
-            expect(glyph?.getAttribute("aria-hidden")).toBe("true");
-            expect(mark.querySelector(".sr-only")?.textContent?.trim(), "and the glyph must be transcribed")
-                .toBe(PATCHES.strava_name);
-            expect(mark.closest(".bib")?.tagName.toLowerCase(), "a bib wearing the mark must actually link")
-                .toBe("a");
+            expect(glyph?.getAttribute("aria-hidden"),
+                "the glyph is decorative now: the visible words say what the mark used to have to")
+                .toBe("true");
+        }
+
+        // The mark that USED to carry this is gone, and so are its rules. Left behind, the
+        // orphan gate in build-output.test.ts would fail the build — but only if the rules went
+        // too, and a stray element with no rule fails nothing at all. This is the half that
+        // catches a half-finished revert.
+        expect(doc.querySelector(".bib-strava"),
+            "the old corner mark must not come back alongside the row — one affordance, one place")
+            .toBeNull();
+    });
+
+    /**
+     * THE ACTION ROW MUST NOT BE DRAWN LIKE THE CAPTION DIRECTLY ABOVE IT.
+     *
+     * `ELAPSED 9:41:31` sits immediately above the row in the same 10px uppercase letterspaced
+     * idiom, and four other lines on the bib share `opacity: 0.8`. A row that joined that group
+     * would be a control drawn exactly like the captions around it — which is the defect this
+     * whole change exists to fix, re-committed one element further down.
+     *
+     * Two properties, both read from the shipped stylesheet: the row carries a text decoration
+     * (the cue that survives a phone, where there is no hover), and it is NOT dimmed.
+     */
+    it("draws the action row as a control rather than as another caption", () => {
+        const rules = parseRules(pageCss(PAGES.all));
+
+        const labelRules = rules.filter((r) => r.selectors.some((s) => /\.bib-go-label\b/.test(s)) && !r.at);
+        expect(labelRules.length, "no unconditional .bib-go-label rule — this assertion would be vacuous")
+            .toBeGreaterThan(0);
+        // BOTH SPELLINGS, and that is not defensiveness: the minifier collapses
+        // `text-decoration: underline` + `text-decoration-thickness` into the `text-decoration`
+        // shorthand, while the `text-link` shortcut emits `text-decoration-line`. A gate matching
+        // only one of them goes red on correct CSS the first time the other minifier path wins.
+        const decorated = labelRules.some((r) => {
+            const v = decl(r.body, "text-decoration") ?? decl(r.body, "text-decoration-line");
+            return v !== undefined && /underline/i.test(v);
+        });
+        expect(decorated, "the row's label must carry a text decoration — on a phone it is the only "
+            + "cue there is, and the bib sets text-decoration: none on the anchor itself").toBe(true);
+
+        for (const r of rules.filter((x) => x.selectors.some((s) => /\.bib-go\b/.test(s)))) {
+            const o = decl(r.body, "opacity");
+            expect(o === undefined || Number(o) >= 1,
+                `${r.selectors.join(",")} dims the action row to ${o} — the four captions on this bib are `
+                + "the dimmed ones, and a control drawn like them is the defect being fixed").toBe(true);
         }
     });
 

@@ -474,14 +474,35 @@ describe("page content", () => {
 
         for (const control of controls) {
             const glyph = control.querySelector(`span[class~="${iconClass(NEXT_RACE.icon)}"]`);
-            expect(glyph, "the control must ship its chevron — on a phone it is the only cue there is").toBeTruthy();
+            expect(glyph, "the control must ship its chevron").toBeTruthy();
             expect(glyph?.getAttribute("aria-hidden"), "and the shape is decorative; the label carries the meaning")
                 .toBe("true");
+
+            // THE CHEVRON WAS NEVER ENOUGH, WHICH IS WHY THIS CLAUSE EXISTS. The old version of
+            // this test called the glyph "the only cue there is" and passed on a build where two
+            // reviewers did not know the control could be clicked. Measured at 1024x600 on that
+            // build: the control and the figure line above it were both rgb(250,250,250) at 12px
+            // — a contrast ratio of 1.00:1 between a link and a sentence — with a 13px glyph the
+            // whole of the difference. `text-link` is the site's shared text-link idiom; see
+            // uno.config.ts. Asserted on the ELEMENT, so moving the treatment into a different
+            // shortcut is a deliberate edit rather than a silent loss.
+            expect(control.classList.contains("text-link"),
+                "the control must wear the site's text-link idiom — a glyph alone did not tell two "
+                + "readers this was a link, and on a phone there is no hover to help")
+                .toBe(true);
         }
 
         // A border would put SC 1.4.11 back in play, and the assertion that used to police
         // it lives only in this file's history. If one returns, restore that too.
-        for (const rule of parseRules(pageCss()).filter((r) => r.selectors.some((s) => /\.events-link\b/.test(s)))) {
+        //
+        // WIDENED TO THE ELEMENT'S WHOLE CLASS LIST. Scoping this to `.events-link` rules alone
+        // was safe only while the control's treatment lived entirely under that class; it does
+        // not any more, so an edge added to the SHARED shortcut would land on both goal-card
+        // controls with this guard still green.
+        const guarded = /\.(events-link|text-link)\b/;
+        const rules = parseRules(pageCss()).filter((r) => r.selectors.some((s) => guarded.test(s)));
+        expect(rules.length, "no rules for either class — this assertion would be vacuous").toBeGreaterThan(0);
+        for (const rule of rules) {
             for (const prop of ["border", "border-color", "border-width", "outline"] as const) {
                 expect(
                     decl(rule.body, prop),
@@ -490,6 +511,24 @@ describe("page content", () => {
                 ).toBeUndefined();
             }
         }
+
+        // AND THE DECORATION MUST ACTUALLY SHIP. The class on the element proves intent; this
+        // proves the rule exists, which is a different claim — `underline` is blocklisted in
+        // uno.config.ts (it is both an English word and a declaration value in Patch.astro), and
+        // an over-broad block would silently empty the shortcut with every class check green.
+        //
+        // BOTH SPELLINGS: the shortcut emits `text-decoration-line`, while the minifier collapses
+        // Patch.astro's pair into the `text-decoration` shorthand. A gate that knew only one
+        // would go red on correct CSS the day the other path wins.
+        const decorated = rules.some((r) => {
+            const v = decl(r.body, "text-decoration-line") ?? decl(r.body, "text-decoration");
+            return v !== undefined && /underline/i.test(v);
+        });
+        expect(decorated,
+            "no rule gives the control a text decoration — the blocklist entry for `underline` in "
+            + "uno.config.ts can empty the shortcut without breaking any class assertion, and the "
+            + "control then goes back to being drawn exactly like the sentence above it")
+            .toBe(true);
     });
 
     /**
