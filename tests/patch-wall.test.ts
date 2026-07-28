@@ -7,7 +7,7 @@ import Patch from "../src/components/Patch.astro";
 import {EVENTS, GOALS, PATCHES, type RaceEvent} from "../src/lib/constants";
 import {bookedAhead, formatPatchDate, patchState, type PatchState, patchWall, UPDATED_AT} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
-import {decl, isKeyframeStep, pageCss, parseRules, type Rule} from "./helpers/css";
+import {decl, isKeyframeStep, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * The patch wall: `/patches`, `/patches/cycling`, `/patches/running`.
@@ -292,8 +292,10 @@ describe("dist/patches", () => {
     it("gives every bib's sport icon a real rule with a mask", () => {
         const css = pageCss(PAGES.all);
         const doc = parseHTML(read(PAGES.all)).document;
+        // Split the class list: the icon span also wears `bib-icon`, so reading the whole
+        // attribute would produce "i-ri-run-line bib-icon" and match no rule.
         const icons = [...doc.querySelectorAll(".bib-sport span[class]")]
-            .map((s) => s.getAttribute("class")!)
+            .flatMap((s) => (s.getAttribute("class") ?? "").split(/\s+/))
             .filter((c) => c.startsWith("i-"));
         expect(new Set(icons).size, "the wall must render both sports' icons").toBe(GOALS.length);
         for (const cls of new Set([...icons, iconClass(PATCHES.home_icon)])) {
@@ -415,9 +417,55 @@ describe("the sport mark reads as text on the surface it lands on", () => {
     /** Every flat, unconditional rule — forced-colours overrides are not the sighted case. */
     const rules = parseRules(css).filter((r) => !r.nested && !isKeyframeStep(r));
 
-    /** The class tokens a selector requires, unescaped. */
-    const required = (selector: string) =>
+    /** The class tokens a selector mentions, unescaped. */
+    const classTokensOf = (selector: string) =>
         [...selector.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\(.)/g, "$1"));
+
+    /**
+     * WHETHER THIS FILE'S MODEL CAN REPRESENT A SELECTOR AT ALL — and the answer has to
+     * be a refusal rather than a guess, because a guess is wrong in BOTH directions.
+     *
+     * The model below is "a rule applies to an element when every class token in its
+     * selector is worn by that element". That is a subset test, and it silently
+     * discards combinators, pseudo-classes and structural pseudos. A review panel
+     * exploited it twice, and each exploit runs the opposite way:
+     *
+     *   - A rule the browser NEVER applies, taken as the answer:
+     *         .bib-sport { color: var(--hole) }        <- the resting rule, broken
+     *         .bib-sport:first-child { color: var(--sport) }
+     *     The mark is not its parent's first child (the date is), so the browser paints
+     *     the broken value and the words RIDE and RUN render at 1.01:1 — invisible on
+     *     every booked bib, in both themes. Every one of this file's assertions passed.
+     *
+     *   - A rule the browser DOES apply, missed entirely:
+     *         .bib--booked .bib-sport { opacity: .5 }
+     *     "bib-sport" is not in the <li>'s token set and "bib--booked" is not in the
+     *     <span>'s, so neither end of the walk sees it. 2.43:1 rendered, suite green.
+     *
+     * Both are the defect the header comment above says this file exists to prevent.
+     *
+     * So a selector this model cannot represent is not skipped — it is REFUSED, and the
+     * assertion below turns any refusal touching the bib into a failure. That is the
+     * precedent `parseRules` and `widthPx` already set in helpers/css.ts: a parser that
+     * cannot read something must go red, because the alternative is a silent pass.
+     *
+     * The `\\.` neutralisation is load-bearing. UnoCSS arbitrary-value classes ship as
+     * `.bg-\[var\(--card-background\)\]`, whose escaped brackets would otherwise read as
+     * an attribute selector and reject a perfectly modellable rule. Astro's scoping
+     * attribute is stripped for the same reason — it is on every rule in the component
+     * and constrains nothing this model cares about.
+     */
+    const unmodellable = (selector: string) => {
+        const bare = selector
+            .replace(/\\./g, "x")
+            .replace(/\[data-astro-cid-[\w-]+\]/g, "")
+            .trim();
+        return /[\s>+~:[]/.test(bare);
+    };
+
+    /** The class tokens a selector requires, or null when this model cannot represent it. */
+    const required = (selector: string): string[] | null =>
+        unmodellable(selector) ? null : classTokensOf(selector);
 
     /**
      * The last value declared for `prop` by any rule every one of whose class tokens
@@ -430,7 +478,9 @@ describe("the sport mark reads as text on the surface it lands on", () => {
         for (const rule of rules) {
             const hits = rule.selectors.some((s) => {
                 const need = required(s);
-                return need.length > 0 && need.every((c) => tokens.includes(c));
+                // null means "this model cannot represent the selector". It is neither a
+                // hit nor a safe miss — the assertion below is what stops it being one.
+                return need !== null && need.length > 0 && need.every((c) => tokens.includes(c));
             });
             if (hits) value = decl(rule.body, prop) ?? value;
         }
@@ -470,6 +520,53 @@ describe("the sport mark reads as text on the surface it lands on", () => {
         const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m);
         return (x + 0.05) / (y + 0.05);
     };
+
+    /**
+     * THE OTHER HALF OF THE REFUSAL. Returning null from `required()` only stops the
+     * resolver reading a selector wrongly; on its own it converts a wrong answer into a
+     * quiet skip, which is the same silent pass in a better disguise.
+     *
+     * So: no rule that this model cannot represent may touch the bib at all. If one
+     * appears, the choice is to restructure the CSS into single-class rules or to teach
+     * the resolver — and this failure is what forces that choice to be made rather than
+     * discovered later by a review panel.
+     *
+     * Scoped to the bib's own tokens deliberately. The sheet is full of legitimately
+     * unmodellable selectors (the preflight, `main > *`, `.space-y-1>:not([hidden])`),
+     * and demanding the whole stylesheet be single-class would be a gate nobody could
+     * keep green. What matters is the subtree whose colours the assertions below certify.
+     */
+    it("lets no rule the resolver cannot model reach the bib, so a refusal is not a quiet skip", () => {
+        const doc = parseHTML(read(PAGES.all)).document;
+        const bibTokens = new Set<string>([
+            // synthetic states the assertions below construct, which the page may not
+            // be rendering today — a booked-only wall is a real December configuration
+            "bib", "bib--booked", ...GOALS.map((g) => `bib--${g.sport}`),
+            ...[...doc.querySelectorAll(".bib, .bib *")]
+                .flatMap((el) => (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean)),
+        ]);
+        expect(bibTokens.size, "no bib tokens found — this assertion would be vacuous").toBeGreaterThan(6);
+
+        // Only the properties this file's model actually resolves. A combinator rule
+        // setting `letter-spacing` cannot corrupt a colour chain, and blocking it would
+        // be a gate going red on legitimate work — which is its own kind of defect.
+        const READ = /(?:^|;)\s*(?:color|background-color|opacity|--[\w-]+)\s*:/;
+        const offenders: string[] = [];
+        for (const rule of rules) {
+            if (!READ.test(rule.body)) continue;
+            for (const selector of rule.selectors) {
+                if (!unmodellable(selector)) continue;
+                if (!classTokensOf(selector).some((t) => bibTokens.has(t))) continue;
+                offenders.push(`${selector} { ${rule.body.slice(0, 70)} }`);
+            }
+        }
+        expect(
+            offenders,
+            "this rule reaches the bib through a combinator or a pseudo-class, which the class-subset"
+            + " resolver in this file cannot represent — it would be read as applying when it does not,"
+            + " or missed when it does. Make it a single-class rule, or teach the resolver.",
+        ).toEqual([]);
+    });
 
     it("resolves the mark through .bib-sport rather than by looking a token up by name", () => {
         // The chain has to START at the element that paints, or every ratio below
@@ -531,15 +628,44 @@ describe("the sport mark reads as text on the surface it lands on", () => {
         expect(mark, "the wall must render a sport mark").toBeTruthy();
 
         // The mark, everything inside it, and every ancestor up to the document.
-        const chain: Element[] = [...mark!.querySelectorAll("*")];
-        for (let el: Element | null = mark; el; el = el.parentElement) chain.push(el);
+        const chain = new Set<Element>([...mark!.querySelectorAll("*")] as Element[]);
+        for (let el: Element | null = mark; el; el = el.parentElement) chain.add(el);
+
+        /**
+         * ASK THE DOM, NOT THE TOKEN SET. This walked `declared(tokens, "opacity")` per
+         * element, which is the class-subset model — and that model cannot see a
+         * DESCENDANT COMBINATOR. `.bib--booked .bib-sport{opacity:.5}` was invisible to
+         * it from both ends: "bib-sport" is not among the <li>'s tokens and
+         * "bib--booked" is not among the <span>'s. Measured at 2.43:1 rendered with the
+         * whole suite green — the exact 2.53:1 defect this assertion's own docstring
+         * says it exists to prevent, walking straight through it.
+         *
+         * `structuralSelector` + `querySelectorAll` asks the question the browser asks.
+         * It is the idiom `control-geometry.test.ts` and `page-fit.test.ts` already use,
+         * and it is deliberately NOT wrapped in try/catch: a selector linkedom cannot
+         * parse must go red, because swallowing the throw is exactly how a guard stops
+         * being able to fail.
+         */
+        const dimming = rules
+            .filter((r) => !/forced-colors|prefers-contrast/.test(r.at))
+            .map((r) => ({rule: r, value: decl(r.body, "opacity")}))
+            .filter((x) => x.value !== undefined && parseFloat(x.value!) < 1);
+
+        const reaches = (rule: Rule): Element[] => {
+            const hit: Element[] = [];
+            for (const selector of rule.selectors) {
+                const structural = structuralSelector(selector);
+                if (!structural) continue;
+                hit.push(...([...doc.querySelectorAll(structural)] as unknown as Element[]));
+            }
+            return hit;
+        };
 
         const offenders: string[] = [];
-        for (const el of chain) {
-            const tokens = (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
-            const value = declared(tokens, "opacity");
-            if (value !== undefined && parseFloat(value) < 1) {
-                offenders.push(`<${el.tagName.toLowerCase()} class="${tokens.join(" ")}"> sets opacity: ${value}`);
+        for (const {rule, value} of dimming) {
+            const over = reaches(rule).filter((el) => chain.has(el));
+            for (const el of over) {
+                offenders.push(`${rule.selectors.join(",")} { opacity: ${value} } reaches <${el.tagName.toLowerCase()}>`);
             }
         }
         expect(
@@ -550,11 +676,9 @@ describe("the sport mark reads as text on the surface it lands on", () => {
 
         // Non-vacuity: the component really does dim something, and this must be
         // able to tell that apart from dimming the mark.
-        const dimmed = [...doc.querySelectorAll(".bib *")].filter((el) => {
-            const v = declared((el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean), "opacity");
-            return v !== undefined && parseFloat(v) < 1;
-        });
-        expect(dimmed.length, "nothing on a bib is dimmed at all — this assertion cannot distinguish anything").toBeGreaterThan(0);
+        const dimmedSomewhere = dimming.flatMap(({rule}) => reaches(rule))
+            .filter((el) => el.closest(".bib"));
+        expect(dimmedSomewhere.length, "nothing on a bib is dimmed at all — this assertion cannot distinguish anything").toBeGreaterThan(0);
     });
 
     /**

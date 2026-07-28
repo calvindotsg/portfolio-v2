@@ -46,7 +46,7 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
     <p class="bib-meta">
         {date && <time class="bib-date" datetime={event.date}>{date}</time>}
         <span class="bib-sport">
-            <span class={iconClass(goal.goal_logo)} aria-hidden="true"></span>
+            <span class={`${iconClass(goal.goal_logo)} bib-icon`} aria-hidden="true"></span>
             <span class="bib-word">{goal.short_name}</span>
         </span>
         {state === "booked" && <span class="bib-tag">{PATCHES.booked_label}</span>}
@@ -212,8 +212,13 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
 
     /* Not shrink-0 as a utility: this is scoped CSS and the icon is a flex item whose
        artwork is 1em square. Letting it compress deforms the glyph, which is a defect
-       this project has already shipped once. */
-    .bib-sport > span:first-child {
+       this project has already shipped once.
+       Its own class rather than `.bib-sport > span:first-child`, for two reasons: the
+       positional selector silently moves to the word if anything is ever inserted
+       before the icon, and a combinator here is unrepresentable in the class-subset
+       colour model that tests/patch-wall.test.ts uses — which now refuses such rules
+       rather than mis-reading them. */
+    .bib-icon {
         flex: none;
     }
 

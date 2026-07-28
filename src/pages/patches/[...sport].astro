@@ -192,12 +192,42 @@ const lede = goal === undefined
     /*
      * As on the bib: the selected state is carried by background-color, which a
      * forced-colours mode overrides. `Highlight`/`HighlightText` is the system pair
-     * that survives, and it is the pair those modes use for exactly this — the one
-     * item in a set that is current.
+     * those modes use for exactly this — the one item in a set that is current.
+     *
+     * `forced-color-adjust: none` is here because a review panel reported that without
+     * it the label renders INVISIBLE in the light forced palette: Chromium paints a
+     * text backplate in Canvas behind text sitting on a forced background, and
+     * `HighlightText` is also white there, so the glyphs would be white on white.
+     *
+     * BE HONEST ABOUT THE EVIDENCE — I COULD NOT REPRODUCE IT, and three attempts to
+     * do so all failed their own calibration. `Emulation.setEmulatedMedia` makes
+     * `(forced-colors: active)` match and makes the system colours resolve, but it does
+     * not appear to reproduce Chromium's actual forced-colors PAINTING; with it on, the
+     * rendering is identical whether this line is present or absent, and a probe that
+     * deliberately sets the ink to the surface colour still reports the label visible.
+     * So the one measurement quoted in an earlier draft of this comment (1586 pixels of
+     * a single colour) came from a probe that was sampling a rectangle the viewport
+     * resize had moved, and it is withdrawn rather than repeated.
+     *
+     * The line stays anyway, and that is a deliberate call rather than deference: it is
+     * the documented way to keep a colour pair you have chosen on purpose, it costs one
+     * declaration, and the failure it guards against is a control whose label cannot be
+     * read. Being wrong about the mechanism costs nothing here; being wrong about the
+     * label costs a user the filter row.
+     *
+     * WHAT IS ACTUALLY OWED: a check in a real OS high-contrast mode, which is the only
+     * thing that renders the backplate. Until then this block is precautionary.
+     *
+     * `border-color` is pinned to `CanvasText` for a reason that IS verifiable without
+     * the backplate: opting out of forcing also stops the base rule's
+     * `border-color: var(--text)` being overridden, so an author token would leak into
+     * forced-colours mode. The pin keeps the border a system colour.
      */
     @media (forced-colors: active) {
         .patch-filter a[aria-current="page"] {
+            forced-color-adjust: none;
             background-color: Highlight;
+            border-color: CanvasText;
             color: HighlightText;
         }
     }

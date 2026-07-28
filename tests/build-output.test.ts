@@ -765,11 +765,40 @@ describe("the stylesheet ships no rule nobody wears", () => {
      * both states, so an actually-dead `bib--booked` fails there, on a page and not on a
      * date.
      */
-    const STATE_CLASSES = ["bib--booked", "bib-tag"];
+    /**
+     * Rather than a hand-kept list. A list works, and I shipped one first — but it
+     * defers the defect instead of closing it: the next component with a state class
+     * reddens this gate on some future date, unattended, and the author discovers the
+     * rule by reading a failed deploy. A review panel proposed this discriminator and
+     * it is strictly better, so it replaced mine.
+     *
+     * Two conditions, and both are needed:
+     *   - the selector is SCOPED (`[data-astro-cid-…]`), so it came from a component's
+     *     own `<style>` block. UnoCSS output is never scoped, so the gate's real job —
+     *     an ordinary English word in .astro text emitting a utility rule — is untouched.
+     *   - the token appears as an authored quoted literal in some `.astro` file with its
+     *     `<style>` block stripped, i.e. somebody deliberately wrote it into markup.
+     *
+     * A class that exists only inside a `<style>` block and is worn by nothing is still
+     * caught, which is the case that matters: that is a typo or a leftover.
+     */
+    const authoredClasses = (): Set<string> => {
+        const out = new Set<string>();
+        const files = readdirSync("src", {recursive: true, encoding: "utf8"})
+            .filter((f) => f.endsWith(".astro"));
+        for (const f of files) {
+            const src = read(`src/${f}`).replace(/<style[\s\S]*?<\/style>/g, "");
+            for (const m of src.matchAll(/["'`]([^"'`\n]*)["'`]/g)) {
+                for (const token of m[1].split(/\s+/)) if (/^[\w-]+$/.test(token)) out.add(token);
+            }
+        }
+        return out;
+    };
 
     it("emits a class rule only for classes some page actually uses", () => {
         const css = builtPages().map((p) => pageCss(p)).join("\n");
         const worn = new Set(builtPages().flatMap((p) => [...classTokens(p)]));
+        const authored = authoredClasses();
 
         // Every selector the sheet defines, split on commas, with the leading
         // class token extracted. Non-class selectors (`body`, `:root[…]`,
@@ -780,31 +809,16 @@ describe("the stylesheet ships no rule nobody wears", () => {
                 const cls = selector.trim().match(/^\.((?:\\.|[\w-])+)/)?.[1];
                 if (!cls) continue;
                 const token = cls.replace(/\\(.)/g, "$1");
-                if (!worn.has(token) && !KNOWN_ORPHANS.includes(token) && !STATE_CLASSES.includes(token)) orphans.add(token);
+                if (worn.has(token) || KNOWN_ORPHANS.includes(token)) continue;
+                // A component's own state class, on a day nothing is in that state.
+                if (selector.includes("[data-astro-cid-") && authored.has(token)) continue;
+                orphans.add(token);
             }
         }
         expect(
             [...orphans].sort(),
             "these classes have a CSS rule but no element — almost always a utility name written as an ordinary English word in .astro text. Reword it, or add it to `blocklist` in uno.config.ts if the word cannot be avoided",
         ).toEqual([]);
-    });
-
-    /**
-     * The state-class list rots differently from the orphan list, so it needs its own
-     * check: an entry here excuses a class from needing a wearer, so if the rule itself
-     * stops shipping the entry is excusing nothing and is quietly widening what the gate
-     * lets through. Whether the class is ever WORN is asserted where it belongs —
-     * `tests/patch-wall.test.ts` renders the component in both states.
-     */
-    it("still ships a rule for every state class, so that list cannot rot either", () => {
-        const css = builtPages().map((p) => pageCss(p)).join("\n");
-        for (const token of STATE_CLASSES) {
-            const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}`;
-            expect(
-                css.includes(`${selector}{`) || css.includes(`${selector},`) || css.includes(`${selector}[`),
-                `${token} no longer ships a rule — remove it from STATE_CLASSES`,
-            ).toBe(true);
-        }
     });
 
     it("still needs every entry on the known-orphan list, so the list cannot rot", () => {
