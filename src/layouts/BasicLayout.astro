@@ -168,6 +168,32 @@ const schema = {
      *   --status-halo     that dot's decorative pulsing halo
      *   --brand-ink       a brand-coloured glyph standing in for a word in prose
      *
+     * Plus four for the patch wall, which are two roles seen from both sides:
+     *
+     *   --sport-ride      the cycling mark where it sits on a CARD
+     *   --sport-ride-on-ink   the same mark on an INK-coloured surface
+     *   --sport-run       the running mark on a card
+     *   --sport-run-on-ink    the same mark on ink
+     *
+     * A PATCH IS DRAWN ON ONE OF TWO GROUNDS, and the sport colour has to follow the
+     * ground rather than the theme. A finished bib is inverted — its face is --text —
+     * so the mark on it needs the pale hue in the LIGHT theme. A booked bib has no
+     * face at all and its mark sits on the card, where the light theme needs the DEEP
+     * hue. Same sport, same theme, opposite value; the `-on-ink` half is always the
+     * other half of the pair, which is why the dark block below is the light block
+     * with each pair swapped and nothing else.
+     *
+     * That is not a hypothetical trap. It is exactly how --brand-ink came to sit at
+     * 2.77:1 on a dark face earlier in this project: a token chosen against the card
+     * and then painted on ink. The convention that surfaces it is the one
+     * --on-brand already established — a `-on-` name states the surface it was chosen
+     * against, and a token without one is for the card.
+     *
+     * Measured from composited pixels rather than computed from these hexes, on the
+     * shipped bib, against the surface each actually lands on: see
+     * tests/patch-wall.test.ts, which holds all four to the 4.5:1 TEXT floor. Text,
+     * not the 3:1 graphics floor, because the mark is an icon AND the word beside it.
+     *
      * --brand-ink is worn by exactly one thing, the footer heart, and it is NOT
      * --accent even though the two match in light mode. --accent is the
      * interactive affordance, and nothing about that heart responds to a pointer
@@ -214,6 +240,10 @@ const schema = {
         --status-halo: #A82334; /* primary-600 */
         --brand-ink: #A82334; /* primary-600 — 6.52:1 on the card */
         --on-brand: #FAFAFA; /* grey-50 — light ink, the fill is deep here */
+        --sport-ride: #A82334; /* primary-600 — deep, for the card */
+        --sport-ride-on-ink: #F3A3AA; /* primary-200 — pale, for the inverted bib face */
+        --sport-run: #1F4E9C; /* marine-600 */
+        --sport-run-on-ink: #9FC0F0; /* marine-200 */
     }
 
     :root[data-theme='dark'] {
@@ -229,6 +259,10 @@ const schema = {
         --status-halo: #F9CDD3; /* primary-100 */
         --brand-ink: #F3A3AA; /* primary-200 — 9.08:1 on the card */
         --on-brand: #0B0B0B; /* darkslate-900 — dark ink, the fill is pale here */
+        --sport-ride: #F3A3AA; /* primary-200 — pale, for the card */
+        --sport-ride-on-ink: #A82334; /* primary-600 — deep, for the inverted bib face */
+        --sport-run: #9FC0F0; /* marine-200 */
+        --sport-run-on-ink: #1F4E9C; /* marine-600 */
     }
 
     /* THE CONTROL ROW WRAPS, AND IT DOES NOT COUNT. Three hand-written width

@@ -18,7 +18,8 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 
 ## Features
 
-- Bento-style, minimal, single-page design
+- Bento-style, minimal design: a single-screen home page, plus a patch wall of
+  this year's races at `/patches`
 - Fully responsive layout
 - Dark/Light mode support
 - Optimized for performance, accessibility, and SEO

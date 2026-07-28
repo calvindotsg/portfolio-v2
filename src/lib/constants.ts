@@ -13,12 +13,18 @@ import stravaProgress from "../data/strava-progress.json"
  * is the pointer, because this is the half a person edits here.
  *
  * Worth knowing before adding a second, more specific Strava control: there is no
- * public per-sport URL for an athlete. `?activity_type=Run` and
+ * public per-sport URL for an athlete ON STRAVA. `?activity_type=Run` and
  * `?activity_type=Ride` serve the same page — SHA-256 equal over 544,386
  * characters once the per-request tokens are normalised away — and of 25
  * sport-scoped path shapes tried, every one either 404s or redirects to /login.
- * A logged-out visitor meets a login wall whichever URL they are given, which is
- * why the two goal cards no longer offer one.
+ * A logged-out visitor meets a login wall whichever Strava URL they are given.
+ *
+ * THAT NO LONGER SETTLES WHAT A GOAL CARD MAY LINK TO, and the note used to read as
+ * though it did. This site now serves its own per-sport page — `/patches/cycling`
+ * and `/patches/running`, one prerendered route each, no login anywhere — so
+ * "there is nowhere to send them" has stopped being true. What is still open is the
+ * separate question of whether a goal card should spend a control on it at all;
+ * see the note on {@link Goal}.
  */
 const STRAVA_PROFILE_URL = "https://www.strava.com/athletes/37641259/";
 
@@ -90,17 +96,24 @@ export const ABOUT_ME: {
 }
 
 /**
- * A goal card reports a figure; it no longer offers a way out to the service the
+ * A goal card reports a figure; it does not offer a way out to the service the
  * figure came from. Each card used to carry a call to action beside its numbers,
  * and both pointed at {@link STRAVA_PROFILE_URL} — the same place the social link
  * in the intro card reaches, so the page spent three of its nine controls on one
  * destination that a logged-out visitor cannot see anyway. The remaining link is
  * the intro card's, where a visitor already looks for somewhere to follow.
  *
- * That is why there is no `website_url`, `cta_label` or `cta_logo` here. Adding a
- * per-goal destination back is a real design change, not a field: read the note on
- * {@link STRAVA_PROFILE_URL} first, because no per-sport Strava URL exists to point
- * it at.
+ * That is why there is no `website_url`, `cta_label` or `cta_logo` here.
+ *
+ * ONE OF THE TWO REASONS FOR THAT HAS SINCE EXPIRED, and saying so is the point of
+ * this paragraph — the argument above was "the destination is behind a login" AND
+ * "the page was spending three controls on one place", and only the second still
+ * holds. `/patches/<sport>` is this site's own page, prerendered and public, so a
+ * per-goal link now has somewhere real to go. What has NOT been decided is whether
+ * a goal card should carry one: that is a control on the page's one-screen budget
+ * and a fourth thing competing for a reader's attention on a card whose job is to
+ * report a number. Decide it as a design change; do not read the absence of these
+ * three fields as still resting on the login wall.
  */
 export type Goal = {
     total_goal: number
@@ -126,6 +139,21 @@ export type Goal = {
     /** null when there is no comparable figure — e.g. first year back at the sport */
     progress_last_year: number | null
     goal_name: string
+    /**
+     * The sport in as few letters as it can be said — "Ride", not "Cycling".
+     *
+     * It exists for the patch wall, where the sport is announced inside a 13rem bib
+     * on a line that already carries a date and sometimes a status tag. `goal_name`
+     * uppercased is what that line held first, and "CYCLING" wrapped it; there is no
+     * room for the long word and no reason to spend it, because the icon beside this
+     * is carrying the same meaning a second time.
+     *
+     * It lives on the GOAL rather than beside {@link EVENTS} because the goal is
+     * already the one place a sport is described — icon, unit, display name — and a
+     * second table keyed by sport is how those descriptions start to disagree. See
+     * {@link goalForSport}, which is the join every consumer should use.
+     */
+    short_name: string
     goal_logo: string
     measurable_unit: string
     /** Joins this goal to {@link EVENTS}. See {@link Sport}. */
@@ -234,6 +262,7 @@ type GoalSource = {
     current_progress: number
     progress_last_year: number | null
     goal_name: string
+    short_name: string
     goal_logo: string
     measurable_unit: string
     sport: string
@@ -245,6 +274,7 @@ const RAW_GOALS = [{
     current_progress: stravaProgress.running_km,
     progress_last_year: null,
     goal_name: "Running",
+    short_name: "Run",
     goal_logo: "ri:run-line",
     measurable_unit: "km",
     sport: "running"
@@ -253,6 +283,7 @@ const RAW_GOALS = [{
     current_progress: stravaProgress.cycling_km,
     progress_last_year: 1440.8,
     goal_name: "Cycling",
+    short_name: "Ride",
     goal_logo: "ri:riding-line",
     measurable_unit: "km",
     sport: "cycling"
@@ -263,6 +294,31 @@ export const GOALS: Goal[] = RAW_GOALS.map((goal) => ({
     raw_progress: goal.current_progress,
     current_progress: clampToGoal(goal.current_progress, goal.total_goal)
 }))
+
+/**
+ * THE ONE JOIN FROM A SPORT TO HOW IT IS DESCRIBED — its icon, its display name and
+ * its {@link Goal.short_name}.
+ *
+ * Every consumer that has a {@link Sport} in hand and needs to draw it goes through
+ * here, and the patch wall is the reason it exists. The obvious alternative is a
+ * literal map beside {@link EVENTS} —
+ *
+ *     const SPORT_ICON = {cycling: "ri:riding-line", running: "ri:run-line"}
+ *
+ * — and it has a failure mode that is invisible in every direction that matters.
+ * `uno.config.ts` safelists icon classes by reading GOALS, LINKS, CAREER, WELCOME,
+ * FOOTER and NOW; it does not read EVENTS and has no reason to. So a second table
+ * ships icon classes UnoCSS never generated a rule for: correct markup, correct
+ * class token, and a mask box painted at zero size. Deriving from the goal means
+ * the safelist already covers the wall — there is exactly one place a sport's icon
+ * is named, and it is a place the config reads.
+ *
+ * TOTAL BY CONSTRUCTION, which is what the non-null assertion rests on: {@link Sport}
+ * is `typeof RAW_GOALS[number]["sport"]`, so the only values the type admits are the
+ * sports of goals that exist. The `find` cannot miss for any value the compiler will
+ * pass it, and `pnpm check` is the first half of Netlify's build command.
+ */
+export const goalForSport = (sport: Sport): Goal => GOALS.find((g) => g.sport === sport)!
 
 export const WELCOME: {
     greeting_icon: string
@@ -298,6 +354,65 @@ export const NOW: {
     explainer_url: "https://sive.rs/nowff",
     explainer_name: "What's a /now page?",
     explainer_icon: "ri:information-line"
+}
+
+/**
+ * The patch wall at `/patches`, and the two per-sport pages beside it.
+ *
+ * WHAT IS DELIBERATELY NOT HERE is the interesting half. There is no list of races
+ * — that is {@link EVENTS}, which the projection also reads, so a second copy could
+ * only disagree with the goal cards about the same day. There is no "finished" or
+ * "booked" flag either, on an event or in this block: whether a bib has been earned
+ * is derived from the calendar every build (`patchState` in projection.ts), because
+ * a stored flag goes stale in the one direction nobody notices — a race that has
+ * been run still rendering as still-to-come. And there are no per-sport headings or
+ * titles, because those are built from {@link Goal.goal_name}; adding them here
+ * would let the wall call a sport something the goal card does not.
+ *
+ * So what remains is only the page's own prose.
+ *
+ * `booked_label` is the tag an un-earned bib wears, and it is the ONE piece of text
+ * carrying that state redundantly on purpose. The outline treatment says the same
+ * thing in colour and shape, which is exactly why the word has to be there too:
+ * SC 1.4.1 does not accept a visual treatment as the only carrier of information,
+ * and a reader who cannot tell a hairline border from a filled one gets the word.
+ *
+ * `heading` names the metaphor and the two `scope_*` strings plus `key` explain it,
+ * in that order, because "patch wall" is a cyclist's phrase rather than a
+ * self-evident one.
+ *
+ * THE LEDE IS TWO SENTENCES BECAUSE ONE OF THEM IS NOT TRUE ON EVERY PAGE. It began
+ * as a single string saying "every race I have entered this year", which is a claim
+ * `/patches/cycling` cannot make — it shows four of six. The heading and the filter
+ * row both say which page you are on, so the overclaim is survivable and it is still
+ * an overclaim, written where a reader looks for what the page contains.
+ *
+ * So `scope_all` and `scope_sport` are alternatives and `key` follows either. The
+ * `{sport}` in `scope_sport` is replaced with the goal's own name, which is the same
+ * string the heading uses — a sport is called one thing on this site.
+ */
+export const PATCHES: {
+    heading: string
+    scope_all: string
+    scope_sport: string
+    key: string
+    description: string
+    all_label: string
+    booked_label: string
+    home_label: string
+    home_icon: string
+    filter_label: string
+} = {
+    heading: "Patch wall",
+    scope_all: "Every race I have entered this year.",
+    scope_sport: "Every {sport} race I have entered this year.",
+    key: "The solid bibs are the ones I have finished; the outlines are still ahead of me.",
+    description: "Every race Calvin has entered this year, finished and still to come, drawn as race bibs.",
+    all_label: "All",
+    booked_label: "Booked",
+    home_label: "Home",
+    home_icon: "ri:arrow-left-line",
+    filter_label: "Filter by sport",
 }
 
 /**

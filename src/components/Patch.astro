@@ -1,0 +1,296 @@
+---
+import {goalForSport, PATCHES, type RaceEvent} from "../lib/constants";
+import {formatPatchDate, type PatchState} from "../lib/projection";
+import {iconClass} from "../lib/icons";
+
+interface Props {
+    event: RaceEvent;
+    /** Derived from the calendar by `patchState`, never stored. See projection.ts. */
+    state: PatchState;
+}
+
+const {event, state} = Astro.props;
+
+/*
+ * ONE BIB. Two treatments of it, and the distance is the only thing drawn large.
+ *
+ * The sport's icon and name come from the GOAL that owns the sport, never from a
+ * lookup beside EVENTS — `goalForSport` in constants.ts has the argument, and the
+ * short version is that uno.config.ts safelists icon classes by reading GOALS and
+ * has no reason to read EVENTS. A second lookup ships a class UnoCSS never generated
+ * a rule for, which renders as a mask box at zero size: correct markup, no icon,
+ * nothing red.
+ *
+ * THE FRACTION IS SPLIT OUT so it can be set small. A race distance is measured to
+ * two decimals and the hundredths are real — 160.59 is not 160 — but at the size
+ * this number is drawn they would dominate the digits that carry the meaning. The
+ * text content is unbroken either way, so a screen reader still hears "160.59".
+ * Always two decimals, including 1022.00, where the fraction is two zeroes. The
+ * bibs do not form a column — each sits in its own grid cell at its own width — so
+ * this is not about alignment; it is that a distance printed to two places on five
+ * bibs and to none on the sixth reads as a different KIND of number rather than as
+ * a round one.
+ *
+ * THE STATE IS SAID IN WORDS AS WELL AS IN THE TREATMENT. The outline carries it
+ * visually and the tag carries it in text, which is not redundancy to be tidied
+ * away — SC 1.4.1 does not accept a visual treatment as the only carrier of
+ * information. A finished bib needs no tag because it is the unmarked case: the
+ * wall's own copy says what a solid bib means.
+ */
+const date = formatPatchDate(event);
+const goal = goalForSport(event.sport);
+const [whole, fraction] = event.km.toFixed(2).split(".");
+---
+
+<li class:list={["bib", `bib--${event.sport}`, state === "booked" && "bib--booked"]}>
+    <p class="bib-meta">
+        {date && <time class="bib-date" datetime={event.date}>{date}</time>}
+        <span class="bib-sport">
+            <span class={iconClass(goal.goal_logo)} aria-hidden="true"></span>
+            <span class="bib-word">{goal.short_name}</span>
+        </span>
+        {state === "booked" && <span class="bib-tag">{PATCHES.booked_label}</span>}
+    </p>
+    <p class="bib-value">{whole}<span class="bib-fraction">.{fraction}</span></p>
+    <p class="bib-unit">{goal.measurable_unit}</p>
+    <p class="bib-name">{event.name}</p>
+</li>
+
+<style>
+    /*
+     * THE BIB'S OWN BOX. Four locals do all the work of the two treatments, so a
+     * treatment is a set of values rather than a second copy of the layout:
+     *
+     *   --face   the bib's background
+     *   --hole   the pin holes punched out of it
+     *   --ink    everything printed on it
+     *   --sport  the sport mark, which is the one thing that is not --ink
+     *
+     * A FINISHED BIB IS INVERTED — face --text, ink --background — which is the
+     * strongest mark this palette can make and is spent here deliberately: an earned
+     * bib is the thing the page is about. A booked bib is the same box with the face
+     * removed. Nothing about the two treatments differs except these values and the
+     * border, which is why they cannot drift apart in layout.
+     */
+    .bib {
+        --face: var(--text);
+        --hole: var(--card-background);
+        --ink: var(--background);
+        /* Finished: the mark sits on the inverted face, so it takes the ink-side hue.
+           `--sport-on-ink` is set by the per-sport rule below, on this same element —
+           a custom property resolves against the element's own computed value, so the
+           order these two rules appear in cannot matter. */
+        --sport: var(--sport-on-ink);
+        container-type: inline-size;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "date date" "value unit" "name name";
+        align-content: start;
+        row-gap: 0.3rem;
+        padding: 0.7rem 0.8rem 0.65rem;
+        border: 1px solid transparent;
+        border-radius: 2px;
+        color: var(--ink);
+        background-color: var(--face);
+        /*
+         * FOUR PIN HOLES FOR A RUN, TWO FOR A RIDE, and the count is the information.
+         * A running bib is pinned at four corners; a ride's frame number is zip-tied
+         * at two. It reads as a detail and it is a second, non-colour channel for the
+         * sport — the icon and the word being the first two.
+         *
+         * Drawn as radial gradients rather than as pseudo-elements because there are
+         * up to four of them and one background-image is one declaration. 1.7px solid
+         * to 1.8px transparent is the antialiasing band; a hard stop renders a stepped
+         * circle at this size.
+         */
+        background-image:
+            radial-gradient(circle at 7px 7px, var(--hole) 0 1.7px, transparent 1.8px),
+            radial-gradient(circle at calc(100% - 7px) 7px, var(--hole) 0 1.7px, transparent 1.8px),
+            radial-gradient(circle at 7px calc(100% - 7px), var(--hole) 0 1.7px, transparent 1.8px),
+            radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), var(--hole) 0 1.7px, transparent 1.8px);
+    }
+
+    .bib--cycling {
+        --sport-on-card: var(--sport-ride);
+        --sport-on-ink: var(--sport-ride-on-ink);
+        background-image:
+            radial-gradient(circle at 7px 7px, var(--hole) 0 1.7px, transparent 1.8px),
+            radial-gradient(circle at calc(100% - 7px) 7px, var(--hole) 0 1.7px, transparent 1.8px);
+    }
+
+    .bib--running {
+        --sport-on-card: var(--sport-run);
+        --sport-on-ink: var(--sport-run-on-ink);
+    }
+
+    /*
+     * BOOKED: A BIB YOU HAVE NOT EARNED YET. No face — so no holes either, because a
+     * hole is punched out of something — and normal-polarity ink on the card.
+     *
+     * The holes are removed explicitly rather than left to disappear on their own.
+     * They would: --hole is the card colour and the face is transparent, so they
+     * would paint card-on-card and disappear. Relying on that makes how many holes a
+     * reader sees depend on a colour token, and re-toning --card-background would put
+     * four grey dots on a bib that is meant to have none.
+     *
+     * The mark now sits on the CARD, so it takes the card-side hue. This is the swap
+     * the token names in BasicLayout.astro exist to make legible; getting it backwards
+     * is how a mark ends up at 2.77:1 with every structural assertion still green.
+     */
+    .bib--booked {
+        --face: transparent;
+        --ink: var(--text);
+        --sport: var(--sport-on-card);
+        border-color: color-mix(in srgb, var(--text) 32%, transparent);
+        background-image: none;
+    }
+
+    /*
+     * FORCED COLOURS FLATTEN THE TWO TREATMENTS INTO ONE. The whole distinction is
+     * carried by background-color and border-color, and a forced-colours mode
+     * overrides both — a finished bib loses its face, a booked bib's hairline becomes
+     * the same CanvasText as everything else, and the wall becomes six identical
+     * boxes. The tag still says "Booked", so no information is lost, but the shape
+     * stops helping.
+     *
+     * A thicker border on the earned bib restores the distinction in the one channel
+     * that survives: border-style and border-width are not overridden. This is a
+     * different mark from the one sighted readers get, which is the correct trade —
+     * matching the inverted face is impossible here, and a distinction is worth more
+     * than a faithful one that cannot be drawn.
+     */
+    @media (forced-colors: active) {
+        .bib {
+            border-color: CanvasText;
+            border-width: 3px;
+        }
+
+        .bib--booked {
+            border-width: 1px;
+        }
+    }
+
+    .bib-meta {
+        grid-area: date;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.45em;
+        margin: 0;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    /*
+     * THE DATE AND THE TAG ARE DIMMED; THE SPORT MARK IS NOT. That split is the whole
+     * reason these are three elements rather than one row with an opacity on it.
+     *
+     * The row carried `opacity: .8` as a unit in the design rig, and an ancestor
+     * opacity composites everything under it — including a sport colour that was
+     * chosen against the face it is now no longer quite sitting on. Measured on the
+     * rendered pixel, that alone took the finished ride mark from #F3A3AA to
+     * rgb(196,132,138), 9.96:1 down to 6.57:1, on a bib where nothing was supposed to
+     * be dimmed at all. getComputedStyle cannot see it: it reports the authored
+     * colour, which ancestor opacity does not touch.
+     *
+     * So the dimming is scoped to the two things that are meant to be quiet, and the
+     * mark keeps the hue it was measured as.
+     */
+    .bib-date,
+    .bib-tag {
+        opacity: 0.8;
+    }
+
+    .bib-sport {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35em;
+        color: var(--sport);
+    }
+
+    /* Not shrink-0 as a utility: this is scoped CSS and the icon is a flex item whose
+       artwork is 1em square. Letting it compress deforms the glyph, which is a defect
+       this project has already shipped once. */
+    .bib-sport > span:first-child {
+        flex: none;
+    }
+
+    .bib-word {
+        font-weight: 800;
+    }
+
+    /*
+     * THE DISTANCE IS THE HERO, and it is sized against the BIB rather than against
+     * the viewport. `22cqi` of a container query unit reads the bib's own inline size,
+     * so a bib in a one-column layout on a phone and a bib in a four-column wall on a
+     * desktop print their number at the same proportion of the box. A viewport unit
+     * would make the phone's single wide bib shout and the desktop's narrow ones
+     * whisper.
+     *
+     * `min()` against 3rem caps it: past that the number stops growing and the bib
+     * simply gets roomier, and the cap is font-relative so it still follows the
+     * reader's own text size. The pair is what keeps 1022.00 — seven characters, the
+     * widest the calendar holds — inside a 13rem column.
+     */
+    .bib-value {
+        grid-area: value;
+        margin: 0;
+        font-size: min(3rem, 22cqi);
+        font-weight: 800;
+        line-height: 0.82;
+        letter-spacing: -0.045em;
+    }
+
+    .bib-fraction {
+        font-size: 0.4em;
+        padding-inline-start: 0.08em;
+    }
+
+    /*
+     * Set on its side, the way a bib prints its unit down the edge of the number.
+     * `rotate(180deg)` puts the baseline on the correct side of a vertical-rl run.
+     *
+     * THE OPACITY IS 0.7 BECAUSE 0.55 FAILED, and the number is a floor rather than a
+     * taste: this line arrived from the design rig at .55, where the ink composites
+     * to 4.29:1 on a booked bib in the light theme and 4.11:1 on a finished one in
+     * the dark. Both are under the 4.5:1 a 10px word needs, and neither can be found
+     * by anything that reads the authored colour — the ink is `--background` on
+     * `--text`, which is 18.86:1 before the opacity touches it.
+     *
+     * At 0.7 the same two land at 7.28:1 and 6.92:1, computed from the composite, and
+     * 7.40 / 7.03 sampled from the rendered pixel. Quote the computed pair: the
+     * sampler reads an extreme pixel of a 10px rotated glyph, so it is the noisier of
+     * the two instruments here even though it is the authoritative one for the
+     * question of WHETHER anything is compositing.
+     *
+     * The clearance is worth keeping: the composite runs against the FACE, and both
+     * faces are near the extremes of the palette, so any future re-tone moves this
+     * ratio. tests/patch-wall.test.ts composites every dimmed line on the bib and
+     * holds all of them to the text floor, in both states and both themes.
+     */
+    .bib-unit {
+        grid-area: unit;
+        align-self: end;
+        margin: 0;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-size: 0.625rem;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        opacity: 0.7;
+    }
+
+    .bib-name {
+        grid-area: name;
+        margin: 0;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        line-height: 1.3;
+        text-transform: uppercase;
+        overflow-wrap: break-word;
+    }
+</style>
