@@ -1,6 +1,7 @@
-import {readFileSync, readdirSync} from "node:fs";
+import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
+import {pageCss} from "./helpers/css";
 
 /**
  * Below `md` the portrait is painted behind the tagline. Whether that type is
@@ -23,10 +24,7 @@ import {describe, expect, it} from "vitest";
  * validated by pixel measurement; it cannot re-derive them. Changing any of them
  * means re-running the composited-background harness, not just this suite.
  */
-const sheet = () => {
-    const f = readdirSync("dist/_astro").find((n) => n.endsWith(".css"))!;
-    return readFileSync(`dist/_astro/${f}`, "utf8");
-};
+const sheet = () => pageCss();
 
 const html = () => readFileSync("dist/index.html", "utf8");
 

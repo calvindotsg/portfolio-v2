@@ -1,9 +1,9 @@
 import {describe, expect, it} from "vitest";
-import {readdirSync, readFileSync} from "node:fs";
+import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
 import {CAREER, FOOTER, GOALS, LINKS, NOW, WELCOME} from "../src/lib/constants";
-import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, parseRules, type Rule, structuralSelector} from "./helpers/css";
+import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * An icon in a line of text is centred on that text's capitals.
@@ -115,7 +115,7 @@ import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, parseRules, typ
  * knows whether a token produced a rule.
  */
 describe("an inline icon is centred on its text's cap band", () => {
-    const css = readFileSync(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`, "utf8");
+    const css = pageCss();
     const {document} = parseHTML(readFileSync("dist/index.html", "utf8"));
     const rules = parseRules(css);
 

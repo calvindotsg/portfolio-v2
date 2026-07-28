@@ -1,9 +1,9 @@
 import {describe, expect, it} from "vitest";
-import {readdirSync, readFileSync} from "node:fs";
+import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
 import {LINKS, NOW} from "../src/lib/constants";
-import {appliesAt, decl, effectiveDecl, isKeyframeStep, parseRules, px, ROOT_PX, type Rule, structuralSelector} from "./helpers/css";
+import {appliesAt, decl, effectiveDecl, isKeyframeStep, pageCss, parseRules, px, ROOT_PX, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * Every styled control must be ONE box. There are seven today — six social-link
@@ -49,7 +49,7 @@ import {appliesAt, decl, effectiveDecl, isKeyframeStep, parseRules, px, ROOT_PX,
  */
 describe("every styled control is one declared box", () => {
     const read = (p: string) => readFileSync(p, "utf8");
-    const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+    const css = pageCss();
     const html = read("dist/index.html");
     const {document} = parseHTML(html);
 

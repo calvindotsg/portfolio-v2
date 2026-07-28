@@ -5,6 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
+import {pageCss} from "./helpers/css";
 
 /**
  * Asserts on what `pnpm build` actually emits. A green build is not evidence the
@@ -32,6 +33,61 @@ describe("dist/", () => {
         expect(css.length).toBe(1);
     });
 
+    /**
+     * KEEPS `pageCss()` HONEST, because every other CSS assertion in this suite is
+     * only as complete as it is.
+     *
+     * Astro's default `inlineStylesheets: "auto"` decides at build time how much of
+     * a page's CSS ships as a linked chunk and how much is inlined into a `<style>`.
+     * That balance is not stable: measured, adding one four-line route moved 2,889
+     * bytes — the whole layout block, `body`, and every theme custom property on
+     * `:root[data-theme]` — out of the chunk and into the page, and turned 16 tests
+     * across four files red with nothing wrong with the site.
+     *
+     * So the invariant is not "there is one stylesheet"; the one above covers that.
+     * It is that whatever the page loads, `pageCss()` returns ALL of it. Then the
+     * flip is invisible to every caller.
+     *
+     * BLIND SPOT, stated rather than implied: in the current single-route build the
+     * page carries NO inline block, so the inline loop below is vacuous. It is here
+     * for the build where that stops being true, which is the build that broke.
+     */
+    it("hands callers every byte of CSS the page loads, linked and inlined alike", () => {
+        const html = read("dist/index.html");
+        const css = pageCss();
+        const inline = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]!);
+        const linked = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map((m) => m[1]!);
+
+        expect(inline.length + linked.length, "the page must load CSS from somewhere").toBeGreaterThan(0);
+        for (const block of inline) expect(css, "an inlined <style> block is missing from pageCss()").toContain(block);
+        for (const href of linked) expect(css, `${href} is missing from pageCss()`).toContain(read(`dist${href}`));
+
+        // Coverage by length too, so a source cannot be dropped while its bytes
+        // happen to appear inside another one.
+        const bytes = [...inline, ...linked.map((h) => read(`dist${h}`))].reduce((n, s) => n + s.length, 0);
+        expect(css.length).toBeGreaterThanOrEqual(bytes);
+    });
+
+    /**
+     * The old idiom this replaced — `readdirSync("dist/_astro").find(…endsWith(".css"))`
+     * — reads ONE arbitrary chunk and never sees an inlined block. It is green today
+     * and wrong the moment a second route exists, which is the worst shape a test
+     * helper can have. Fifteen call sites had it; this stops the sixteenth.
+     *
+     * The two survivors in this file are deliberate: they count emitted files as an
+     * output-hygiene check, and never read a rule out of one.
+     */
+    it("routes every CSS read in the suite through pageCss()", () => {
+        const files = readdirSync("tests", {recursive: true, encoding: "utf8"})
+            .filter((f) => f.endsWith(".ts"));
+        const offenders = files.filter((f) => {
+            if (f === "helpers/css.ts") return false;                     // defines pageCss; documents the idiom
+            const src = read(`tests/${f}`);
+            return /readdirSync\("dist\/_astro"\)[\s\S]{0,120}?endsWith\("\.css"\)[\s\S]{0,120}?readFileSync|read\(`dist\/_astro\//.test(src);
+        });
+        expect(offenders, "read the page's CSS with pageCss(), not by guessing a chunk filename").toEqual([]);
+    });
+
     it("ships zero external JavaScript files", () => {
         const js = readdirSync("dist/_astro").filter((f) => f.endsWith(".js"));
         expect(js).toEqual([]);
@@ -54,14 +110,11 @@ describe("dist/", () => {
 
     it("ships no emoji in the page or stylesheet", () => {
         expect(read("dist/index.html")).not.toMatch(EMOJI);
-        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"));
-        expect(read(`dist/_astro/${sheet}`)).not.toMatch(EMOJI);
+        expect(pageCss()).not.toMatch(EMOJI);
     });
 
     it("emits a usable CSS rule for every safelisted icon class", () => {
-        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"));
-        expect(sheet, "dist/_astro must contain a stylesheet").toBeTruthy();
-        const css = read(`dist/_astro/${sheet}`);
+        const css = pageCss();
         const wanted = new Set([
             ...LINKS.map(({logo}) => iconClass(logo)),
             ...GOALS.map(({goal_logo}) => iconClass(goal_logo)),
@@ -113,7 +166,7 @@ describe("dist/", () => {
     };
 
     /** The built stylesheet. Read lazily: the build runs in vitest's globalSetup. */
-    const sheet = () => read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+    const sheet = () => pageCss();
 
     const themeTokens = (css: string, theme: string): Record<string, string> => {
         const block = css.match(new RegExp(`\\[data-theme=['"]?${theme}['"]?\\]\\{([^}]*)\\}`))?.[1];
@@ -442,7 +495,7 @@ describe("hover styles promise only interactions that exist", () => {
     const INTERACTIVE = new Set(["a", "button", "input", "select", "textarea", "summary", "label"]);
 
     it("applies no hover rule to an element that cannot be interacted with", () => {
-        const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+        const css = pageCss();
 
         // Match on SELECTORS, not class tokens. An earlier version only
         // recognised `.token:hover`, so an Astro scoped <style> — the idiomatic
@@ -506,10 +559,7 @@ describe("the offset plate actually paints", () => {
         return shadow!;
     };
 
-    const sheet = () => {
-        const file = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
-        return read(`dist/_astro/${file}`);
-    };
+    const sheet = () => pageCss();
 
     /**
      * Check the VALUE, not the shape. There are four ways to write this shortcut
@@ -629,7 +679,7 @@ describe("the stylesheet ships no rule nobody wears", () => {
     const KNOWN_ORPHANS = ["ease", "inline", "inline-block", "me", "transition"];
 
     it("emits a class rule only for classes the page actually uses", () => {
-        const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+        const css = pageCss();
         const worn = new Set(
             [...read("dist/index.html").matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)),
         );
@@ -655,7 +705,7 @@ describe("the stylesheet ships no rule nobody wears", () => {
     it("still needs every entry on the known-orphan list, so the list cannot rot", () => {
         // Without this, a token fixed at source stays on the list forever and
         // quietly re-opens the hole it was excusing.
-        const css = read(`dist/_astro/${readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!}`);
+        const css = pageCss();
         for (const token of KNOWN_ORPHANS) {
             const selector = `.${token.replace(/[^\w-]/g, (c) => `\\${c}`)}`;
             expect(
@@ -869,8 +919,7 @@ describe("source hygiene", () => {
         // The stylesheet escapes special chars in selectors (`.md\:pr-8`), so
         // unescape before comparing.
         const html = read("dist/index.html");
-        const sheet = readdirSync("dist/_astro").find((f) => f.endsWith(".css"))!;
-        const css = read(`dist/_astro/${sheet}`);
+        const css = pageCss();
         const cssClasses = new Set(
             [...css.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\(.)/g, "$1")),
         );
