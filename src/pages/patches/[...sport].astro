@@ -73,12 +73,20 @@ const title = `${heading} · ${GOAL_YEAR} — ${METADATA.name}`;
 
 // The scope sentence has to narrow with the page — "every race" is a claim only
 // /patches can make. See the note on PATCHES.
+const sportWord = goal?.goal_name.toLowerCase() ?? "";
 const lede = goal === undefined
     ? `${PATCHES.scope_all} ${PATCHES.key}`
-    : `${PATCHES.scope_sport.replace("{sport}", goal.goal_name.toLowerCase())} ${PATCHES.key}`;
+    : `${PATCHES.scope_sport.replace("{sport}", sportWord)} ${PATCHES.key}`;
+
+// The META description narrows too. It was one string across all three routes, which
+// put the "every race" overclaim in front of a crawler on the two pages that show a
+// subset — the same defect as the lede, in the copy nobody looks at.
+const description = goal === undefined
+    ? PATCHES.description_all
+    : PATCHES.description_sport.replace("{sport}", sportWord);
 ---
 
-<Layout title={title} description={PATCHES.description}>
+<Layout title={title} description={description}>
     <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
         <div class="flex flex-col gap-4">
             <p>

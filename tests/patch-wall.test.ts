@@ -4,7 +4,7 @@ import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
-import {EVENTS, GOALS, PATCHES, type RaceEvent} from "../src/lib/constants";
+import {EVENTS, GOAL_YEAR, GOALS, PATCHES, type RaceEvent} from "../src/lib/constants";
 import {bookedAhead, formatPatchDate, patchState, type PatchState, patchWall, UPDATED_AT} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
 import {decl, isKeyframeStep, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
@@ -74,10 +74,21 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      * lives at the boundaries — the start day, the days inside a span, the end day.
      */
     it("agrees with the projection about which races are still ahead, on every day of the year", () => {
+        // DERIVED FROM GOAL_YEAR, not hard-coded. With 2026 baked in, the sweep goes
+        // vacuous the moment EVENTS moves to next year's races: every day of 2026 is
+        // after every 2027 race, so both sides agree trivially and the test stops
+        // testing. (The literal was also 366 for a 365-day year, so the last iteration
+        // was silently 1 January of the following year.)
+        const days: string[] = [];
+        for (let d = new Date(Date.UTC(GOAL_YEAR, 0, 1)); d.getUTCFullYear() === GOAL_YEAR;
+             d = new Date(d.getTime() + 86_400_000)) {
+            days.push(d.toISOString().slice(0, 10));
+        }
+        expect(days.length, "the sweep must cover a whole year").toBeGreaterThanOrEqual(365);
+
         const disagreements: string[] = [];
         for (const event of EVENTS) {
-            for (let day = 0; day < 366; day++) {
-                const iso = new Date(Date.UTC(2026, 0, 1 + day)).toISOString().slice(0, 10);
+            for (const iso of days) {
                 const contributes = bookedAhead(event.sport, iso, [event]) > 0;
                 const finished = patchState(event, iso) === "finished";
                 if (finished === contributes) {

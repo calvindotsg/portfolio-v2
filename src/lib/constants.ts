@@ -390,13 +390,22 @@ export const NOW: {
  * So `scope_all` and `scope_sport` are alternatives and `key` follows either. The
  * `{sport}` in `scope_sport` is replaced with the goal's own name, which is the same
  * string the heading uses — a sport is called one thing on this site.
+ *
+ * `description_*` is the same split for the META description, and it needs its own
+ * pair rather than reusing the lede: a review panel found the single `description`
+ * shipping unnarrowed on all three routes, so the copy a CRAWLER reads made exactly
+ * the overclaim the visible copy had just been fixed to avoid. Two dimensions
+ * reported it independently. Fixing the sentence a reader sees and leaving the one a
+ * machine reads is the shape to watch for — they are different strings in different
+ * places and only one of them is on screen.
  */
 export const PATCHES: {
     heading: string
     scope_all: string
     scope_sport: string
     key: string
-    description: string
+    description_all: string
+    description_sport: string
     all_label: string
     booked_label: string
     home_label: string
@@ -407,7 +416,8 @@ export const PATCHES: {
     scope_all: "Every race I have entered this year.",
     scope_sport: "Every {sport} race I have entered this year.",
     key: "The solid bibs are the ones I have finished; the outlines are still ahead of me.",
-    description: "Every race Calvin has entered this year, finished and still to come, drawn as race bibs.",
+    description_all: "Every race Calvin has entered this year, finished and still to come, drawn as race bibs.",
+    description_sport: "Every {sport} race Calvin has entered this year, finished and still to come, drawn as race bibs.",
     all_label: "All",
     booked_label: "Booked",
     home_label: "Home",

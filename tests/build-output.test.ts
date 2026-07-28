@@ -30,6 +30,29 @@ describe("dist/", () => {
     });
 
     /**
+     * EVERY BUILT PAGE MUST BE IN THE SITEMAP, and on this site that is load-bearing
+     * rather than hygiene: nothing links to `/patches` from the home page yet, so the
+     * sitemap is those three routes' ONLY discovery path.
+     *
+     * The gate above only greps the index for the origin, which one page satisfies. A
+     * review panel dropped three of four pages out of `sitemap-0.xml` through an
+     * integration filter and the whole suite stayed green — the PR quadrupled the route
+     * count and this was the assertion that did not widen with it.
+     */
+    it("lists every built page in the sitemap", () => {
+        const urls = new Set(
+            [...read("dist/sitemap-0.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]),
+        );
+        expect(urls.size, "the sitemap must list something").toBeGreaterThan(0);
+        for (const page of builtPages()) {
+            // dist/index.html -> "/", dist/patches/cycling/index.html -> "/patches/cycling/"
+            const path = page.replace(/^dist/, "").replace(/index\.html$/, "");
+            const expected = new URL(path, METADATA.site_url).href;
+            expect(urls.has(expected), `${page} is built but ${expected} is not in the sitemap`).toBe(true);
+        }
+    });
+
+    /**
      * ONE CHUNK FOR THE WHOLE SITE, which is a claim about how much a visitor
      * downloads rather than about tidiness: with four pages sharing one layout, one
      * stylesheet means the second page a reader opens costs no CSS at all.
@@ -1031,14 +1054,23 @@ describe("source hygiene", () => {
         const layout = read("src/layouts/BasicLayout.astro");
         const rungs = [...layout.matchAll(/nth-child\((\d+)\)\s*\{\s*animation-delay/g)].map((m) => Number(m[1]));
         expect(rungs.length, "the entrance cascade must exist").toBeGreaterThan(0);
+        // A page with no <main> is not a defect — a 404 page is the obvious one — so it
+        // is skipped rather than failed, and the non-vacuity floor moves to "at least
+        // one page was actually checked". Demanding a <main> everywhere would turn an
+        // ordinary future addition into a failed deploy.
+        let checked = 0;
         for (const page of builtPages()) {
-            const cards = parseHTML(read(page)).document.querySelector("main")?.children.length ?? 0;
-            expect(cards, `${page} must render a main with children`).toBeGreaterThan(0);
+            const main = parseHTML(read(page)).document.querySelector("main");
+            if (!main) continue;
+            const cards = main.children.length;
+            expect(cards, `${page} renders an empty <main>`).toBeGreaterThan(0);
             expect(
                 Math.max(...rungs),
                 `${page}: main renders ${cards} children but the delay ladder stops at nth-child(${Math.max(...rungs)})`,
             ).toBeGreaterThanOrEqual(cards);
+            checked++;
         }
+        expect(checked, "no page has a <main> — the ladder check is vacuous").toBeGreaterThan(0);
     });
 
     it("gives every class token on every page a rule in the stylesheet it loads", () => {

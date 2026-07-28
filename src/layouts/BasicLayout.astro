@@ -189,10 +189,15 @@ const schema = {
      * --on-brand already established — a `-on-` name states the surface it was chosen
      * against, and a token without one is for the card.
      *
-     * Measured from composited pixels rather than computed from these hexes, on the
-     * shipped bib, against the surface each actually lands on: see
-     * tests/patch-wall.test.ts, which holds all four to the 4.5:1 TEXT floor. Text,
-     * not the 3:1 graphics floor, because the mark is an icon AND the word beside it.
+     * Held to the 4.5:1 TEXT floor — text, not the 3:1 graphics floor, because the mark
+     * is an icon AND the word beside it. Two instruments agree on all eight
+     * combinations: `tests/patch-wall.test.ts` resolves the chain out of the shipped
+     * stylesheet and does the arithmetic, and a scratchpad probe samples the composited
+     * pixels of the rendered page. BE PRECISE ABOUT WHICH IS WHICH — an earlier draft
+     * of this note said the test measures pixels. It does not, and it cannot: there is
+     * no browser in the suite. That distinction is the whole reason the test also
+     * carries a separate structural guard against a translucent ancestor, which is the
+     * one thing arithmetic over authored colours can never see.
      *
      * --brand-ink is worn by exactly one thing, the footer heart, and it is NOT
      * --accent even though the two match in light mode. --accent is the
