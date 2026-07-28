@@ -69,12 +69,18 @@ describe("date handling", () => {
         expect(daysRemaining("2027-01-01")).toBe(0);     // and the year is over the day after
         expect(daysRemaining("2027-03-01")).toBe(0);
 
-        // The pairing, stated as an invariant. Round the Island is a single-day
-        // cycling event on 2 August: on that date it is still booked ahead, and the
-        // day count must still contain the day it will be ridden on.
-        const eventDay = "2026-08-02";
-        expect(bookedAhead("cycling", eventDay)).toBeGreaterThan(bookedAhead("cycling", "2026-08-03"));
-        expect(daysRemaining(eventDay) - daysRemaining("2026-08-03")).toBe(1);
+        // The pairing, pinned to values rather than to an inequality. Round the Island
+        // is a single-day cycling event on 2 August. On that date its whole 121.98 km
+        // is still owed, and the day count must still contain the day it is ridden on;
+        // the day after, both drop by exactly that event and exactly that day.
+        //
+        // An inequality here is not enough: `>` and `-1` are satisfied by a version
+        // that books the event on the WRONG side of its own start date, so long as it
+        // does so consistently.
+        expect(bookedAhead("cycling", "2026-08-02")).toBeCloseTo(1143.98, 2);
+        expect(bookedAhead("cycling", "2026-08-03")).toBeCloseTo(1022.00, 2);
+        expect(daysRemaining("2026-08-02")).toBe(152);
+        expect(daysRemaining("2026-08-03")).toBe(151);
     });
 
     /**
