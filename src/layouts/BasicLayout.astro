@@ -238,6 +238,15 @@ const schema = {
      * --on-brand is the ink for content sitting ON --progress-fill, so it flips
      * with the fill. It is not a fixed dark: a dark icon on the light-mode fill
      * would be 2.77:1, the same class of failure it was introduced to fix.
+     *
+     * NOTHING WEARS IT TODAY. The progress bar became a 2px rule and its sport glyph went
+     * with the capsule, so as of that change --on-brand has no consumer — it is KEPT rather
+     * than deleted because the obligation it encodes returns the moment any ink is put back
+     * on the fill, and the ratio above is the whole reason the token exists rather than a
+     * literal. Read this paragraph in the conditional: it describes what the token is FOR,
+     * not what the page currently does. See ProgressBar.astro, whose own note says the same
+     * from the other side, and tests/build-output.test.ts, which fails if the bar regrows a
+     * child without the ink check being restored.
      */
     :root[data-theme='light'] {
         --background: #FAFAFA; /* grey-50 */

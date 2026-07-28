@@ -507,8 +507,12 @@ export const PATCHES: {
 
 /**
  * THE GOAL CARD'S LINE ABOUT ITS SPORT'S NEXT RACE, PLUS THE CONTROL BENEATH IT, and
- * every string here is budgeted against **158px** — the goal card's row content width at
- * 1024px wide, which is the narrowest the lg layout produces.
+ * every string here is budgeted against **182px** — the goal card's row content width at
+ * 1024px wide, which is the narrowest the lg layout produces. It was 158px until this
+ * revision: the figures column sat inside a wrapper with 12px of side padding, and that
+ * wrapper went with the pill, so the row is the card's own content box now. Measured on the
+ * built page: 182 at 1024, 201 at 1100, 214 from 1152 up; below lg the row is 254px or wider,
+ * so 182 really is the floor.
  *
  * THE COUNTDOWN AND THE WAY OUT ARE TWO OBJECTS NOW, and that split is the point rather
  * than a layout detail. One element was reporting a figure AND navigating; each of these
@@ -554,7 +558,7 @@ export const NEXT_RACE: {
      * it already knowing it. The wall's three headings were renamed to match; the URL
      * stays `/patches`, which is a path rather than a claim.
      *
-     * Measured at 1024: 114.9px of ink for cycling and 118.0px for running in a 158px
+     * Measured at 1024: 114.4px of ink for cycling and 117.5px for running in a 182px
      * row, so every candidate considered fitted and this was decided on meaning.
      */
     control: string

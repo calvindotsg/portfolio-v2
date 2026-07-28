@@ -96,5 +96,27 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
         .events-link {
             color: LinkText;
         }
+
+        /*
+         * WITHOUT THIS THE CHEVRON DISAPPEARS AND THE CONTROL IS IDENTIFIED BY COLOUR ALONE —
+         * which is the one thing the glyph exists to prevent, so the rule above was quietly
+         * undoing the argument in NEXT_RACE.icon.
+         *
+         * The mechanism is presetIcons': an icon class paints its artwork as a MASK over
+         * `background-color: currentColor`, and `background-color` is one of the properties a
+         * forced-colours mode overrides. The glyph therefore paints Canvas on Canvas and vanishes,
+         * while the border that used to identify the old chip vanished with the chip. Measured on
+         * the built page with the mode emulated: glyph `rgb(255,255,255)` on a card of
+         * `rgb(255,255,255)` — a ratio of exactly 1. On origin/main the chip kept a 1px LinkText
+         * box, so this is a REGRESSION introduced here rather than an inherited gap.
+         *
+         * `forced-color-adjust: none` opts the glyph out of the override; the explicit LinkText is
+         * what it paints instead. Same technique as ProgressBar.astro's fill, which had it from the
+         * start — it was applied to one of the two marks this branch ships and not the other.
+         */
+        .events-link-go {
+            forced-color-adjust: none;
+            background-color: LinkText;
+        }
     }
 </style>

@@ -48,6 +48,13 @@ interface Props {
 // FOUR extra lines, which three independent rebuilds confirmed at 0 ink lost across 43,
 // 170 and 170 lg configurations.
 //
+// BE CAREFUL QUOTING THAT HEADROOM HERE, because this paragraph is about the TIGHT
+// configurations and the four-line figure was not measured at them: those sweeps ran at
+// roomy viewports, where the stack has 68.4px rather than 4.4px. At the tight end the
+// contraction starts at the FIRST extra line — that is what "4.4px unspent" means, since a
+// text-xs row costs 20px in each of two cards. Four lines is the shearing threshold, not
+// the budget; the budget above is the number that governs.
+//
 // `progress_last_year` is still configured and nothing renders it — deliberately, so it
 // is one edit from returning, and the January checklist in constants.ts still asks for
 // it. If it comes back, something else has to leave.
@@ -86,7 +93,7 @@ const countdown = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
      * THE ONE BOLD THING ON THE CARD. The digits are set on one advance width because the
      * two cards' figures sit one above the other in the same column and ragged digit
      * widths make them read as misaligned; the negative tracking and the sub-1 line
-     * height are what let a 1.5rem number sit in a 158px row without looking like a
+     * height are what let a 1.5rem number sit in a 182px row without looking like a
      * headline. (The declaration's own value is blocklisted in uno.config.ts — UnoCSS
      * reads the CSS below and would emit a utility rule for it that nothing wears.)
      *

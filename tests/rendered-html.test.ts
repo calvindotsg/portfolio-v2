@@ -304,6 +304,19 @@ describe("page content", () => {
             const meter = card?.querySelector('[role="progressbar"]');
             expect(meter, "the hero is hidden, so the card must carry a meter to announce it").toBeTruthy();
 
+            // AND THE METER MUST BE IN THE ACCESSIBILITY TREE. Asserting only that a
+            // `[role=progressbar]` element EXISTS lets both halves be hidden at once — put
+            // `aria-hidden` on the bar and the card announces neither its figure nor its meter,
+            // with this gate still green. The whole point of the pairing is that exactly one of
+            // them is hidden.
+            for (let el: Element | null = meter!; el && el !== card; el = el.parentElement) {
+                expect(
+                    el.getAttribute("aria-hidden"),
+                    "the meter (or an ancestor inside the card) is aria-hidden while the hero is too, "
+                    + "so the card's central figure is announced by nothing at all",
+                ).not.toBe("true");
+            }
+
             const spoken = meter!.getAttribute("aria-valuetext") ?? "";
             const digits = (hero.textContent ?? "").match(/[\d.]+/g) ?? [];
             expect(digits.length, "the hero must print two figures").toBe(2);
@@ -453,6 +466,45 @@ describe("page content", () => {
     });
 
     /**
+     * FORCED COLOURS DELETE THE CHEVRON UNLESS SOMETHING OPTS IT OUT, and the chevron is the
+     * control's only non-colour cue — so without this the control is identified by colour
+     * alone, which is exactly what SC 1.4.1 forbids and exactly what NEXT_RACE.icon's comment
+     * claims the glyph prevents.
+     *
+     * The mechanism is presetIcons': an icon class paints its artwork as a mask over
+     * `background-color: currentColor`, and `background-color` is a forced property. Measured
+     * on the built page with the mode emulated, before the fix: glyph `rgb(255,255,255)` on a
+     * card of `rgb(255,255,255)` — a ratio of exactly 1. The old bordered chip survived because
+     * its BOX did; this control has no box, so it is a regression rather than an inherited gap.
+     *
+     * Asserted against the shipped stylesheet rather than in a browser because the suite has no
+     * browser — and this is the half that can rot silently. `parseRules` keeps at-rule context,
+     * which is the whole reason the guard can tell a forced-colours rule from an ordinary one.
+     */
+    it("keeps the control's chevron painted when forced colours override background-color", () => {
+        const forced = parseRules(pageCss()).filter(
+            (r) => (r.at ?? "").includes("forced-colors")
+                && r.selectors.some((sel) => /\.events-link-go\b/.test(sel)),
+        );
+        expect(
+            forced.length,
+            "no forced-colors rule targets the chevron — an icon mask paints via background-color, "
+            + "which the mode overrides, so the glyph vanishes and the control is left identified "
+            + "by colour alone",
+        ).toBeGreaterThan(0);
+
+        const adjust = forced.map((r) => decl(r.body, "forced-color-adjust")).find((v) => v !== undefined);
+        expect(adjust, "the glyph must opt out of the override with forced-color-adjust: none").toBe("none");
+
+        const paint = forced.map((r) => decl(r.body, "background-color") ?? decl(r.body, "background")).find((v) => v !== undefined);
+        // Case-INSENSITIVE, and that is not defensive: the minifier lowercases system colour
+        // keywords, so the sheet ships `linktext` however it was authored. A case-sensitive
+        // match here fails on correct CSS — which is how this assertion first went red.
+        expect(paint, "and it must name what it paints instead — a system colour, since tokens are discarded")
+            .toMatch(/linktext|canvastext|highlight/i);
+    });
+
+    /**
      * The control is 24px on purpose and the number is font-relative, so the card can clip
      * it if either becomes absolute. This is the CSS half of that; the geometry half is a
      * browser sweep in the PR, since the suite has no layout engine.
@@ -478,10 +530,23 @@ describe("page content", () => {
         // card navigated when clicked. Nothing else in this suite can see that: the box is
         // not text, so no ink assertion moves, and there is no layout engine here to catch
         // it either. This is the CSS half; the geometry half is in the PR.
+        //
+        // ASSERT THE VALUE, NOT THE PRESENCE. `align-self: stretch` is a declaration too, and it
+        // is the DEFAULT — so a presence check passes on the exact edit it exists to forbid, and
+        // the 182px click target comes straight back with the suite green. Only the values that
+        // actually shrink-wrap the item count.
+        const SHRINK_WRAPS = ["start", "flex-start", "self-start", "baseline", "end", "flex-end", "center"];
+        const optsOut = rules.some((r) => {
+            const align = decl(r.body, "align-self");
+            return (align !== undefined && SHRINK_WRAPS.includes(align.trim()))
+                || decl(r.body, "width") === "max-content"
+                || decl(r.body, "width") === "fit-content";
+        });
         expect(
-            rules.some((r) => decl(r.body, "align-self") !== undefined || decl(r.body, "width") === "max-content"),
-            "the control must opt out of its column's cross-axis stretch, or its clickable box "
-            + "is the whole width of the card rather than the words a reader aims at",
+            optsOut,
+            "the control must opt out of its column's cross-axis stretch with a value that actually "
+            + "shrink-wraps it, or its clickable box is the whole width of the card rather than the "
+            + "words a reader aims at. `align-self: stretch` is the default and does not count",
         ).toBe(true);
     });
 
