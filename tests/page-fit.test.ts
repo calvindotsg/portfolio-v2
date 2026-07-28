@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {appliesBelow, decl, effectiveDecl, isKeyframeStep, minWidthOf, pageCss, parseRules, structuralSelector, widthConditions} from "./helpers/css";
+import {appliesBelow, decl, effectiveDecl, isKeyframeStep, minWidthOf, pageCss, parseRules, ROW_TEMPLATE_PROPS, rowTracks, structuralSelector, widthConditions} from "./helpers/css";
 
 /**
  * The page must be allowed to be taller than the viewport.
@@ -133,6 +133,71 @@ describe("the page may grow taller than the viewport", () => {
         return !/^(auto|none|inherit|initial|unset|revert|revert-layer|fit-content|max-content|min-content|stretch|-webkit-fill-available)$/.test(v);
     };
 
+    /**
+     * Split a track list at the TOP level, on commas or whitespace, without
+     * cutting inside `repeat()`/`minmax()`/`fit-content()`.
+     */
+    const trackTokens = (value: string) => {
+        const out: string[] = [];
+        let depth = 0, cur = "";
+        for (const ch of value) {
+            if (ch === "(") depth++;
+            if (ch === ")") depth--;
+            if (depth === 0 && (ch === "," || /\s/.test(ch))) {
+                if (cur) out.push(cur);
+                cur = "";
+                continue;
+            }
+            cur += ch;
+        }
+        if (cur) out.push(cur);
+        return out;
+    };
+
+    /**
+     * Is ONE track function free to grow to its content?
+     *
+     * INVERTED for the same reason `isDefiniteSize` is: an allowlist of the
+     * things that are safe, so anything unanticipated is red. Policing the
+     * spelling `fr` instead leaks by construction — `repeat(8,4.75rem)` has no
+     * `fr` in it and reproduces the whole defect (243.1px of ink deleted at
+     * 1024x600) with the suite green.
+     *
+     * `fit-content(limit)` is deliberately NOT here, and the reason is caution
+     * rather than measurement: it is the one track function that both names a
+     * length and usually ignores it. Measured, `repeat(8,fit-content(4.75rem))`
+     * deletes 0.8px and `repeat(8,fit-content(1rem))` 5px — the automatic
+     * minimum wins, so it is a false-positive risk here, not a missed defect.
+     * Add the keyword if a template ever legitimately wants it; that costs one
+     * line, where the leak this list replaced cost 243.1px of deleted ink.
+     */
+    const isGrowableTrack = (t: string): boolean => {
+        if (/^(min-content|max-content|auto)$/.test(t)) return true;
+        const mm = /^minmax\((.*)\)$/.exec(t);
+        if (mm) {
+            const parts = trackTokens(mm[1]);
+            return parts.length === 2 && isGrowableTrack(parts[1]);
+        }
+        return false;
+    };
+
+    /** Every track in a template that cannot grow for its content. */
+    const fixedTracksIn = (value: string) => {
+        const bad: string[] = [];
+        for (const tok of trackTokens(value.trim().toLowerCase())) {
+            if (/^\[.*\]$/.test(tok)) continue; // line names carry no size
+            const rep = /^repeat\((.*)\)$/.exec(tok);
+            if (rep) {
+                const inner = trackTokens(rep[1]);
+                inner.shift(); // the count, or auto-fill/auto-fit
+                bad.push(...inner.filter((t) => !isGrowableTrack(t)));
+                continue;
+            }
+            if (!isGrowableTrack(tok)) bad.push(tok);
+        }
+        return bad;
+    };
+
     const body = document.body;
     const main = document.querySelector("main")!;
     const html = document.documentElement;
@@ -210,6 +275,58 @@ describe("the page may grow taller than the viewport", () => {
         ).toEqual([]);
     });
 
+    /**
+     * THE CHANNEL THE CASCADE READER STRUCTURALLY CANNOT SEE.
+     *
+     * Every other assertion in this file reads `pageCss()` — the `<link>`ed sheets
+     * and the `<style>` blocks. A `style` attribute is in neither, is unconditional
+     * (no media query can gate it) and beats every non-`!important` author rule, so
+     * it is at once the highest-specificity way to put a ceiling back and the only
+     * one nothing above can read.
+     *
+     * Measured, not argued. `style="max-height:50rem"` on `<main>` at this revision,
+     * with the SC 1.4.12 metrics applied: 858.2px of ink past a clip edge at 1024x600
+     * and at 1024x768, 215.6px from 1280x800 up, against 0 on the clean build. The
+     * defect this file's budget assertions close measures 1157.7px at 1024x600, so the
+     * attribute restores about three quarters of it — and the whole suite stayed green.
+     */
+    it("lets no inline style attribute cap the page either", () => {
+        const props = ["height", "max-height", "block-size", "max-block-size"] as const;
+        // <body> and <main> are the two the cascade assertions above name, and they
+        // are NOT the whole channel. The same attribute on the right-hand column's
+        // flex wrapper — an element no assertion in this file mentions — measures
+        // 105.5px of deleted ink at the DEFAULT text size and 860.4px under the SC
+        // 1.4.12 metrics, worse than capping <main>. So the sweep is over every
+        // element that carries the attribute at all, which is also the only version
+        // that cannot rot when a card or a wrapper is added.
+        const carriers: [string, Element][] = [["<body>", body], ["<main>", main],
+            ...[...main.querySelectorAll("[style]")].map((el): [string, Element] =>
+                [`<${el.tagName.toLowerCase()} class="${el.getAttribute("class") ?? ""}">`, el])];
+        const inlineOffenders = carriers.flatMap(([name, el]) => {
+            const style = el.getAttribute("style");
+            if (!style) return [];
+            return props.flatMap((prop) => {
+                const value = decl(style, prop);
+                return isDefiniteSize(value) ? [`${name} style="${style}" — ${prop}: ${value}`] : [];
+            });
+        });
+        expect(
+            [...new Set(inlineOffenders)],
+            "no element on this page may carry a definite height or maximum in a style attribute: it is unconditional, it outranks every rule the assertions above read, and none of them can see it — measured at 858.2px of deleted ink at 1024x600 on <main>, and 860.4 on the right-hand stack wrapper, with the whole suite green",
+        ).toEqual([]);
+
+        // Non-vacuity: the reader has to be able to SEE an attribute at all, or the
+        // assertion above passes because `getAttribute` drifted rather than because
+        // the page is clean. Proven against a fixture, since the page is forbidden
+        // from carrying the real thing.
+        const fixture = parseHTML(`<main style="max-height:50rem"></main>`).document.querySelector("main")!;
+        expect(isDefiniteSize(decl(fixture.getAttribute("style")!, "max-height"))).toBe(true);
+        // And the same reader must not red a harmless attribute, or the guard gets
+        // deleted the first time someone sets a custom property inline.
+        const benign = parseHTML(`<main style="--x:3;min-height:46rem"></main>`).document.querySelector("main")!;
+        expect(props.some((p) => isDefiniteSize(decl(benign.getAttribute("style")!, p)))).toBe(false);
+    });
+
     it("keeps the single-screen contract at the large breakpoint, where the grid can hold it", () => {
         // <main> legitimately IS viewport-locked and capped at lg — that is the
         // bento design, and the four-column grid fits there. The defect was that
@@ -243,8 +360,10 @@ describe("the page may grow taller than the viewport", () => {
         const offenders = rulesMatching(main).flatMap((r) => {
             if (!appliesBelow(r, LG)) return [];
             const gate = minWidthOf(r);
-            const value = decl(r.body, "grid-template-rows");
-            return value ? [`${describeRule(r, "grid-template-rows", value)} — gated at ${gate ?? "no width"}`] : [];
+            return ROW_TEMPLATE_PROPS.flatMap((prop) => {
+                const raw = decl(r.body, prop);
+                return raw ? [`${describeRule(r, prop, rowTracks(prop, raw))} — gated at ${gate ?? "no width"}`] : [];
+            });
         });
         expect(
             [...new Set(offenders)],
@@ -308,6 +427,11 @@ describe("the page may grow taller than the viewport", () => {
         // exist — and to exist at lg, which is the only place the four-column grid
         // can hold a single screen.
         const atLg = rulesMatching(main).filter((r) => (minWidthOf(r) ?? 0) === LG);
+        // At or ABOVE lg. A ceiling gated at xl or 2xl never applies below lg, so
+        // `appliesBelow` skips it, and `=== LG` cannot see it either: an
+        // `xl:max-h-[50rem]` walked through all three assertions green and put
+        // 215.6px of SC 1.4.12 ink loss back at every viewport >= 1280.
+        const atLgUp = rulesMatching(main).filter((r) => (minWidthOf(r) ?? 0) >= LG);
         const floors = atLg.flatMap((r) => {
             const value = decl(r.body, "min-height");
             return value ? [value] : [];
@@ -343,7 +467,7 @@ describe("the page may grow taller than the viewport", () => {
          * which is the same ceiling spelled differently.
          */
         for (const prop of ["max-height", "max-block-size", "height", "block-size"] as const) {
-            const ceilings = atLg.flatMap((r) => {
+            const ceilings = atLgUp.flatMap((r) => {
                 const value = decl(r.body, prop);
                 return value && value !== "auto" ? [describeRule(r, prop, value)] : [];
             });
@@ -354,6 +478,57 @@ describe("the page may grow taller than the viewport", () => {
         }
 
         /*
+         * A CEILING NEED NOT BE A LENGTH, and the property list above can only see
+         * lengths. `contain: size` (and `strict`, which includes it, and
+         * `content-visibility`, which applies it) makes the box's used block size
+         * independent of its content altogether: the grid resolves as if `<main>` held
+         * nothing, and `<main>`'s own `overflow-hidden` deletes the rest. Measured on a
+         * build carrying `@media (width>=64rem){main{contain:size}}` — 2188.7px of ink
+         * deleted at 1024x600 against 1157.7 for the clamp this test replaced, 1462.7 at
+         * 1024x768, 215.6 from 1280 up, and 78px lost at the DEFAULT text size with no
+         * user stylesheet at all. So the invariant is stated against CONTAINMENT rather
+         * than against lengths: nothing here may make `<main>`'s used block size
+         * independent of its content.
+         *
+         * `contain: inline-size` is deliberately allowed — it contains the inline axis,
+         * which is not the axis that clips here, and it was measured at 0 lost ink at
+         * all five viewports, identical to the page without it.
+         *
+         * `aspect-ratio` is on the list for the same reason and was measured the same
+         * way: a definite inline size plus a ratio is a definite BLOCK size, so
+         * `main{aspect-ratio:2/1}` reproduces the contain-size numbers to the decimal —
+         * both collapse the grid onto the `min-height` floor and clip everything above
+         * it. It is a ceiling written as a ratio.
+         *
+         * AT EVERY WIDTH, not just at lg — unlike the length ceilings above, which are
+         * allowed at lg's sibling assertion's discretion and policed there. There is no
+         * width at which the grid wants its height to stop depending on its content, and
+         * an UNGATED `main{contain:size}` is exactly the rule a `atLg`-scoped version of
+         * this check cannot see (verified: it stayed green until this was widened, while
+         * the same rule spelled `max-height` went red on the sibling assertion).
+         */
+        const containments = rulesMatching(main).flatMap((r) => {
+            const found: string[] = [];
+            const contain = decl(r.body, "contain");
+            if (contain && /(?<![\w-])size(?![\w-])|(?<![\w-])strict(?![\w-])/i.test(contain)) {
+                found.push(describeRule(r, "contain", contain));
+            }
+            const visibility = decl(r.body, "content-visibility");
+            if (visibility && visibility.trim().toLowerCase() !== "visible") {
+                found.push(describeRule(r, "content-visibility", visibility));
+            }
+            const ratio = decl(r.body, "aspect-ratio");
+            if (ratio && ratio.trim().toLowerCase() !== "auto") {
+                found.push(describeRule(r, "aspect-ratio", ratio));
+            }
+            return found;
+        });
+        expect(
+            [...new Set(containments)],
+            "<main>'s used block size must keep depending on its content at every width: `contain: size`, `contain: strict`, `content-visibility` and `aspect-ratio` each cap the grid exactly as a max-height does — harder, in fact, because the height stops being a function of the content at all — and the ink goes past `<main>`'s own overflow-hidden and is deleted",
+        ).toEqual([]);
+
+        /*
          * The other half, and the one with no obvious name. A budget free to grow buys
          * nothing while the ROWS cannot: `grid-rows-8` compiles to
          * `repeat(8, minmax(0,1fr))`, whose tracks always sum to exactly the container
@@ -361,19 +536,33 @@ describe("the page may grow taller than the viewport", () => {
          * alone leaves 1157.7px lost, the rows alone make it WORSE (they overflow a
          * still-capped container), and together it is 0 at every viewport.
          */
-        const templates = atLg.flatMap((r) => {
-            const value = decl(r.body, "grid-template-rows");
-            return value ? [value] : [];
-        });
+        /*
+         * READ THE SHORTHANDS TOO, and read them ALONGSIDE the longhand rather than
+         * instead of it. `grid-template` and `grid` both reset `grid-template-rows`,
+         * and inside one rule after minification the later declaration wins — so
+         * preferring either spelling lets the other through. Every spelling present is
+         * collected and every one is screened; only the ROWS half of a shorthand is
+         * taken (everything before the first `/`), because the columns half is
+         * legitimately `repeat(4, minmax(0,1fr))` and screening it would red the
+         * clean build.
+         */
+        const templates = atLg.flatMap((r) => ROW_TEMPLATE_PROPS.flatMap((prop) => {
+            const raw = decl(r.body, prop);
+            return raw ? [rowTracks(prop, raw)] : [];
+        }));
         expect(
             templates,
             "<main> must declare a row template at the large breakpoint, or the grid it is asserted about does not exist",
         ).not.toEqual([]);
-        for (const value of templates) {
+        const templatesUp = atLgUp.flatMap((r) => {
+            const value = decl(r.body, "grid-template-rows");
+            return value ? [value] : [];
+        });
+        for (const value of templatesUp) {
             expect(
-                value,
-                `<main>'s row template must let a row grow for its content; "${value}" contains a fraction track, and a fr track sums to the container rather than asking it for room`,
-            ).not.toMatch(/\d\s*fr\b/);
+                fixedTracksIn(value),
+                `<main>'s row template must let every row grow for its content; "${value}" contains a track that cannot`,
+            ).toEqual([]);
         }
     });
 

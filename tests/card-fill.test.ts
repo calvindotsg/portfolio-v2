@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, pageCss, parseRules, px, structuralSelector} from "./helpers/css";
+import {appliesAt, decl, effectiveDecl, isKeyframeStep, maxWidthOf, minWidthOf, pageCss, parseRules, px, ROW_TEMPLATE_PROPS, rowTracks, structuralSelector} from "./helpers/css";
 
 /**
  * A card takes its content's height, never its grid area's.
@@ -396,7 +396,14 @@ describe("a card sizes to its content, not to its grid area", () => {
             return m ? parseInt(m[1], 10) : null;
         };
         for (const width of widthsToCheck(wrapper)) {
-            const rowCount = countOf(effectiveValue(main, "grid-template-rows", width));
+            // Read through the SHORTHANDS as well: `grid-template` and `grid` reset
+            // `grid-template-rows`, so a longhand-only read either misses the winning
+            // declaration or — worse here — reports "no repeated row template" and
+            // reds a build whose rows are spelled `grid-template: … / …`.
+            // `effectiveDecl` resolves the three against each other in the order the
+            // rule body declares them, which is the order that actually decides.
+            const rowDecl = effectiveDecl(rulesMatching(main), [...ROW_TEMPLATE_PROPS], width);
+            const rowCount = countOf(rowDecl ? rowTracks(rowDecl.prop, rowDecl.value) : undefined);
             const colCount = countOf(effectiveValue(main, "grid-template-columns", width));
             expect(rowCount, `<main> declares no repeated row template at ${width}px, so the stack's span cannot be checked against it`).not.toBeNull();
             expect(colCount, `<main> declares no repeated column template at ${width}px`).not.toBeNull();

@@ -231,6 +231,31 @@ export function px(value: string | undefined): number | null {
 }
 
 /**
+ * EVERY SPELLING OF A ROW TRACK LIST, because two of the three are shorthands and a
+ * guard that reads only the longhand cannot see them.
+ *
+ * `grid-template` and `grid` both RESET `grid-template-rows`, so either one overrides
+ * a longhand a guard did read — inside the same rule after minification, or from a
+ * later rule at the same specificity. This is not hypothetical on this repo:
+ * `control-geometry.test.ts` records the identical hole (`grid-template` beating the
+ * longhand it read) as one of four that defeated its predecessor with the suite green.
+ *
+ * Listed longhand-first only for readability; every caller must screen ALL of them
+ * rather than take the first that is present, or the other spelling walks through.
+ */
+export const ROW_TEMPLATE_PROPS = ["grid-template-rows", "grid-template", "grid"] as const;
+
+/**
+ * The ROWS half of whatever spelling was read. The shorthands are `<rows> / <columns>`,
+ * and the columns half must not be screened: this page's columns are legitimately
+ * `repeat(4, minmax(0, 1fr))`, so charging a shorthand's whole value for containing
+ * `fr` reds a clean build.
+ */
+export function rowTracks(prop: string, value: string): string {
+    return prop === "grid-template-rows" ? value.trim() : value.split("/")[0]!.trim();
+}
+
+/**
  * A selector reduced to what decides WHICH elements it can reach: state and
  * pseudo-element parts removed, so `.control:hover` and `.control` share a
  * subject. Paren-balanced, for the preflight selector above. A compound that was
