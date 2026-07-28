@@ -469,9 +469,15 @@ export const WELCOME: {
  * nothing, and is told nothing about why. WCAG SC 3.2.5 (AAA) and technique G201
  * ask for the warning in advance; this is it.
  *
- * WHY NOT ON THE SIX INTRO-CARD SOCIAL ICONS. Their context change is conventional
- * for a social row, and six identical suffixes in a row is exactly the noise G201's
+ * WHY NOT ON THE SIX INTRO-CARD LINKS. Their context change is conventional for a row
+ * of outbound icons, and six identical suffixes in a row is exactly the noise G201's
  * own guidance warns about — it makes the list harder to scan by voice, not easier.
+ *
+ * "Social" is the wrong word for one of them and the exception is worth naming rather
+ * than papering over: `/resume.pdf` is same-origin and is not a social profile. It gets
+ * the same silence for a DIFFERENT reason — its own name already says "View résumé
+ * (PDF)", so the format is announced and a PDF opening in its own tab is the behaviour
+ * a reader expects from that name. If the six are ever split, that is the seam.
  * The two that wear it are the ones where the destination is unexpected: a race bib
  * that reads as page content, and an information icon that reads as a disclosure.
  *
@@ -500,9 +506,11 @@ export const NEW_TAB_NOTICE = "(opens in a new tab)";
  * was hand-rolled precisely because the link had to share its row. See
  * `src/components/Now.astro`.
  *
- * `explainer_name` is the link's WHOLE accessible name, announced verbatim: the icon
- * beside it is aria-hidden and there is no visible text left, so this string is all a
- * screen reader gets. It says what the destination explains rather than gesturing at
+ * `explainer_name` is the SUBJECT HALF of the link's accessible name, announced
+ * verbatim and FIRST: the icon beside it is aria-hidden and there is no visible text,
+ * so a screen reader gets this string followed by {@link NEW_TAB_NOTICE}. Read off the
+ * accessibility tree, the whole name is "What's a /now page? (opens in a new tab)".
+ * It used to be the whole name, and the sentence saying so outlived the second span. It says what the destination explains rather than gesturing at
  * it — "what's that ?" reads fine beside the word it follows and says nothing at all
  * when read out of a list of links.
  */

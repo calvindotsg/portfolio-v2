@@ -187,6 +187,8 @@ describe("page content", () => {
             .find((a) => a.getAttribute("href") === NOW.explainer_url);
         expect(link, `the Now card must link to ${NOW.explainer_url}`).toBeTruthy();
 
+        expect(link!.getAttribute("target"), "the warning is only true while the link opens a new tab").toBe("_blank");
+
         // EXACTLY the name, not merely containing it. A computed accessible name is the
         // CONCATENATION of the subtree, so a second sr-only span beside this one is
         // announced as part of the name — "Link Link Link. What's a /now page?" satisfied a
@@ -223,6 +225,19 @@ describe("page content", () => {
             kids[kids.length - 1].textContent?.trim(),
             "the new-tab warning must be the anchor's LAST child, so it lands at the end of the accessible name",
         ).toBe(NEW_TAB_NOTICE);
+
+        // NEITHER SR-ONLY SPAN MAY BE HIDDEN FROM THE TREE. `aria-hidden="true"` on the
+        // notice deletes the announcement from the AX tree on both pages with every other
+        // assertion here green, because they read textContent and class tokens and
+        // `aria-hidden` touches neither. The same guard is on the NAME span for a bigger
+        // reason: hiding that one leaves the link with an EMPTY accessible name, and
+        // nothing before this caught it. linkedom computes no AX tree, so this cannot
+        // police `hidden` / `display:none` / `role=presentation` — those need a
+        // browser-driven check, which is why the PR reads the real tree over CDP.
+        for (const i of [1, 2]) {
+            expect(kids[i].getAttribute("aria-hidden"), "an sr-only span that is aria-hidden announces nothing").toBeNull();
+            expect(kids[i].closest('[aria-hidden="true"]'), "and neither may an ancestor hide it").toBeNull();
+        }
 
         // No `title` either. It paints a tooltip — visible words back — and per HTML-AAM it
         // is a name/description fallback that some AT combinations append, i.e. exactly the

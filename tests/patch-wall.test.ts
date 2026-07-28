@@ -1275,6 +1275,13 @@ describe("a bib that opens a new tab says so, last", () => {
             "the warning must be the anchor's last child so it lands at the END of the accessible name; "
             + "inside the meta row it is announced third, before the reader knows what the link is",
         ).toBe(NEW_TAB_NOTICE);
+
+        // AND IT MUST REACH THE TREE. `aria-hidden="true"` here deletes the announcement
+        // from the accessibility tree with every assertion above still green — they read
+        // textContent and class tokens, neither of which `aria-hidden` touches. Measured:
+        // 0 of 17 links announce with the attribute, 3 without it.
+        expect(notice[0].getAttribute("aria-hidden"), "an aria-hidden warning announces nothing").toBeNull();
+        expect(notice[0].closest('[aria-hidden="true"]'), "and neither may an ancestor hide it").toBeNull();
     });
 
     it("says nothing on a bib that opens nothing", async () => {

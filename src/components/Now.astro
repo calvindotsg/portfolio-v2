@@ -57,8 +57,9 @@ import {iconClass} from "../lib/icons";
             <span class={`${iconClass(NOW.explainer_icon)} shrink-0`} aria-hidden="true"></span>
             <span class="sr-only">{NOW.explainer_name}</span>
             {/* A second sr-only span rather than a longer explainer_name: that string is
-                documented as the link's whole name and is what the destination explains.
-                This one says what the link DOES, and it belongs after it. */}
+                the SUBJECT half of the name — what the destination explains — and this one
+                says what the link DOES, which is only useful once the reader knows what the
+                link is. Announced together: "What's a /now page? (opens in a new tab)". */}
             <span class="sr-only">{NEW_TAB_NOTICE}</span>
         </a>
         <Pulse/>
