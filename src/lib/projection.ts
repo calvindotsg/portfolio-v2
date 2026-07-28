@@ -354,7 +354,8 @@ export function patchWall(
 const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3).toUpperCase())
 
 /**
- * An event's date as a bib prints it: "12 JUL 2026", or "7–15 NOV 2026" for a tour.
+ * An event's date as a bib prints it, BROKEN INTO THE PIECES A `<time>` CAN CLAIM:
+ * "12 JUL 2026" for a day, "7–15 NOV 2026" for a tour.
  *
  * A SPAN IS COLLAPSED TO WHAT ACTUALLY DIFFERS, so the nine-day tour reads as nine
  * days without spending a second month and year saying so. The alternative — one
@@ -366,22 +367,52 @@ const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3).toUpperCase())
  * month keeps both months (`30 NOV – 2 DEC 2026`); a span crossing new year keeps
  * both years too. The en dash is a range dash and is deliberately not a hyphen.
  *
+ * WHY SEGMENTS RATHER THAN ONE STRING. `<time datetime>` names ONE instant, and HTML
+ * has no interval form for it — so a tour rendered as `<time datetime="2026-11-07">`
+ * around the text "7–15 NOV 2026" tells a machine the nine-day event happened on the
+ * 7th. A review of the patch wall caught exactly that shipping. The endpoints are
+ * separable, so each gets its own element and the dash between them belongs to
+ * neither; the segment with no `iso` is punctuation and the caller renders it as text.
+ *
+ * {@link formatPatchDate} is DERIVED from this rather than written beside it, which is
+ * the point: two functions producing the same string is how the range a reader sees
+ * and the dates a machine reads start to disagree, and that is the defect one layer up
+ * from the one being fixed here.
+ *
  * Returns null on an unparseable date, for the same reason everything else here
  * does: the caller renders nothing rather than a guess.
  */
-export function formatPatchDate(event: RaceEvent): string | null {
-    const start = parseIsoDate(event.date)
-    const end = parseIsoDate(eventEnd(event))
+export type PatchDateSegment = {
+    text: string
+    /** The day this segment names, `YYYY-MM-DD`. Absent on the range dash. */
+    iso?: string
+}
+
+export function patchDateSegments(event: RaceEvent): PatchDateSegment[] | null {
+    const from = event.date
+    const to = eventEnd(event)
+    const start = parseIsoDate(from)
+    const end = parseIsoDate(to)
     if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null
 
     const part = (iso: string) => {
         const [y, m, d] = iso.split("-")
         return {d: String(Number(d)), m: MONTHS_SHORT[Number(m) - 1], y}
     }
-    const a = part(event.date)
-    const b = part(eventEnd(event))
-    if (start === end) return `${a.d} ${a.m} ${a.y}`
-    if (a.y !== b.y) return `${a.d} ${a.m} ${a.y} – ${b.d} ${b.m} ${b.y}`
-    if (a.m !== b.m) return `${a.d} ${a.m} – ${b.d} ${b.m} ${b.y}`
-    return `${a.d}–${b.d} ${a.m} ${a.y}`
+    const a = part(from)
+    const b = part(to)
+    if (start === end) return [{text: `${a.d} ${a.m} ${a.y}`, iso: from}]
+    if (a.y !== b.y) {
+        return [{text: `${a.d} ${a.m} ${a.y}`, iso: from}, {text: " – "}, {text: `${b.d} ${b.m} ${b.y}`, iso: to}]
+    }
+    if (a.m !== b.m) {
+        return [{text: `${a.d} ${a.m}`, iso: from}, {text: " – "}, {text: `${b.d} ${b.m} ${b.y}`, iso: to}]
+    }
+    return [{text: a.d, iso: from}, {text: "–"}, {text: `${b.d} ${a.m} ${a.y}`, iso: to}]
+}
+
+/** The same date line as one string. See {@link patchDateSegments}, which owns it. */
+export function formatPatchDate(event: RaceEvent): string | null {
+    const segments = patchDateSegments(event)
+    return segments === null ? null : segments.map((s) => s.text).join("")
 }

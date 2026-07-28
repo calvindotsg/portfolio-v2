@@ -1,6 +1,6 @@
 ---
 import {goalForSport, PATCHES, type RaceEvent} from "../lib/constants";
-import {formatPatchDate, type PatchState} from "../lib/projection";
+import {patchDateSegments, type PatchState} from "../lib/projection";
 import {iconClass} from "../lib/icons";
 
 interface Props {
@@ -25,11 +25,17 @@ const {event, state} = Astro.props;
  * two decimals and the hundredths are real — 160.59 is not 160 — but at the size
  * this number is drawn they would dominate the digits that carry the meaning. The
  * text content is unbroken either way, so a screen reader still hears "160.59".
- * Always two decimals, including 1022.00, where the fraction is two zeroes. The
- * bibs do not form a column — each sits in its own grid cell at its own width — so
- * this is not about alignment; it is that a distance printed to two places on five
- * bibs and to none on the sixth reads as a different KIND of number rather than as
- * a round one.
+ *
+ * `toFixed(2)` IS WHAT MAKES THAT A COLUMN OF ONE KIND OF NUMBER, and the six races on
+ * the wall today print in THREE different shapes without it: 160.59, 158.13 and 121.98
+ * already carry two places, 21.10 and 42.20 lose their trailing zero to `21.1` and
+ * `42.2`, and 1022.00 loses the point entirely to `1022`. (An earlier revision of this
+ * comment said five of six were already two-place and only the tour was bare — worth
+ * the correction because it is the two SINGLE-place ones that make the case: a lone
+ * bare integer reads as an approximation, and a mix of one and two places reads as
+ * inconsistent precision.) The bibs do not form a column — each sits in its own grid
+ * cell at its own width — so this is not about digit alignment; it is that every bib
+ * should claim the same precision about its distance.
  *
  * THE STATE IS SAID IN WORDS AS WELL AS IN THE TREATMENT. The outline carries it
  * visually and the tag carries it in text, which is not redundancy to be tidied
@@ -37,14 +43,21 @@ const {event, state} = Astro.props;
  * information. A finished bib needs no tag because it is the unmarked case: the
  * wall's own copy says what a solid bib means.
  */
-const date = formatPatchDate(event);
+const date = patchDateSegments(event);
 const goal = goalForSport(event.sport);
 const [whole, fraction] = event.km.toFixed(2).split(".");
 ---
 
 <li class:list={["bib", `bib--${event.sport}`, state === "booked" && "bib--booked"]}>
     <p class="bib-meta">
-        {date && <time class="bib-date" datetime={event.date}>{date}</time>}
+        {/* One <time> per endpoint, never one around the whole range: `datetime` names a
+            single instant, so a tour wrapped in one would tell a machine that nine days
+            of riding happened on the 7th. The dash carries no date and is plain text. */}
+        {date && (
+                <span class="bib-date">
+                    {date.map((seg) => seg.iso ? <time datetime={seg.iso}>{seg.text}</time> : seg.text)}
+                </span>
+        )}
         <span class="bib-sport">
             <span class={`${iconClass(goal.goal_logo)} bib-icon`} aria-hidden="true"></span>
             <span class="bib-word">{goal.short_name}</span>
@@ -128,10 +141,14 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
      * hole is punched out of something — and normal-polarity ink on the card.
      *
      * The holes are removed explicitly rather than left to disappear on their own.
-     * They would: --hole is the card colour and the face is transparent, so they
-     * would paint card-on-card and disappear. Relying on that makes how many holes a
-     * reader sees depend on a colour token, and re-toning --card-background would put
-     * four grey dots on a bib that is meant to have none.
+     * They would: --hole is --card-background and the face is transparent, so they
+     * paint card-on-card and vanish. Note the hazard that is NOT the reason — an
+     * earlier revision of this comment claimed re-toning --card-background would put
+     * grey dots on a booked bib, and it cannot: the hole and the surface behind the
+     * bib are the SAME token, so they re-tone together. The real reason is that the
+     * coincidence holds only while a bib sits on a card. Put one on any other surface
+     * — the page background, a tinted panel — and four dots appear on a bib that is
+     * meant to have none, with nothing in the source saying they were ever drawn.
      *
      * The mark now sits on the CARD, so it takes the card-side hue. This is the swap
      * the token names in BasicLayout.astro exist to make legible; getting it backwards
@@ -163,6 +180,40 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
         .bib {
             border-color: CanvasText;
             border-width: 3px;
+        }
+
+        .bib--booked {
+            border-width: 1px;
+        }
+    }
+
+    /*
+     * PRINT IS THE SAME PROBLEM AS FORCED COLOURS, so it gets the same answer.
+     *
+     * A finished bib is legible on screen because its ink is `--background` on a
+     * `--text` face. Print drops the face — Chrome's default `print-color-adjust:
+     * economy` discards backgrounds and keeps the ink — and what is left is the pale
+     * half of the palette on white paper. A review of the wall measured the printed
+     * result at 2.43:1, under the 4.5:1 floor, and in the dark theme that ink is
+     * #FAFAFA, which is nothing at all.
+     *
+     * So every bib prints as an outline and the earned one keeps its distinction in the
+     * channel that survives, which is exactly the trade the forced-colours rules above
+     * makes. LITERAL BLACK RATHER THAN A TOKEN is deliberate: paper is white whichever
+     * theme the reader had on screen, so every token here carries an assumption that is
+     * only true half the time. The sport mark goes black with the rest — its hue is one
+     * of three channels naming the sport and the icon and the word are the other two,
+     * both of which print.
+     */
+    @media print {
+        .bib {
+            --face: transparent;
+            --hole: transparent;
+            --ink: #000;
+            --sport: #000;
+            border-color: #000;
+            border-width: 2px;
+            background-image: none;
         }
 
         .bib--booked {
@@ -228,16 +279,30 @@ const [whole, fraction] = event.km.toFixed(2).split(".");
 
     /*
      * THE DISTANCE IS THE HERO, and it is sized against the BIB rather than against
-     * the viewport. `22cqi` of a container query unit reads the bib's own inline size,
-     * so a bib in a one-column layout on a phone and a bib in a four-column wall on a
-     * desktop print their number at the same proportion of the box. A viewport unit
-     * would make the phone's single wide bib shout and the desktop's narrow ones
-     * whisper.
+     * the viewport: `22cqi` reads the bib's own inline size, so what the number is
+     * proportional to is the box it is printed on and not the window.
      *
-     * `min()` against 3rem caps it: past that the number stops growing and the bib
-     * simply gets roomier, and the cap is font-relative so it still follows the
-     * reader's own text size. The pair is what keeps 1022.00 — seven characters, the
-     * widest the calendar holds — inside a 13rem column.
+     * WHICH OF THE TWO TERMS ACTUALLY BINDS — measured, because an earlier revision of
+     * this comment guessed and guessed wrong. It advertised a phone's one-column bib
+     * and "a four-column wall on a desktop" printing at the same proportion; neither
+     * half survives measurement.
+     *
+     *   at a 16px root   the 3rem cap binds at every width from 320 to 3840 except one
+     *                    (768, where 22cqi resolves to 47.96 against a 48px cap), so
+     *                    the hero is a constant 48px across the whole desktop range
+     *   at a 42px root   22cqi binds on a narrow bib — 33px on the 150px-wide bib at
+     *                    320px — and the number shrinks with its box instead of
+     *                    overflowing it
+     *   columns          the wall reaches THREE, never four: `main` is `max-w-4xl`, so
+     *                    the grid stops widening long before a fourth 13rem track fits
+     *
+     * So the container query is not what varies the hero across viewports; the cap does
+     * that, and it does it by holding still. The cqi term earns its place under TEXT
+     * ZOOM, where a rem-only size would keep growing while the bib does not. Both are
+     * needed and each covers what the other cannot: the cap keeps 1022.00 — seven
+     * characters, the widest the calendar holds — from filling a 13rem column at the
+     * default size, and the cqi term keeps it inside a bib the reader's own text size
+     * has squeezed to 150px.
      */
     .bib-value {
         grid-area: value;

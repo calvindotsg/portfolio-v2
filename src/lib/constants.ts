@@ -306,19 +306,35 @@ export const GOALS: Goal[] = RAW_GOALS.map((goal) => ({
  *     const SPORT_ICON = {cycling: "ri:riding-line", running: "ri:run-line"}
  *
  * — and it has a failure mode that is invisible in every direction that matters.
- * `uno.config.ts` safelists icon classes by reading GOALS, LINKS, CAREER, WELCOME,
- * FOOTER and NOW; it does not read EVENTS and has no reason to. So a second table
- * ships icon classes UnoCSS never generated a rule for: correct markup, correct
+ * `uno.config.ts` safelists icon classes by reading LINKS, GOALS, CAREER, WELCOME,
+ * FOOTER, NOW and PATCHES; it does not read EVENTS and has no reason to. So a second
+ * table ships icon classes UnoCSS never generated a rule for: correct markup, correct
  * class token, and a mask box painted at zero size. Deriving from the goal means
  * the safelist already covers the wall — there is exactly one place a sport's icon
- * is named, and it is a place the config reads.
+ * is named, and it is a place the config reads. (Read that list off `uno.config.ts`
+ * rather than trusting it here; an earlier revision of this sentence was stale in the
+ * same commit that added `PATCHES` to the safelist.)
  *
- * TOTAL BY CONSTRUCTION, which is what the non-null assertion rests on: {@link Sport}
- * is `typeof RAW_GOALS[number]["sport"]`, so the only values the type admits are the
- * sports of goals that exist. The `find` cannot miss for any value the compiler will
- * pass it, and `pnpm check` is the first half of Netlify's build command.
+ * TOTAL BY CONSTRUCTION: {@link Sport} is `typeof RAW_GOALS[number]["sport"]`, so the
+ * only values the type admits are the sports of goals that exist, and {@link GOALS}
+ * is an unfiltered 1:1 map of `RAW_GOALS`. The `find` therefore cannot miss for any
+ * value the compiler will pass it.
+ *
+ * BUT THE TYPE IS THE ONLY THING SAYING SO, which is why this throws rather than
+ * asserting non-null. A review of the patch wall put it as the premise resting on
+ * something no gate enforces, and the useful half of that is true: nothing stops a
+ * future edit adding a `.filter(…)` to the map above, at which point `Sport` admits a
+ * value `GOALS` lacks. With `!` the caller then reads a property of `undefined` two
+ * frames away; with the throw it fails at the line that knows what went wrong, and
+ * `tests/constants.test.ts` covers every sport so the totality is checked rather than
+ * merely stated. The condition stays unreachable through the type — this is the
+ * failure mode of an edit, not of an input.
  */
-export const goalForSport = (sport: Sport): Goal => GOALS.find((g) => g.sport === sport)!
+export const goalForSport = (sport: Sport): Goal => {
+    const goal = GOALS.find((g) => g.sport === sport)
+    if (goal === undefined) throw new Error(`goalForSport: no goal declares the sport "${sport}"`)
+    return goal
+}
 
 export const WELCOME: {
     greeting_icon: string
