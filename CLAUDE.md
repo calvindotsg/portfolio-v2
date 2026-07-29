@@ -46,8 +46,9 @@ block above it before giving either consumer the other's list.
   plate, accent border, hover and press — no box, and nothing wears it directly),
   `control` (that surface at 64x48, icon-only: six social links and the theme
   toggle), `control-cta` (that surface at the width of what contains it, holding a
-  label and a trailing mark — the two goal cards' way out) and `text-link` (a link
-  that is a run of words — the wall's way back, each role card's company name).
+  label and its mark centred as one legend — the two goal cards' way out) and
+  `text-link` (a link that is a run of words — the wall's way back, each role
+  card's company name).
   **A control PINS its box or FLOORS it, and which one is decided by whether its
   content comes from data**; `tests/control-geometry.test.ts` discovers every
   control from the surface's signature in the shipped sheet and holds that line,
@@ -58,6 +59,15 @@ block above it before giving either consumer the other's list.
   the exception the gate names explicitly: the whole bib is the anchor and its
   signifier is the action row inside it, drawn in the bib's own idiom rather than
   as a text link
+- **A hover style must need a pointer to produce it.** A touch browser applies
+  `:hover` on tap and holds it until the reader taps elsewhere, so every `hover:`
+  utility is emitted inside `@media (hover: hover)` by the `hover-needs-a-pointer`
+  preset in `uno.config.ts` — which **must stay above `presetWind3`**, since
+  variants resolve in preset order and below it the guard silently emits nothing.
+  A hand-written `:hover` carries the guard in its own prelude and must be split
+  from any `:focus-visible` it shares a selector list with, because that one is a
+  keyboard indicator every device needs. `tests/build-output.test.ts` enforces this
+  as a universal with no carve-outs
 - **Text-relative sizing**: every breakpoint, `main`'s height clamp, the card
   heading's space and the control box are font-relative, so the page grows with
   the reader's text instead of clipping it. `tests/page-fit.test.ts` and
