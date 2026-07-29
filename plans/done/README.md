@@ -612,3 +612,82 @@ rethinking; if branch protection or a `netlify.toml` ignore rule is added, the
 bot pipeline silently breaks. Scheduled workflows on public repos also
 auto-disable after 60 days without repo activity — the bot's own commits reset
 that timer.
+
+## Run 4 (2026-07-29, audited at `45e286f`, completed the same day)
+
+Nine read-only opus auditors + one opus skeptic per finding; seven categories
+returned zero and two findings survived (the audit record and the three
+resolved maintainer leads are in `plans/README.md` § Run 4). Both plans
+executed by opus worktree executors, reviewed against the full ladder, and
+squash-merged the same morning.
+
+### 016 — stop shipping rationale comments in built HTML (PR #90, squash `c3734b1`)
+
+Ten `<!-- -->` template comments in four `.astro` files (BasicLayout, Career,
+index, `[...sport]`) survived the build: 5,970 raw B on `/`, 4,311 B on each
+`/patches` page — 45–51% of the compressed markup. Converted to Astro's
+`{/* */}` form, prose byte-identical (word-diff verified: markers only), plus
+a build-wide gate in `tests/build-output.test.ts` failing any built page that
+contains `<!--`. Suite 277 → 278.
+
+Verification log:
+- Mutation-tested twice, independently. The reviewer's first probe
+  (`<!-- probe -->` glued directly to a tag) never reached `dist/` — **the
+  Astro compiler itself strips an HTML comment abutting a tag with no
+  whitespace, while an own-line comment ships**. Calibrated both ways: an
+  own-line probe reached `dist/` and reddened exactly the new gate; the glued
+  probe shipped nothing, so the gate rightly stayed green. All ten real
+  comments were own-line, i.e. the shipping class.
+- Preview-vs-production diff (deploy-preview-90, both origins fingerprinted
+  serving the same hashed CSS): visible text IDENTICAL on all four pages;
+  markup delta exactly the comment removals. One apparent og:url/canonical
+  delta was a reviewer instrument error — passing page URLs as
+  `prod-diff.py --prod` mangles its origin normalisation; raw tags were
+  identical on both origins.
+- Production after deploy: `/patches/` 3,717 → **2,005 B** brotli (−46%),
+  `/patches/running/` 3,359 → **1,656 B** (−51%), `/` 6,167 → ~4,3xx B; zero
+  `<!--` on every page.
+
+### 017 — lockfile refresh clearing one brace-expansion HIGH (PR #92, squash `6647c31`)
+
+`pnpm update --no-save`, lockfile-only (+227/−263; `package.json` untouched).
+`minimatch` 10.2.5 → 10.2.6 pulls `brace-expansion@5.0.8`, clearing the
+typescript-estree/eslint HIGH paths of GHSA-mh99-v99m-4gvg; side-effect
+in-range bumps astro 7.1.5, @astrojs/check 0.9.10, eslint 10.8.0. Audit
+`1 moderate | 2 high` → **`1 moderate | 1 high`**.
+
+Verification log:
+- Ladder green in the worktree (executor and reviewer independently):
+  `pnpm check` 0 errors, `pnpm eslint` clean — the functional exercise of the
+  refreshed minimatch graph — `pnpm test` 278/278.
+- `dist/` byte-identical before/after (same page byte counts, same hashed CSS
+  filenames); Netlify's `Pages changed: skipping` confirmed zero page delta
+  at the artifact level. (A raw md5 of preview vs production HTML differs by
+  the preview-only Netlify beacon div — not a real delta.)
+- The residual HIGH (`eslint-plugin-jsx-a11y → minimatch@3.1.5 →
+  brace-expansion@1.1.16`) is deliberate and evidence-backed: the advisory's
+  only patched release is 5.0.8 (no patched 1.x), jsx-a11y@6.10.2 is its
+  latest release, and the override was built and measured to break —
+  `brace-expansion@5`'s CJS entry is a namespace object, so `minimatch@3`'s
+  `expand(...)` call throws `TypeError: expand is not a function`. Dev-only;
+  the deploy gate never runs eslint. Clears when jsx-a11y ships off
+  minimatch@3; a future `pnpm update --no-save` picks that up.
+
+## Run-4 outcome vs baseline
+
+| | before (`45e286f`) | after (`6647c31`) |
+|---|---|---|
+| tests | 277 / 10 files | **278** / 10 files |
+| `/patches/` markup over the wire (brotli) | 3,717 B | **2,005 B** |
+| `/patches/cycling/` | 3,642 B | ~1,9xx B |
+| `/patches/running/` | 3,359 B | **1,656 B** |
+| stylesheets | 6,798 + 1,392 B br | unchanged |
+| `pnpm audit` | 1 moderate + 2 high (undocumented) | **1 moderate + 1 high, both documented residuals** |
+| direct dependencies | 18 | 18 |
+| client JS / adapter / functions | none | unchanged: none |
+
+Lead 3's headline evidence (no loading-time problem existed: ~11.9 KB brotli
+cold visit, Lighthouse 0.95–1.00 across 3 runs × 3 URLs, TBT 0, both suspected
+mechanisms refuted) is recorded in `plans/README.md` § Run 4. Nothing was
+deferred; the seven zero-finding categories each recorded their near-misses in
+the same section so run 5 does not re-derive them.
