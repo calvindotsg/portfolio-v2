@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {LINKS, NOW} from "../src/lib/constants";
+import {GOALS, LINKS, NOW} from "../src/lib/constants";
 import {appliesAt, decl, effectiveDecl, isKeyframeStep, pageCss, parseRules, px, ROOT_PX, type Rule, structuralSelector} from "./helpers/css";
 
 /**
@@ -46,8 +46,41 @@ import {appliesAt, decl, effectiveDecl, isKeyframeStep, pageCss, parseRules, px,
  * It names NO control class of its own: the set is discovered from the surface's
  * own signature — the offset plate plus the accent border — so a rename stays
  * covered and a second divergent variant is caught rather than skipped.
+ *
+ * THERE ARE TWO KINDS OF CONTROL NOW, AND THE TITLE ABOVE IS DELIBERATELY NOT
+ * "one box" ANY MORE. The goal cards' way out became a styled control — a label
+ * and a trailing mark on the same surface — so a second box joined the sheet on
+ * purpose, which is the exact shape of the thing this file was written to forbid.
+ * Read the difference carefully, because "a second variant appeared" is the alarm
+ * and also the intended change:
+ *
+ *   ICON CONTROLS   width and height both DECLARED LENGTHS, and identical across
+ *                   every one of them. Six social links and the theme toggle.
+ *   LABEL CONTROLS  height a declared length, identical to the icon controls';
+ *                   width exactly `100%`, because the label comes from data and
+ *                   grows with the reader's text, so any length would be a guess
+ *                   that clips. The two goal cards.
+ *
+ * The partition is taken from the DECLARED WIDTH rather than from a class name, so
+ * it inherits the discovery above and a rename cannot slip a third kind past it:
+ * `100%` is a label control, a length is an icon control, and ANY OTHER ANSWER —
+ * no width at all, a `max-width` cap, `max-content`, `auto` — fails, which is the
+ * original defect stated as a rule instead of as a count. `w-max` plus padding is
+ * precisely how the eight anchors got four different widths.
+ *
+ * WHAT IS ASSERTED OF BOTH KINDS is the whole of what "one control" now means: the
+ * same surface (that is the discovery signature), the same HEIGHT, the same border,
+ * no cap on either axis, and no other rule anywhere in the sheet touching the box.
+ * The toggle's 6px shortfall — the defect the single-box assertion existed for — is
+ * caught by the shared-height assertion, not by the shared-width one.
+ *
+ * WHAT IS ASSERTED OF ICON CONTROLS ONLY is everything that presumes a fixed width:
+ * one identical box across them, centring on both axes, the content-box room for a
+ * 1em glyph, `flex-shrink: 0`, and the whole control-row group at the foot of this
+ * file. A label control is a stretched item of a card's column, not an item of that
+ * wrapping row, and it has no fixed width for a glyph to be measured against.
  */
-describe("every styled control is one declared box", () => {
+describe("every styled control declares its box", () => {
     const read = (p: string) => readFileSync(p, "utf8");
     const css = pageCss();
     const html = read("dist/index.html");
@@ -108,6 +141,7 @@ describe("every styled control is one declared box", () => {
             cls,
             width: decl(r.body, "width"),
             height: decl(r.body, "height"),
+            minHeight: decl(r.body, "min-height"),
             maxWidth: decl(r.body, "max-width"),
             maxHeight: decl(r.body, "max-height"),
             padding: horizontalPadding(r.body),
@@ -118,11 +152,50 @@ describe("every styled control is one declared box", () => {
             align: decl(r.body, "align-items"),
             placeItems: decl(r.body, "place-items"),
             flexShrink: decl(r.body, "flex-shrink"),
+            wraps: /\bwrap\b/.test(decl(r.body, "flex-wrap") ?? decl(r.body, "flex-flow") ?? ""),
         };
     };
 
     const controlElements = () =>
         [...document.querySelectorAll(controlClasses.map((c) => `.${c}`).join(","))];
+
+    /**
+     * The two kinds, split on the declared width and on nothing else. See the header.
+     * `FULL_BLEED` is written as an exact match rather than "not a length" so that a
+     * width this file has no opinion about — `auto`, `max-content`, a percentage that
+     * is not 100 — lands in `iconBoxes` and is failed by the declared-length assertion
+     * below, instead of being quietly waved through as a label control.
+     */
+    const FULL_BLEED = "100%";
+    const allBoxes = () => controlClasses.map(boxOf);
+    const iconBoxes = () => allBoxes().filter((b) => b.width !== FULL_BLEED);
+    const labelBoxes = () => allBoxes().filter((b) => b.width === FULL_BLEED);
+
+    /**
+     * A CONTROL'S HEIGHT IS A PIN OR A FLOOR, AND WHICH ONE IS DECIDED BY ITS KIND.
+     *
+     * An icon control holds a glyph the design picked the size of, so its height is a pin and
+     * a `min-height` beside it would be a second declared box — exactly the "declared twice"
+     * defect the cap loop at the foot of this file exists for.
+     *
+     * A label control holds words that come from data and grow with the reader's text, so its
+     * height must be a FLOOR. Measured on the built page at 1024x797 with a pinned height: ink
+     * lost past the card's right edge went 0 / 0 / 0 / 0 / 0 / 12.7 / 42.2px across root sizes
+     * 16 to 40, against 0 everywhere for the run of words this control replaced. A pinned box
+     * cannot take the extra lines a broken label needs, so it spills them into a clipping card.
+     * See EventsLink.astro, which carries the table and the `overflow-wrap` half of the fix.
+     *
+     * A FLOOR IS NOT A CAP, and that distinction is the whole reason this is allowed at all.
+     * The defect the header recounts is `max-h-[40px]` making the toggle 6px short and
+     * `max-w-[60px]` squashing its glyph to 18px: a cap makes a control SMALLER than its
+     * content and deforms it. A floor guarantees the size and lets the content exceed it, so
+     * it can only ever produce a target that is too big — which is not a failure mode this
+     * file has, and not one WCAG has either.
+     */
+    const declaredHeight = (b: ReturnType<typeof boxOf>) => b.height ?? b.minHeight;
+
+    const elementsOf = (boxes: ReturnType<typeof boxOf>[]) =>
+        [...document.querySelectorAll(boxes.map((b) => `.${b.cls}`).join(",") || "\\:none")];
 
     const iconSpansOf = (control: Element) =>
         [...control.querySelectorAll("span")]
@@ -134,14 +207,40 @@ describe("every styled control is one declared box", () => {
         for (const cls of controlClasses) {
             expect(worn.has(cls), `.${cls} is styled as a control but no element wears it`).toBe(true);
         }
-        expect(controlElements().length, "one control per social link, plus the theme toggle")
+        expect(elementsOf(iconBoxes()).length, "one icon control per social link, plus the theme toggle")
             .toBe(LINKS.length + 1);
+        expect(elementsOf(labelBoxes()).length, "one label control per goal card — the way out to that sport's events")
+            .toBe(GOALS.length);
+        // Belt and braces: the two kinds must ACCOUNT FOR every control, or a third
+        // kind could exist and be measured by neither of the groups below.
+        expect(iconBoxes().length + labelBoxes().length, "every discovered control class must fall into exactly one kind")
+            .toBe(controlClasses.length);
+        expect(elementsOf(iconBoxes()).length + elementsOf(labelBoxes()).length, "every control element must belong to a kind")
+            .toBe(controlElements().length);
     });
 
     it("declares a real width and height, rather than capping a content-sized box", () => {
-        for (const box of controlClasses.map(boxOf)) {
+        for (const box of iconBoxes()) {
             expect(px(box.width), `.${box.cls} width must be a declared length, got ${box.width ?? "nothing"}`).not.toBeNull();
-            expect(px(box.height), `.${box.cls} height must be a declared length, got ${box.height ?? "nothing"}`).not.toBeNull();
+        }
+        // A label control's width is its container's, and that is a declaration too — what
+        // it must never be is absent or capped, which is what leaves a box content-sized.
+        for (const box of labelBoxes()) {
+            expect(box.width, `.${box.cls} is a label control, so its width must be exactly ${FULL_BLEED}`).toBe(FULL_BLEED);
+        }
+        // An icon control pins its height; a label control floors it. Each must do exactly
+        // one of the two, so neither can quietly acquire the other and be sized by whichever
+        // wins — which is the "declared twice" defect one property along.
+        for (const box of iconBoxes()) {
+            expect(box.minHeight, `.${box.cls} is an icon control, so its height is a pin and must not also be floored`).toBeUndefined();
+        }
+        for (const box of labelBoxes()) {
+            expect(box.height, `.${box.cls} is a label control, so its height must be a FLOOR — a pinned height clips a label the reader has enlarged`).toBeUndefined();
+            expect(box.minHeight, `.${box.cls} must declare a min-height floor`).toBeDefined();
+        }
+        for (const box of allBoxes()) {
+            const h = declaredHeight(box);
+            expect(px(h), `.${box.cls} height must be a declared length, got ${h ?? "nothing"}`).not.toBeNull();
             // A max-* cap instead of a real size is the original defect in both of
             // its forms: it leaves the box content-sized, and it deforms the
             // content when the cap bites (the toggle's 20px icon became 18px).
@@ -168,8 +267,16 @@ describe("every styled control is one declared box", () => {
         // At the default root size this is the same 64x48 that shipped: `w-16 h-12`
         // resolves to exactly 4rem x 3rem. The target-size assertions above are
         // unaffected and still measure 64 and 48.
-        for (const box of controlClasses.map(boxOf)) {
-            for (const [axis, value] of [["width", box.width], ["height", box.height]] as const) {
+        // A label control's `100%` is exempt on this axis and only on this axis, because it
+        // is not a size at all — it is a deferral to the card, whose own width comes from a
+        // grid whose breakpoints are themselves font-relative (uno.config.ts). Its HEIGHT is
+        // held to the same rule as every other control, which is the axis a clipping card
+        // shears along and therefore the one this assertion exists for.
+        for (const box of allBoxes()) {
+            const axes = box.width === FULL_BLEED
+                ? [["height", declaredHeight(box)]] as const
+                : [["width", box.width], ["height", declaredHeight(box)]] as const;
+            for (const [axis, value] of axes) {
                 expect(
                     value,
                     `.${box.cls} ${axis} must be font-relative so the control keeps its size against the text beside it; found "${value}"`,
@@ -211,12 +318,41 @@ describe("every styled control is one declared box", () => {
         }
     });
 
-    it("gives every control the same box", () => {
-        const boxes = controlClasses.map(boxOf);
+    it("gives every icon control the same box", () => {
+        const boxes = iconBoxes();
         const tuples = new Set(boxes.map((b) => `${b.width}/${b.height}/${b.padding}/${b.borderWidth ?? "0"}/${b.fontSize}`));
         expect(
             [...tuples],
-            `${boxes.length} control classes resolve ${tuples.size} different boxes — a second variant is how the toggle ended up 6px shorter than the anchors`,
+            `${boxes.length} icon-control classes resolve ${tuples.size} different boxes — a second variant is how the toggle ended up 6px shorter than the anchors`,
+        ).toHaveLength(1);
+    });
+
+    /**
+     * THE ASSERTION THAT CARRIES THE OLD ONE'S DEFECT, now that width is allowed to differ.
+     *
+     * The single-box assertion above was written for the toggle rendering 60 x 40 beside
+     * anchors at 62 x 46, and the part of that which actually hurt was the HEIGHT: 40px was
+     * the one control to fail SC 2.5.5, and a row of controls that do not share a height
+     * reads as broken whatever their widths do. Width is now a legitimate axis of variation
+     * and height is not, so the invariant moves here rather than being weakened away.
+     *
+     * The border goes with it because it is half the surface: a control with the plate and a
+     * different border weight is a second visual object wearing the first one's mark, which
+     * is the same class of defect one level up from the box.
+     */
+    it("gives every control the same height and the same border, whatever its width", () => {
+        const boxes = allBoxes();
+        const heights = new Set(boxes.map((b) => declaredHeight(b)));
+        expect(
+            [...heights],
+            `controls resolve ${heights.size} different heights (${boxes.map((b) => `.${b.cls} ${declaredHeight(b)}`).join(", ")}) — `
+            + "one shared height is what the 40px-tall toggle failed, and it is the axis a card shears along",
+        ).toHaveLength(1);
+
+        const borders = new Set(boxes.map((b) => b.borderWidth ?? "0"));
+        expect(
+            [...borders],
+            `controls resolve ${borders.size} different border widths — the border is half the surface that identifies a control`,
         ).toHaveLength(1);
     });
 
@@ -233,9 +369,64 @@ describe("every styled control is one declared box", () => {
         // replaced by the axe-backed `target-size` audit, which measures bounding
         // rects against 24px. So no shipping tool checks 48 — the AAA number 44 is
         // the only threshold above the AA minimum that any of this is measured on.
-        for (const box of controlClasses.map(boxOf)) {
+        // Height is the axis every control declares, so it is checked for every control.
+        for (const box of allBoxes()) {
+            expect(px(declaredHeight(box))!, `.${box.cls} is ${declaredHeight(box)} tall`).toBeGreaterThanOrEqual(44);
+        }
+        // Width only where a length is declared. A label control's width is its card's, and
+        // this file has no layout engine to resolve that — measured in the browser instead,
+        // at 182.00px inside the goal card at 1024x797, which is the narrowest card on the
+        // site. Do not convert that measurement into an assertion here: it would be reading
+        // a rendered number out of a file that cannot render, which is how a gate starts
+        // lying. The card's own width is gated by card-fill.test.ts and page-fit.test.ts.
+        for (const box of iconBoxes()) {
             expect(px(box.width)!, `.${box.cls} is ${box.width} wide`).toBeGreaterThanOrEqual(44);
-            expect(px(box.height)!, `.${box.cls} is ${box.height} tall`).toBeGreaterThanOrEqual(44);
+        }
+    });
+
+    /**
+     * A LABEL CONTROL PUTS ITS MARK ON THE FAR EDGE, and that is a load-bearing arrangement
+     * rather than a taste: the label names the destination and the mark says the press
+     * leaves the card, so they are two statements and not one phrase. Centred together they
+     * read as a single run of words with a decoration after it — which is what the element
+     * looked like before it became a control, and what it was changed to stop looking like.
+     */
+    it("packs a label control's mark against the far edge, and centres it vertically", () => {
+        for (const box of labelBoxes()) {
+            expect(box.display, `.${box.cls} must lay its children out`).toMatch(/^(inline-)?(flex|grid)$/);
+            expect(box.justify, `.${box.cls} must push its mark to the far edge`).toBe("space-between");
+            expect(
+                box.placeItems === "center" || box.align === "center",
+                `.${box.cls} must centre its children on the cross axis (got align=${box.align})`,
+            ).toBe(true);
+
+            // AND `space-between` IS NOT ENOUGH ONCE THE CONTROL CAN WRAP — the half this
+            // assertion was missing while its name promised it. `justify-content` distributes
+            // free space BETWEEN the items on a line, so it does the job while the label and
+            // the mark share one and does nothing at all once the mark is alone on a second
+            // line, where it packs to main-start. Measured on the built page, the mark's offset
+            // from the control's left / right edge before the auto margin was added:
+            //
+            //     root 16   157 / 13    shares a line with the label — correct
+            //     root 20    16 / 133   alone on line two, at the LEFT edge
+            //     root 32    25 /  61   same, worse
+            //
+            // An auto margin absorbs the free space on WHATEVER line the item lands on, so it
+            // is the declaration that carries the intent. True no-op at the default size: root
+            // 16 measures 157/13 with it and without it.
+            if (box.wraps) {
+                const autoMargin = rules.some(
+                    (r) => !r.nested
+                        && r.selectors.some((s) => /\[aria-hidden\]|last-child/.test(s))
+                        && (decl(r.body, "margin-inline-start") ?? decl(r.body, "margin-left") ?? "").trim() === "auto",
+                );
+                expect(
+                    autoMargin,
+                    `.${box.cls} wraps its children, so "${box.justify}" cannot keep the mark on the trailing `
+                    + "edge — a wrapped line has nothing to distribute between. The mark needs an auto "
+                    + "inline-start margin, or it lands at the LEFT padding edge from a 20px root upward",
+                ).toBe(true);
+            }
         }
     });
 
@@ -247,7 +438,10 @@ describe("every styled control is one declared box", () => {
         // <= 1em (the artwork's aspect ratio), so 1em is the reference.
         const ICON_REFERENCE_EM = 1;
 
-        for (const box of controlClasses.map(boxOf)) {
+        // Icon controls only: every line below divides the DECLARED width, and a label
+        // control has none to divide. Its glyph is guarded instead by the icon-span
+        // allowlist further down, which is the assertion that does not need a box.
+        for (const box of iconBoxes()) {
             expect(box.display, `.${box.cls} must lay its icon out, not rely on text alignment`).toMatch(/^(inline-)?(flex|grid)$/);
             const centred = box.placeItems === "center" || (box.justify === "center" && box.align === "center");
             expect(centred, `.${box.cls} must centre on both axes (got justify=${box.justify}, align=${box.align})`).toBe(true);
@@ -279,7 +473,13 @@ describe("every styled control is one declared box", () => {
     });
 
     it("pins the box against a flex parent", () => {
-        for (const box of controlClasses.map(boxOf)) {
+        // Icon controls only, and the asymmetry is the point. These sit in a wrapping row
+        // where a flex parent really did shrink two of them to 47.80px, so a declared width
+        // that can be overridden is not a declared width. A label control has no width to
+        // defend — it is asking for its container's — so `flex-shrink: 0` on one would be a
+        // declaration with nothing to say, and on a narrow card it would be the thing that
+        // pushes the control past the clip edge.
+        for (const box of iconBoxes()) {
             expect(box.flexShrink, `.${box.cls} must not be shrinkable below its declared width`).toBe("0");
         }
     });
@@ -434,10 +634,17 @@ describe("every styled control is one declared box", () => {
      *
      * That all of them share ONE parent is the first thing worth asserting rather than
      * assuming: a control moved out of the row sits outside everything below it.
+     *
+     * ICON CONTROLS ONLY, and this is where the two kinds part company hardest. "The control
+     * row" is the intro card's wrapping row; the label controls live one per goal card, in a
+     * different card, in the other column. Discovering the row from EVERY control would find
+     * three parents and fail — correctly, under the old one-kind reading, and uselessly under
+     * this one. Narrowing it here keeps the row's own assertions (wrapping, packing, the
+     * minimum-width bound) pointed at the box they were measured against.
      */
     const controlRow = () => {
-        const controls = controlElements();
-        expect(controls.length, "no control elements — every assertion about their row would be vacuous").toBeGreaterThan(1);
+        const controls = elementsOf(iconBoxes());
+        expect(controls.length, "no icon-control elements — every assertion about their row would be vacuous").toBeGreaterThan(1);
         const parents = [...new Set(controls.map((c) => c.parentElement))];
         expect(
             parents.map((p) => `<${p?.tagName.toLowerCase()} class="${p?.getAttribute("class")}">`),
@@ -893,10 +1100,13 @@ describe("every styled control is one declared box", () => {
         const rowRules = reaching.get(rowEl)!;
 
         // --- precondition 2: every item's minimum contribution is one control ----------
-        const boxes = controlClasses.map(boxOf);
+        // ICON CONTROLS ONLY, for the reason `controlRow()` gives: the row holds those and
+        // nothing else. Reading every control here would find `100%` beside `4rem` and fail
+        // on a width belonging to a control in another card entirely.
+        const boxes = iconBoxes();
         expect(
             [...new Set(boxes.map((b) => b.width))],
-            "the controls declare more than one width, so \"the largest item\" is not a single number and "
+            "the row's controls declare more than one width, so \"the largest item\" is not a single number and "
             + "the row's minimum width is whichever of them is biggest",
         ).toHaveLength(1);
         const declaredWidth = boxes[0].width;
@@ -980,8 +1190,20 @@ describe("every styled control is one declared box", () => {
         // A FLOOR is a second declared box and beats the declared width for the used value,
         // exactly as a cap does. The canonical rule is checked here because the sheet-wide
         // guard above deliberately exempts it.
+        // EVERY control, with a label control exempt from `min-height` ALONE, on the reasoning
+        // recorded at `declaredHeight`. Its width and both caps are policed like anyone else's.
+        //
+        // This loop read `iconBoxes()` for one revision and the comment beside it claimed the
+        // narrower scope was `min-height` only — the code exempted the label kind from all four
+        // properties. A reviewer proved the hole rather than arguing it: `min-w-[20rem]` on the
+        // `control-cta` shortcut resolves the control to 320px inside a 182px goal card, past
+        // the card's clip edge at every lg width, and the whole suite stayed green at 281/281.
+        // The identical mutation on `.control` was still caught, which is what made it this
+        // diff's regression rather than an inherited gap.
+        const labelClasses = new Set(labelBoxes().map((b) => b.cls));
         for (const cls of controlClasses) {
             for (const prop of ["min-width", "min-height", "max-width", "max-height"] as const) {
+                if (prop === "min-height" && labelClasses.has(cls)) continue;
                 expect(
                     decl(canonicalRule(cls).body, prop),
                     `.${cls} declares ${prop}; the control's box must be declared once, not floored or capped, `

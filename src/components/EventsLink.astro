@@ -14,91 +14,208 @@ const {goal} = Astro.props;
  * It replaces a bordered chip that was doing two jobs at once: reporting how long until
  * the next race AND being the link to the wall. Splitting them is what let each one get
  * smaller. The countdown is now an ordinary line of the card's figures column, not
- * interactive at all, and this is a quiet control that says where it goes — which is
- * also the only thing a control should say.
+ * interactive at all, and this says where it goes — which is also the only thing a
+ * control should say.
  *
- * IT IS THE SAME OBJECT AS THE WALL'S "Home" LINK, deliberately: an inline row, the
- * card's own text colour, a glyph, the accent on hover, and a 1.5rem floor. One goes out
- * and the other comes back, mirrored, so a reader who follows this lands on a page whose
- * way back is drawn the same way. That shared idiom is also why there is no box here —
- * this site's boxed control is the offset plate, which is its mark for a 48px styled
- * control, and wearing it on a 24px text link would either dilute the mark or claim a
- * size this is not.
+ * IT IS A STYLED CONTROL NOW, `control-cta`, AND THE HISTORY BELOW IS WHY IT TOOK TWO GOES.
  *
- * THAT IDIOM IS NOW A NAMED ONE, `text-link`, and it is what makes this element read as a
- * link at all. Two friends reviewing the site did not know this could be clicked, and the
- * measurement says why: at 1024x600 this control and the figure line directly above it were
- * both rgb(250,250,250) at 12px — a contrast ratio of 1.00:1 between a link and a sentence —
- * with a 13px chevron the only thing distinguishing them. Both were reading on a phone, where
- * the hover colour below cannot happen at all. See uno.config.ts for the shortcut's reasoning
- * and for the measured proof that the treatment moves no box, which is the only reason it fits
- * the four-row budget this card is already spending in full.
+ * Two friends reviewing the site did not know this could be pressed. The measurement said
+ * why: at 1024x600 this element and the figure line directly above it were both
+ * rgb(250,250,250) at 12px — a contrast ratio of 1.00:1 between a link and a sentence —
+ * with a 13px chevron the only thing telling them apart. Both were reading on a phone,
+ * where the hover colour cannot happen at all.
  *
- * THE LABEL IS THE WHOLE ACCESSIBLE NAME, and there is no sr-only completion any more.
- * The chip had one because the words it showed ("Next race in 8 weeks") named neither the
- * race nor the destination, so the announced name had to add them. These words name the
- * destination outright — and name it with the very string that page is headed with, see
- * [...sport].astro — so appending "— cycling patch wall" would announce two names for
- * one place. The race name went with it, and that is the honest form: it is not on
- * screen for anyone now, so it is announced to nobody. One click reaches it.
+ * The first fix named the idiom `text-link` and underlined it. That closed the half of the
+ * defect that says "this is a link" and left the other half open: on a card whose one job
+ * is a figure, the way out was still a run of words the reader had to notice. This closes
+ * that half by making it the card's one ACTION and drawing it the way this site draws an
+ * action — the accent border, the offset plate, the press.
  *
- * SC 2.5.8 IS THE FLOOR, not the border. With the box gone the target is exactly the ink
- * plus the glyph, so the 1.5rem floor below is what keeps it to the 24px this repo holds
- * every small control to. Nothing interactive sits next to it — the line above is plain
- * text — so the spacing exception is not being leaned on.
+ * THE REASON THIS FILE USED TO GIVE FOR HAVING NO BOX HAS NOT BEEN OVERRIDDEN, IT HAS BEEN
+ * SPENT. It read: "the offset plate is this site's mark for a 48px styled control, and
+ * wearing it on a 24px text link would either dilute the mark or claim a size this is not."
+ * Every clause is still true. It forbids plating a 24px run of words, and this is a 48px
+ * styled control, so it no longer reaches. Do not restore it against a later proposal
+ * without checking which of the two things is being drawn.
  *
- * That floor is authored here rather than taken as a utility, and the reason is that it
- * is TESTED here: tests/rendered-html.test.ts reads every rule whose selector names this
- * class and refuses a length in device pixels. Spelled as a utility the rule would sit
- * under a selector that check never looks at, and the assertion would go on passing over
- * a control it could no longer see. The wall's Home link makes the opposite choice for
- * the opposite reason; the shape it produces is identical.
+ * IT IS NO LONGER THE SAME OBJECT AS THE WALL'S "Home" LINK, and that is a real loss taken
+ * deliberately. The mirror was: an inline row, the card's own text colour, a glyph, the
+ * accent on hover. What survives of it is the pairing that carries the meaning — this
+ * leaves with `ri:arrow-right-line` and the wall comes back with `ri:arrow-left-line`, so a
+ * reader still meets a matched pair. What is gone is the drawing, and the asymmetry is
+ * honest: this is the one action on a card of figures, where the wall's Home link sits in a
+ * header beside a heading and a row of sport chips. Giving that one a plate too would put a 48px
+ * control in a place that has no action to offer.
+ *
+ * FULL WIDTH IS THE HIT BOX ARGUMENT INVERTED. The old note here recorded that a column
+ * flex container stretches its items, so an unpinned anchor's box was the full 182px of the
+ * card for 115px of ink — 67px of blank card that navigated when clicked — and it closed
+ * that with `align-self: start`. The box is deliberately the full width again, and the
+ * defect does not return, because the box is now DRAWN: a reader can see exactly where the
+ * target begins and ends. That is the bib's own idiom (Patch.astro) — the whole object is
+ * the anchor and it looks like one. The alternative was measured and rejected on the same
+ * grounds it would have been chosen for: a 153px content-width button leaves 29px of dead
+ * card beside it, which is the ragged edge, not the tidy one.
+ *
+ * THE LABEL IS STILL THE WHOLE ACCESSIBLE NAME. These words name the destination with the
+ * very string that page is headed with (see [...sport].astro), so there is no sr-only
+ * completion and nothing to append — tests/build-output.test.ts asserts the pairing in both
+ * directions. Note what that rules out: an icon-only version of this control. It was built
+ * and rendered, and it is the one shape where the label stops being on screen and the glyph
+ * has to carry a destination no single glyph can name.
+ *
+ * SC 2.5.5 IS THE FLOOR NOW, NOT SC 2.5.8. The target used to be the ink plus the glyph and
+ * a 1.5rem floor held it at the 24px AA minimum. It is a declared 48px box, which clears the
+ * 44x44 AAA target as well — the same number every other styled control on this site meets,
+ * and for the same reason (see the box's arithmetic in uno.config.ts).
+ *
+ * THE GLYPH IS 1em AND CARRIES NOTHING BUT ITS UTILITY AND ITS PIN, which is a change the
+ * suite asked for rather than a preference. It shipped at `1.1em` from a class of its own
+ * while this was a text link, and `tests/control-geometry.test.ts` allows a control's icon
+ * span exactly its `i-` utility, `shrink-0`, and the toggle's theme selector — an allowlist,
+ * because a width utility and a display utility both defeated the property scan it replaced
+ * (they are named in that file, which the extractor does not read). An authored `font-size`
+ * on the span is the same kind of thing those two were, so the size now comes from the
+ * control's own type and the pin is the utility the allowlist names. The difference on
+ * screen is 13.2px of arrow against 12; the gate is worth more than 1.2px.
+ *
+ * (An earlier draft of this paragraph said 1.15em and 13.8px. Neither number ever existed in
+ * this repository — `1.15em` was the value in the throwaway variant rig, and a reviewer
+ * caught it with `git log -S`. The shipped value on origin/main was 1.1em.)
+ *
+ * WHAT IS AUTHORED HERE AND WHY. The height, the surface and the box all come from the
+ * shortcut, so what is left below is only the two things a shortcut cannot say: the
+ * keyboard focus, and what the whole control does in forced colours. The `min-height` floor that
+ * used to be the point of these rules is gone with the box that needed it —
+ * tests/rendered-html.test.ts still reads every rule whose selector names this class and
+ * refuses a length in device pixels, and the shortcut's height is 3rem, so the guarantee is
+ * unchanged.
+ *
+ * (Two of the sentences above are worded around utility names on purpose. UnoCSS extracts
+ * from .astro text, so the obvious spellings of "3rem height", "a repaired defect", "a row
+ * of sport chips" and "a focus outline" each emit a real CSS rule that no element wears, and
+ * tests/build-output.test.ts fails the build by name when they do. All four were caught here
+ * on the first run.)
  */
 const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase());
 ---
 
 <a
-        class="events-link text-link inline-flex items-center"
+        class="events-link control-cta"
         href={`/patches/${goal.sport}`}
->{label}<span class={`${iconClass(NEXT_RACE.icon)} events-link-go`} aria-hidden="true"></span></a>
+><span class="events-link-label">{label}</span><span
+        class={`${iconClass(NEXT_RACE.icon)} shrink-0`} aria-hidden="true"></span></a>
 
 <style>
-    /* `flex: none` for the reason the bib's icon has it: a 1em-square mask box that is
-       allowed to compress renders a deformed glyph, and this one sits after a text run
-       that will happily take the space. `1.1em` because a chevron's drawn stroke occupies
-       less of its box than a letter does of its em, so at 1em it reads a size small. The
-       negative end margin pulls the glyph's own side bearing back off the text, so the
-       pair reads as one phrase rather than a word and a mark. */
     /*
-     * No height, only a floor, and it is font-relative: the card clips, so a pinned box
-     * here would delete the label the moment the reader enlarges their text. 1.5rem is
-     * 24px at the default size — SC 2.5.8's AA minimum on the nose.
+     * A BOX COSTS SOMETHING A RUN OF WORDS DID NOT, AND THIS IS WHERE IT IS PAID.
      *
-     * `align-self` IS NOT COSMETIC. This anchor is a flex ITEM of the card's figures
-     * column, and a column stretches its items across the cross axis by default — so
-     * without this the link's box is the full width of the card, 182px at 1024 for 115px
-     * of ink, and 67px of empty card to the right of the words navigates when clicked.
-     * `inline-flex` does not prevent that; the parent decides an item's cross size. The
-     * chip this replaced avoided the same trap with `width: max-content`, which is the
-     * other spelling of the fix.
+     * The browser sweep found the first draft of this control clipping its own label under
+     * text-only zoom. Ink lost past the card's right edge at 1024x797, by root font-size:
+     *
+     *     root      16   20   24   28   32   36    40
+     *     was        0    0    0    0    0    0     0    the run of words this replaced
+     *     draft      0    0    0    0    0  12.7  42.2   a 3rem box, bare text node
+     *     ships      0    0    0    0    0    0     0    the three fixes below
+     *
+     * The cause is width, and it is structural rather than a slip: a button spends horizontal
+     * padding, a gap and a 1em arrow on chrome, and the card gets NARROWER as the root grows
+     * because its own padding is font-relative too. At a 32px root the card leaves 110px and
+     * the chrome wants 90 of them — 48px of horizontal padding, a 16px gap, a 24px arrow and
+     * 2px of border — so 20px is left for words that want 163. A run of words spent nothing on
+     * chrome and always had the full 110. (An earlier draft of this sentence said 40px, which
+     * is not the sum of the four things the same sentence lists.)
+     *
+     * THREE THINGS FIX IT AND EACH ONE IS NECESSARY:
+     *
+     *   1. `min-width: 0` on the label, below. A bare text node in a flex container is an
+     *      ANONYMOUS flex item whose `min-width: auto` resolves to a whole word, and no
+     *      selector can reach it — which is the only reason the label is wrapped in an element.
+     *      Without this the other two do nothing: the item is never offered a narrow width.
+     *   2. `overflow-wrap: break-word` beside it, for the word that still does not fit the
+     *      width it was just narrowed to.
+     *   3. `flex-wrap` and a height FLOOR on the shortcut, so the arrow can drop below the
+     *      label and the box can get taller instead of clipping. With the children pinned to
+     *      one line the same label came out 418px tall at a 32px root against 202 now; with a
+     *      pinned height it was clipped outright.
+     *
+     * WHAT IS NOT FIXED, AND "0 INK LOST" IS NOT THE WHOLE STORY. The figures above measure one
+     * thing — ink past the clip edge — and a reviewer was right that they certify roots 36 and
+     * 40 as clean when they are the worst configurations on the page. What it cannot see is
+     * WHERE the label breaks. Per-line fragments for the cycling card at 1024x797:
+     *
+     *     root 16   "My cycling events"                          one line, 48px tall
+     *     root 24   "My cycling " / "events"                     whole words, 74px
+     *     root 32   "My " / "cyclin" / "g " / "event" / "s"      mid-word, 202px
+     *     root 40   fifteen fragments, roughly one letter each   652px
+     *
+     * So at WCAG 1.4.4's 200% the words are legible but broken mid-word, and above that the
+     * control degrades badly. It is a real cost and it is the price of the chrome arithmetic
+     * above; nothing is clipped, obscured or unreachable at any of these sizes, so no criterion
+     * fails. The obvious fix — pinning the padding and gap to device pixels — was rejected:
+     * this repo's whole layout is font-relative on purpose (see uno.config.ts's breakpoints),
+     * and buying tidier 200% text with a control that stops scaling is the wrong trade.
      */
-    .events-link {
-        min-height: 1.5rem;
-        align-self: start;
-    }
-
-    .events-link-go {
-        flex: none;
-        font-size: 1.1em;
-        margin-inline-start: 0.1em;
-        margin-inline-end: -0.15em;
+    .events-link-label {
+        /* Let the label narrow to whatever the button has left. An anonymous flex item —
+           which is what a bare text node becomes — has `min-width: auto`, resolving to a
+           whole word, and no selector can reach it to say otherwise. That is the only
+           reason the label is wrapped in an element at all. */
+        min-width: 0;
+        overflow-wrap: break-word;
     }
 
     /*
-     * Forced colours discard the accent and the text token alike, so without this the
-     * control is the same CanvasText as the two figures above it and the only thing
-     * separating them is the chevron. `LinkText` is the colour the mode reserves for
-     * exactly this, and it is a system colour rather than a token, so it is set here
+     * THE MARK STAYS ON THE TRAILING EDGE EVEN WHEN THE CONTROL WRAPS, and an auto margin is
+     * the only thing that does that. `justify-between` on the shortcut distributes free space
+     * BETWEEN items on a line — so it works while the label and the mark share one, and does
+     * nothing once the mark is alone on line two, where it packs to main-start instead.
+     * Measured on the built page, arrow offset from the control's left / right edge:
+     *
+     *     root     16          20         24         32
+     *     before   157 / 13    16 / 133   19 / 109   25 / 61     alone on line 2, at the LEFT
+     *     after    157 / 13    133 / 16   109 / 19   61 / 25     trailing, at every root
+     *
+     * Note root 16 is unchanged in both columns: while the two share a line the auto margin
+     * and `justify-between` compute the same position, so this is a true no-op at the size
+     * the design was drawn at and a repair at every size above it. The control's own box is
+     * identical at every root either way.
+     */
+    .events-link span[aria-hidden] {
+        margin-inline-start: auto;
+    }
+
+    /*
+     * A VISIBLE KEYBOARD FOCUS, which this element did not have and neither does any other
+     * control on the site — every one of them rides the browser's default outline. That
+     * default is a real indicator, so this is an improvement rather than a repair, and it is
+     * authored here rather than added to the shortcut on purpose: making it the shortcut's
+     * business would change the drawing of seven other controls in a change that was asked
+     * to alter two, and that is the owner's call to make separately.
+     *
+     * THE OFFSET IS 3px BECAUSE 2px IS EXACTLY FLUSH, which is the opposite of what an
+     * earlier version of this sentence claimed. The plate sits 2px down and right of the box,
+     * so at `outline-offset: 2px` the outline's right and bottom edges land ON the plate rather
+     * than clear of it: measured in light theme, outline rgb(168,35,52) against plate
+     * rgb(168,35,52) — 1.00:1, no perceivable boundary on two of the four edges. 3px leaves a
+     * 1px lane of card between them.
+     *
+     * SO THE CONTRAST CLAIM IS A PAIR, not one number. Left and top edges sit on the card
+     * (`--card-background`); right and bottom sit beside the plate (`--shadow`). Both are
+     * measured in the browser sweep and both clear SC 1.4.11's 3:1 — see the PR. Quoting only
+     * the card figure, as the first draft did, certifies half the indicator.
+     */
+    .events-link:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+    }
+
+    /*
+     * Forced colours discard the accent and the text token alike. The border survives — a
+     * forced mode paints its own — so unlike the run of words this replaces, the control is
+     * no longer identified by colour alone even without these rules. They stay because
+     * `LinkText` is the colour the mode reserves for exactly this, and because losing one of
+     * two cues is still a loss. It is a system colour rather than a token, so it is set here
      * instead of among the themes.
      */
     @media (forced-colors: active) {
@@ -107,25 +224,36 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
         }
 
         /*
-         * WITHOUT THIS THE CHEVRON DISAPPEARS IN FORCED COLOURS. That used to leave the control
-         * identified by colour alone; it no longer does, because `text-link`'s decoration is not
-         * a forced property and paints in whatever ink the mode picks. The rule stays anyway —
-         * losing one of two cues is still a loss, and the glyph is what says "this goes
-         * somewhere" as opposed to merely "this is a link".
+         * WITHOUT THIS THE ARROW DISAPPEARS IN FORCED COLOURS.
          *
          * The mechanism is presetIcons': an icon class paints its artwork as a MASK over
          * `background-color: currentColor`, and `background-color` is one of the properties a
-         * forced-colours mode overrides. The glyph therefore paints Canvas on Canvas and vanishes,
-         * while the border that used to identify the old chip vanished with the chip. Measured on
-         * the built page with the mode emulated: glyph `rgb(255,255,255)` on a card of
-         * `rgb(255,255,255)` — a ratio of exactly 1. On origin/main the chip kept a 1px LinkText
-         * box, so this is a REGRESSION introduced here rather than an inherited gap.
+         * forced-colours mode overrides. The glyph therefore paints Canvas on Canvas and
+         * vanishes. Measured on the built page with the mode emulated, back when this was a
+         * chevron on an unboxed link: glyph `rgb(255,255,255)` on a card of `rgb(255,255,255)`
+         * — a ratio of exactly 1.
          *
-         * `forced-color-adjust: none` opts the glyph out of the override; the explicit LinkText is
-         * what it paints instead. Same technique as ProgressBar.astro's fill, which had it from the
-         * start — it was applied to one of the two marks this branch ships and not the other.
+         * `forced-color-adjust: none` opts the glyph out of the override; the explicit
+         * LinkText is what it paints instead. Same technique as ProgressBar.astro's fill.
+         *
+         * `[aria-hidden]` IS LOAD-BEARING AND WAS PAID FOR. This selector was `.events-link
+         * span` for one revision, written when the anchor had one child. Wrapping the label
+         * in an element gave it a second, and the label then took the glyph's treatment:
+         * `background-color: LinkText` under the anchor's inherited `color: LinkText`, i.e.
+         * the words painted on their own colour. Measured with the mode emulated: label ink
+         * rgb(0,0,159) on background rgb(0,0,159) across 102.95 x 16px — a ratio of exactly
+         * 1.00:1, the whole of the control's on-screen name replaced by a solid block, on both goal
+         * cards, on the home page. Four independent reviewers found it and none of the
+         * eleven mutations run against this file could: they all delete or alter a
+         * DECLARATION, and the defect was in the SELECTOR's reach.
+         *
+         * So the rule is scoped to the decorative mark by the attribute that makes it
+         * decorative, rather than by a class of its own — a styling class on an icon span is
+         * what tests/control-geometry.test.ts's allowlist forbids. If the glyph ever stops
+         * being `aria-hidden` it stops being decorative, and this rule correctly stops
+         * applying to it.
          */
-        .events-link-go {
+        .events-link span[aria-hidden] {
             forced-color-adjust: none;
             background-color: LinkText;
         }

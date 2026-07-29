@@ -5,7 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
-import {decl, pageCss, parseRules, splitSelectorList} from "./helpers/css";
+import {decl, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
 import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
 /**
@@ -692,7 +692,11 @@ describe("dist/", () => {
  * WHAT COUNTS AS A SIGNIFIER, and the list is deliberately of KINDS rather than of elements:
  *
  *   1. `.control`          the styled 64x48 box with the offset plate — six social links
- *   2. `.text-link`        the shared text-link idiom — goal cards, the wall's Home link, roles
+ *   1b. `.control-cta`     the same surface holding a label and a trailing mark — the two goal
+ *      cards' way out. A separate class rather than a modifier of the first, because the two
+ *      declare different boxes; `classList.contains` is exact, so the check below needs both
+ *      names and the goal cards' links went unsignified until it had them
+ *   2. `.text-link`        the shared text-link idiom — the wall's Home link, the role cards
  *   3. `.patch-filter a`   a bordered chip; the class is on the NAV, so this needs `closest`
  *   4. an icon-only control whose accessible name is carried by an `sr-only` span (the Now
  *      card's explainer, which is a 24px icon target and is legitimately not a text link)
@@ -709,6 +713,106 @@ describe("dist/", () => {
  * lookup and so cannot see `.patch-filter[data-astro-cid-…] a[…]{border:…}` — the exact form
  * every Astro scoped style in this repo takes.
  */
+/**
+ * FORCED COLOURS MUST NOT PAINT A SYSTEM COLOUR ON TOP OF ITSELF.
+ *
+ * The defect this exists for, measured on this branch before it was closed: the goal card's
+ * control had `@media (forced-colors: active) { .events-link span { forced-color-adjust: none;
+ * background-color: LinkText } }`. That was written when the anchor had one child — the
+ * decorative arrow. Wrapping the label in an element for the text-zoom fix gave it a second,
+ * and the label took the arrow's treatment: a LinkText background under the anchor's inherited
+ * `color: LinkText`, so the words painted on their own colour. Label ink rgb(0,0,159) on
+ * background rgb(0,0,159), 102.95 x 16px, a ratio of exactly 1.00:1 — the whole of the home
+ * page's primary call to action reduced to a solid block, on both cards, in a mode this repo
+ * deliberately supports.
+ *
+ * WHY NOTHING CAUGHT IT. Eleven mutations had been run against that component and all were
+ * killed; every one of them deleted or altered a DECLARATION, and this defect lived in a
+ * SELECTOR's reach. The nearest gate matched the rule by regex and read declarations out of
+ * it without ever asking which elements it hits, so it certified the broken selector and the
+ * fixed one identically. Resolving the selector against the built DOM is the whole point.
+ *
+ * THE INVARIANT IS NOT "SUCH A RULE MAY NOT REACH TEXT", and getting that wrong would fail
+ * correct code: `.patch-filter a[aria-current="page"]` legitimately paints `background-color:
+ * Highlight` on a chip that has words. It is safe because it also declares `color:
+ * HighlightText` — the PAIRED system colour, which is the pairing forced-colours mode
+ * guarantees a contrast for. So the rule is: opt out and paint a background, and you owe the
+ * matched element a foreground that is its background's documented pair.
+ */
+describe("forced colours never paint a system colour on top of itself", () => {
+    // CSS Color 4's system colour pairs, as the pairs a UA guarantees to contrast.
+    const PAIRS: Record<string, string[]> = {
+        canvas: ["canvastext", "linktext", "visitedtext", "activetext"],
+        canvastext: ["canvas"],
+        highlight: ["highlighttext"],
+        highlighttext: ["highlight"],
+        linktext: ["canvas"],
+        buttonface: ["buttontext"],
+        buttontext: ["buttonface"],
+        field: ["fieldtext"],
+        fieldtext: ["field"],
+    };
+
+    it.each(builtPages())("pairs every opted-out background with a readable foreground (%s)", (page) => {
+        const doc = parseHTML(read(page)).document;
+        const forced = parseRules(pageCss(page)).filter((r) => (r.at ?? "").includes("forced-colors"));
+        expect(forced.length, `${page} ships no forced-colors rules — this assertion would be vacuous`)
+            .toBeGreaterThan(0);
+
+        const matches = (sel: string, el: Element) => {
+            try {
+                return el.matches(structuralSelector(sel));
+            } catch {
+                return false;
+            }
+        };
+
+        const offenders: string[] = [];
+        for (const rule of forced) {
+            if (decl(rule.body, "forced-color-adjust") !== "none") continue;
+            const bg = (decl(rule.body, "background-color") ?? decl(rule.body, "background"))?.trim().toLowerCase();
+            if (bg === undefined || /^(transparent|none|0)$/.test(bg)) continue;
+
+            for (const sel of rule.selectors) {
+                let hit: Element[];
+                try {
+                    hit = [...doc.querySelectorAll(structuralSelector(sel))];
+                } catch {
+                    continue;
+                }
+                for (const el of hit) {
+                    // A mark, a bar, a glyph mask — nothing to read, nothing to lose.
+                    if (!(el.textContent ?? "").trim()) continue;
+
+                    // It has words. The last forced-colors rule reaching it must give it an ink
+                    // that is this background's documented pair.
+                    const ink = forced
+                        .filter((r) => r.selectors.some((s) => matches(s, el)))
+                        .map((r) => decl(r.body, "color"))
+                        .filter((v): v is string => v !== undefined)
+                        .map((v) => v.trim().toLowerCase())
+                        .pop();
+
+                    if (ink === undefined || ink === bg || !(PAIRS[bg] ?? []).includes(ink)) {
+                        offenders.push(
+                            `${sel} paints ${bg} behind "${(el.textContent ?? "").trim().slice(0, 26)}" `
+                            + `(<${el.tagName.toLowerCase()} class="${(el.getAttribute("class") ?? "").slice(0, 30)}">) `
+                            + `whose forced-colors ink is ${ink ?? "inherited"}`,
+                        );
+                    }
+                }
+            }
+        }
+
+        expect(
+            [...new Set(offenders)],
+            "an element that opts out of forced colours and paints a background must declare the PAIRED "
+            + "system foreground. Measured on this branch before the fix: the goal control's label rendered "
+            + "LinkText on LinkText across 102.95x16px — contrast exactly 1.00:1, the words gone",
+        ).toEqual([]);
+    });
+});
+
 describe("every link on every page says that it is one", () => {
     it.each(builtPages())("gives each link a signifier a reader can perceive (%s)", (page) => {
         const doc = parseHTML(read(page)).document;
@@ -735,6 +839,7 @@ describe("every link on every page says that it is one", () => {
 
         const unsignified = links.filter((a) => {
             if (a.classList.contains("control")) return false;
+            if (a.classList.contains("control-cta")) return false;
             if (a.classList.contains("text-link")) return false;
             if (chipIsDrawn && a.closest(".patch-filter")) return false;
             // An icon-only control: no visible words at all, and its name comes from an sr-only
@@ -751,7 +856,7 @@ describe("every link on every page says that it is one", () => {
 
         expect(
             unsignified.map((a) => `${a.getAttribute("href")} "${(a.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 46)}"`),
-            `${page} ships links drawn like static text. A link needs one of: .control, .text-link, `
+            `${page} ships links drawn like static text. A link needs one of: .control, .control-cta, .text-link, `
             + "a drawn .patch-filter chip, an sr-only-named icon control, or .bib--linked wrapping a "
             + "visible .bib-go row. This is the gate whose absence let five links ship unreadable as links",
         ).toEqual([]);
