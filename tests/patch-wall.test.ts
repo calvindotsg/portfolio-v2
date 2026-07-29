@@ -4,7 +4,9 @@ import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
-import {EVENTS, GOAL_YEAR, GOALS, NEW_TAB_NOTICE, PATCHES, type RaceEvent, stravaActivityUrl} from "../src/lib/constants";
+import {
+    EVENTS, GOAL_YEAR, GOALS, NEW_TAB_NOTICE, PATCHES, type RaceEvent, type Sport, stravaActivityUrl,
+} from "../src/lib/constants";
 import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
 } from "../src/lib/projection";
@@ -31,6 +33,33 @@ const PAGES = {
 
 const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
     ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over});
+
+/**
+ * EVERY RENDERED BIB PAIRED WITH THE RACE IT DRAWS, BY POSITION RATHER THAN BY NAME.
+ *
+ * A race's name was a usable key until the wall became the whole calendar, and the same
+ * revision took its uniqueness away: an annual race entered two years running gives two
+ * events the same `name`, so `.find()` on it returns the FIRST edition for both bibs and
+ * every assertion downstream compares one year's bib against the other year's facts.
+ *
+ * Measured rather than feared. A 2025 "Round the Island Bike Adventure" beside the 2026
+ * one reddens two of these tests on data that is entirely correct — `expected 'Booked' to
+ * be null` and `expected '121.98' to be '118.50'` — and the messages name the race twice
+ * without being able to say which edition they mean. netlify.toml runs this suite as the
+ * BUILD command, so that is a failed production deploy caused by an ordinary data edit:
+ * precisely the edit {@link GOAL_YEAR}'s January checklist now asks for, having stopped
+ * telling the maintainer to delete last year's races.
+ *
+ * POSITION IS NOT A NEW ASSUMPTION. The wall's DOM order IS `patchWall`'s order, bib by
+ * bib, and "renders one bib per race, in the wall's order" is the test that says so. This
+ * helper is a second reader of that guarantee, not a second guarantee.
+ */
+const wallBibs = (page: string, sport?: Sport) => {
+    const wall = patchWall(sport);
+    const bibs = [...parseHTML(read(page)).document.querySelectorAll(".bib")];
+    expect(bibs.length, `${page} must render one bib per race`).toBe(wall.length);
+    return bibs.map((bib, i) => ({bib, event: wall[i].event, state: wall[i].state}));
+};
 
 describe("a bib's state is derived from the calendar, never stored", () => {
     it("is finished only once the whole event is behind the stamp", () => {
@@ -369,17 +398,13 @@ describe("dist/patches", () => {
      * the container-rendered test below.
      */
     it("says 'booked' in words on exactly the bibs the calendar calls booked", () => {
-        const state = new Map(patchWall().map((p) => [p.event.name, p.state]));
-        const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
-        expect(bibs.length, "the wall must render every event").toBe(EVENTS.length);
-        for (const bib of bibs) {
-            const name = bib.querySelector(".bib-name")?.textContent ?? "";
+        for (const {bib, event, state} of wallBibs(PAGES.all)) {
             const tag = bib.querySelector(".bib-tag")?.textContent?.trim() ?? null;
             expect(
                 tag,
-                `"${name}" is ${state.get(name)} at the ${UPDATED_AT} stamp, so its tag must be `
-                + `${state.get(name) === "booked" ? `"${PATCHES.booked_label}"` : "absent"}`,
-            ).toBe(state.get(name) === "booked" ? PATCHES.booked_label : null);
+                `"${event.name}" (${event.date}) is ${state} at the ${UPDATED_AT} stamp, so its tag must be `
+                + `${state === "booked" ? `"${PATCHES.booked_label}"` : "absent"}`,
+            ).toBe(state === "booked" ? PATCHES.booked_label : null);
         }
     });
 
@@ -424,9 +449,6 @@ describe("dist/patches", () => {
      * so a race added with or without an id joins whichever half it belongs to.
      */
     it("makes the whole bib a link exactly where the race has a verified activity", () => {
-        const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
-        expect(bibs.length, "no bibs — this assertion would be vacuous").toBe(EVENTS.length);
-
         // NO NON-VACUITY FLOOR ON THE FILTERED SUBSET, and this is the repo's own hardest-won
         // test lesson applied to code I wrote a few hours after re-reading it. A
         // `toBeGreaterThan(0)` over a subset of EVENTS is a hand-counted property of TODAY'S
@@ -440,14 +462,12 @@ describe("dist/patches", () => {
         // netlify.toml runs the suite as the BUILD command, so either failure is a failed
         // production deploy triggered by ordinary data entry.
         //
-        // The loops below need no floor. Each iterates EVENTS — not the subset — and asserts
-        // the equivalence in BOTH directions per event, so they are vacuous only if EVENTS is
-        // empty, which is what the one guard that IS safe checks.
+        // The loops below need no floor. Each covers every race on the wall — not the subset —
+        // and asserts the equivalence in BOTH directions per race, so they are vacuous only if
+        // EVENTS is empty, which is what the one guard that IS safe checks.
         expect(EVENTS.length, "EVENTS is empty, so every loop below is vacuous").toBeGreaterThan(0);
 
-        for (const event of EVENTS) {
-            const bib = bibs.find((b) => b.querySelector(".bib-name")?.textContent === event.name)!;
-            expect(bib, `${event.name} must render a bib`).toBeTruthy();
+        for (const {bib, event} of wallBibs(PAGES.all)) {
             const url = stravaActivityUrl(event);
 
             if (url === null) {
@@ -575,16 +595,14 @@ describe("dist/patches", () => {
      * NO FLOOR ON THE LINKED SUBSET. `.toBeGreaterThan(0)` here would be a hand-counted property
      * of today's calendar: no race carries an activity id every January after the rollover, and
      * this suite is the Netlify BUILD COMMAND, so that failure is a failed production deploy
-     * triggered by ordinary data entry. The loop iterates EVENTS and covers both branches per
-     * event, so it is vacuous only if EVENTS is empty — which is the one guard that is safe.
+     * triggered by ordinary data entry. The loop covers every race on the wall and both
+     * branches per race, so it is vacuous only if EVENTS is empty — the one guard that is safe.
      */
     it("gives a linked bib a visible label saying what using it does", () => {
         const doc = parseHTML(read(PAGES.all)).document;
         expect(EVENTS.length, "EVENTS is empty, so the loop below is vacuous").toBeGreaterThan(0);
-        const bibs = [...doc.querySelectorAll(".bib")];
 
-        for (const event of EVENTS) {
-            const bib = bibs.find((b) => b.querySelector(".bib-name")?.textContent === event.name)!;
+        for (const {bib, event} of wallBibs(PAGES.all)) {
             const row = bib.querySelector(".bib-go");
 
             if (stravaActivityUrl(event) === null) {
@@ -676,13 +694,11 @@ describe("dist/patches", () => {
      * invites a reader to divide it into the distance above it and be 9 km/h wrong.
      */
     it("prints a finished race's elapsed time, labelled, and only where there is one", () => {
-        const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
         // Same reasoning as the link test above: no floor on the filtered subset. The loop
-        // below covers both branches per event and is vacuous only if EVENTS is.
+        // below covers both branches per race and is vacuous only if EVENTS is.
         expect(EVENTS.length, "EVENTS is empty, so the loop below is vacuous").toBeGreaterThan(0);
 
-        for (const event of EVENTS) {
-            const bib = bibs.find((b) => b.querySelector(".bib-name")?.textContent === event.name)!;
+        for (const {bib, event} of wallBibs(PAGES.all)) {
             const row = bib.querySelector(".bib-time");
             if (event.elapsed_time === undefined) {
                 expect(row, `${event.name} has no time, so its bib must print no time row`).toBeNull();
@@ -703,20 +719,14 @@ describe("dist/patches", () => {
      * would have to be updated in two places every time a race is added.
      */
     it("prints each race's country on its own bib", () => {
-        const bibs = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")];
-        expect(bibs.length, "no bibs — this assertion would be vacuous").toBe(EVENTS.length);
-        const byName = new Map(EVENTS.map((e) => [e.name, e.country]));
-        for (const bib of bibs) {
-            const name = bib.querySelector(".bib-name")?.textContent ?? "";
-            expect(bib.querySelector(".bib-place")?.textContent, `${name} must print its country`)
-                .toBe(byName.get(name));
+        for (const {bib, event} of wallBibs(PAGES.all)) {
+            expect(bib.querySelector(".bib-place")?.textContent, `${event.name} must print its country`)
+                .toBe(event.country);
         }
     });
 
     it("prints every distance to two decimals, split so the fraction can be set small", () => {
-        for (const {event} of patchWall()) {
-            const bib = [...parseHTML(read(PAGES.all)).document.querySelectorAll(".bib")]
-                .find((b) => b.querySelector(".bib-name")?.textContent === event.name)!;
+        for (const {bib, event} of wallBibs(PAGES.all)) {
             const value = bib.querySelector(".bib-value")!;
             expect(value.textContent?.replace(/\s+/g, ""), `${event.name} distance`).toBe(event.km.toFixed(2));
             expect(value.querySelector(".bib-fraction")?.textContent, `${event.name} fraction`)

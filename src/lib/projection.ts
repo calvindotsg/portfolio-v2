@@ -87,11 +87,14 @@ export function parseIsoDate(iso: string): number {
  *
  * So the five functions a GOAL CARD reads — {@link bookedAhead}, {@link goalStatus},
  * {@link goalStatusLine}, {@link nextRace} and {@link patchesEarned} — default to this
- * year's races, and the two the WALL reads — {@link patchWall} and {@link patchState} —
- * default to all of them. The `events` parameter still means "these events, whatever
- * you pass" in every case: the year lives in the DEFAULT, where `GOAL_YEAR` already
- * lives (see {@link daysRemaining}), so a caller handing over a fixture gets exactly
- * the list it handed over and every test below stays a test of the arithmetic.
+ * year's races, and {@link patchWall}, which is what the WALL reads, defaults to all of
+ * them. Those six are the whole of it: {@link patchState} is the wall's other half but
+ * takes ONE race and no list at all, so it has no scope to get wrong — it answers "has
+ * this happened yet" about whatever it is handed. The `events` parameter still means
+ * "these events, whatever you pass" in every case: the year lives in the DEFAULT, where
+ * `GOAL_YEAR` already lives (see {@link daysRemaining}), so a caller handing over a
+ * fixture gets exactly the list it handed over and every test below stays a test of the
+ * arithmetic.
  *
  * A RACE BELONGS TO THE YEAR IT STARTS IN. No arithmetic, and it is how a person files
  * one. The event that would probe the rule — a span crossing new year — is not on this
@@ -526,7 +529,12 @@ export function nextRace(
  * keeps every race he has ever entered. A lifetime count under a heading that reads "My
  * cycling goal this year", beside three year-to-date figures, would be one figure in a
  * different unit from its neighbours — the mixed-scope defect this repo has already had
- * to correct once. The lifetime number has a home, and it is the wall's own filter row.
+ * to correct once. The lifetime COLLECTION has a home — it is the wall, where every patch
+ * ever earned is drawn, in every year. What the wall does not print is a lifetime COUNT:
+ * its filter row is a census of races ENTERED (`patchWall(sport).length`, outlines
+ * included), not of patches earned, so this function is the only place the site counts
+ * patches at all. Scoping it to the year is therefore a decision about which question the
+ * card answers, not a choice between two figures the site already shows.
  */
 export function patchesEarned(
     sport: Sport,
