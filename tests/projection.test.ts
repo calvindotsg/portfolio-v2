@@ -6,8 +6,9 @@ import {describe, expect, it} from "vitest";
 import {EVENTS, GOAL_YEAR, GOALS, type Goal} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {
-    UPDATED_AT, bookedAhead, daysRemaining, formatDateline, goalStatus, goalStatusLine,
-    nextRace, parseIsoDate, patchesEarned, patchState, patchWall, stampYearMatchesGoalYear,
+    UPDATED_AT, bookedAhead, daysRemaining, eventsInYear, formatDateline, goalStatus,
+    goalStatusLine, nextRace, parseIsoDate, patchesEarned, patchState, patchWall,
+    stampYearMatchesGoalYear,
 } from "../src/lib/projection";
 import type {RaceEvent} from "../src/lib/constants";
 import {nextProgress, serialise, singaporeDate} from "../scripts/fetch-strava-progress.mjs";
@@ -422,13 +423,23 @@ describe("the next race for a sport", () => {
      * The reason `nextRace` reads the wall instead of sorting again: the card and the
      * wall must not be able to disagree about which race is next. Swept over the year
      * against live EVENTS, so it holds however the calendar moves.
+     *
+     * AGAINST THIS YEAR'S SLICE OF THE WALL, not the whole of it, and the argument is
+     * the scope rule in projection.ts rather than a convenience: the wall keeps every
+     * race the owner has entered and a goal card is one year, so `patchWall()` and
+     * `nextRace()` READING DIFFERENT LISTS is the intended behaviour. Comparing them
+     * undefiltered would assert the opposite — that a January race booked for next year
+     * belongs on this year's card — and would go red the first time one is entered.
+     * What is still worth asserting is that within the year they cannot disagree, which
+     * is the failure this test was written for.
      */
     it("always names the first booked bib of that sport's wall, on every day of the year", () => {
         const wrong: string[] = [];
+        const thisYear = eventsInYear(GOAL_YEAR);
         for (let day = 0; day < 366; day++) {
             const iso = new Date(Date.UTC(GOAL_YEAR, 0, 1 + day)).toISOString().slice(0, 10);
             for (const goal of GOALS) {
-                const first = patchWall(goal.sport, iso).find((p) => p.state === "booked")?.event.name ?? null;
+                const first = patchWall(goal.sport, iso, thisYear).find((p) => p.state === "booked")?.event.name ?? null;
                 const next = nextRace(goal.sport, iso)?.event.name ?? null;
                 if (first !== next) wrong.push(`${iso} ${goal.sport}: wall says ${first}, card says ${next}`);
             }
@@ -447,13 +458,17 @@ describe("the next race for a sport", () => {
      * The two halves have to partition the sport's wall on every day, or the card can
      * show "nothing booked" while a bib is still an outline — or claim a next race and a
      * patch count that do not add up to the races that exist.
+     *
+     * The partition is over THIS YEAR's races, for the reason given above: both branches
+     * of the card's line read the year, and the wall reads the calendar.
      */
     it("accounts for every race of the sport between the two branches", () => {
         const wrong: string[] = [];
+        const thisYear = eventsInYear(GOAL_YEAR);
         for (let day = 0; day < 366; day++) {
             const iso = new Date(Date.UTC(GOAL_YEAR, 0, 1 + day)).toISOString().slice(0, 10);
             for (const goal of GOALS) {
-                const wall = patchWall(goal.sport, iso);
+                const wall = patchWall(goal.sport, iso, thisYear);
                 const booked = wall.filter((p) => p.state === "booked").length;
                 const hasNext = nextRace(goal.sport, iso) !== null;
                 if ((booked > 0) !== hasNext) wrong.push(`${iso} ${goal.sport}: ${booked} booked but next=${hasNext}`);
@@ -463,6 +478,157 @@ describe("the next race for a sport", () => {
             }
         }
         expect(wrong.slice(0, 5)).toEqual([]);
+    });
+});
+
+/**
+ * THE SCOPE SPLIT: A LIFETIME WALL, A GOAL CARD THAT IS ONE YEAR.
+ *
+ * {@link EVENTS} stopped being this year's races and became every race the owner has
+ * entered, which turned one list into two audiences. The wall wants all of it. A goal
+ * card wants only {@link GOAL_YEAR}, because its target, its kilometres, its day count
+ * and its heading are all that year's — and the failure is not cosmetic: `bookedAhead`
+ * subtracts un-run races from the year's deficit, so a 1,022 km tour booked for NEXT
+ * November would pay off THIS year's requirement and take the cycling card from
+ * "71 km/wk to go" to "Races cover it", silently.
+ *
+ * EVERY FIXTURE HERE IS SELF-CONTAINED, AND THAT COST A REWRITE. The first version of
+ * this block built its calendar as `[oldRace, ...EVENTS, nextYearRace]` and compared the
+ * result against `EVENTS` — which reads as thorough and is the same defect this file
+ * warns about elsewhere: an expectation pinned to what the calendar happens to hold
+ * today. Simulating the change this feature exists FOR — three races from other years
+ * added to `EVENTS` — turned all four assertions red on correct code, and nothing else
+ * in the suite moved. Fixtures below own their own races, so they measure the scope rule
+ * rather than the maintainer's race entries.
+ *
+ * WHAT THESE ASSERTIONS CAN AND CANNOT SEE TODAY, stated because the difference is
+ * invisible from a green run. The year lives in a DEFAULT PARAMETER, and `EVENTS`
+ * currently holds one year — so "the default is this year's races" and "the default is
+ * every race" are the same list, and no assertion can separate them until a race from
+ * another year is entered. So the work is split in two:
+ *
+ *   the DISCRIMINATION, proved here and now against a fixture that DOES span years —
+ *   `eventsInYear` removes exactly the off-year races, and their removal moves the
+ *   figure by exactly their distance;
+ *
+ *   the WIRING, asserted as an equality that is an identity today and becomes a real
+ *   comparison the moment `EVENTS` spans years. It is the standing gate: it is what
+ *   goes red if someone "tidies" a default back to `EVENTS` after a 2025 race lands.
+ *
+ * Verified by mutation rather than by argument: with the three simulated races in
+ * `EVENTS` and `bookedAhead`'s default reverted to `EVENTS`, the wiring assertion is the
+ * one that goes red, and it names the sport.
+ */
+describe("the scope split: a lifetime wall, a goal card that is one year", () => {
+    const race = (over: Partial<RaceEvent> & {date: string, name: string}): RaceEvent => ({
+        km: 100, sport: "cycling", country: "Singapore", ...over,
+    });
+
+    /** This year's races, owned by this block — not the maintainer's. */
+    const THIS_YEAR: readonly RaceEvent[] = [
+        race({date: `${GOAL_YEAR}-03-01`, name: "in-year run", km: 21.1, sport: "running"}),
+        race({date: `${GOAL_YEAR}-04-01`, name: "in-year done", km: 60}),
+        race({date: `${GOAL_YEAR}-09-01`, name: "in-year ahead", km: 40}),
+    ];
+    /** Everything the goal cards must not see. 1,022 km of it, one tour, next November. */
+    const OFF_YEAR: readonly RaceEvent[] = [
+        race({date: `${GOAL_YEAR - 2}-09-15`, name: "two years ago", km: 21.1, sport: "running"}),
+        race({date: `${GOAL_YEAR - 1}-05-05`, name: "last year", km: 100}),
+        race({date: `${GOAL_YEAR + 1}-11-07`, end_date: `${GOAL_YEAR + 1}-11-15`, name: "next year tour", km: 1022}),
+    ];
+    /** Interleaved, so nothing here can pass by taking a prefix or a suffix. */
+    const CALENDAR: readonly RaceEvent[] = [
+        OFF_YEAR[1], THIS_YEAR[0], OFF_YEAR[2], THIS_YEAR[1], OFF_YEAR[0], THIS_YEAR[2],
+    ];
+    const MID = `${GOAL_YEAR}-06-15`;
+    /** A goal with figures of its own, so no assertion below moves when the bot pushes. */
+    const CYCLING: Goal = {...goalBySport("cycling"), raw_progress: 1000, current_progress: 1000, total_goal: 5000};
+
+    const names = (events: readonly RaceEvent[]) => [...events].map((e) => e.name).sort();
+
+    it("keeps the races that START in the year, and drops a date that does not parse", () => {
+        expect(names(eventsInYear(GOAL_YEAR, CALENDAR))).toEqual(names(THIS_YEAR));
+        expect(names(eventsInYear(GOAL_YEAR - 1, CALENDAR))).toEqual(["last year"]);
+        expect(names(eventsInYear(GOAL_YEAR + 1, CALENDAR))).toEqual(["next year tour"]);
+
+        // An impossible day is not a year. Dropping it makes the required rate HIGHER,
+        // never lower, which is the only direction a typo may move a goal card.
+        expect(eventsInYear(GOAL_YEAR, [race({date: `${GOAL_YEAR}-02-30`, name: "impossible"})]).length,
+            `${GOAL_YEAR}-02-30 is not a day in ${GOAL_YEAR}`).toBe(0);
+
+        // A race belongs to the year it STARTS in — the rule, on the only shape that probes it.
+        const straddles = race({date: `${GOAL_YEAR}-12-30`, end_date: `${GOAL_YEAR + 1}-01-02`, name: "new year tour"});
+        expect(eventsInYear(GOAL_YEAR, [straddles]).length).toBe(1);
+        expect(eventsInYear(GOAL_YEAR + 1, [straddles]).length).toBe(0);
+    });
+
+    /**
+     * THE DEFECT THE SPLIT EXISTS FOR, priced. Not "the numbers differ" but "they differ
+     * by exactly the off-year distance", so this cannot pass on a filter that drops the
+     * wrong races.
+     */
+    it("never lets a race from another year touch this year's booked distance", () => {
+        const scoped = eventsInYear(GOAL_YEAR, CALENDAR);
+        expect(bookedAhead("cycling", MID, CALENDAR) - bookedAhead("cycling", MID, scoped))
+            .toBeCloseTo(1022, 6);
+        expect(bookedAhead("cycling", MID, scoped)).toBe(bookedAhead("cycling", MID, THIS_YEAR));
+
+        // And the same fact where a reader meets it: the sentence the card prints. 1,022 km
+        // against a 4,000 km deficit is the difference between a rate and "Races cover it".
+        expect(goalStatusLine(CYCLING, MID, scoped)).toBe(goalStatusLine(CYCLING, MID, THIS_YEAR));
+        expect(
+            goalStatusLine(CYCLING, MID, CALENDAR),
+            "the unscoped list must say something different, or the equality above proves nothing",
+        ).not.toBe(goalStatusLine(CYCLING, MID, scoped));
+    });
+
+    it("keeps the countdown and the patch count inside the year too", () => {
+        const scoped = eventsInYear(GOAL_YEAR, CALENDAR);
+        expect(nextRace("cycling", MID, scoped)).toEqual(nextRace("cycling", MID, THIS_YEAR));
+        expect(patchesEarned("cycling", MID, scoped)).toBe(patchesEarned("cycling", MID, THIS_YEAR));
+
+        // Both branches move when the year is not enforced: the count gains last year's
+        // race, and on a day with nothing left booked the countdown reaches next year's.
+        expect(patchesEarned("cycling", MID, CALENDAR)).toBe(patchesEarned("cycling", MID, scoped) + 1);
+        expect(nextRace("cycling", `${GOAL_YEAR}-12-31`, CALENDAR)?.event.name).toBe("next year tour");
+        expect(nextRace("cycling", `${GOAL_YEAR}-12-31`, scoped)).toBeNull();
+    });
+
+    it("draws every year on the wall, both directions out of today", () => {
+        const wall = patchWall(undefined, MID, CALENDAR);
+        const byName = new Map(wall.map((p) => [p.event.name, p.state]));
+        expect(wall.length, "the wall shows the whole calendar").toBe(CALENDAR.length);
+        expect(byName.get("last year"), "a past year is earned, not hidden").toBe("finished");
+        expect(byName.get("two years ago"), "and so is the year before that").toBe("finished");
+        expect(byName.get("next year tour"), "a race booked for next year is still booked").toBe("booked");
+        // The finished run walks backwards out of this year into the ones before it, so the
+        // oldest race the owner has ever run closes the wall.
+        expect(wall.map((p) => p.event.name)).toEqual([
+            "in-year ahead", "next year tour",
+            "in-year done", "in-year run", "last year", "two years ago",
+        ]);
+    });
+
+    /**
+     * THE WIRING. An identity today (see the block comment) and a real comparison the day
+     * `EVENTS` spans years — which is the day it matters, and the reason it is written now
+     * rather than then.
+     *
+     * No count floor: "there is at least one race in GOAL_YEAR" is a property of the
+     * maintainer's calendar, not of this code, and it is false every January until the
+     * year's first race is entered. `EVENTS` being non-empty is the guard that is safe.
+     */
+    it("defaults the goal card to this year and the wall to the whole calendar", () => {
+        expect(EVENTS.length, "EVENTS is empty, so every comparison below is vacuous").toBeGreaterThan(0);
+        const thisYear = eventsInYear(GOAL_YEAR);
+        for (const goal of GOALS) {
+            expect(bookedAhead(goal.sport, MID), `${goal.sport} booked distance`).toBe(bookedAhead(goal.sport, MID, thisYear));
+            expect(goalStatus(goal, MID), `${goal.sport} status`).toEqual(goalStatus(goal, MID, thisYear));
+            expect(goalStatusLine(goal, MID), `${goal.sport} status line`).toBe(goalStatusLine(goal, MID, thisYear));
+            expect(nextRace(goal.sport, MID), `${goal.sport} next race`).toEqual(nextRace(goal.sport, MID, thisYear));
+            expect(patchesEarned(goal.sport, MID), `${goal.sport} patches earned`).toBe(patchesEarned(goal.sport, MID, thisYear));
+        }
+        expect(patchWall(undefined, MID).length, "the wall must default to every race").toBe(EVENTS.length);
     });
 });
 

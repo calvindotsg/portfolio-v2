@@ -2,7 +2,7 @@
 import Layout from "../../layouts/BasicLayout.astro";
 import Card from "../../components/Card/index.astro";
 import Patch from "../../components/Patch.astro";
-import {GOAL_YEAR, GOALS, goalForSport, METADATA, NEXT_RACE, PATCHES, type Sport} from "../../lib/constants";
+import {GOALS, goalForSport, METADATA, NEXT_RACE, PATCHES, type Sport} from "../../lib/constants";
 import {patchWall} from "../../lib/projection";
 import {iconClass} from "../../lib/icons";
 
@@ -76,21 +76,31 @@ const filters = [
  * merely corrected. (The all-sports page cannot use it — there is no sport to substitute —
  * so PATCHES.heading carries that one.)
  */
-// The scope sentence has to narrow with the page — "every race" is a claim only
-// /patches can make. See the note on PATCHES.
 const sportWord = goal?.goal_name.toLowerCase() ?? "";
 
 const heading = goal === undefined
     ? PATCHES.heading
     : NEXT_RACE.control.replace("{sport}", sportWord);
-const title = `${heading} · ${GOAL_YEAR} — ${METADATA.name}`;
-const lede = goal === undefined
-    ? `${PATCHES.scope_all} ${PATCHES.key}`
-    : `${PATCHES.scope_sport.replace("{sport}", sportWord)} ${PATCHES.key}`;
 
-// The META description narrows too. It was one string across all three routes, which
-// put the "every race" overclaim in front of a crawler on the two pages that show a
-// subset — the same defect as the lede, in the copy nobody looks at.
+// NO YEAR IN THE TITLE. It read "My events · 2026", which was true while EVENTS held one
+// year and became an overclaim the moment the wall started keeping every race — the same
+// defect the lede's scope sentence had, in the string a tab strip and a search result
+// show. The three titles are still distinct, which is all the suite asks: the sport is
+// what separates them, and it always was.
+const title = `${heading} — ${METADATA.name}`;
+
+// ONE LEDE, THE SAME ON ALL THREE PAGES, and that is the point rather than a shortcut.
+// It used to open with a sentence of scope that had to narrow per page; the heading and
+// the filter row were already saying which page you are on, so the sentence was a second
+// telling. What is left names the Finisher Patch, which is true of every one of these
+// pages and of a wall with nothing on it. See the note on PATCHES.
+const lede = PATCHES.lede;
+
+// THE META DESCRIPTION STILL NARROWS, and it is not an oversight that this outlived the
+// visible scope sentence: a crawler reads it alone, with no heading and no filter row
+// beside it, so it is the one place the claim has nothing to lean on. It was a single
+// unnarrowed string across all three routes once — the same overclaim the visible copy
+// had already been fixed for, in the copy nobody looks at.
 const description = goal === undefined
     ? PATCHES.description_all
     : PATCHES.description_sport.replace("{sport}", sportWord);
