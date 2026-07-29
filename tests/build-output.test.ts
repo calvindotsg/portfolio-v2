@@ -1638,8 +1638,17 @@ describe("a press is acknowledged, and the acknowledgement outlives the finger",
      * has to touch at least one property the press touches, so it cannot "repaint" with something
      * unrelated and call the obligation discharged.
      */
+    //
+    // `transition` IS EXCLUDED, and a mutation is why. Every press here also declares
+    // `transition: none` (the snap gate above requires it), so counting it made the overlap
+    // satisfiable by a twin that repaints NOTHING: replacing the chips' held declarations with
+    // `letter-spacing` still shared `transition` and the gate went green. A transition is not
+    // ink — it says how a change is timed, not that there is one.
+    const PAINTS_NOTHING = new Set(["transition", "transition-property", "transition-duration",
+                                    "transition-timing-function", "transition-delay", "will-change"]);
     const props = (bodies: string[]) => new Set(
-        bodies.flatMap((b) => b.split(";")).map((d) => d.split(":")[0].trim()).filter(Boolean),
+        bodies.flatMap((b) => b.split(";")).map((d) => d.split(":")[0].trim())
+            .filter((p) => p && !PAINTS_NOTHING.has(p)),
     );
 
     it.each(builtPages())("gives every held-eligible link's press a twin that outlives it (%s)", (page) => {
