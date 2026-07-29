@@ -209,9 +209,12 @@ export type Goal = {
  *   2. Set each goal's `progress_last_year` from the closing totals. NOTHING checks
  *      this: the repo has no memory of last year's kilometres, so a stale figure
  *      renders happily. Read them off the bot JSON before step 1 overwrites it.
- *   3. Add the new year's races to {@link EVENTS} and remove the old ones. Events
- *      from a past year are inert (they are all behind `today`), so leaving them
- *      costs nothing but noise.
+ *   3. Add the new year's races to {@link EVENTS}. DO NOT REMOVE LAST YEAR'S — this
+ *      step said to until the wall became the whole calendar, and deleting a past
+ *      race now deletes a Finisher Patch that was earned. They cost the goal cards
+ *      nothing: `eventsInYear` in projection.ts hands those only the races that START
+ *      in this year, so a past race contributes to no projection and a race booked for
+ *      NEXT year cannot lower this year's required rate.
  */
 export const GOAL_YEAR = 2026
 
@@ -238,9 +241,26 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
 
 /**
  * A race the site owner has entered — completed ones are in the past, booked ones
- * are ahead. One array serves both consumers: the projection folds the BOOKED
- * distance of future events into what is already accounted for, and completion is
- * derived from the date rather than stored, so no flag can go stale.
+ * are ahead. Completion is derived from the date rather than stored, so no flag can
+ * go stale.
+ *
+ * THIS IS THE WHOLE CALENDAR, NOT THIS YEAR'S, and that changed in the same revision
+ * that gave the earned bib its name. Every race he has entered, in any year, stays
+ * here: the wall draws all of it, because a Finisher Patch is a thing you keep. It
+ * held one year until then, and the January checklist above said to delete the old
+ * races — see {@link GOAL_YEAR}, where that step is now the opposite instruction.
+ *
+ * ONE ARRAY, TWO SCOPES, AND THE SPLIT IS ENFORCED IN projection.ts RATHER THAN HERE.
+ * The wall reads all of it; a goal card reads only the races that start in
+ * {@link GOAL_YEAR}, because its target, its kilometres, its day count and its own
+ * heading are all that year's. The rule and the failure it prevents are written out
+ * above `eventsInYear`; the short version is that a race booked for next November
+ * must not pay off this year's deficit.
+ *
+ * SO A PAST RACE NEEDS NOTHING BUT ITS FACTS. `elapsed_time` and
+ * `strava_activity_id` are both optional, so a race remembered without a recording is
+ * a complete bib rather than a broken one — which is what makes filling in a back
+ * catalogue a data edit and not a code change.
  *
  * `end_date` is for multi-day events and it is not decoration. With a single date,
  * the whole of a 1,022 km nine-day tour books as ridden on its start date while
@@ -562,43 +582,48 @@ export const NOW: {
  * SC 1.4.1 does not accept a visual treatment as the only carrier of information,
  * and a reader who cannot tell a hairline border from a filled one gets the word.
  *
- * `heading` NO LONGER NAMES THE METAPHOR, and the two `scope_*` strings plus `key` are
- * what carry it instead. It used to read "Patch wall", on the argument that the phrase is
- * a cyclist's rather than a self-evident one and so wants explaining underneath. The
- * explanation is still there and still in that order; what changed is that the heading
- * itself now says what is on the page — races, some run and some booked — rather than
- * naming the drawing. See {@link heading} for why that is a correctness fix and not a
- * preference, and {@link NEXT_RACE.control}, which is literally the same string.
+ * `heading` NO LONGER NAMES THE METAPHOR, and `lede` is what carries it now. It used to
+ * read "Patch wall", on the argument that the phrase is a cyclist's rather than a
+ * self-evident one and so wants explaining underneath. The explanation is still there and
+ * still in that order; what changed is that the heading itself now says what is on the
+ * page — races, some run and some booked — rather than naming the drawing. See
+ * {@link heading}, and {@link NEXT_RACE.control}, which is literally the same string.
  *
- * THE LEDE IS TWO SENTENCES BECAUSE ONE OF THEM IS NOT TRUE ON EVERY PAGE. It began
- * as a single string saying "every race I have entered this year", which is a claim
- * `/patches/cycling` cannot make — it shows four of six. The heading and the filter
- * row both say which page you are on, so the overclaim is survivable and it is still
- * an overclaim, written where a reader looks for what the page contains.
+ * THE LEDE USED TO OPEN WITH A SENTENCE OF SCOPE AND NO LONGER DOES, and both halves of
+ * why are worth keeping. `scope_all` said "Every race I have entered this year" and
+ * `scope_sport` narrowed it, because the single unnarrowed string was a claim
+ * `/patches/cycling` could not make. Two things then made the pair pointless at once: the
+ * calendar became the owner's whole racing history, so the year came off every string that
+ * had one, and what was left — "Every race I have entered" — says nothing the heading "My
+ * events" and a filter row reading `All 6 / Ride 4 / Run 2` had not already said. The
+ * maintainer's call, and the right one: a lede that restates the heading is a line a reader
+ * pays for twice.
  *
- * `key` NAMES THE OUTLINES FIRST because the wall shows them first: it is sorted next
- * race first, so a legend that opened with the solid bibs would introduce the two
- * treatments in the opposite order to the one the reader meets them in. The sentence
- * is otherwise about treatment rather than order, so it survives the booked run
- * emptying on the day after the last race.
+ * WHAT SURVIVES IS THE ONE THING NEITHER THE HEADING NOR THE BIBS SAY. `lede` names the
+ * earned bib. The treatments are close to self-explanatory — an outline wearing the word
+ * BOOKED beside a solid bib is legible without a legend, which is exactly why the scope
+ * sentence went — but a Finisher Patch is an OBJECT with a name, and a name has to be
+ * given somewhere or it is not a name. That is this string's whole job now; it stopped
+ * being a legend describing ink when it started being an introduction.
  *
- * So `scope_all` and `scope_sport` are alternatives and `key` follows either. The
- * `{sport}` in `scope_sport` is replaced with the goal's own name, which is the same
- * string the heading uses — a sport is called one thing on this site.
+ * IT NAMES THE OUTLINES FIRST because the wall shows them first: sorted next race first, a
+ * sentence opening with the patches would introduce the two in the opposite order to the
+ * one a reader meets them in. It closes on the patch because that is the payoff — and it
+ * is phrased as a RULE ("every one I finish becomes…") rather than as a description of
+ * what is currently on screen, so it stays true on the day the booked run empties and on
+ * the January when nothing has been earned yet.
  *
- * `description_*` is the same split for the META description, and it needs its own
- * pair rather than reusing the lede: a review panel found the single `description`
- * shipping unnarrowed on all three routes, so the copy a CRAWLER reads made exactly
- * the overclaim the visible copy had just been fixed to avoid. Two dimensions
- * reported it independently. Fixing the sentence a reader sees and leaving the one a
- * machine reads is the shape to watch for — they are different strings in different
- * places and only one of them is on screen.
+ * `description_*` IS STILL A PAIR, and it must stay one even though the visible lede
+ * stopped being scoped. The META description has no heading and no filter row beside it —
+ * it is read alone, out of context, by a machine — so it is the one place a scope sentence
+ * still earns its keep, and the one place an unnarrowed claim cannot be caught by looking
+ * at the page. A review panel found exactly that shipping once: the visible copy was fixed
+ * and the crawler's copy kept the overclaim for another two revisions.
  */
 export const PATCHES: {
     heading: string
-    scope_all: string
-    scope_sport: string
-    key: string
+    /** The one line under the heading. See the note above — it names the Finisher Patch. */
+    lede: string
     description_all: string
     description_sport: string
     all_label: string
@@ -655,16 +680,23 @@ export const PATCHES: {
      * same words. The rename came from the goal card's control — see {@link NEXT_RACE} —
      * and from the rule behind it: a patch is a race COMPLETED AND EARNED, so a page that
      * shows four booked outlines beside two earned bibs was never wholly a wall of
-     * patches. The heading now names what is on the page; {@link key} still explains what
-     * the two drawings mean, and the bibs themselves carry the character the old heading
-     * was carrying. "Patch wall" survives in the URL, in this prose and in the metaphor.
+     * patches. The heading now names what is on the page; {@link lede} names the earned
+     * bib, and the bibs themselves carry the character the old heading was carrying.
+     * "Patch wall" survives in the URL, in this prose and in the metaphor.
      */
     heading: "My events",
-    scope_all: "Every race I have entered this year.",
-    scope_sport: "Every {sport} race I have entered this year.",
-    key: "The outlines are still ahead of me; the solid bibs are the ones I have finished.",
-    description_all: "Every race Calvin has entered this year, finished and still to come, drawn as race bibs.",
-    description_sport: "Every {sport} race Calvin has entered this year, finished and still to come, drawn as race bibs.",
+    /*
+     * "FINISHER PATCH", TWO WORDS AND NO APOSTROPHE — the maintainer's spelling, and it is
+     * the site's name for the object rather than a description of the drawing. What this
+     * replaced was "the solid bibs are the ones I have finished", which named the fill.
+     *
+     * A rule, not a caption: "every one I finish becomes" is true on a wall with nothing
+     * earned yet and on one with nothing left booked, where a sentence describing what is
+     * currently on screen would be false half the year.
+     */
+    lede: "The outlines are races still ahead of me; every one I finish becomes a Finisher Patch.",
+    description_all: "Every race Calvin has entered, finished and still to come, drawn as race bibs.",
+    description_sport: "Every {sport} race Calvin has entered, finished and still to come, drawn as race bibs.",
     all_label: "All",
     booked_label: "Booked",
     home_label: "Home",

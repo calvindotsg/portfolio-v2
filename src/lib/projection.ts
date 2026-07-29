@@ -73,6 +73,45 @@ export function parseIsoDate(iso: string): number {
 }
 
 /**
+ * THE ONE SCOPE RULE ON THIS SITE, AND EVERY DEFAULT BELOW IS AN APPLICATION OF IT:
+ *
+ *     the patch wall is the WHOLE calendar; a goal card is GOAL_YEAR alone.
+ *
+ * It did not need saying while {@link EVENTS} held one year — "every race" and "this
+ * year's races" were the same list, so no function had to choose. The wall keeps every
+ * race the owner has entered now, which makes them different lists, and the difference
+ * is not cosmetic. A race that has not been run is `booked` whatever year it is in, so
+ * without this split {@link bookedAhead} subtracts a race booked for NEXT November from
+ * THIS year's deficit: the 1,022 km Formosa tour alone takes the cycling card from
+ * "71 km/wk to go" to "Races cover it", silently, under a heading that says this year.
+ *
+ * So the five functions a GOAL CARD reads — {@link bookedAhead}, {@link goalStatus},
+ * {@link goalStatusLine}, {@link nextRace} and {@link patchesEarned} — default to this
+ * year's races, and the two the WALL reads — {@link patchWall} and {@link patchState} —
+ * default to all of them. The `events` parameter still means "these events, whatever
+ * you pass" in every case: the year lives in the DEFAULT, where `GOAL_YEAR` already
+ * lives (see {@link daysRemaining}), so a caller handing over a fixture gets exactly
+ * the list it handed over and every test below stays a test of the arithmetic.
+ *
+ * A RACE BELONGS TO THE YEAR IT STARTS IN. No arithmetic, and it is how a person files
+ * one. The event that would probe the rule — a span crossing new year — is not on this
+ * calendar, and would count wholly into the year it began; that is also what the
+ * single-year array already did with it, so nothing changed direction here.
+ *
+ * AN UNPARSEABLE DATE FALLS OUT OF THE YEAR, and the direction is deliberate: a race
+ * missing from `bookedAhead` makes the required rate HIGHER, never lower, so a typo
+ * cannot flatter the card. The wall still draws the bib — `patchState` calls an
+ * unreadable date booked — so the bad data is visible on the site rather than silently
+ * dropped from it.
+ */
+export function eventsInYear(year: number, events: readonly RaceEvent[] = EVENTS): readonly RaceEvent[] {
+    return events.filter((e) => !Number.isNaN(parseIsoDate(e.date)) && e.date.slice(0, 4) === String(year))
+}
+
+/** This year's races: the goal cards' calendar. Computed once — `EVENTS` is a constant. */
+const GOAL_YEAR_EVENTS: readonly RaceEvent[] = eventsInYear(GOAL_YEAR)
+
+/**
  * Riding days from `iso` to 31 December of `GOAL_YEAR`, counting BOTH ends, never
  * negative.
  *
@@ -104,8 +143,12 @@ export function daysRemaining(iso: string, year: number = GOAL_YEAR): number {
  * A multi-day event is counted pro rata across its span. Booking the whole of a
  * nine-day tour on its start date would drop this figure by the tour's full
  * distance the moment it begins, while the rider has covered one day of it.
+ *
+ * IT COUNTS ONLY THIS YEAR'S RACES, which is carried by the default rather than by
+ * anything in the loop below — see the scope rule above {@link eventsInYear}. Pass a
+ * list and it books whatever is in it; the year is not smuggled into the arithmetic.
  */
-export function bookedAhead(sport: Sport, iso: string, events: readonly RaceEvent[] = EVENTS): number {
+export function bookedAhead(sport: Sport, iso: string, events: readonly RaceEvent[] = GOAL_YEAR_EVENTS): number {
     const today = parseIsoDate(iso)
     if (Number.isNaN(today)) return NaN
     let km = 0
@@ -149,7 +192,7 @@ export type GoalStatus =
 /** Below this many days remaining, a weekly rate misleads and an absolute total does not. */
 const FINAL_STRETCH_DAYS = 14
 
-export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonly RaceEvent[] = EVENTS): GoalStatus {
+export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonly RaceEvent[] = GOAL_YEAR_EVENTS): GoalStatus {
     const {raw_progress: ridden, total_goal: target} = goal
     if (!Number.isFinite(ridden) || !Number.isFinite(target) || target <= 0) return {kind: "unknown"}
 
@@ -210,7 +253,7 @@ export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonl
  * FOUR lines, so the budget protects the Now card, not against clipping.
  * `tests/projection.test.ts` pins the literals below against these measurements.
  */
-export function goalStatusLine(goal: Goal, iso: string = UPDATED_AT, events: readonly RaceEvent[] = EVENTS): string | null {
+export function goalStatusLine(goal: Goal, iso: string = UPDATED_AT, events: readonly RaceEvent[] = GOAL_YEAR_EVENTS): string | null {
     const s = goalStatus(goal, iso, events)
     switch (s.kind) {
         case "met": return "Goal met"
@@ -292,6 +335,15 @@ export type Patch = {event: RaceEvent, state: PatchState}
 /**
  * The wall: every race, or every race of one sport, NEXT RACE FIRST — the booked
  * races in ascending date order, then the finished ones in descending.
+ *
+ * EVERY RACE MEANS EVERY YEAR. This is the one function whose default is the whole of
+ * {@link EVENTS}, and the sort needs nothing added for it: both runs already point away
+ * from today, so the finished run walks backwards out of this year into the last one and
+ * the one before it, which is the order a person reads a history in. A bib prints its
+ * full year, so nothing here has to draw a boundary between them.
+ *
+ * The goal cards see a subset — see the scope rule above {@link eventsInYear} — and that
+ * is the whole of the difference between this and {@link nextRace} two functions down.
  *
  * WHY NOT NEWEST-FIRST, WHICH THIS REPLACED. One flat descending sort means "most
  * recent thing at the top", and on a calendar that runs past today that buries the
@@ -436,6 +488,14 @@ export function formatPatchDate(event: RaceEvent): string | null {
  * Returns null when the sport has nothing booked — every race run, or none entered.
  * That is a state the site passes through every January and again the morning after
  * the last race, so it is an ordinary branch and not an error.
+ *
+ * NEXT MEANS NEXT THIS YEAR, because this is a goal card's line and a goal card is one
+ * year (see {@link eventsInYear}). So the days between a year's last race and 31 December
+ * return `null` even with January's race already on the calendar, and the card offers the
+ * year's patch count instead. That is the cost of the scope rule and it is paid
+ * deliberately: the alternative counts down to a race whose kilometres every other figure
+ * on the card refuses to count. The race is one click away on the wall, which is the
+ * object that keeps the whole calendar.
  */
 export type NextRace = {
     event: RaceEvent
@@ -448,7 +508,7 @@ export type NextRace = {
 export function nextRace(
     sport: Sport,
     iso: string = UPDATED_AT,
-    events: readonly RaceEvent[] = EVENTS,
+    events: readonly RaceEvent[] = GOAL_YEAR_EVENTS,
 ): NextRace | null {
     const next = patchWall(sport, iso, events).find((p) => p.state === "booked")
     if (next === undefined) return null
@@ -459,11 +519,19 @@ export function nextRace(
     return {event: next.event, daysAway, underWay: daysAway < 0}
 }
 
-/** Patches already earned for a sport — what the card offers when nothing is booked. */
+/**
+ * Patches already earned for a sport — what the card offers when nothing is booked.
+ *
+ * THIS YEAR'S, not the owner's whole collection, and the difference now exists: the wall
+ * keeps every race he has ever entered. A lifetime count under a heading that reads "My
+ * cycling goal this year", beside three year-to-date figures, would be one figure in a
+ * different unit from its neighbours — the mixed-scope defect this repo has already had
+ * to correct once. The lifetime number has a home, and it is the wall's own filter row.
+ */
 export function patchesEarned(
     sport: Sport,
     iso: string = UPDATED_AT,
-    events: readonly RaceEvent[] = EVENTS,
+    events: readonly RaceEvent[] = GOAL_YEAR_EVENTS,
 ): number {
     return patchWall(sport, iso, events).filter((p) => p.state === "finished").length
 }

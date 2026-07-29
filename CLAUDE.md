@@ -5,10 +5,15 @@
 This is a personal portfolio website built with Astro, featuring a bento-style,
 minimal design. The home page is a single-screen bento grid showing Calvin's
 professional background, his cycling and running goals, and personal interests;
-`/patches` is a wall of this year's races drawn as bibs, with a prerendered page
-per sport. A patch is a race **completed and earned** — an outline bib is an event
-that has not become one yet, which is why the wall's headings say "events" and only
-earned bibs are called patches.
+`/patches` is a wall of **every race he has entered**, in any year, drawn as bibs,
+with a prerendered page per sport. A **Finisher Patch** is a race completed and
+earned — an outline bib is an event that has not become one yet, which is why the
+wall's headings say "events" and only the earned bibs are patches.
+
+**The one scope rule**: the wall is the whole calendar; a goal card is `GOAL_YEAR`
+alone. `EVENTS` feeds both, and `eventsInYear` in `projection.ts` is what keeps a
+race booked for next November from paying off this year's required rate. Read the
+block above it before giving either consumer the other's list.
 
 ## Commands
 
@@ -93,9 +98,13 @@ are the ones carrying non-obvious constraints; the rest are self-explanatory in
 the file:
 - `NEXT_RACE`: the goal cards' countdown ladder and the control's label — width-budgeted,
   and the label is also the heading of the page it opens; see the note there
-- `EVENTS`: Races entered this year — read by both the projection and the patch wall
-- `PATCHES`: the wall's own prose. Its heading is `My events`; "patch wall" survives in
-  the URL and the metaphor, not as a visible title
+- `EVENTS`: every race entered, in any year — read by both the projection and the patch
+  wall, at two different scopes (see the rule above). Adding a past race is a data edit:
+  `elapsed_time` and `strava_activity_id` are optional, so a race remembered without a
+  recording is still a complete bib
+- `PATCHES`: the wall's own prose, now one lede rather than a scope sentence plus a key.
+  Its heading is `My events`; "patch wall" survives in the URL and the metaphor, not as a
+  visible title
 
 ## Memories
 
