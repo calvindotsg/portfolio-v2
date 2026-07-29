@@ -480,7 +480,8 @@ export default defineConfig({
      *
      * IT COSTS NO GEOMETRY, and that is measured rather than assumed: the control's box is
      * IDENTICAL to the build it replaces at all 21 configurations of the zoom sweep (three
-     * viewports x seven root sizes, 182x48 through 74x652), and ink lost past the card's clip
+     * viewports x seven root sizes; 182x48 through 74x652 is the 1024 column of that sweep, and the
+     * control is wider than 182 at every viewport below lg), and ink lost past the card's clip
      * edge stays 0 in every cell. `justify-content` distributes free space that already exists;
      * it cannot create or consume any.
      *
@@ -519,7 +520,13 @@ export default defineConfig({
          * against a deploy preview: one goal card's way out sat in accent red while its sibling
          * did not, which reads as a selected state on a control that has none. It is not one
          * component's bug — every `hover:` token in this file and every hand-written `:hover` in
-         * `src/**` has it, which is twelve elements across two pages.
+         * `src/**` has it. Counted against the built DOM rather than from the source: TWELVE hovered
+         * elements on the home page — seven plated icon controls, the two goal cards' calls to action,
+         * two role-card company links, and the Now card's info link, which wears a bare `hover:` utility
+         * and belongs to neither named idiom — plus six more on the wall (the back link, three sport
+         * chips, and the linked bibs). An earlier draft of this sentence said "twelve elements across
+         * two pages", which was the home page's count labelled as the whole site's, and its stated
+         * breakdown reached twelve before the wall was added at all.
          *
          * WHY THE FIX BELONGS IN THE CONFIG AND NOT IN THE SHORTCUTS. Guarding each of the two
          * shortcuts would fix today's wearers and leave the next `hover:` token anyone writes

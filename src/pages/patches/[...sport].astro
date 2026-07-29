@@ -257,6 +257,25 @@ const description = goal === undefined
         color: var(--background);
     }
 
+    /*
+     * A PRESS SHOWS SOMETHING, ON EVERY CHIP INCLUDING THE CURRENT ONE.
+     *
+     * Debt created by guarding the hover above: the preflight turns the platform's own tap
+     * flash off site-wide (`-webkit-tap-highlight-color: transparent` on `html, :host`), so
+     * once the accent stopped firing on tap, a chip acknowledged a press with nothing at all.
+     * `:active` is not hover-gated and does fire on touch, which is why the site's plated
+     * controls already feel responsive on a phone and these did not.
+     *
+     * It sits AFTER the current-page rule deliberately, so the chip you are already on also
+     * answers a press. That momentarily draws it like any other pressed chip, which is
+     * correct — the press is feedback about the finger, not a claim about which page is open,
+     * and `aria-current` continues to carry the real state throughout.
+     */
+    .patch-filter a:active {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
     /* The count is quiet against its own label, whichever ground it lands on. */
     .patch-filter-count {
         opacity: 0.7;

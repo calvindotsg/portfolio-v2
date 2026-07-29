@@ -692,6 +692,29 @@ describe("page content", () => {
             + "the narrowed item has to be allowed to break, or it overflows the element that was just "
             + "narrowed to make room for it",
         ).toBe(true);
+
+        // AND ONCE IT BREAKS, ITS LINES MUST BE CENTRED TOO — the third declaration in the same
+        // rule, and the one whose absence nothing could see.
+        //
+        // The shortcut centres the control's two FLEX ITEMS. This span is not a box that shrinks
+        // to its words: it is the control's whole content width, so its text starts at the
+        // leading rail unless told otherwise. While the label is one line that is invisible;
+        // the moment it wraps, the control draws flush-left lines under a centred mark, which is
+        // the one arrangement that reads as neither centred nor packed.
+        //
+        // Measured across six viewports x seven root sizes: the label wraps in 15 of 42 per-card
+        // cells, and in every one the worst line's centre sat 24.4-61.1px off the control's
+        // centre while the mark sat at 0.00. A review panel found this; it is invisible at every
+        // default configuration and only appears under the text enlargement SC 1.4.4 requires,
+        // which is exactly why it needs an assertion rather than an eye.
+        const centred = rules.map((r) => decl(r.body, "text-align")).filter(Boolean);
+        expect(
+            centred.some((v) => v!.trim() === "center"),
+            `the control's label declares text-align "${centred.join(", ") || "nothing"}". The shortcut `
+            + "centres the flex items, not the text inside one of them, and this span is the control's "
+            + "full content width — so without this a wrapped label draws flush-left lines beneath a "
+            + "centred mark",
+        ).toBe(true);
     });
 
     it("sizes the control in the reader's own text, never in device pixels", () => {

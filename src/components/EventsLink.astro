@@ -62,7 +62,7 @@ const {goal} = Astro.props;
  * owner reported it from a physical iPhone 15 Pro Max, and no emulated sweep in this repo had
  * asked the question: every metric here measured whether the control FITS, was legible, and was
  * reachable, and all three passed. The fix is in the shortcut — the label and the mark are
- * centred as one legend now — and it changes no box anywhere, which is measured rather than
+ * centred as one legend now — and it changes no box's SIZE anywhere, which is measured rather than
  * argued: identical geometry at all 21 configurations of the zoom sweep.
  *
  * The content-width alternative was built as a real page and rendered rather than sketched, and
@@ -178,6 +178,26 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
            reason the label is wrapped in an element at all. */
         min-width: 0;
         overflow-wrap: break-word;
+        /*
+         * CENTRING THE FLEX ITEMS DOES NOT CENTRE THE TEXT INSIDE ONE OF THEM, and without
+         * this line the control is centred and left-aligned at the same time.
+         *
+         * This span is not a box that shrinks to its words and happens to sit in the middle — it IS the
+         * control's full content width, so its text starts at the leading rail exactly as it
+         * did when the shortcut packed the pair rail-to-rail. That was consistent then. Once
+         * the label wraps it is not: the reader gets two flush-left lines with a lone glyph
+         * centred underneath.
+         *
+         * Measured across 6 viewports x 7 root sizes, the label wraps in 15 of 42 per-card
+         * cells, and in every one of them the worst line's centre sat 24.4-61.1px off the
+         * control's centre while the mark sat at 0.00. Worst case 61.1px at a 430 viewport at
+         * a 40px root. This line takes 14 of those 15 to within 0.01px.
+         *
+         * It is an exact no-op at the default text size — the label is one line at every
+         * width down to 240px at roots 16/18/20 — so it costs nothing and only pays out under
+         * the text enlargement WCAG 1.4.4 requires.
+         */
+        text-align: center;
     }
 
     /*

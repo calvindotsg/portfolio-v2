@@ -440,11 +440,18 @@ describe("every styled control declares its box", () => {
             ).toBe(true);
             // WRAPPING IS ANTI-CLIPPING AND NOTHING WAS GATING IT. It is half of the pair that
             // keeps an enlarged label out of a card that clips — the height floor is the other
-            // half, and that one IS asserted above. With the children pinned to one line the
-            // cycling label measured 418px tall at a 32px root against 202 with wrapping, and
-            // with a pinned height it was clipped outright. The previous version of this test
-            // read `flex-wrap` only to decide whether a further assertion applied, so deleting
-            // the token would have made that assertion vanish rather than fail.
+            // half, and that one IS asserted above. Rebuilt with `flex-wrap` deleted from the
+            // shortcut and measured at 1024x797, a 32px root: the CONTROL is 402px tall on the
+            // cycling card and 434 on the running one, against 202 with wrapping; with a pinned
+            // height it was clipped outright. The previous version of this test read `flex-wrap`
+            // only to decide whether a further assertion applied, so deleting the token would
+            // have made that assertion vanish rather than fail.
+            //
+            // (An earlier draft of this comment said "the cycling label measured 418px". Both
+            // halves were wrong: 418 does not reproduce by any route, and the number is a
+            // CONTROL height, not a label height. It came from EventsLink.astro on origin/main,
+            // where it was written as "the same label" without naming a card, and restating it
+            // here newly pinned it to the one card it does not match.)
             expect(
                 box.wraps,
                 `.${box.cls} must let its children wrap. A label comes from data and grows with the `
@@ -463,11 +470,38 @@ describe("every styled control declares its box", () => {
         // rule that shipped named `[aria-hidden]` and the next one need not: what matters is
         // whether it reaches something inside a label control.
         const labelControls = new Set(elementsOf(labelBoxes()));
-        const AUTO_MARGIN = ["margin-inline-start", "margin-inline-end", "margin-left", "margin-right"] as const;
+        /**
+         * AN OVER-APPROXIMATION ON PURPOSE: every margin property that CAN carry an inline
+         * `auto`, and a value test that only asks whether the token appears.
+         *
+         * The first version of this listed the four longhands and compared the value with
+         * `=== "auto"`, and a review panel defeated it three ways, each of which re-pins the
+         * mark to a rail with all 290 tests green:
+         *
+         *   margin: 0 0 0 auto           the shorthand is never consulted — `decl` matches a
+         *                                property NAME at a boundary, and lightningcss ships
+         *                                the shorthand verbatim rather than expanding it
+         *   margin-inline: auto 0        same, one property along
+         *   margin-inline-start: auto !important   the ENUMERATED longhand, failing only the
+         *                                exact-value test — the minifier ships `auto!important`
+         *
+         * Measured on the third: the mark's inset goes from 231.5/120.5 back to 339/13 at a
+         * 430px viewport, which is verbatim the arrangement this component's own prose records
+         * as the pre-fix state.
+         *
+         * So both halves are widened. A margin SHORTHAND that mentions `auto` anywhere is
+         * treated as suspect even though `margin: auto` (all four sides) would centre rather
+         * than rail — nothing in this codebase needs an auto margin inside a control, so a
+         * false positive here costs a rewording and a false negative costs the defect back.
+         */
+        const AUTO_MARGIN = [
+            "margin", "margin-inline",
+            "margin-inline-start", "margin-inline-end", "margin-left", "margin-right",
+        ] as const;
         const offenders: string[] = [];
         for (const rule of rules) {
             if (isKeyframeStep(rule)) continue;
-            const auto = AUTO_MARGIN.filter((p) => (decl(rule.body, p) ?? "").trim() === "auto");
+            const auto = AUTO_MARGIN.filter((p) => /(?:^|\s)auto(?:\s|$|!)/.test((decl(rule.body, p) ?? "").trim()));
             if (!auto.length) continue;
             for (const selector of rule.selectors) {
                 const structural = structuralSelector(selector);
@@ -557,6 +591,25 @@ describe("every styled control declares its box", () => {
             // `box-sizing` belongs here for the same reason a declared width does:
             // border-box and content-box give one declaration two rendered boxes.
             "box-sizing",
+            /*
+             * THE LAYOUT PROPERTIES BELONG HERE FOR THE SAME REASON THE BOX ONES DO, and
+             * leaving them out was a hole two review dimensions found independently.
+             *
+             * `boxOf()` reads `canonicalRule(cls)` — the FIRST top-level rule naming the
+             * shortcut class — so `display`, `justify`, `align` and `wraps` were resolved
+             * from one rule with nothing resolving the cascade around them. This walk is
+             * what polices the cascade, and it listed no layout property at all. So a
+             * `justify-content` in a media query, on the element as a utility, or in a
+             * component's scoped `<style>` won in the browser while the centring assertion
+             * above still read "center".
+             *
+             * That is not a hypothetical: the defect this control was changed to fix lives
+             * ENTIRELY below `lg`, which is exactly where a `@media (max-width: …)` override
+             * bites and exactly where a single-rule read cannot look. A skeptic rebuilt the
+             * pre-fix layout below `lg` with all 290 tests green.
+             */
+            "justify-content", "align-items", "place-items", "place-content",
+            "flex-wrap", "flex-flow", "flex-direction",
             // `scale` and `zoom` are kept as a net for HAND-WRITTEN CSS only, and
             // are dead against anything UnoCSS emits: generating from this config
             // shows `scale-125`, `scale-[2]` and `zoom-150` all compile to

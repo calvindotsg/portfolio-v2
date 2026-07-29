@@ -550,6 +550,30 @@ const Tag = activity === null ? "div" : "a";
     }
 
     /*
+     * AND A PRESS HAS TO SHOW SOMETHING, WHICH IS A DEBT THE GUARD ABOVE CREATED.
+     *
+     * Guarding the outline was right, but it was the only thing this bib did when a finger
+     * landed on it. UnoCSS's preflight sets `-webkit-tap-highlight-color: transparent` on
+     * `html, :host`, so the platform's own press flash is off site-wide — which means that
+     * after the guard, a tap on a bib painted NOTHING until the next page rendered.
+     *
+     * The site already answers this everywhere else: the shared plate idiom in uno.config.ts
+     * carries its press affordance on `:active`, which is not hover-gated and does still fire
+     * on touch. So
+     * without this the two objects on this site that say "the whole box is the anchor" — the
+     * goal card's call to action and the bib — disagree about whether a press is acknowledged.
+     * This is the bib saying the same thing in the bib's own idiom.
+     *
+     * `:active` is the correct state and not a workaround: it is defined for the interval
+     * between press and release on every input, so it costs a pointer reader nothing and is
+     * the only affordance a touch reader can produce deliberately.
+     */
+    .bib--linked:active {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
+    /*
      * THE ACTION ROW: WHAT THE BIB DOES, SAID IN WORDS.
      *
      * It replaces a 7.5 x 10px Strava glyph in the meta row whose only text was `sr-only` —
