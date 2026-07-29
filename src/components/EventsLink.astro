@@ -70,14 +70,18 @@ const {goal} = Astro.props;
  * and for the same reason (see the box's arithmetic in uno.config.ts).
  *
  * THE GLYPH IS 1em AND CARRIES NOTHING BUT ITS UTILITY AND ITS PIN, which is a change the
- * suite asked for rather than a preference. It shipped at `1.15em` from a class of its own
+ * suite asked for rather than a preference. It shipped at `1.1em` from a class of its own
  * while this was a text link, and `tests/control-geometry.test.ts` allows a control's icon
  * span exactly its `i-` utility, `shrink-0`, and the toggle's theme selector — an allowlist,
  * because a width utility and a display utility both defeated the property scan it replaced
  * (they are named in that file, which the extractor does not read). An authored `font-size`
  * on the span is the same kind of thing those two were, so the size now comes from the
  * control's own type and the pin is the utility the allowlist names. The difference on
- * screen is 13.8px of arrow against 12; the gate is worth more than 1.8px.
+ * screen is 13.2px of arrow against 12; the gate is worth more than 1.2px.
+ *
+ * (An earlier draft of this paragraph said 1.15em and 13.8px. Neither number ever existed in
+ * this repository — `1.15em` was the value in the throwaway variant rig, and a reviewer
+ * caught it with `git log -S`. The shipped value on origin/main was 1.1em.)
  *
  * WHAT IS AUTHORED HERE AND WHY. The height, the surface and the box all come from the
  * shortcut, so what is left below is only the two things a shortcut cannot say: the
@@ -117,7 +121,10 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
      * The cause is width, and it is structural rather than a slip: a button spends horizontal
      * padding, a gap and a 1em arrow on chrome, and the card gets NARROWER as the root grows
      * because its own padding is font-relative too. At a 32px root the card leaves 110px and
-     * the chrome wants 40 of them. A run of words spent nothing and always had the full 110.
+     * the chrome wants 90 of them — 48px of horizontal padding, a 16px gap, a 24px arrow and
+     * 2px of border — so 20px is left for words that want 163. A run of words spent nothing on
+     * chrome and always had the full 110. (An earlier draft of this sentence said 40px, which
+     * is not the sum of the four things the same sentence lists.)
      *
      * THREE THINGS FIX IT AND EACH ONE IS NECESSARY:
      *
@@ -132,10 +139,22 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
      *      one line the same label came out 418px tall at a 32px root against 202 now; with a
      *      pinned height it was clipped outright.
      *
-     * WHAT IS NOT FIXED, stated plainly: at a 32px root — WCAG 1.4.4's 200% — this control is
-     * 202px tall where the run of words was 96. No content is lost and the page scrolls, so
-     * the criterion is met, but the box is the more expensive object at that setting and the
-     * honest reason to accept it is that it is the cheaper one at 16px, where readers are.
+     * WHAT IS NOT FIXED, AND "0 INK LOST" IS NOT THE WHOLE STORY. The figures above measure one
+     * thing — ink past the clip edge — and a reviewer was right that they certify roots 36 and
+     * 40 as clean when they are the worst configurations on the page. What it cannot see is
+     * WHERE the label breaks. Per-line fragments for the cycling card at 1024x797:
+     *
+     *     root 16   "My cycling events"                          one line, 48px tall
+     *     root 24   "My cycling " / "events"                     whole words, 74px
+     *     root 32   "My " / "cyclin" / "g " / "event" / "s"      mid-word, 202px
+     *     root 40   fifteen fragments, roughly one letter each   652px
+     *
+     * So at WCAG 1.4.4's 200% the words are legible but broken mid-word, and above that the
+     * control degrades badly. It is a real cost and it is the price of the chrome arithmetic
+     * above; nothing is clipped, obscured or unreachable at any of these sizes, so no criterion
+     * fails. The obvious fix — pinning the padding and gap to device pixels — was rejected:
+     * this repo's whole layout is font-relative on purpose (see uno.config.ts's breakpoints),
+     * and buying tidier 200% text with a control that stops scaling is the wrong trade.
      */
     .events-link-label {
         /* Let the label narrow to whatever the button has left. An anonymous flex item —
@@ -147,6 +166,26 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
     }
 
     /*
+     * THE MARK STAYS ON THE TRAILING EDGE EVEN WHEN THE CONTROL WRAPS, and an auto margin is
+     * the only thing that does that. `justify-between` on the shortcut distributes free space
+     * BETWEEN items on a line — so it works while the label and the mark share one, and does
+     * nothing once the mark is alone on line two, where it packs to main-start instead.
+     * Measured on the built page, arrow offset from the control's left / right edge:
+     *
+     *     root     16          20         24         32
+     *     before   157 / 13    16 / 133   19 / 109   25 / 61     alone on line 2, at the LEFT
+     *     after    157 / 13    133 / 16   109 / 19   61 / 25     trailing, at every root
+     *
+     * Note root 16 is unchanged in both columns: while the two share a line the auto margin
+     * and `justify-between` compute the same position, so this is a true no-op at the size
+     * the design was drawn at and a repair at every size above it. The control's own box is
+     * identical at every root either way.
+     */
+    .events-link span[aria-hidden] {
+        margin-inline-start: auto;
+    }
+
+    /*
      * A VISIBLE KEYBOARD FOCUS, which this element did not have and neither does any other
      * control on the site — every one of them rides the browser's default outline. That
      * default is a real indicator, so this is an improvement rather than a repair, and it is
@@ -154,12 +193,21 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
      * business would change the drawing of seven other controls in a change that was asked
      * to alter two, and that is the owner's call to make separately.
      *
-     * The offset is what keeps it legible: the plate sits 2px down and right of the box, so
-     * an outline drawn ON the border is half-covered by it at the two edges that matter.
+     * THE OFFSET IS 3px BECAUSE 2px IS EXACTLY FLUSH, which is the opposite of what an
+     * earlier version of this sentence claimed. The plate sits 2px down and right of the box,
+     * so at `outline-offset: 2px` the outline's right and bottom edges land ON the plate rather
+     * than clear of it: measured in light theme, outline rgb(168,35,52) against plate
+     * rgb(168,35,52) — 1.00:1, no perceivable boundary on two of the four edges. 3px leaves a
+     * 1px lane of card between them.
+     *
+     * SO THE CONTRAST CLAIM IS A PAIR, not one number. Left and top edges sit on the card
+     * (`--card-background`); right and bottom sit beside the plate (`--shadow`). Both are
+     * measured in the browser sweep and both clear SC 1.4.11's 3:1 — see the PR. Quoting only
+     * the card figure, as the first draft did, certifies half the indicator.
      */
     .events-link:focus-visible {
         outline: 2px solid var(--accent);
-        outline-offset: 2px;
+        outline-offset: 3px;
     }
 
     /*
@@ -187,8 +235,25 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
          *
          * `forced-color-adjust: none` opts the glyph out of the override; the explicit
          * LinkText is what it paints instead. Same technique as ProgressBar.astro's fill.
+         *
+         * `[aria-hidden]` IS LOAD-BEARING AND WAS PAID FOR. This selector was `.events-link
+         * span` for one revision, written when the anchor had one child. Wrapping the label
+         * in an element gave it a second, and the label then took the glyph's treatment:
+         * `background-color: LinkText` under the anchor's inherited `color: LinkText`, i.e.
+         * the words painted on their own colour. Measured with the mode emulated: label ink
+         * rgb(0,0,159) on background rgb(0,0,159) across 102.95 x 16px — a ratio of exactly
+         * 1.00:1, the whole of the control's on-screen name replaced by a solid block, on both goal
+         * cards, on the home page. Four independent reviewers found it and none of the
+         * eleven mutations run against this file could: they all delete or alter a
+         * DECLARATION, and the defect was in the SELECTOR's reach.
+         *
+         * So the rule is scoped to the decorative mark by the attribute that makes it
+         * decorative, rather than by a class of its own — a styling class on an icon span is
+         * what tests/control-geometry.test.ts's allowlist forbids. If the glyph ever stops
+         * being `aria-hidden` it stops being decorative, and this rule correctly stops
+         * applying to it.
          */
-        .events-link span {
+        .events-link span[aria-hidden] {
             forced-color-adjust: none;
             background-color: LinkText;
         }

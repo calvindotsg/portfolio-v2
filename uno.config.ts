@@ -435,7 +435,24 @@ export default defineConfig({
      * the anchor, which is the bib's own idiom (see Patch.astro), rather than 29px of dead card
      * beside a 153px button. Measured at 1024x797: the card goes 232.8 -> 256.8px and `main`
      * stays 797, because the right-hand stack's height is set by the taller left column. 3rem
-     * is the LAST size that is free — at 3.5rem `main` goes to 807.59 and the page scrolls.
+     * is the LAST size that is free THERE — at 3.5rem `main` goes to 807.59 and the page
+     * scrolls.
+     *
+     * "FREE" IS A STATEMENT ABOUT THE DEFAULT TEXT SIZE AND NOTHING ELSE, which the sentence
+     * above did not say and a reviewer was right to call out. The absorption depends entirely
+     * on the left column still being the taller one, and text-only zoom is what ends that:
+     *
+     *     root 16   the stack has 53.4px of slack and swallows the whole +48. Page unmoved.
+     *     root 20   the stack IS the binding constraint, so +60 passes into `main` 1:1
+     *               (926.67 -> 986.67 at 1440 wide) and lg viewport heights 928-987 go from
+     *               fitting to scrolling — up to 59px of content below the fold at h=928.
+     *     root 24   the same at 1440 (heights 1152-1180) and 1920 (heights 1104-1148).
+     *
+     * That cost was measured and accepted rather than fixed. The candidate fix — zeroing the
+     * control's `margin-top` in Goal.astro — was built and measured: it reclaims 15px of the
+     * 60, still scrolls at 1440x960, and spends a decision that file documents in prose. 12px
+     * is not worth it. Note also that no test can see this: there is no layout engine in the
+     * suite, so the boundary lives in the PR's browser sweep and in this paragraph.
      *
      * `justify-between` is what puts the mark on the far edge. It is doing the job the old
      * chevron's negative margin did in reverse: there the glyph was pulled onto the words so

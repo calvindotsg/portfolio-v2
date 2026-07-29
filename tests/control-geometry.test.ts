@@ -1161,11 +1161,20 @@ describe("every styled control declares its box", () => {
         // A FLOOR is a second declared box and beats the declared width for the used value,
         // exactly as a cap does. The canonical rule is checked here because the sheet-wide
         // guard above deliberately exempts it.
-        // ICON CONTROLS ONLY, like everything else in this row test — and a label control is
-        // exempt from `min-height` alone, on the reasoning recorded at `declaredHeight`. Its
-        // width, and both caps, are still policed here for every control.
-        for (const cls of iconBoxes().map((b) => b.cls)) {
+        // EVERY control, with a label control exempt from `min-height` ALONE, on the reasoning
+        // recorded at `declaredHeight`. Its width and both caps are policed like anyone else's.
+        //
+        // This loop read `iconBoxes()` for one revision and the comment beside it claimed the
+        // narrower scope was `min-height` only — the code exempted the label kind from all four
+        // properties. A reviewer proved the hole rather than arguing it: `min-w-[20rem]` on the
+        // `control-cta` shortcut resolves the control to 320px inside a 182px goal card, past
+        // the card's clip edge at every lg width, and the whole suite stayed green at 281/281.
+        // The identical mutation on `.control` was still caught, which is what made it this
+        // diff's regression rather than an inherited gap.
+        const labelClasses = new Set(labelBoxes().map((b) => b.cls));
+        for (const cls of controlClasses) {
             for (const prop of ["min-width", "min-height", "max-width", "max-height"] as const) {
+                if (prop === "min-height" && labelClasses.has(cls)) continue;
                 expect(
                     decl(canonicalRule(cls).body, prop),
                     `.${cls} declares ${prop}; the control's box must be declared once, not floored or capped, `

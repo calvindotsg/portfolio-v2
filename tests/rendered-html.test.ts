@@ -695,10 +695,32 @@ describe("page content", () => {
     });
 
     it("sizes the control in the reader's own text, never in device pixels", () => {
-        const rules = parseRules(pageCss()).filter((r) => r.selectors.some((s) => /\.events-link\b/.test(s)));
+        // READ EVERY CLASS THE ELEMENT WEARS, not just `.events-link`. The four properties this
+        // guards used to be declared under that one class; the box moved into the shared
+        // `control-cta` shortcut and this filter did not follow it, which left the assertion
+        // scanning rules that no longer declare any of them — green, and blind. A reviewer
+        // demonstrated it rather than argued it: `text-xs` -> `text-[12px]` in the shortcut
+        // gives the label a device-pixel font-size that ignores the reader's browser setting,
+        // which is precisely the SC 1.4.4 failure this test is named for, and the suite stayed
+        // green. Nothing else covered it either — control-geometry's font-relative loop reads
+        // only the width and height axes, and its font-size comparison is icon-controls-only.
+        const scoped = /\.(events-link|events-link-label|control-cta)\b/;
+        const rules = parseRules(pageCss()).filter((r) => r.selectors.some((s) => scoped.test(s)));
         expect(rules.length, "no control rules found — this assertion would be vacuous").toBeGreaterThan(0);
+
+        // AND THE SCOPE MUST STILL REACH THE PROPERTIES. The hole above was not an empty rule
+        // set — it was a non-empty set that happened to declare none of the four. So require
+        // that at least one in-scope rule declares at least one of them: the day the box moves
+        // again, this goes red instead of quietly certifying nothing.
+        const GUARDED = ["height", "min-height", "max-height", "font-size"] as const;
+        expect(
+            rules.some((r) => GUARDED.some((p) => decl(r.body, p) !== undefined)),
+            `no rule reaching the control declares any of ${GUARDED.join(", ")} — the box has moved out `
+            + "from under this assertion again and it is certifying nothing",
+        ).toBe(true);
+
         for (const rule of rules) {
-            for (const prop of ["height", "min-height", "max-height", "font-size"] as const) {
+            for (const prop of GUARDED) {
                 const value = decl(rule.body, prop);
                 if (value === undefined) continue;
                 expect(value, `${rule.selectors.join(",")} { ${prop}: ${value} } must be text-relative`)
