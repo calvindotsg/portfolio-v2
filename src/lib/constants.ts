@@ -314,8 +314,9 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * was recorded the other way first, on good-looking evidence: `curl` gets HTTP 200 with no
  * redirect from `strava.com/activities/<id>`, which reads as "public". Fetched and READ,
  * the page is *"Log in to see 'MBG DCR 2026 Krabi to Phuket'"* and a sign-up prompt — the
- * title is there, the distance and the time are not. Checked on both ids below, 2026-07-28.
- * A status code is not an answer to "can a reader see this".
+ * title is there, the distance and the time are not. Checked on every id in EVENTS the day
+ * it was added, most recently 2026-07-29. A status code is not an answer to "can a reader
+ * see this"; re-check by reading, not by curling.
  *
  * The decision. The owner read that and asked for the links anyway. A visitor who has
  * Strava — which is most of the audience for a wall of race bibs — gets the ride; one who
@@ -324,7 +325,7 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * a complete object rather than being the only way to learn anything.
  *
  * (The wall leaking the title is also the technique for VERIFYING an id without an
- * account, which is how the two below were checked rather than trusted: fetch the page and
+ * account, which is how every id below was checked rather than trusted: fetch the page and
  * read which race it names. Two valid ids transposed between events would otherwise
  * produce a wall nothing on this site could catch.)
  *
@@ -642,7 +643,7 @@ export const NOW: {
  * `/patches/cycling` could not make. Two things then made the pair pointless at once: the
  * calendar became the owner's whole racing history, so the year came off every string that
  * had one, and what was left — "Every race I have entered" — says nothing the heading "My
- * events" and a filter row reading `All 6 / Ride 4 / Run 2` had not already said. The
+ * events" and a filter row that already counts them by sport had not already said. The
  * maintainer's call, and the right one: a lede that restates the heading is a line a reader
  * pays for twice.
  *
