@@ -53,9 +53,24 @@ const {goal} = Astro.props;
  * that with `align-self: start`. The box is deliberately the full width again, and the
  * defect does not return, because the box is now DRAWN: a reader can see exactly where the
  * target begins and ends. That is the bib's own idiom (Patch.astro) — the whole object is
- * the anchor and it looks like one. The alternative was measured and rejected on the same
- * grounds it would have been chosen for: a 153px content-width button leaves 29px of dead
- * card beside it, which is the ragged edge, not the tidy one.
+ * the anchor and it looks like one.
+ *
+ * THAT ARGUMENT SURVIVED A PHONE; THE PACKING INSIDE THE BOX DID NOT. Below `lg` the grid is
+ * one column and this card is as wide as the viewport, so the same full-bleed box is 364px at
+ * a 430px viewport and 558px at 640 — and with the label at the left rail and the mark at the
+ * right one, what it draws there is a select or a text field, not something to press. The
+ * owner reported it from a physical iPhone 15 Pro Max, and no emulated sweep in this repo had
+ * asked the question: every metric here measured whether the control FITS, was legible, and was
+ * reachable, and all three passed. The fix is in the shortcut — the label and the mark are
+ * centred as one legend now — and it changes no box anywhere, which is measured rather than
+ * argued: identical geometry at all 21 configurations of the zoom sweep.
+ *
+ * The content-width alternative was built as a real page and rendered rather than sketched, and
+ * it is rejected on measurement: a shortcut asking for `fit-content` loses 23.2px of ink past
+ * this card's right edge at 1024 at a 40px root where full width loses none, and at `lg` it
+ * draws the two goal cards' controls 3px apart (148.95 and 145.94) one directly above the
+ * other. (The utility's own name is spelled out rather than written, because UnoCSS extracts
+ * from this file's text and would emit a real rule for it that no element wears.)
  *
  * THE LABEL IS STILL THE WHOLE ACCESSIBLE NAME. These words name the destination with the
  * very string that page is headed with (see [...sport].astro), so there is no sr-only
@@ -166,24 +181,26 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
     }
 
     /*
-     * THE MARK STAYS ON THE TRAILING EDGE EVEN WHEN THE CONTROL WRAPS, and an auto margin is
-     * the only thing that does that. `justify-between` on the shortcut distributes free space
-     * BETWEEN items on a line — so it works while the label and the mark share one, and does
-     * nothing once the mark is alone on line two, where it packs to main-start instead.
-     * Measured on the built page, arrow offset from the control's left / right edge:
+     * THERE USED TO BE AN `margin-inline-start: auto` ON THE MARK HERE AND IT IS GONE WITH THE
+     * ARRANGEMENT THAT NEEDED IT. Recording why, because it was load-bearing and measured, and
+     * "this looks removable" is exactly how it would come back.
+     *
+     * It existed to hold the mark on the trailing edge once the control wraps: `justify-between`
+     * distributes free space BETWEEN items on a line, so it did the job while the label and the
+     * mark shared one and did nothing at all once the mark was alone on line two, where it packed
+     * to main-start. Measured then, arrow offset from the control's left / right edge:
      *
      *     root     16          20         24         32
-     *     before   157 / 13    16 / 133   19 / 109   25 / 61     alone on line 2, at the LEFT
-     *     after    157 / 13    133 / 16   109 / 19   61 / 25     trailing, at every root
+     *     without  157 / 13    16 / 133   19 / 109   25 / 61     alone on line 2, at the LEFT
+     *     with     157 / 13    133 / 16   109 / 19   61 / 25     trailing, at every root
      *
-     * Note root 16 is unchanged in both columns: while the two share a line the auto margin
-     * and `justify-between` compute the same position, so this is a true no-op at the size
-     * the design was drawn at and a repair at every size above it. The control's own box is
-     * identical at every root either way.
+     * The shortcut centres its children now (see uno.config.ts for the width sweep that says
+     * why), so there is no trailing edge to hold the mark against and an auto margin would push
+     * it back to the rail the centring exists to move it off. Measured on this build, mark offset
+     * from left / right at 1024x797: 140.5 / 29.5 at root 16 where the pair shares a line, then
+     * 74.5 / 74.5, 64 / 64, 53.5 / 53.5, 43 / 43, 32.5 / 32.5, 22 / 22 as it drops to its own
+     * line — symmetric at every root, which is the property that replaced "trailing".
      */
-    .events-link span[aria-hidden] {
-        margin-inline-start: auto;
-    }
 
     /*
      * A VISIBLE KEYBOARD FOCUS, which this element did not have and neither does any other

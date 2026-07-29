@@ -235,9 +235,20 @@ const description = goal === undefined
         transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
     }
 
-    .patch-filter a:hover {
-        border-color: var(--accent);
-        color: var(--accent);
+    /*
+     * Guarded because a touch browser applies `:hover` on tap and keeps it until the reader
+     * taps elsewhere, which left whichever sport chip was last pressed wearing the accent
+     * beside the one that is genuinely current. That is the worst place on the site for it:
+     * the row's real state is `[aria-current="page"]` directly below, so a hover that stays
+     * put fakes exactly the distinction this row exists to draw. Every `hover:` utility is
+     * guarded by a variant in uno.config.ts; a hand-written rule carries its own, and
+     * tests/build-output.test.ts fails the build on one that does not.
+     */
+    @media (hover: hover) {
+        .patch-filter a:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
     }
 
     .patch-filter a[aria-current="page"] {

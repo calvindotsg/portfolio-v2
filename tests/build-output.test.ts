@@ -920,6 +920,73 @@ describe("hover styles promise only interactions that exist", () => {
     });
 });
 
+/**
+ * A HOVER STYLE MUST NEED A POINTER TO PRODUCE IT.
+ *
+ * THE DEFECT, reported from a physical iPhone 15 Pro Max against a deploy preview: one goal
+ * card's way out sat in accent red while its sibling did not. A touch browser has no pointer
+ * to move away, so it applies `:hover` on tap and holds it until the reader taps something
+ * else — which draws a persistent selected-looking state on a control that has no such state.
+ * On the patch wall it is worse than cosmetic: the sport chips DO have a real current state
+ * (`[aria-current="page"]`), and a stuck hover fakes exactly the distinction that row exists
+ * to draw.
+ *
+ * IT WAS SITE-WIDE AND PRE-EXISTING — nine plated controls, three text links, and the wall's
+ * chips and bibs, twelve elements over two pages, with no `(hover: hover)` query anywhere in
+ * the repository. So the fix is site-wide too: a variant in `uno.config.ts` emits every
+ * `hover:` utility inside the query, and the two hand-written rules carry it in their own
+ * preludes.
+ *
+ * WHY THE GATE IS A UNIVERSAL WITH NO CARVE-OUTS. The two mode overrides on the wall
+ * (`@media print`, `@media (forced-colors: active)`) could not misfire on a phone even
+ * unguarded — one paints only on paper, the other only recolours an outline that the guard
+ * already prevents. Both were still split and guarded, because "this particular hover rule is
+ * inert" is an argument that has to be re-made by hand for every future exemption, and the
+ * exemption list is where a gate like this rots. A universal is checkable; a universal with
+ * two footnotes is a habit.
+ *
+ * WHAT THIS CANNOT SEE, stated so it is not trusted further than it goes: it reads the sheet,
+ * not the screen. It cannot tell whether the guarded rule still paints for a reader who DOES
+ * have a pointer — that is a browser measurement, and it is in the PR (mouse held over each
+ * control, computed colour read in both device states, with the `(hover: hover)` value read
+ * back per state so the emulation lever is proven to have applied).
+ */
+describe("a hover style needs a pointer to produce it", () => {
+    // Matches `:hover` as a real state pseudo-class only. Inside an escaped UnoCSS token
+    // (`.hover\:text-...`) the same characters are part of the class NAME — the sibling gate
+    // above records the same trap, and getting it wrong here would fail the build on the very
+    // utility this rule exists to guard.
+    const HOVER = /(?<!\\):hover(?![\w-])/;
+    const GUARDED = /\(\s*hover\s*:\s*hover\s*\)/;
+
+    const hoverRules = (page: string) =>
+        parseRules(pageCss(page)).filter((r) => r.selectors.some((s) => HOVER.test(s)));
+
+    it("finds hover rules at all, so the assertion below is not vacuous", () => {
+        // Counted across every page rather than per page. A per-page floor is a hand-counted
+        // one, and it goes red on correct code the day a page legitimately has no hovered
+        // element — the same shape as the `toBeGreaterThan(0)` floors this suite has been
+        // bitten by before. What must never be zero is the whole site's supply of hover rules,
+        // because that is the only thing that makes the guard below mean anything.
+        const total = builtPages().reduce((n, page) => n + hoverRules(page).length, 0);
+        expect(total, "no page ships a single :hover rule — every assertion below is vacuous").toBeGreaterThan(0);
+    });
+
+    it.each(builtPages())("ships no :hover rule outside a (hover: hover) query (%s)", (page) => {
+        const unguarded = hoverRules(page)
+            .filter((r) => !GUARDED.test(r.at))
+            .map((r) => `${r.at ? `${r.at} ` : "(top level) "}{ ${r.selectors.join(", ")} }`);
+        expect(
+            [...new Set(unguarded)],
+            "a touch browser applies :hover on tap and holds it until the reader taps elsewhere, so an "
+            + "unguarded hover rule ships a sticky selected-looking state on whatever was last pressed. "
+            + "Wrap the rule in @media (hover: hover) — or, for a UnoCSS utility, check that the "
+            + "hover-needs-a-pointer preset in uno.config.ts still sits ABOVE presetWind3 in the list, "
+            + "since variants resolve in preset order and below it this emits nothing at all",
+        ).toEqual([]);
+    });
+});
+
 describe("the offset plate actually paints", () => {
     // One entry per plated SELECTOR, not per plated element: `.control` is worn by
     // every control (it was two classes until they were unified, and the toggle's

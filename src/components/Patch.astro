@@ -523,15 +523,30 @@ const Tag = activity === null ? "div" : "a";
      * the pair `--accent` is already held to 3:1 against in tests/build-output.test.ts.
      * The border would have painted against the bib's own face, which differs by state
      * and by theme — four pairs to hold instead of one.
+     *
+     * THE TWO STATES ARE SPLIT ACROSS TWO RULES NOW, WHICH IS NOT A STYLE CHOICE. A touch
+     * browser applies `:hover` on tap and holds it until the reader taps elsewhere, so on a
+     * phone this outline stayed on whichever bib was last pressed, reading as a selected
+     * state the bib does not have. Every `hover:` UTILITY on the site is guarded by a variant in uno.config.ts;
+     * a hand-written rule has to carry the guard itself, and it cannot be applied to the
+     * selector list as a whole because `:focus-visible` is a KEYBOARD indicator that must
+     * survive on every device. tests/build-output.test.ts fails the build on any `:hover`
+     * rule that ships outside a `(hover: hover)` context.
      */
     .bib {
         text-decoration: none;
     }
 
-    .bib--linked:hover,
     .bib--linked:focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: 2px;
+    }
+
+    @media (hover: hover) {
+        .bib--linked:hover {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
     }
 
     /*
@@ -757,11 +772,27 @@ const Tag = activity === null ? "div" : "a";
      * So the blocks were moved to where the comment always claimed they were. Anything
      * mode-specific belongs here, at the actual end, and any new plain rule belongs ABOVE.
      */
+    /*
+     * THE HOVER HALF OF EACH OVERRIDE BELOW CARRIES `and (hover: hover)`, matching the base
+     * rule it overrides. Neither could misfire on a phone without it — one paints only in
+     * forced colours and the other only on paper — but the gate in tests/build-output.test.ts
+     * is a universal with no carve-outs, and a universal is worth more than two exemptions
+     * that each need re-arguing. Note `(hover: hover)` is TRUE while printing from a pointer
+     * device (measured, not assumed), so the print override is still live where it matters.
+     */
     @media (forced-colors: active) {
-        .bib--linked:hover,
         .bib--linked:focus-visible {
             outline-color: LinkText;
         }
+    }
+
+    @media (forced-colors: active) and (hover: hover) {
+        .bib--linked:hover {
+            outline-color: LinkText;
+        }
+    }
+
+    @media (forced-colors: active) {
 
         /*
          * The mark is an icon class, so its artwork is a MASK over
@@ -807,8 +838,13 @@ const Tag = activity === null ? "div" : "a";
         }
     }
 
+    @media print and (hover: hover) {
+        .bib--linked:hover {
+            outline: none;
+        }
+    }
+
     @media print {
-        .bib--linked:hover,
         .bib--linked:focus-visible {
             outline: none;
         }

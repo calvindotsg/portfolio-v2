@@ -385,49 +385,106 @@ describe("every styled control declares its box", () => {
     });
 
     /**
-     * A LABEL CONTROL PUTS ITS MARK ON THE FAR EDGE, and that is a load-bearing arrangement
-     * rather than a taste: the label names the destination and the mark says the press
-     * leaves the card, so they are two statements and not one phrase. Centred together they
-     * read as a single run of words with a decoration after it — which is what the element
-     * looked like before it became a control, and what it was changed to stop looking like.
+     * A LABEL CONTROL'S LABEL AND MARK ARE ONE LEGEND, CENTRED — and this assertion is the
+     * reverse of the one it replaces, so the reason is recorded rather than swapped.
+     *
+     * THE RETIRED CLAIM. "A label control puts its mark on the far edge … the label names the
+     * destination and the mark says the press leaves the card, so they are two statements and
+     * not one phrase. Centred together they read as a single run of words with a decoration
+     * after it — which is what the element looked like before it became a control." Every
+     * clause of that was reasoned at the lg card, where the control is 182px and `justify-
+     * content: space-between` opens a 41px gap, so the two arrangements draw nearly the same
+     * object and the argument was never tested against a case that could refute it.
+     *
+     * WHAT IT LOOKS LIKE WHERE IT WAS NOT TESTED. Below `lg` the page is one column and this
+     * card is as wide as the viewport, so the same rule strands the label at the left rail and
+     * the mark at the right one:
+     *
+     *     viewport   320    375    390    430    640    768   1024
+     *     control    254    309    324    364    558    304    182
+     *     gap        113    168    183    223    417    163     41
+     *
+     * A wide bordered box with a small label at the left rail and a lone glyph at the right is
+     * the silhouette of a select or a text field. So the retired claim's own premise — that
+     * this must not read as something it is not — is what overturns it: on a phone, "two
+     * statements at opposite ends" IS the wrong object, and the decoration-after-a-phrase risk
+     * it was guarding against belongs to an element with no box, which this one has.
+     *
+     * IT IS PAINT AND NOT GEOMETRY, which is why the change is safe to make on an assertion
+     * this old: `justify-content` distributes free space that already exists and cannot create
+     * or consume any. Measured across three viewports x seven root sizes, the control's box is
+     * identical in both builds at all 21 configurations, and ink lost past the card's clip edge
+     * is 0 in every cell of both.
+     *
+     * THE AUTO MARGIN THIS USED TO REQUIRE IS NOW FORBIDDEN, and it is the same declaration in
+     * both cases. Under `space-between` an auto inline-start margin was the only thing holding
+     * the mark on the trailing edge once the control wrapped (`justify-content` has nothing to
+     * distribute between when an item is alone on a line — measured, the mark landed at the LEFT
+     * padding edge from a 20px root upward). Under centring that identical declaration pushes
+     * the mark to the very rail the centring exists to move it off, so the assertion inverts
+     * with the design rather than being deleted.
      */
-    it("packs a label control's mark against the far edge, and centres it vertically", () => {
+    it("centres a label control's legend on both axes, and lets nothing push its mark to a rail", () => {
+        expect(labelBoxes().length, "no label controls — every assertion here would be vacuous").toBeGreaterThan(0);
         for (const box of labelBoxes()) {
             expect(box.display, `.${box.cls} must lay its children out`).toMatch(/^(inline-)?(flex|grid)$/);
-            expect(box.justify, `.${box.cls} must push its mark to the far edge`).toBe("space-between");
+            expect(
+                box.justify,
+                `.${box.cls} packs its children at "${box.justify}". The label and the mark are one legend: `
+                + "at 430px wide, pushing them apart parks a 12px glyph 223px from the words it belongs to and "
+                + "draws the silhouette of a select rather than of something to press",
+            ).toBe("center");
             expect(
                 box.placeItems === "center" || box.align === "center",
                 `.${box.cls} must centre its children on the cross axis (got align=${box.align})`,
             ).toBe(true);
+            // WRAPPING IS ANTI-CLIPPING AND NOTHING WAS GATING IT. It is half of the pair that
+            // keeps an enlarged label out of a card that clips — the height floor is the other
+            // half, and that one IS asserted above. With the children pinned to one line the
+            // cycling label measured 418px tall at a 32px root against 202 with wrapping, and
+            // with a pinned height it was clipped outright. The previous version of this test
+            // read `flex-wrap` only to decide whether a further assertion applied, so deleting
+            // the token would have made that assertion vanish rather than fail.
+            expect(
+                box.wraps,
+                `.${box.cls} must let its children wrap. A label comes from data and grows with the `
+                + "reader's text; with one line to fit it in, the control pushes the words sideways into a "
+                + "card that clips them",
+            ).toBe(true);
+        }
 
-            // AND `space-between` IS NOT ENOUGH ONCE THE CONTROL CAN WRAP — the half this
-            // assertion was missing while its name promised it. `justify-content` distributes
-            // free space BETWEEN the items on a line, so it does the job while the label and
-            // the mark share one and does nothing at all once the mark is alone on a second
-            // line, where it packs to main-start. Measured on the built page, the mark's offset
-            // from the control's left / right edge before the auto margin was added:
-            //
-            //     root 16   157 / 13    shares a line with the label — correct
-            //     root 20    16 / 133   alone on line two, at the LEFT edge
-            //     root 32    25 /  61   same, worse
-            //
-            // An auto margin absorbs the free space on WHATEVER line the item lands on, so it
-            // is the declaration that carries the intent. True no-op at the default size: root
-            // 16 measures 157/13 with it and without it.
-            if (box.wraps) {
-                const autoMargin = rules.some(
-                    (r) => !r.nested
-                        && r.selectors.some((s) => /\[aria-hidden\]|last-child/.test(s))
-                        && (decl(r.body, "margin-inline-start") ?? decl(r.body, "margin-left") ?? "").trim() === "auto",
-                );
-                expect(
-                    autoMargin,
-                    `.${box.cls} wraps its children, so "${box.justify}" cannot keep the mark on the trailing `
-                    + "edge — a wrapped line has nothing to distribute between. The mark needs an auto "
-                    + "inline-start margin, or it lands at the LEFT padding edge from a 20px root upward",
-                ).toBe(true);
+        // AND NOTHING MAY RE-PACK THE MARK AGAINST A RAIL. An auto margin on a flex item absorbs
+        // the free space on whatever line the item lands on, so a single declaration anywhere in
+        // the sheet undoes the centring above on every wrapped line while `justify-content` still
+        // reads "center" and every assertion above stays green. That is not hypothetical — it is
+        // the declaration this control shipped with, for the arrangement this one replaces.
+        //
+        // Matched STRUCTURALLY against the built DOM rather than by selector text, because the
+        // rule that shipped named `[aria-hidden]` and the next one need not: what matters is
+        // whether it reaches something inside a label control.
+        const labelControls = new Set(elementsOf(labelBoxes()));
+        const AUTO_MARGIN = ["margin-inline-start", "margin-inline-end", "margin-left", "margin-right"] as const;
+        const offenders: string[] = [];
+        for (const rule of rules) {
+            if (isKeyframeStep(rule)) continue;
+            const auto = AUTO_MARGIN.filter((p) => (decl(rule.body, p) ?? "").trim() === "auto");
+            if (!auto.length) continue;
+            for (const selector of rule.selectors) {
+                const structural = structuralSelector(selector);
+                if (!structural) continue;
+                for (const el of document.querySelectorAll(structural)) {
+                    const owner = (el as Element).closest(labelBoxes().map((b) => `.${b.cls}`).join(","));
+                    if (!owner || !labelControls.has(owner)) continue;
+                    offenders.push(`${rule.at ? `${rule.at} ` : ""}${selector} {${auto.join(", ")}: auto}`);
+                }
             }
         }
+        expect(
+            [...new Set(offenders)],
+            "an auto inline margin inside a label control absorbs the line's free space and pushes the item "
+            + "to a rail, which is the arrangement the centring above replaced — and it does so with "
+            + "justify-content still reading \"center\", so nothing else here would notice",
+        ).toEqual([]);
     });
 
     it("centres its icon with the container, and leaves room for the largest one", () => {
