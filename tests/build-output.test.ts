@@ -5,7 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
 import {iconClass} from "../src/lib/icons";
-import {decl, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
+import {decl, isStateful, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
 import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
 /**
@@ -831,9 +831,18 @@ describe("every link on every page says that it is one", () => {
         // the suite green at 264/264. It also matched `.patch-filter-count`, a sibling class that
         // draws nothing, because `\b` treats the hyphen as a boundary — hence the descendant-`a`
         // requirement rather than a bare class match.
-        const STATEFUL = /:hover|:focus|:active|:visited|:target|\[aria-current/;
+        //
+        // THE STATE TEST IS STRUCTURAL NOW, AND IT HAD TO BECOME SO. It was a list of pseudo-
+        // classes, which was complete for the states that existed when it was written and
+        // silently incomplete the moment a held-press state spelled `[data-leaving]` arrived:
+        // an attribute is not a pseudo-class, so the held rule read as unconditional and
+        // satisfied this check on its own. Measured — with the chips' permanent border deleted
+        // the wall shipped borderless prose on all three pages and the suite stayed green at
+        // 290/290, which is exactly the "worse than no gate" case the paragraph above names.
+        // `isStateful` asks the inverted question (is everything here structure?), so the next
+        // state cannot walk through it either. See tests/helpers/css.ts.
         const chipIsDrawn = parseRules(pageCss(page)).some(
-            (r) => r.selectors.some((sel) => /\.patch-filter\b[^,]*\ba\b/.test(sel) && !STATEFUL.test(sel))
+            (r) => r.selectors.some((sel) => /\.patch-filter\b[^,]*\ba\b/.test(sel) && !isStateful(sel))
                 && (decl(r.body, "border") ?? decl(r.body, "border-color")) !== undefined,
         );
 
@@ -1560,5 +1569,205 @@ describe("source hygiene", () => {
             checked += tokens.size;
         }
         expect(checked, "the home page alone ships more tokens than this — the walk is not reaching every page").toBeGreaterThan(50);
+    });
+});
+
+/**
+ * A TAP HAS TO SHOW SOMETHING, AND IT HAS TO KEEP SHOWING IT UNTIL THE PAGE GOES.
+ *
+ * Two defects behind one report ("no feedback after I tap", from a phone, with a visitor
+ * tapping the goal card's way out several times):
+ *
+ *   1. `text-link` drew NOTHING on press. Measured on the shipped build, full-viewport pixel
+ *      diff between idle and pressed, each row carrying a positive control (an injected garish
+ *      `:active`) and a negative one (two captures, no press) so a zero could be told apart
+ *      from a broken probe: control-cta 15,243px changed, control 3,336/3,773, bib 8,794,
+ *      text-link 0 — on both its wearers. It carried only `hover:`, which PR #95 correctly put
+ *      behind a pointer, so on a phone it had nothing at all.
+ *   2. Every press ends at touchend, and the reader then waits — 376ms to first paint on a
+ *      phone at Slow-4G with a warm cache, unbounded on a worse connection — with nothing on
+ *      screen saying the tap landed.
+ *
+ * These gates hold both halves. They are written against the gate's own PREDICATE as well as
+ * what it guards, which is the lesson PR #95 paid for: three gates there passed 290 green
+ * tests while accepting the exact defect they existed for.
+ */
+describe("a press is acknowledged, and the acknowledgement outlives the finger", () => {
+    // `:active` as a real state pseudo-class. NOT a substring test: `@media (forced-colors:
+    // active)` contains the text and is a mode, not a press, and an escaped UnoCSS token
+    // (`.active\:shadow-none`) contains it as part of a class NAME. The sibling hover gate
+    // records the same trap for the same reason.
+    const ACTIVE = /(?<!\\):active(?![\w-])/;
+    const HELD = /\[data-leaving\]/;
+
+    /**
+     * WHICH ELEMENTS THE HELD PRESS IS *FOR*, derived from the script's own refusals rather
+     * than listed. A list would have to name the bib, and the bib's exclusion is not a fact
+     * about bibs — it is a fact about `target="_blank"`, which is Patch.astro's to change.
+     * Stating it as a universal over `:active` instead fails the deploy on today's correct
+     * code: `.bib--linked:active` is a press this change deliberately never twins, because a
+     * new tab means this page does not go anywhere.
+     */
+    const scriptWouldHold = (a: Element): boolean => {
+        const target = a.getAttribute("target");
+        if (target && target !== "_self") return false;
+        if (a.hasAttribute("download")) return false;
+        const href = a.getAttribute("href") ?? "";
+        if (href.startsWith("#")) return false;
+        return href.length > 0;
+    };
+
+    // A rule's declarations as a comparable set. Rule bodies are compared, never their
+    // positions: the chips' twin deliberately sits ABOVE `[aria-current="page"]` where its
+    // `:active` sibling sits below, so a gate keyed on adjacency would forbid the fix.
+    const declSet = (body: string): string =>
+        body.split(";").map((d) => d.trim()).filter(Boolean).sort().join(";");
+
+    // The elements a selector reaches, ignoring the state that gates it.
+    const reach = (sel: string): string => structuralSelector(sel).replace(HELD, "").trim();
+
+    it.each(builtPages())("gives every held-eligible link's press a twin that outlives it (%s)", (page) => {
+        const doc = parseHTML(read(page)).document;
+        const rules = parseRules(pageCss(page));
+        const matching = (el: Element, state: RegExp) => rules
+            .filter((r) => r.selectors.some((sel) => state.test(sel) && el.matches(reach(sel))))
+            .map((r) => declSet(r.body)).sort().join(" | ");
+
+        let checked = 0;
+        for (const a of [...doc.querySelectorAll("a")]) {
+            if (!scriptWouldHold(a)) continue;
+            const press = matching(a, ACTIVE);
+            if (!press) continue;
+            checked++;
+            expect(
+                matching(a, HELD),
+                `${page}: <a href="${a.getAttribute("href")}"> repaints on :active but has no [data-leaving] twin, `
+                + "so its press vanishes the instant the finger lifts and the reader waits with nothing. "
+                + "Add the twin in the same shortcut (uno.config.ts) or beside the rule that draws the press.",
+            ).toBe(press);
+        }
+        expect(checked, `${page}: no link both draws a press and is held — this assertion is vacuous`).toBeGreaterThan(0);
+    });
+
+    it("draws the press on a run of words, not merely a rule that exists", () => {
+        // AN EXISTENCE CHECK IS SATISFIED BY THE DEFECT. `.text-link:active {}` ships a rule
+        // and paints nothing, which is precisely the state this idiom was measured in at 0
+        // changed pixels. So the declaration is what is asserted.
+        const rules = parseRules(pageCss()).filter(
+            (r) => r.selectors.some((sel) => /\.text-link\b/.test(sel) && ACTIVE.test(sel)),
+        );
+        expect(rules.length, "`text-link` ships no :active rule — on a phone it acknowledges a tap with nothing").toBeGreaterThan(0);
+        expect(
+            rules.some((r) => (decl(r.body, "color") ?? "").includes("--accent")),
+            "`text-link`'s :active paints no accent ink; the rule exists but the press is invisible",
+        ).toBe(true);
+    });
+
+    it("snaps the press ink instead of ramping it over the colour transition", () => {
+        /*
+         * THE ONE CHANNEL THAT NEEDED THIS. Both shortcuts carry `transition-colors
+         * duration-300`, and `color` really is in the emitted property list — so on
+         * `cubic-bezier(.4,0,.2,1)` a reader gets 8.5% of the accent at a 50ms tap and 36.7%
+         * at 90ms. Every press that already worked comes from `transform`, `box-shadow` or
+         * `outline`, none of which is in any transition list, which is why they were
+         * instantaneous and this one would not have been.
+         *
+         * A PIXEL PROBE CANNOT SEE THIS, which is why it is asserted statically: the diff
+         * thresholds far below 8.5% of the delta, so a ramped press and a snapped one both
+         * come back as "something changed".
+         */
+        for (const page of builtPages()) {
+            for (const r of parseRules(pageCss(page))) {
+                const gated = r.selectors.some((sel) => ACTIVE.test(sel) || HELD.test(sel));
+                if (!gated || decl(r.body, "color") === undefined) continue;
+                const transition = decl(r.body, "transition") ?? decl(r.body, "transition-property");
+                expect(
+                    transition,
+                    `${page}: ${r.selectors.join(",")} paints press ink but does not cancel the inherited `
+                    + "300ms colour transition, so the press fades in over three times the length of a tap. "
+                    + "Pair `active:transition-none` and `data-[leaving]:transition-none` with the ink.",
+                ).toBe("none");
+            }
+        }
+    });
+
+    it("keeps the platform's own tap flash, and keeps it last", () => {
+        /*
+         * The preflight sets `-webkit-tap-highlight-color: transparent` on `html, :host`, and
+         * both it and the override are one element selector — equal specificity, so ORDER is
+         * the entire mechanism. Asserting only that the declaration ships would pass on a
+         * build where the preflight still wins, which is the build this fixes.
+         */
+        const css = pageCss();
+        const rules = parseRules(css).filter((r) => decl(r.body, "-webkit-tap-highlight-color") !== undefined);
+        expect(rules.length, "nothing sets -webkit-tap-highlight-color — the preflight's `transparent` is unopposed").toBeGreaterThan(1);
+        const winner = (decl(rules[rules.length - 1].body, "-webkit-tap-highlight-color") ?? "").trim();
+        // The WHOLE value, not a substring of it — `color-mix(in srgb, var(--accent) 18%,
+        // transparent)` legitimately names `transparent` as the thing it mixes toward, and a
+        // substring test therefore reds on exactly the correct value. (It did, first run.)
+        expect(
+            winner === "transparent" || /^rgba?\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)$/.test(winner),
+            `the last tap-highlight rule in the sheet resolves to ${winner} — a press paints nothing on a `
+            + "touch device that has no other affordance for it",
+        ).toBe(false);
+        expect(winner, "the surviving tap highlight is not the themed one").toContain("--accent");
+    });
+
+    it("lets the entrance paint at full ink rather than fading in", () => {
+        /*
+         * Chromium records no contentful paint for a composited opacity animation until it
+         * resolves, so a `from { opacity: 0 }` here is a wait the reader pays on arrival:
+         * measured tap-to-full-contrast-ink ~870ms before, ~500ms after, on a phone at
+         * Slow-4G. (FCP reads 788 -> 396ms cold, but that delta is exactly the 0.4s duration
+         * in both the cold and warm runs — quote it as FCP, not as legibility.)
+         *
+         * Scoped to `card-in` by name rather than to every keyframe: a fade is a perfectly
+         * good device elsewhere, and the broad form reds on correct code the moment anything
+         * else animates opacity.
+         */
+        // `\b` does not survive a trailing `%` — it needs a word character on one side, and
+        // `0%` ends the token. The first draft of this line therefore matched nothing and
+        // failed with "has it been renamed?" on a keyframe that was right there.
+        const step = parseRules(pageCss()).find(
+            (r) => /@keyframes\s+card-in\b/.test(r.at)
+                && r.selectors.some((sel) => /^(0%|from)$/.test(sel.trim())),
+        );
+        expect(step, "the card-in entrance has no from-step — has it been renamed?").toBeDefined();
+        expect(
+            decl(step!.body, "opacity"),
+            "card-in starts from an opacity again. That defers first contentful paint to the END of the "
+            + "animation: measured tap-to-full-contrast-ink ~500ms -> ~870ms on a phone at Slow-4G.",
+        ).toBeUndefined();
+        // The rise is the half worth keeping, and it must stay an absolute length: `40%` is 40%
+        // of each child's OWN height, which drew the whole page up to 282px out of place with
+        // 327.6px clipped by `main` once the fade stopped hiding it.
+        const travel = decl(step!.body, "transform") ?? "";
+        expect(travel, "card-in no longer moves anything — the entrance is gone, not fixed").toContain("translateY");
+        expect(travel, "card-in's travel is proportional again; at 40% the first frame is the page drawn "
+            + "up to 282px out of place, with 327.6px of it clipped by main's own overflow").not.toMatch(/%/);
+    });
+});
+
+describe("hashed assets are cached forever, and are hashed", () => {
+    it("declares the immutable header for /_astro/", () => {
+        const toml = read("netlify.toml").replace(/\s+/g, " ");
+        expect(toml, "netlify.toml no longer caches /_astro/*; every hashed asset costs a "
+            + "render-blocking round trip to be told it has not changed (measured 168ms and 175ms, "
+            + "transferSize 300 — a 304 carrying no content)").toMatch(/for = "\/_astro\/\*"/);
+        expect(toml).toMatch(/cache-control = "public, max-age=31536000, immutable"/);
+    });
+
+    it("only emits content-addressed filenames there, which is what makes that safe", () => {
+        /*
+         * THE PRECONDITION IS THE THING WORTH GATING, not the header. `immutable` for a year is
+         * correct exactly while a URL can never mean two things, and that holds because Astro
+         * puts a hash of the file's own contents in its name. The day one asset lands there
+         * without a hash, this rule serves a stale file for a year and nothing else would say so.
+         */
+        const files = readdirSync("dist/_astro");
+        expect(files.length, "dist/_astro is empty — this assertion is vacuous").toBeGreaterThan(0);
+        const unhashed = files.filter((f) => !/\.[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/.test(f));
+        expect(unhashed, "these /_astro/ assets carry no content hash, so the immutable header in "
+            + "netlify.toml would pin a stale file for a year").toEqual([]);
     });
 });

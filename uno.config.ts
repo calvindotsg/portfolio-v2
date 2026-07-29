@@ -504,11 +504,58 @@ export default defineConfig({
      * the line: an icon control must PIN its height, this one must FLOOR it, and neither may
      * cap either axis.
      */
+    /*
+     * A PRESS IS THE ONLY AFFORDANCE A TOUCH READER CAN PRODUCE DELIBERATELY, AND UNTIL NOW
+     * ONE OF THE FOUR IDIOMS PRODUCED NOTHING AT ALL.
+     *
+     * Measured on the shipped build, full-viewport pixel diff between idle and pressed, every
+     * row carrying a positive control (an injected garish `:active`) and a negative one (two
+     * captures with no press) so that a zero could be told apart from a broken probe:
+     *
+     *     control-cta   364x48    15,243 px changed
+     *     control       64x48      3,336 / 3,773
+     *     bib           364x173    8,794
+     *     text-link     60x24, 45x16     0        <- both wearers, valid instrument
+     *
+     * `text-link` carried only `hover:`, which PR #95 correctly put behind a pointer, so on a
+     * phone the wall's way back and both role-card company names acknowledged a tap with
+     * nothing. `active:text-*` is the press the other three already had, said in the one
+     * channel a reader notices around a fingertip.
+     *
+     * `active:transition-none` IS NOT TIDINESS AND THE PAIR IS MANDATORY. Both shortcuts
+     * carry `transition-colors duration-300`, and `color` really is in the emitted property
+     * list — so without this the new ink RAMPS: on `cubic-bezier(.4,0,.2,1)` a reader gets
+     * 8.5% of the delta at a 50ms tap and 36.7% at 90ms. Note this is the one channel that
+     * had the problem: every press measured above comes from `transform`, `box-shadow` or
+     * `outline`, none of which is in any transition list, which is why they were already
+     * instantaneous. A pixel probe CANNOT see this — the diff thresholds well below 8.5% of
+     * the delta — so `tests/build-output.test.ts` asserts it statically instead.
+     *
+     * `data-[leaving]` IS THE PRESS, HELD UNTIL THE PAGE ACTUALLY GOES. A press ends at
+     * touchend, and the reader then waits — measured 376-788ms to first paint on a phone, and
+     * unbounded on a worse connection — with nothing on screen saying the tap landed. That is
+     * the reported defect: a friend tapped the goal card's way out repeatedly. The attribute is
+     * set by the inline script in BasicLayout.astro and every declaration here is the twin of an
+     * `active:` one, in the same shortcut, so the two cannot drift.
+     *
+     * AN ATTRIBUTE RATHER THAN A CLASS, AND THAT IS FORCED RATHER THAN PREFERRED. The orphan
+     * gate in tests/build-output.test.ts reads the LEADING CLASS TOKEN of every selector and
+     * fails the build when no element wears it; its state-class excuse requires a scoped
+     * `[data-astro-cid-…]` selector, and UnoCSS output is never scoped. So `.is-leaving{}`
+     * would redden a correct deploy on the day nothing is mid-navigation — which is every
+     * build — while `.control[data-leaving]` leads with `control` and passes.
+     *
+     * `.control[data-leaving]` is EMITTED BUT UNREACHABLE, and that is expected rather than
+     * dead: `control` and `control-cta` both compose this surface, so the pair is one rule.
+     * Removing it would remove `.control-cta[data-leaving]`, which is the one the goal cards'
+     * way out actually wears. The six icon controls are all `target="_blank"` or the theme
+     * toggle, and the script marks neither.
+     */
     shortcuts: {
-        "control-surface": "text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
+        "control-surface": "text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:text-[var(--accent)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] active:transition-none data-[leaving]:text-[var(--accent)] data-[leaving]:shadow-none data-[leaving]:translate-x-[3px] data-[leaving]:translate-y-[3px] data-[leaving]:transition-none transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
         "control": "control-surface text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center",
         "control-cta": "control-surface text-xs min-h-12 w-full px-3 py-1 inline-flex flex-wrap items-center justify-center gap-x-2",
-        "text-link": "underline decoration-from-font underline-offset-[0.18em] self-start text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out",
+        "text-link": "underline decoration-from-font underline-offset-[0.18em] self-start text-[var(--text)] hover:text-[var(--accent)] active:text-[var(--accent)] active:transition-none data-[leaving]:text-[var(--accent)] data-[leaving]:transition-none transition-colors duration-300 ease-in-out",
     },
     presets: [
         /**
