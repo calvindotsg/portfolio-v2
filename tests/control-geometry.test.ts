@@ -152,6 +152,7 @@ describe("every styled control declares its box", () => {
             align: decl(r.body, "align-items"),
             placeItems: decl(r.body, "place-items"),
             flexShrink: decl(r.body, "flex-shrink"),
+            wraps: /\bwrap\b/.test(decl(r.body, "flex-wrap") ?? decl(r.body, "flex-flow") ?? ""),
         };
     };
 
@@ -398,6 +399,34 @@ describe("every styled control declares its box", () => {
                 box.placeItems === "center" || box.align === "center",
                 `.${box.cls} must centre its children on the cross axis (got align=${box.align})`,
             ).toBe(true);
+
+            // AND `space-between` IS NOT ENOUGH ONCE THE CONTROL CAN WRAP — the half this
+            // assertion was missing while its name promised it. `justify-content` distributes
+            // free space BETWEEN the items on a line, so it does the job while the label and
+            // the mark share one and does nothing at all once the mark is alone on a second
+            // line, where it packs to main-start. Measured on the built page, the mark's offset
+            // from the control's left / right edge before the auto margin was added:
+            //
+            //     root 16   157 / 13    shares a line with the label — correct
+            //     root 20    16 / 133   alone on line two, at the LEFT edge
+            //     root 32    25 /  61   same, worse
+            //
+            // An auto margin absorbs the free space on WHATEVER line the item lands on, so it
+            // is the declaration that carries the intent. True no-op at the default size: root
+            // 16 measures 157/13 with it and without it.
+            if (box.wraps) {
+                const autoMargin = rules.some(
+                    (r) => !r.nested
+                        && r.selectors.some((s) => /\[aria-hidden\]|last-child/.test(s))
+                        && (decl(r.body, "margin-inline-start") ?? decl(r.body, "margin-left") ?? "").trim() === "auto",
+                );
+                expect(
+                    autoMargin,
+                    `.${box.cls} wraps its children, so "${box.justify}" cannot keep the mark on the trailing `
+                    + "edge — a wrapped line has nothing to distribute between. The mark needs an auto "
+                    + "inline-start margin, or it lands at the LEFT padding edge from a 20px root upward",
+                ).toBe(true);
+            }
         }
     });
 
