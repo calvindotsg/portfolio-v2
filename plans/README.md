@@ -75,7 +75,7 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 Plan 008 did not come from the audit — it was raised from a production PageSpeed
 report mid-run and executed out of numeric order.
 
-## Baseline: what this repo is now (verified at `f129245`, updated after run 2 at `1f06c27`, re-verified for run 3 at `4e15674`)
+## Baseline: what this repo is now (verified at `f129245`, updated after run 2 at `1f06c27`, re-verified for run 3 at `4e15674`, re-measured for run 4 at `45e286f`)
 
 Run-3 corrections to the table below (audit at `4e15674`, final state after
 plan 014's merge `b7439e7`): **tests are now 64 assertions** (still 3 files:
@@ -182,6 +182,31 @@ links to Strava exactly once.
 A fresh audit should start from these facts rather than re-deriving them, and
 should re-check any it intends to rely on.
 
+**Run-4 re-baseline (2026-07-29, measured at `45e286f`).** Every count in the
+history above had gone stale again by run 4 — the `/patches` patch wall, the
+projection model, and the SC 1.4.12 work all landed maintainer-direct after
+run 3 with no plan numbers. Measured fresh (`pnpm test`; `wc`; local
+`gzip -9`; production `curl` with `content-encoding: br` confirmed, three
+identical samples per URL):
+
+- Suite: **277 assertions, 10 test files** plus `tests/helpers/{css,pages}.ts`
+  and `tests/setup/build.ts`; `pnpm test` builds `dist/` first and runs in ~3 s.
+- Pages: **4 prerendered** — `/`, `/patches`, `/patches/cycling`,
+  `/patches/running` (one rest-parameter route builds the three patch pages).
+- Source: 14 `.astro` files; `src/lib/{constants,projection,icons}.ts` at
+  839/587/9 lines; `uno.config.ts` **506 lines**, most of it measured rationale.
+- Page weight, local gzip -9 / production brotli: `/` 6,575 / 6,167 B;
+  `/patches` 4,011 / 3,717 B; `/patches/cycling` 3,912 / 3,642 B;
+  `/patches/running` 3,620 / 3,359 B; shared stylesheet `projection.*.css`
+  7,198 / 6,798 B; patches-only stylesheet 1,488 / 1,392 B. A cold `/patches`
+  visit is ~11.9 KB brotli total, zero external first-party JS.
+- Gates at `45e286f`: `pnpm check` 0 errors / 2 hints; `pnpm eslint` clean;
+  `pnpm audit` **1 moderate + 2 high** (movement since run 3 — see the table
+  row below and plan 017).
+
+The table below is updated in place to these values; the run-2/3 prose above
+is left as written because it records what was true when it was measured.
+
 | | value |
 |---|---|
 | output mode | `static` — no adapter, no SSR function, no middleware |
@@ -189,11 +214,11 @@ should re-check any it intends to rely on.
 | direct dependencies | **18** |
 | client JavaScript | **zero external files**; ~525 B inline (the pre-paint theme script) |
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
-| components | 10 `.astro` files; **no UI framework**, no `.svelte`, no islands |
-| `uno.config.ts` | 21 lines |
-| tests | **53** assertions, 3 files, run by `pnpm test` (51 + 2 from plan 010) |
+| components | 14 `.astro` files (11 components, 1 layout, 2 page routes → 4 pages); **no UI framework**, no `.svelte`, no islands |
+| `uno.config.ts` | 506 lines — safelist, blocklist, five `rem` breakpoints, the two shortcuts; mostly measured rationale |
+| tests | **277** assertions, 10 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test` |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
-| `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up |
+| `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up. **Run 4: now 1 moderate + 2 high** — both highs are brace-expansion GHSA-mh99-v99m-4gvg on dev-only lint paths; plan 017 clears one in-range and documents the other as a second deliberate residual (no patched 1.x exists; the override is measured-broken) |
 | deploy gate | `netlify.toml` runs `pnpm check && pnpm test`; the UI command is deliberately empty |
 | content source | everything user-facing is in `src/lib/constants.ts` |
 
