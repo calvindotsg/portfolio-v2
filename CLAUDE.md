@@ -37,30 +37,38 @@ block above it before giving either consumer the other's list.
 
 ### Styling System
 - **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
-  `blocklist`, **two shortcuts**, the presets, and a `theme` key holding **only**
+  `blocklist`, **four shortcuts**, the presets, and a `theme` key holding **only**
   the five breakpoints. Those are presetWind3's own defaults restated in `rem`,
   which is load-bearing rather than cosmetic — see the note there. No colour or
   shadow token lives in `theme`; those are CSS custom properties in
   `BasicLayout.astro`
-- **The two shortcuts are the site's two kinds of control**: `control` (the
-  styled control's whole box, including the offset-plate shadow; every styled
-  control wears it, and it deliberately has no variants) and `text-link` (a link
-  that is a run of words — the goal cards' way out, the wall's way back, and each
-  role card's company name). Every link must carry a signifier a reader can
-  perceive, and a build-wide gate in `tests/build-output.test.ts` walks every
-  `<a>` on every page to enforce it — its absence let five links ship drawn
-  exactly like the prose beside them. A bib is the exception the gate names
-  explicitly: the whole bib is the anchor and its signifier is the action row
-  inside it, drawn in the bib's own idiom rather than as a text link
+- **The shortcuts are the site's kinds of control**: `control-surface` (the
+  plate, accent border, hover and press — no box, and nothing wears it directly),
+  `control` (that surface at 64x48, icon-only: six social links and the theme
+  toggle), `control-cta` (that surface at the width of what contains it, holding a
+  label and a trailing mark — the two goal cards' way out) and `text-link` (a link
+  that is a run of words — the wall's way back, each role card's company name).
+  **A control PINS its box or FLOORS it, and which one is decided by whether its
+  content comes from data**; `tests/control-geometry.test.ts` discovers every
+  control from the surface's signature in the shipped sheet and holds that line,
+  so a third variant is caught rather than skipped. Every link must carry a
+  signifier a reader can perceive, and a build-wide gate in
+  `tests/build-output.test.ts` walks every `<a>` on every page to enforce it — its
+  absence let five links ship drawn exactly like the prose beside them. A bib is
+  the exception the gate names explicitly: the whole bib is the anchor and its
+  signifier is the action row inside it, drawn in the bib's own idiom rather than
+  as a text link
 - **Text-relative sizing**: every breakpoint, `main`'s height clamp, the card
   heading's space and the control box are font-relative, so the page grows with
   the reader's text instead of clipping it. `tests/page-fit.test.ts` and
   `tests/card-fill.test.ts` forbid an absolute length in the first three, and
   card-fill catches an absolute *height* inside any card, the control box
-  included; only `tests/control-geometry.test.ts` gates that box's width. The goal
-  cards' `.events-link` is a different idiom — no box, just a font-relative floor,
-  gated by `tests/rendered-html.test.ts`. Read the rationale before re-pinning one
-  to pixels
+  included; only `tests/control-geometry.test.ts` gates that box's width. **A box
+  is not enough on its own**: the goal cards' control also has to let its label
+  break, or the reader's own text size pushes the words into a clipping card —
+  measured at 42.2px of lost ink at a 40px root, and gated by
+  `tests/rendered-html.test.ts`. Read the rationale before re-pinning one to
+  pixels
 - **Theme Support**: dark/light mode via CSS custom properties on
   `:root[data-theme]` in `src/layouts/BasicLayout.astro`; that block's header
   comment defines each token's role and the progress-bar polarity rule — read it
@@ -80,8 +88,8 @@ block above it before giving either consumer the other's list.
   exhaust, so the old "remove something before adding a line" rule is retired;
   `components/Goal.astro` records what it used to cost
 - A goal card's body is a hero figure, a 2px progress rule spanning the body, the
-  required rate, the countdown, and a control (`components/EventsLink.astro`) reading
-  `My <sport> events ›`. That control is the only path from the home page to
+  required rate, the countdown, and a full-width CTA (`components/EventsLink.astro`)
+  reading `My <sport> events →`. That control is the only path from the home page to
   `/patches/<sport>`, and `tests/build-output.test.ts` walks the link graph from `/`
   to keep it that way — and asserts the destination is headed with the control's own
   words, which is a pairing no single-page test can see

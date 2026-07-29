@@ -692,7 +692,11 @@ describe("dist/", () => {
  * WHAT COUNTS AS A SIGNIFIER, and the list is deliberately of KINDS rather than of elements:
  *
  *   1. `.control`          the styled 64x48 box with the offset plate — six social links
- *   2. `.text-link`        the shared text-link idiom — goal cards, the wall's Home link, roles
+ *   1b. `.control-cta`     the same surface holding a label and a trailing mark — the two goal
+ *      cards' way out. A separate class rather than a modifier of the first, because the two
+ *      declare different boxes; `classList.contains` is exact, so the check below needs both
+ *      names and the goal cards' links went unsignified until it had them
+ *   2. `.text-link`        the shared text-link idiom — the wall's Home link, the role cards
  *   3. `.patch-filter a`   a bordered chip; the class is on the NAV, so this needs `closest`
  *   4. an icon-only control whose accessible name is carried by an `sr-only` span (the Now
  *      card's explainer, which is a 24px icon target and is legitimately not a text link)
@@ -735,6 +739,7 @@ describe("every link on every page says that it is one", () => {
 
         const unsignified = links.filter((a) => {
             if (a.classList.contains("control")) return false;
+            if (a.classList.contains("control-cta")) return false;
             if (a.classList.contains("text-link")) return false;
             if (chipIsDrawn && a.closest(".patch-filter")) return false;
             // An icon-only control: no visible words at all, and its name comes from an sr-only
@@ -751,7 +756,7 @@ describe("every link on every page says that it is one", () => {
 
         expect(
             unsignified.map((a) => `${a.getAttribute("href")} "${(a.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 46)}"`),
-            `${page} ships links drawn like static text. A link needs one of: .control, .text-link, `
+            `${page} ships links drawn like static text. A link needs one of: .control, .control-cta, .text-link, `
             + "a drawn .patch-filter chip, an sr-only-named icon control, or .bib--linked wrapping a "
             + "visible .bib-go row. This is the gate whose absence let five links ship unreadable as links",
         ).toEqual([]);

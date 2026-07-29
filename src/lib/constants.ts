@@ -765,11 +765,26 @@ export const NEXT_RACE: {
      */
     control: string
     /**
-     * The control's affordance, and it is not decoration. Nothing else about this element
-     * says it leads somewhere — it has no border and no box — so without a glyph the only
-     * remaining cue would be the hover colour, which SC 1.4.1 does not accept as a sole
-     * carrier and which a phone has no way to produce. A chevron is a shape and inherits
-     * the text colour. Safelisted in uno.config.ts like every other icon.
+     * The control's affordance, and it is not decoration. It is the one thing on the button
+     * the words do not already say: the label names the destination, and this says that
+     * pressing leaves the card to reach it. A shape rather than a colour, because SC 1.4.1
+     * does not accept colour as a sole carrier and a phone cannot produce the hover state.
+     * Safelisted in uno.config.ts like every other icon.
+     *
+     * IT IS A FULL ARROW NOW, not the `-s-` chevron, and the reason is the box around it. A
+     * chevron at 13px was sized to sit inside a run of 12px words without shouting; the mark
+     * is now alone at the far edge of a 48px control, where a chevron reads as a leftover
+     * rather than as the button's one mark. It also lands the pair on the wall's own
+     * vocabulary — {@link PATCHES.home_icon} is `ri:arrow-left-line`, and the two are meant
+     * to be mirrored, one going out and one coming back.
+     *
+     * A SEMANTIC GLYPH WAS TRIED HERE AND REJECTED, which is worth recording because it is
+     * the obvious idea. `ri:calendar-event-line` leading the label was built and rendered:
+     * it restates the word "events" standing beside it, and a mark that repeats its own
+     * label is the decoration this button has no room for. A medal was rejected earlier and
+     * harder — the wall shows booked outlines beside earned patches, so a medal names half
+     * of what is there, which is the same defect the control-and-heading gate in
+     * tests/build-output.test.ts exists to catch.
      */
     icon: string
 } = {
@@ -782,7 +797,7 @@ export const NEXT_RACE: {
     earned_one: "1 patch earned",
     none: "No races booked",
     control: "My {sport} events",
-    icon: "ri:arrow-right-s-line",
+    icon: "ri:arrow-right-line",
 }
 
 /**

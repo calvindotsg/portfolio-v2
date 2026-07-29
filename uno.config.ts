@@ -393,8 +393,69 @@ export default defineConfig({
      * border: the offset plate is this site's mark for a 48px styled control, and wearing it on
      * a 24px text link would either dilute the mark or claim a size these are not.
      */
+    /*
+     * THERE ARE THREE NOW, AND THE THIRD IS WHY THE SURFACE IS A BASE AGAIN.
+     *
+     *   `control-surface`  the plate, the accent border, the hover ink and the press. No box.
+     *   `control`          that surface at 64 x 48, icon-only. Six social links, the toggle.
+     *   `control-cta`      that surface at 48 tall and the width of what contains it, holding
+     *                      a label and a trailing mark. The two goal cards' way out.
+     *   `text-link`        a link that is a run of words inside a sentence or a column of
+     *                      figures. The wall's way back, and each role card's company name.
+     *
+     * A BASE IS NOT THE THING THAT WENT WRONG LAST TIME, and the distinction matters because
+     * the paragraphs above retire a `control-surface` by name. Read the three mechanisms listed
+     * there: nothing declared a width, `max-h-[40px]` capped one variant's height, and
+     * `max-w-[60px]` capped a width below its own content. All three are CAPPED BOXES. None of
+     * them is the factoring — the surface was the one part those two variants agreed about.
+     * What is restored here is only that agreement, and the rule that replaced the caps is kept
+     * intact: every variant DECLARES its box, and `tests/control-geometry.test.ts` fails the
+     * build if any rule anywhere caps one instead.
+     *
+     * UnoCSS resolves a shortcut reference before it emits, so `.control-surface` ships no rule
+     * of its own — nothing wears it, and the orphan gate in tests/build-output.test.ts would
+     * fail the build if it did. `.control` and `.control-cta` each ship one flat rule carrying
+     * the whole expansion, which is also what keeps the control-geometry surface probe working:
+     * it discovers controls by the plate-and-border signature in the sheet, and both variants
+     * still carry it literally.
+     *
+     * WHY THE CTA IS A CONTROL AND THE TEXT LINK IS NOT. The sentence above says the plate is
+     * this site's mark for a 48px styled control and must not go on a 24px text link. That
+     * still holds; what changed is that the goal card's way out IS a 48px styled control now.
+     * Two reviewers could not tell the old run of words was pressable, the underline fixed the
+     * "this is a link" half, and this fixes the other half — it is the card's one action, and
+     * an action on this site wears the plate. Wearing the mark at the size the mark means is
+     * the opposite of diluting it.
+     *
+     * `w-full` RATHER THAN A DECLARED LENGTH, and it is the one place these two variants differ
+     * in kind. `control` is icon-only, so its width is a number the design picks; this one holds
+     * a label that comes from data and grows with the reader's text, so any length would be a
+     * guess that clips. Full width is a declared box all the same — the card's content width is
+     * definite — and it buys the thing a content-width button cannot: the whole box is visibly
+     * the anchor, which is the bib's own idiom (see Patch.astro), rather than 29px of dead card
+     * beside a 153px button. Measured at 1024x797: the card goes 232.8 -> 256.8px and `main`
+     * stays 797, because the right-hand stack's height is set by the taller left column. 3rem
+     * is the LAST size that is free — at 3.5rem `main` goes to 807.59 and the page scrolls.
+     *
+     * `justify-between` is what puts the mark on the far edge. It is doing the job the old
+     * chevron's negative margin did in reverse: there the glyph was pulled onto the words so
+     * the pair read as one phrase, here it is pushed away from them so it reads as the edge the
+     * press leads over.
+     *
+     * `min-h-12` RATHER THAN `h-12`, AND `flex-wrap`, ARE BOTH ANTI-CLIPPING. They look like
+     * slack and they are not: a label that comes from data and grows with the reader's text
+     * needs somewhere to go, and a control that cannot get taller pushes it sideways into a
+     * card that clips. Measured, ink lost past the card's right edge at a 40px root: 42.2px
+     * pinned, 0 floored. A floor is also not the capped box the paragraphs above retire — a cap
+     * makes a control smaller than its content and deformed the toggle's glyph; a floor
+     * guarantees the size and lets content exceed it. `tests/control-geometry.test.ts` holds
+     * the line: an icon control must PIN its height, this one must FLOOR it, and neither may
+     * cap either axis.
+     */
     shortcuts: {
-        "control": "text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
+        "control-surface": "text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
+        "control": "control-surface text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center",
+        "control-cta": "control-surface text-xs min-h-12 w-full px-3 py-1 inline-flex flex-wrap items-center justify-between gap-x-2",
         "text-link": "underline decoration-from-font underline-offset-[0.18em] self-start text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out",
     },
     presets: [

@@ -478,39 +478,87 @@ describe("page content", () => {
             expect(glyph?.getAttribute("aria-hidden"), "and the shape is decorative; the label carries the meaning")
                 .toBe("true");
 
-            // THE CHEVRON WAS NEVER ENOUGH, WHICH IS WHY THIS CLAUSE EXISTS. The old version of
+            // THE GLYPH WAS NEVER ENOUGH, WHICH IS WHY THIS CLAUSE EXISTS. The old version of
             // this test called the glyph "the only cue there is" and passed on a build where two
             // reviewers did not know the control could be clicked. Measured at 1024x600 on that
             // build: the control and the figure line above it were both rgb(250,250,250) at 12px
             // — a contrast ratio of 1.00:1 between a link and a sentence — with a 13px glyph the
-            // whole of the difference. `text-link` is the site's shared text-link idiom; see
-            // uno.config.ts. Asserted on the ELEMENT, so moving the treatment into a different
-            // shortcut is a deliberate edit rather than a silent loss.
-            expect(control.classList.contains("text-link"),
-                "the control must wear the site's text-link idiom — a glyph alone did not tell two "
-                + "readers this was a link, and on a phone there is no hover to help")
+            // whole of the difference.
+            //
+            // THE IDIOM IT MUST WEAR IS `control-cta` NOW, NOT `text-link`, and the clause is
+            // kept rather than relaxed because the defect it names is unchanged: the control
+            // must be drawn as something other than the sentence beside it. What changed is
+            // which of the site's two answers it uses. `text-link` underlines a run of words;
+            // `control-cta` gives it the accent border, the offset plate and the press, which
+            // is a strictly larger delta from a line of prose than an underline is — a phone
+            // reader sees a box where before they saw one underlined line among three.
+            //
+            // Asserted on the ELEMENT, so moving the treatment into a different shortcut stays
+            // a deliberate edit rather than a silent loss. The DRAWING behind the name is
+            // asserted in tests/control-geometry.test.ts, which discovers this class from the
+            // plate-and-border signature in the sheet and would not find it if the surface
+            // were emptied out under it.
+            expect(control.classList.contains("control-cta"),
+                "the control must wear the site's styled-control idiom — a glyph alone did not tell "
+                + "two readers this was a link, and on a phone there is no hover to help")
                 .toBe(true);
         }
 
-        // A border would put SC 1.4.11 back in play, and the assertion that used to police
-        // it lives only in this file's history. If one returns, restore that too.
+        // A DRAWN EDGE IS BACK, SO THIS GATE ASKS THE QUESTION IT WAS ALWAYS REALLY ASKING.
+        //
+        // It used to forbid `border`, `border-color`, `border-width` and `outline` outright,
+        // on the stated grounds that "the box is gone, so the assertion that used to police
+        // SC 1.4.11 lives only in this file's history — if one returns, restore that too."
+        // One has returned, deliberately: the control is a plated box again. So this is that
+        // restoration rather than a relaxation, and it is stricter in the way that matters —
+        // a forbidden property can be reintroduced by any rule with any colour in it, where
+        // this pins the colour.
+        //
+        // `--accent` IS THE ONLY EDGE COLOUR ALLOWED, and the reason is that it is the only
+        // one whose contrast is measured anywhere: build-output.test.ts holds it at 3:1
+        // against the surface it sits on, in BOTH themes, which is exactly the SC 1.4.11
+        // obligation a drawn edge carries. A literal hex, a second token, or `currentColor`
+        // would all draw an edge no test has ever composited — which is the defect, not the
+        // border. `transparent`, `0` and `none` are edges that are not drawn and pass.
+        //
+        // The focus outline is held to the same rule and for a second reason: SC 2.4.11 makes
+        // a focus indicator's own contrast normative, and it is drawn against the card rather
+        // than against the control, so it needs a measured colour at least as much as the
+        // border does.
         //
         // WIDENED TO THE ELEMENT'S WHOLE CLASS LIST. Scoping this to `.events-link` rules alone
         // was safe only while the control's treatment lived entirely under that class; it does
         // not any more, so an edge added to the SHARED shortcut would land on both goal-card
         // controls with this guard still green.
-        const guarded = /\.(events-link|text-link)\b/;
+        const guarded = /\.(events-link|control-cta|text-link)\b/;
         const rules = parseRules(pageCss()).filter((r) => r.selectors.some((s) => guarded.test(s)));
-        expect(rules.length, "no rules for either class — this assertion would be vacuous").toBeGreaterThan(0);
+        expect(rules.length, "no rules for any of those classes — this assertion would be vacuous").toBeGreaterThan(0);
+        const UNDRAWN = /^(0|none|transparent)$/;
+        const MEASURED = /var\(\s*--accent\s*\)/;
+        let drawnEdges = 0;
         for (const rule of rules) {
-            for (const prop of ["border", "border-color", "border-width", "outline"] as const) {
+            for (const prop of ["border", "border-color", "border-width", "outline", "outline-color"] as const) {
+                const value = decl(rule.body, prop);
+                if (value === undefined || UNDRAWN.test(value.trim())) continue;
+                // A width alone draws nothing without a colour, and UnoCSS emits the two as
+                // separate longhands — so `border-width` is only counted as an edge when the
+                // same rule names a colour for it.
+                if (prop === "border-width" && decl(rule.body, "border-color") === undefined) continue;
+                if (prop === "border-width") continue;
+                drawnEdges += 1;
                 expect(
-                    decl(rule.body, prop),
-                    `${rule.selectors.join(",")} declares ${prop} — a drawn edge on a control is an identifying `
-                    + "mark under SC 1.4.11 and needs its composited 3:1 measured, which nothing here does any more",
-                ).toBeUndefined();
+                    value,
+                    `${rule.selectors.join(",")} declares ${prop}: ${value} — a drawn edge on a control is an `
+                    + "identifying mark under SC 1.4.11 (and a focus indicator under SC 2.4.11), so it must be "
+                    + "painted with var(--accent), the one edge colour this suite composites and holds at 3:1",
+                ).toMatch(MEASURED);
             }
         }
+        expect(
+            drawnEdges,
+            "no drawn edge found on the control at all — the border and the focus outline are both "
+            + "gone, and this assertion has nothing left to police",
+        ).toBeGreaterThan(0);
 
         // AND THE DECORATION MUST ACTUALLY SHIP. The class on the element proves intent; this
         // proves the rule exists, which is a different claim — `underline` is blocklisted in
@@ -554,9 +602,16 @@ describe("page content", () => {
      * which is the whole reason the guard can tell a forced-colours rule from an ordinary one.
      */
     it("keeps the control's chevron painted when forced colours override background-color", () => {
+        // MATCHED ON THE CONTROL PLUS A DESCENDANT, not on a class of the glyph's own.
+        // The glyph carried `.events-link-go` while this was a text link; the icon-span
+        // allowlist in tests/control-geometry.test.ts admits a control's icon exactly its
+        // `i-` utility and `shrink-0`, so a class existing only to be styled is no longer
+        // available and the rule reaches the span structurally. Written as "a rule under
+        // forced-colors whose selector names the control AND goes on to select something
+        // inside it", which is what the old pattern was really asserting.
         const forced = parseRules(pageCss()).filter(
             (r) => (r.at ?? "").includes("forced-colors")
-                && r.selectors.some((sel) => /\.events-link-go\b/.test(sel)),
+                && r.selectors.some((sel) => /\.events-link\b[^,]*\s+\S/.test(sel)),
         );
         expect(
             forced.length,
@@ -581,6 +636,64 @@ describe("page content", () => {
      * it if either becomes absolute. This is the CSS half of that; the geometry half is a
      * browser sweep in the PR, since the suite has no layout engine.
      */
+    /**
+     * THE CONTROL'S LABEL MUST BE ALLOWED TO BREAK, and this is the one assertion standing
+     * between the reader's text size and clipped ink.
+     *
+     * The control is a box of chrome — horizontal padding, a gap and a 1em mark — around words
+     * that come from data. As the root font-size rises the card gets NARROWER (its padding is
+     * font-relative too) while the words get wider, and at a 32px root the space left for the
+     * label is smaller than the word "running". A flex item cannot go below its min-content
+     * width, so without this the label is laid out at a whole word and overflows into a card
+     * that clips. Measured at 1024x797, ink lost past the card's right edge across root sizes
+     * 16/20/24/28/32/36/40: `0 0 0 0 0 12.7 42.2` px without it, `0` everywhere with it, and
+     * `0` everywhere for the run of words this control replaced — so it is a REGRESSION the
+     * declaration prevents rather than a limit it improves on.
+     *
+     * IT TAKES TWO DECLARATIONS AND THE FIRST IS THE ONE THAT IS EASY TO LOSE. A bare text node
+     * inside a flex container becomes an ANONYMOUS flex item, whose `min-width: auto` resolves
+     * to a whole word and which no selector can reach. So the label is wrapped in an element
+     * for one reason: to be given `min-width: 0`. Without it `overflow-wrap` alone does not
+     * help, because the item is never offered a width narrower than a word in the first place —
+     * measured: the same `0 0 0 0 0 12.7 42.2` with `overflow-wrap` present and the wrapper
+     * absent.
+     *
+     * Both are asserted, and the wrapper is asserted as an ELEMENT rather than as a rule,
+     * because deleting the `<span>` and leaving the CSS behind is the edit that looks harmless.
+     *
+     * There is no layout engine here, so this cannot measure the clipping — it asserts the two
+     * declarations that prevent it, which is the half that can rot silently in a stylesheet.
+     */
+    it("lets the control's label break rather than clip when the reader enlarges their text", () => {
+        for (const control of doc.querySelectorAll(".events-link")) {
+            const label = control.querySelector(".events-link-label");
+            expect(
+                label?.textContent?.trim(),
+                "the label must sit in its own element — a bare text node is an anonymous flex item, "
+                + "whose min-width resolves to a whole word and which no rule can reach",
+            ).toBeTruthy();
+        }
+
+        const rules = parseRules(pageCss())
+            .filter((r) => r.selectors.some((s) => /\.(events-link|events-link-label|control-cta)\b/.test(s)));
+        expect(rules.length, "no control rules — this assertion would be vacuous").toBeGreaterThan(0);
+
+        expect(
+            rules.some((r) => (decl(r.body, "min-width") ?? "").trim() === "0"),
+            "the label element must declare min-width: 0. Without it a flex item is never offered a width "
+            + "narrower than its longest word, and at a 32px root that word is wider than the space the "
+            + "card leaves — so the label spills into a card that clips it",
+        ).toBe(true);
+
+        const breaks = rules.map((r) => decl(r.body, "overflow-wrap") ?? decl(r.body, "word-break")).filter(Boolean);
+        expect(
+            breaks.some((v) => /\b(break-word|anywhere)\b/.test(v!)),
+            `the label is broken with "${breaks.join(", ") || "nothing"}" — a word that still does not fit `
+            + "the narrowed item has to be allowed to break, or it overflows the element that was just "
+            + "narrowed to make room for it",
+        ).toBe(true);
+    });
+
     it("sizes the control in the reader's own text, never in device pixels", () => {
         const rules = parseRules(pageCss()).filter((r) => r.selectors.some((s) => /\.events-link\b/.test(s)));
         expect(rules.length, "no control rules found — this assertion would be vacuous").toBeGreaterThan(0);
@@ -607,18 +720,50 @@ describe("page content", () => {
         // is the DEFAULT — so a presence check passes on the exact edit it exists to forbid, and
         // the 182px click target comes straight back with the suite green. Only the values that
         // actually shrink-wrap the item count.
+        //
+        // THE DEFECT IS A TARGET A READER CANNOT SEE THE EDGES OF, WHICH IS NOT THE SAME AS A
+        // WIDE ONE — and the difference is the whole of why this assertion is now a disjunction
+        // rather than a single clause. What made 67px of blank card a defect was that nothing
+        // on screen said the card was where the link ended: the reader aimed at words and the
+        // box quietly extended past them. Shrink-wrapping was one fix for that. Drawing the box
+        // is the other, and it is the one this control now uses — a full-width, bordered,
+        // plated 48px bar whose edges are exactly where they appear to be. It is the same
+        // argument the bib makes (`.bib--linked` in Patch.astro): the whole object is the
+        // anchor, and a reader can tell because it looks like one.
+        //
+        // SO THE ESCAPE HATCH IS NARROW ON PURPOSE. A stretched box qualifies only if the
+        // control's OWN rules draw a border, unconditionally — a `:hover` border is a
+        // signifier only for a reader who has a pointer, which is the precise defect the
+        // link-signifier gate in build-output.test.ts was written for after one accepted a
+        // hover rule as proof. Delete the border and this goes red rather than silently
+        // permitting the invisible 182px target again.
         const SHRINK_WRAPS = ["start", "flex-start", "self-start", "baseline", "end", "flex-end", "center"];
-        const optsOut = rules.some((r) => {
+        const shrinkWraps = rules.some((r) => {
             const align = decl(r.body, "align-self");
             return (align !== undefined && SHRINK_WRAPS.includes(align.trim()))
                 || decl(r.body, "width") === "max-content"
                 || decl(r.body, "width") === "fit-content";
         });
+        //
+        // READ FROM THE ELEMENT'S WHOLE CLASS LIST, not from `rules` above. `rules` is scoped
+        // to `.events-link`, and the border lives in the shared `control-cta` shortcut — so a
+        // check against `rules` would report "no border" on a control that visibly has one,
+        // which is how this assertion first went red on correct code.
+        const STATEFUL = /:hover|:focus|:active|:visited|:target|\[aria-current/;
+        const drawnRules = parseRules(pageCss())
+            .filter((r) => r.selectors.some((s) => /\.(events-link|control-cta)\b/.test(s)));
+        const boxIsDrawn = drawnRules.some((r) => {
+            if (r.selectors.every((sel) => STATEFUL.test(sel))) return false;
+            if (r.at) return false;
+            const border = decl(r.body, "border-width") ?? decl(r.body, "border") ?? decl(r.body, "border-color");
+            return border !== undefined && !/^(0|none)$/.test(border.trim());
+        });
         expect(
-            optsOut,
-            "the control must opt out of its column's cross-axis stretch with a value that actually "
-            + "shrink-wraps it, or its clickable box is the whole width of the card rather than the "
-            + "words a reader aims at. `align-self: stretch` is the default and does not count",
+            shrinkWraps || boxIsDrawn,
+            "the control's clickable box must either shrink-wrap to its words, or be DRAWN so a reader "
+            + "can see where it ends. Neither holds: no shrink-wrapping value, and no unconditional "
+            + "border on the control's own rules. `align-self: stretch` is the default and does not "
+            + "count, and a :hover border is not a border a phone reader ever sees",
         ).toBe(true);
 
         // AND THE SHARED IDIOM MUST SHRINK-WRAP TOO, which the assertion above cannot see.
