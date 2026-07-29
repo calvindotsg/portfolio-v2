@@ -70,7 +70,7 @@ recreated.
 | 013 | Fix the entrance-stagger off-by-one and lock the ladder to the card count | P2 | S | 012 | **DONE** (`8036d3c`) |
 | 014 | Assert the Now card and Career dates/company survive the render | P3 | S | 011 | **DONE** (`b7439e7`) |
 | 015 | Automate goal progress from Strava | P2 | M | — | **DONE** (`a4b419b`) |
-| 016 | Stop shipping rationale comments in the built HTML | P2 | S | — | TODO |
+| 016 | Stop shipping rationale comments in the built HTML | P2 | S | — | **DONE** (`c3734b1`) |
 | 017 | Clear the clearable brace-expansion HIGH with an in-range lockfile refresh | P2 | S | — | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
