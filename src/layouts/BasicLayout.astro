@@ -103,23 +103,23 @@ const schema = {
     <title>{title}</title>
     <meta name="description" content={description}/>
     <meta name="robots" content="index, follow"/>
-    <!-- Basic OG tags for sharing your website's content on platforms like Facebook and LinkedIn -->
+    {/* Basic OG tags for sharing your website's content on platforms like Facebook and LinkedIn */}
     <meta property="og:title" content={title}/>
     <meta property="og:description" content={description}/>
     <meta property="og:type" content="website"/>
-    <!-- THE PAGE'S OWN URL, not the origin. It was the origin from plan 002, when there
+    {/* THE PAGE'S OWN URL, not the origin. It was the origin from plan 002, when there
          was one page and the two were the same thing modulo a trailing slash. With four
          routes that decision inverted into a defect: every /patches page told a social
          card it WAS the home page, contradicting the canonical link three lines up, so a
          shared link to /patches/cycling unfurled as calvin.sg. Found by a review panel;
          `Astro.url.href` is what the canonical already uses, so the two now agree by
-         construction rather than by coincidence. -->
+         construction rather than by coincidence. */}
     <meta property="og:url" content={Astro.url.href}/>
     <meta
             property="og:image"
             content={image}
     />
-    <!-- Basic Twitter Card tags -->
+    {/* Basic Twitter Card tags */}
     <meta name="twitter:card" content="summary_large_image"/>
     <meta name="twitter:title" content={title}/>
     <meta name="twitter:description" content={description}/>

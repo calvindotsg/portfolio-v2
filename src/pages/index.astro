@@ -183,25 +183,25 @@ const dateline = formatDateline();
             class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-6xl overflow-hidden relative w-full sm:p-4 md:grid-cols-2 md:gap-3 md:p-6 lg:grid-rows-[repeat(8,min-content)] lg:grid-cols-4 lg:gap-4 lg:min-h-[clamp(46rem,100vh,50rem)]"
     >
         <IntroCard/>
-        <!-- The lg grid is packed exactly 32/32 cells. Adding a goal card requires
+        {/* The lg grid is packed exactly 32/32 cells. Adding a goal card requires
              re-balancing the lg row/col spans in IntroCard/AboutMe/Now, otherwise
              auto-placement pushes Now into a zero-height implicit row and clips
-             its content (see PR #42). -->
-        <!-- The right-hand column is its own stack, and it has to be. Grid rows are
+             its content (see PR #42). */}
+        {/* The right-hand column is its own stack, and it has to be. Grid rows are
              shared across every column, so the height of these three cards' rows is
              decided by the intro and role cards beside them, not by their own
              content: sized to content inside a shared row template they sat 70px
              apart, against the page's own 16px gap. As one grid item holding its own
              column, they stack at the page gap and the leftover collects once, under
              the last of them. This wrapper also re-orders siblings, which moves five
-             cards below lg — measurements and the trade are in the frontmatter. -->
+             cards below lg — measurements and the trade are in the frontmatter. */}
         <div class="contents lg:flex lg:flex-col lg:gap-4 lg:col-start-4 lg:row-start-1 lg:row-span-8">
             {GOALS.map((goal) => <Goal goal={goal}/>)}
             <Now/>
         </div>
         <AboutMe/>
         <Career/>
-        <!-- THE EXTRA lg ROWS ARE WHAT MAKE THE DATELINE FIT, and they are free.
+        {/* THE EXTRA lg ROWS ARE WHAT MAKE THE DATELINE FIT, and they are free.
              This card was one row holding a two-line paragraph. Its box already
              overflowed by 6px at 1440x900 and 14px at 1024x600 — which cuts NO ink,
              because that is the last line's leading and descender space inside 24px
@@ -236,7 +236,7 @@ const dateline = formatDateline();
              enough to wrap reopens the same 5px loss WITH the row-span in place; the
              footer's text column is 182px at 1024px wide, and the worst date the
              calendar can produce ("Updated 30 September 2026") measures 165.75px.
-             tests/projection.test.ts pins that bound. -->
+             tests/projection.test.ts pins that bound. */}
         <Card colSpan="md:col-span-1" rowSpan="md:row-span-1 lg:row-span-3">
             <p class="text-xs">
                 {FOOTER.prefix} <span class="text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}

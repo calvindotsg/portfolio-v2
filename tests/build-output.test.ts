@@ -317,6 +317,12 @@ describe("dist/", () => {
         }
     });
 
+    it("ships no HTML comments — rationale is source-side only (plan 016)", () => {
+        for (const page of builtPages()) {
+            expect(read(page), `${page} ships an HTML comment`).not.toContain("<!--");
+        }
+    });
+
     it("emits a usable CSS rule for every safelisted icon class", () => {
         const css = pageCss();
         const wanted = new Set([
