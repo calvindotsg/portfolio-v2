@@ -68,6 +68,18 @@ block above it before giving either consumer the other's list.
   from any `:focus-visible` it shares a selector list with, because that one is a
   keyboard indicator every device needs. `tests/build-output.test.ts` enforces this
   as a universal with no carve-outs
+- **A press must be drawn, and must outlive the finger** — two gates in
+  `tests/build-output.test.ts` fail the DEPLOY, not just the suite, so read this before
+  adding a control. Any `:active` that paints ink must also carry `transition-none`
+  (both shortcuts transition `color` over 300ms, so a bare press ink ramps and a ~100ms
+  tap shows a third of it), and any press on a link the inline script would hold needs a
+  `[data-leaving]` twin touching at least one of the same properties. **`data-leaving` is
+  an ATTRIBUTE, never a class**: the orphan gate reads a selector's leading class token
+  and its state-class excuse needs a scoped selector, which UnoCSS output never is, so
+  `.is-leaving` would redden a correct build. The twin may differ from the press where
+  holding it would be wrong — the current sport chip is the one case, and says why in
+  place. Held-eligibility is derived from the script's own refusals (`target="_blank"` is
+  what excludes every bib), so it follows the markup rather than a list
 - **Text-relative sizing**: every breakpoint, `main`'s height clamp, the card
   heading's space and the control box are font-relative, so the page grows with
   the reader's text instead of clipping it. `tests/page-fit.test.ts` and
