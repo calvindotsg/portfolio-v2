@@ -399,7 +399,7 @@ export default defineConfig({
      *   `control-surface`  the plate, the accent border, the hover ink and the press. No box.
      *   `control`          that surface at 64 x 48, icon-only. Six social links, the toggle.
      *   `control-cta`      that surface at 48 tall and the width of what contains it, holding
-     *                      a label and a trailing mark. The two goal cards' way out.
+     *                      a label and its mark centred as one legend. The two goal cards' way out.
      *   `text-link`        a link that is a run of words inside a sentence or a column of
      *                      figures. The wall's way back, and each role card's company name.
      *
@@ -432,8 +432,11 @@ export default defineConfig({
      * a label that comes from data and grows with the reader's text, so any length would be a
      * guess that clips. Full width is a declared box all the same — the card's content width is
      * definite — and it buys the thing a content-width button cannot: the whole box is visibly
-     * the anchor, which is the bib's own idiom (see Patch.astro), rather than 29px of dead card
-     * beside a 153px button. Measured at 1024x797: the card goes 232.8 -> 256.8px and `main`
+     * the anchor, which is the bib's own idiom (see Patch.astro), rather than a sliver of dead
+     * card beside a content-width button. (That sliver was first quoted as "29px beside a 153px
+     * button" from the chevron revision; built as `w-fit` and measured on the current one it is
+     * 33px beside 148.95, and the running and cycling cards disagree by 3px. Use the measured
+     * pair, not the remembered one.) Measured at 1024x797: the card goes 232.8 -> 256.8px and `main`
      * stays 797, because the right-hand stack's height is set by the taller left column. 3rem
      * is the LAST size that is free THERE — at 3.5rem `main` goes to 807.59 and the page
      * scrolls.
@@ -454,10 +457,42 @@ export default defineConfig({
      * is not worth it. Note also that no test can see this: there is no layout engine in the
      * suite, so the boundary lives in the PR's browser sweep and in this paragraph.
      *
-     * `justify-between` is what puts the mark on the far edge. It is doing the job the old
-     * chevron's negative margin did in reverse: there the glyph was pulled onto the words so
-     * the pair read as one phrase, here it is pushed away from them so it reads as the edge the
-     * press leads over.
+     * `justify-center`, AND THE `justify-between` IT REPLACES IS THE ONE DECISION IN THIS FILE
+     * THAT WAS MEASURED AT EXACTLY ONE WIDTH AND WAS WRONG AT EVERY OTHER.
+     *
+     * The retired note read: the mark "is pushed away from [the words] so it reads as the edge
+     * the press leads over" — the label and the mark as two statements rather than one phrase.
+     * That was chosen against the lg card, where the control is 182px and the gap it opens is
+     * 41px, so "between" and "centred" draw almost the same object. Below lg there is one column
+     * and the card is as wide as the viewport, and the same rule parks a 12px glyph a long way
+     * from the words it belongs to:
+     *
+     *     viewport   320    375    390    430    640    768   1024
+     *     control    254    309    324    364    558    304    182
+     *     gap        113    168    183    223    417    163     41
+     *
+     * WHAT THAT DRAWS IS NOT A BUTTON. A wide bordered box with a small label at the left rail
+     * and a lone glyph at the right rail is the silhouette of a select or a text field, not of a
+     * control you press — and the reader meets it directly under two lines of plain text, which
+     * is where a form would put one. Owner-reported from a physical iPhone 15 Pro Max; the
+     * screenshots are in the PR. Centring the pair makes the label and the mark one legend, which
+     * is what a button has, at every width.
+     *
+     * IT COSTS NO GEOMETRY, and that is measured rather than assumed: the control's box is
+     * IDENTICAL to the build it replaces at all 21 configurations of the zoom sweep (three
+     * viewports x seven root sizes; 182x48 through 74x652 is the 1024 column of that sweep, and the
+     * control is wider than 182 at every viewport below lg), and ink lost past the card's clip
+     * edge stays 0 in every cell. `justify-content` distributes free space that already exists;
+     * it cannot create or consume any.
+     *
+     * THE TWO ALTERNATIVES WERE BUILT AS REAL PAGES AND RENDERED, not sketched. Content-width
+     * (`w-fit` on this shortcut) draws a proper button at every width too, and was rejected on
+     * two measurements: it loses 23.2px of ink past the card's right edge at 1024 at a 40px root
+     * where both other builds lose none, and at lg it stacks the two goal cards' controls at
+     * 148.95 and 145.94px — a 3px disagreement, one directly above the other, which is the ragged
+     * pair this file spent three paragraphs removing from the icon controls. Keeping full width
+     * also keeps the control's right edge flush with the progress rule above it, which is the
+     * only other full-bleed thing on the card.
      *
      * `min-h-12` RATHER THAN `h-12`, AND `flex-wrap`, ARE BOTH ANTI-CLIPPING. They look like
      * slack and they are not: a label that comes from data and grows with the reader's text
@@ -472,10 +507,65 @@ export default defineConfig({
     shortcuts: {
         "control-surface": "text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
         "control": "control-surface text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center",
-        "control-cta": "control-surface text-xs min-h-12 w-full px-3 py-1 inline-flex flex-wrap items-center justify-between gap-x-2",
+        "control-cta": "control-surface text-xs min-h-12 w-full px-3 py-1 inline-flex flex-wrap items-center justify-center gap-x-2",
         "text-link": "underline decoration-from-font underline-offset-[0.18em] self-start text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out",
     },
     presets: [
+        /**
+         * EVERY `hover:` UTILITY ON THIS SITE IS EMITTED INSIDE `@media (hover: hover)`, AND THIS
+         * SHORT PRESET IS THE WHOLE MECHANISM.
+         *
+         * THE DEFECT. A touch browser has no pointer to move away, so it applies `:hover` on tap
+         * and holds it until the reader taps elsewhere. Reported on a physical iPhone 15 Pro Max
+         * against a deploy preview: one goal card's way out sat in accent red while its sibling
+         * did not, which reads as a selected state on a control that has none. It is not one
+         * component's bug — every `hover:` token in this file and every hand-written `:hover` in
+         * `src/**` has it. Counted against the built DOM rather than from the source: TWELVE hovered
+         * elements on the home page — seven plated icon controls, the two goal cards' calls to action,
+         * two role-card company links, and the Now card's info link, which wears a bare `hover:` utility
+         * and belongs to neither named idiom — plus six more on the wall (the back link, three sport
+         * chips, and the linked bibs). An earlier draft of this sentence said "twelve elements across
+         * two pages", which was the home page's count labelled as the whole site's, and its stated
+         * breakdown reached twelve before the wall was added at all.
+         *
+         * WHY THE FIX BELONGS IN THE CONFIG AND NOT IN THE SHORTCUTS. Guarding each of the two
+         * shortcuts would fix today's wearers and leave the next `hover:` token anyone writes
+         * unguarded — the same shape as the column-count ladder this file deleted, a rule that has
+         * to be re-applied by hand every time the site grows. A variant is the one place the
+         * decision can be made once. `presetWind3` ships its own `hover:` variant and variants
+         * resolve in PRESET ORDER, so this has to sit above it in the list to win; below it the
+         * probe emitted zero guarded rules and looked exactly like a working config.
+         *
+         * THIS IS NOT A LOSS ON TOUCH, and the site's own prose has been saying so for three
+         * revisions: `text-link` exists because a hover colour is the one cue that cannot survive
+         * a phone, Patch.astro says "there is no hover on a phone", and tests/build-output.test.ts
+         * rejects a `:hover` rule offered as proof of an affordance. On a device that cannot
+         * hover, the state is never information — only ever a misfire — so guarding it removes
+         * nothing a reader could have meant to produce.
+         *
+         * THE HAND-WRITTEN `:hover` RULES DO NOT COME THROUGH HERE. Two of them exist, both on the
+         * patch wall, and they carry the guard in their own preludes; tests/build-output.test.ts
+         * walks every built sheet and fails the build on any `:hover` rule outside a
+         * `(hover: hover)` context, which is what keeps the next authored one honest.
+         *
+         * ONE MEASUREMENT NOTE WORTH MORE THAN THE REST. `Emulation.setEmulatedMedia` CANNOT set
+         * this feature — it reports `hover: hover` in both states, so a probe written that way
+         * passes on a completely unguarded build. `setDeviceMetricsOverride({mobile: true})` plus
+         * `setTouchEmulationEnabled` is the lever whose read-back actually differs.
+         */
+        {
+            name: "hover-needs-a-pointer",
+            variants: [
+                (matcher) => {
+                    if (!matcher.startsWith("hover:")) return;
+                    return {
+                        matcher: matcher.slice("hover:".length),
+                        selector: (sel) => `${sel}:hover`,
+                        parent: "@media (hover: hover)",
+                    };
+                },
+            ],
+        },
         presetWind3(),
         /**
          * `display` is NOT part of presetIcons' default output. Without it the

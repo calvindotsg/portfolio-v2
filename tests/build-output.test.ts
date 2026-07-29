@@ -920,6 +920,127 @@ describe("hover styles promise only interactions that exist", () => {
     });
 });
 
+/**
+ * A HOVER STYLE MUST NEED A POINTER TO PRODUCE IT.
+ *
+ * THE DEFECT, reported from a physical iPhone 15 Pro Max against a deploy preview: one goal
+ * card's way out sat in accent red while its sibling did not. A touch browser has no pointer
+ * to move away, so it applies `:hover` on tap and holds it until the reader taps something
+ * else — which draws a persistent selected-looking state on a control that has no such state.
+ * On the patch wall it is worse than cosmetic: the sport chips DO have a real current state
+ * (`[aria-current="page"]`), and a stuck hover fakes exactly the distinction that row exists
+ * to draw.
+ *
+ * IT WAS SITE-WIDE AND PRE-EXISTING — nine plated controls, three text links, and the wall's
+ * chips and bibs — twelve hovered elements on the home page and six more on the wall, counted
+ * against the built DOM — with no `(hover: hover)` query anywhere in
+ * the repository. So the fix is site-wide too: a variant in `uno.config.ts` emits every
+ * `hover:` utility inside the query, and the two hand-written rules carry it in their own
+ * preludes.
+ *
+ * WHY THE GATE IS A UNIVERSAL WITH NO CARVE-OUTS. The two mode overrides on the wall
+ * (`@media print`, `@media (forced-colors: active)`) could not misfire on a phone even
+ * unguarded — one paints only on paper, the other only recolours an outline that the guard
+ * already prevents. Both were still split and guarded, because "this particular hover rule is
+ * inert" is an argument that has to be re-made by hand for every future exemption, and the
+ * exemption list is where a gate like this rots. A universal is checkable; a universal with
+ * two footnotes is a habit.
+ *
+ * WHAT THIS CANNOT SEE, stated so it is not trusted further than it goes: it reads the sheet,
+ * not the screen. It cannot tell whether the guarded rule still paints for a reader who DOES
+ * have a pointer — that is a browser measurement, and it is in the PR (mouse held over each
+ * control, computed colour read in both device states, with the `(hover: hover)` value read
+ * back per state so the emulation lever is proven to have applied).
+ */
+describe("a hover style needs a pointer to produce it", () => {
+    // Matches `:hover` as a real state pseudo-class only. Inside an escaped UnoCSS token
+    // (`.hover\:text-...`) the same characters are part of the class NAME — the sibling gate
+    // above records the same trap, and getting it wrong here would fail the build on the very
+    // utility this rule exists to guard.
+    const HOVER = /(?<!\\):hover(?![\w-])/;
+
+    /**
+     * IS THIS AT-RULE CONTEXT A POSITIVE HOVER GATE? — and the reason this is a function
+     * rather than one regex is that the regex it replaces certified the exact inverse of
+     * the invariant.
+     *
+     * It was `GUARDED = /\(\s*hover\s*:\s*hover\s*\)/`, tested as a SUBSTRING against the
+     * joined prelude. That asks whether the text `(hover: hover)` appears, not whether the
+     * query is true only where a pointer exists — and three real preludes contain the text
+     * while being false, or partly false, on a phone:
+     *
+     *   @media not (hover: hover)              true ONLY on touch. The defect, inverted.
+     *   @media (hover: hover), (hover: none)   a query list is a DISJUNCTION, so it matches touch.
+     *   @media (hover: hover) or (hover: none) same, in Media Queries 4 spelling.
+     *
+     * Built and measured: the first ships a hover style that fires only on a phone, with all
+     * 290 tests green. Two review dimensions found this independently.
+     *
+     * It was also too NARROW in one direction, which is the red-on-correct-code half:
+     * `@media (hover)` is the Media Queries 4 boolean form and means exactly `(hover: hover)`
+     * (true when the value is not `none`), and it was rejected.
+     *
+     * THE SHAPE THAT IS ACTUALLY CORRECT, and each clause is here because dropping it breaks
+     * a measured case:
+     *
+     *  - Test each enclosing at-rule SEPARATELY, not the joined string. The PR's own preset
+     *    emits the guard as a PARENT at-rule, so an ordinary responsive utility like
+     *    `md:hover:font-bold` lands inside TWO nested at-rules — `@media (hover:hover)` around
+     *    `@media (min-width:48rem)`. Requiring every at-rule to gate hover reds that correct
+     *    code; requiring SOME at-rule to gate it does not.
+     *  - Within one prelude, every comma branch must gate hover, because a query list is a
+     *    disjunction and one unguarded branch admits touch.
+     *  - Reject any prelude carrying `not`. A negation is the cheapest way to invert a
+     *    substring test, and nothing in this codebase needs a negated media query.
+     *  - Accept `(hover)` and `(hover: hover)`; reject `(hover: none)` and `(any-hover: …)`.
+     *    `any-hover` is true if ANY input can hover, which is not the same guarantee.
+     */
+    const gatesHover = (at: string): boolean => {
+        if (!at) return false;
+        // `at` is the enclosing preludes joined; split it back into individual at-rules.
+        const preludes = at.split("@").map((p) => p.trim()).filter(Boolean);
+        return preludes.some((prelude) => {
+            if (/\bnot\b/i.test(prelude)) return false;
+            if (/\bor\b/i.test(prelude)) return false;
+            const branches = prelude.split(",").map((b) => b.trim()).filter(Boolean);
+            return branches.length > 0
+                && branches.every((b) => /\(\s*hover\s*(?::\s*hover\s*)?\)/.test(b));
+        });
+    };
+
+    const hoverRules = (page: string) =>
+        parseRules(pageCss(page)).filter((r) => r.selectors.some((s) => HOVER.test(s)));
+
+    it("finds hover rules at all, so the assertion below is not vacuous", () => {
+        // Counted across every page rather than per page. A per-page floor is a hand-counted
+        // one, and it goes red on correct code the day a page legitimately has no hovered
+        // element — the same shape as the `toBeGreaterThan(0)` floors this suite has been
+        // bitten by before. What must never be zero is the whole site's supply of hover rules,
+        // because that is the only thing that makes the guard below mean anything.
+        const total = builtPages().reduce((n, page) => n + hoverRules(page).length, 0);
+        expect(total, "no page ships a single :hover rule — every assertion below is vacuous").toBeGreaterThan(0);
+    });
+
+    it.each(builtPages())("ships no :hover rule outside a (hover: hover) query (%s)", (page) => {
+        const unguarded = hoverRules(page)
+            .filter((r) => !gatesHover(r.at))
+            .map((r) => `${r.at ? `${r.at} ` : "(top level) "}{ ${r.selectors.join(", ")} }`);
+        expect(
+            [...new Set(unguarded)],
+            "a touch browser applies :hover on tap and holds it until the reader taps elsewhere, so an "
+            + "unguarded hover rule ships a state that reads as selected on whatever was last pressed. "
+            + "Wrap the rule in @media (hover: hover). If this is a UnoCSS utility, there are two causes "
+            + "and they need different fixes: a plain `hover:` token that is NOT guarded means the "
+            + "hover-needs-a-pointer preset in uno.config.ts has stopped sitting ABOVE presetWind3 "
+            + "(variants resolve in preset order, and below it that preset emits nothing at all); "
+            + "whereas `group-hover:`, `peer-hover:` and any other token where `hover` is not the "
+            + "LEADING variant bypass that preset by design — the preset matches a leading `hover:` "
+            + "only, so those must be written as hand-guarded CSS instead. No token of the second kind "
+            + "exists in this repository today, and this gate is what keeps it that way",
+        ).toEqual([]);
+    });
+});
+
 describe("the offset plate actually paints", () => {
     // One entry per plated SELECTOR, not per plated element: `.control` is worn by
     // every control (it was two classes until they were unified, and the toggle's

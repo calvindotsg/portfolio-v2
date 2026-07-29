@@ -235,15 +235,45 @@ const description = goal === undefined
         transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
     }
 
-    .patch-filter a:hover {
-        border-color: var(--accent);
-        color: var(--accent);
+    /*
+     * Guarded because a touch browser applies `:hover` on tap and keeps it until the reader
+     * taps elsewhere, which left whichever sport chip was last pressed wearing the accent
+     * beside the one that is genuinely current. That is the worst place on the site for it:
+     * the row's real state is `[aria-current="page"]` directly below, so a hover that stays
+     * put fakes exactly the distinction this row exists to draw. Every `hover:` utility is
+     * guarded by a variant in uno.config.ts; a hand-written rule carries its own, and
+     * tests/build-output.test.ts fails the build on one that does not.
+     */
+    @media (hover: hover) {
+        .patch-filter a:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
     }
 
     .patch-filter a[aria-current="page"] {
         background-color: var(--text);
         border-color: var(--text);
         color: var(--background);
+    }
+
+    /*
+     * A PRESS SHOWS SOMETHING, ON EVERY CHIP INCLUDING THE CURRENT ONE.
+     *
+     * Debt created by guarding the hover above: the preflight turns the platform's own tap
+     * flash off site-wide (`-webkit-tap-highlight-color: transparent` on `html, :host`), so
+     * once the accent stopped firing on tap, a chip acknowledged a press with nothing at all.
+     * `:active` is not hover-gated and does fire on touch, which is why the site's plated
+     * controls already feel responsive on a phone and these did not.
+     *
+     * It sits AFTER the current-page rule deliberately, so the chip you are already on also
+     * answers a press. That momentarily draws it like any other pressed chip, which is
+     * correct — the press is feedback about the finger, not a claim about which page is open,
+     * and `aria-current` continues to carry the real state throughout.
+     */
+    .patch-filter a:active {
+        border-color: var(--accent);
+        color: var(--accent);
     }
 
     /* The count is quiet against its own label, whichever ground it lands on. */
