@@ -140,6 +140,85 @@ const schema = {
             document.documentElement.dataset.theme = theme;
         })();
     </script>
+    {/*
+        THE PRESS, HELD UNTIL THE PAGE ACTUALLY GOES.
+
+        A press ends when the finger lifts, and the reader then waits with nothing on screen
+        saying the tap landed — measured 376ms to first paint on a phone at Slow-4G with a
+        warm cache, 788ms cold before the entrance was fixed, and unbounded on a worse
+        connection. That gap is the reported defect: a visitor tapped the goal card's way out
+        several times because the first tap looked ignored.
+
+        This is the second script on the site and the reason it is script at all: no CSS state
+        outlives the release. It sets one attribute; every declaration it triggers is authored
+        beside the `:active` it twins, so with the script absent the site behaves exactly as
+        it does today.
+
+        BUBBLE PHASE, NOT CAPTURE, so `defaultPrevented` means something — a capture listener
+        runs before anything could cancel the click and would hold a press for a navigation
+        that was then called off.
+
+        WHAT IT REFUSES, and each entry is a way to strand a control on a page that never
+        leaves: a modified click (the reader wanted a new tab), a target that is not this
+        frame — which is what excludes every bib, since Patch.astro opens Strava in a new tab,
+        and all six icon controls — a download, a jump to an anchor on this very page, and a
+        click something else has already handled.
+
+        NOT REFUSED: a cross-origin link. Those really do leave, in this tab, and the two role
+        cards' company names are the only ones on the site — the same two whose press ink is
+        otherwise the slowest thing here.
+
+        TWO RESETS, AND THE FIRST ONE MUST BE GUARDED — the unguarded version shipped in a
+        first draft and destroyed the feature for exactly the reader it is for. `pageshow`
+        covers the back button: bfcache restores the DOM as it was, attribute and all, so
+        without it a reader who navigates away and comes back finds a control still pressed.
+        But it fires on EVERY presentation including the ordinary first load, so it has to
+        test `event.persisted` — see the note on the handler itself. The timer covers a
+        navigation that is started and never completes — a cancelled load, an offline drop —
+        which no event reports. 8s is past any load the reader would still be waiting
+        through, and by then the browser is showing its own progress.
+    */}
+    <script is:inline>
+        (() => {
+            const HELD = "data-leaving";
+            let timer = 0;
+            const clear = () => {
+                for (const el of document.querySelectorAll("[" + HELD + "]")) el.removeAttribute(HELD);
+                clearTimeout(timer);
+                timer = 0;
+            };
+            document.addEventListener("click", (event) => {
+                if (event.defaultPrevented || event.button !== 0) return;
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                const anchor = event.target && event.target.closest && event.target.closest("a[href]");
+                if (!anchor) return;
+                if (anchor.target && anchor.target !== "_self") return;
+                if (anchor.hasAttribute("download")) return;
+                const to = new URL(anchor.href, location.href);
+                if (to.hash && to.href.split("#")[0] === location.href.split("#")[0]) return;
+                // One control at a time. `timer` is a single slot, so without this a second
+                // press leaves BOTH drawn pressed and the first press's timeout — now
+                // orphaned — clears both at the first deadline, cutting the second
+                // acknowledgement short. Measured before this line: two goal-card CTAs held
+                // at once, and a press at 7.5s got 499ms instead of 8000.
+                clear();
+                anchor.setAttribute(HELD, "");
+                timer = setTimeout(clear, 8000);
+            });
+            addEventListener("pageshow", (event) => {
+                // ONLY A RESTORE. `pageshow` fires on EVERY presentation of a document,
+                // including the ordinary first load, immediately after `load` — measured
+                // firing at 44ms on a warm cache and at 468ms on Slow-4G. Unguarded, it
+                // deleted the hold of any tap that landed before `load`, and cleared the 8s
+                // fallback with it, leaving nothing to re-arm. That is precisely the reader
+                // this whole mechanism exists for: the one on a slow connection, whose page
+                // is still loading when they tap. It cannot fire wrongly the other way —
+                // only this script writes the attribute, so a freshly parsed document can
+                // never carry one.
+                if (event.persisted) clear();
+            });
+        })();
+    </script>
 </head>
 <body
         class="bg-[var(--background)] md:min-h-screen flex flex-col justify-center items-center"
@@ -149,6 +228,32 @@ const schema = {
 </html>
 
 <style is:global>
+    /*
+     * THE PLATFORM'S OWN PRESS FLASH, PUT BACK.
+     *
+     * UnoCSS's preflight sets `-webkit-tap-highlight-color: transparent` on `html, :host`, so
+     * this site has been shipping with the one press affordance a touch browser gives you for
+     * free switched off. Measured on the live DOM before this line: `rgba(0, 0, 0, 0)`. The
+     * guidance every source agrees on is that removing it without putting something back is
+     * the defect — and until this change one of the four link idioms had nothing back.
+     *
+     * The named states below it are the real answer and this is the floor under them: it fires
+     * on anything tappable, including whatever gets added next without remembering to declare a
+     * press, and including iOS, where the pseudo-class is unreliable for elements that are not
+     * links or form controls. Blink and WebKit only — a browser without it falls through to
+     * those named states, which is why they are the answer and this is the floor.
+     *
+     * The accent at 18% rather than a system default, so the flash belongs to this palette in
+     * both themes; `--accent` is already theme-scoped, so this follows it with no second token.
+     *
+     * ORDER IS LOAD-BEARING. This has the same specificity as the preflight rule it overrides,
+     * so it wins only by coming later in the built sheet. tests/build-output.test.ts asserts
+     * that rather than trusting the injection order, which is Astro's to change.
+     */
+    html {
+        -webkit-tap-highlight-color: color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
     body {
         margin: 0;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Oxygen", Ubuntu, Cantarell, "Fira Sans", "Droid Sans", Helvetica, Arial, sans-serif;
@@ -448,10 +553,40 @@ const schema = {
     main > *:nth-child(7) { animation-delay: 0.48s; }
     main > *:nth-child(8) { animation-delay: 0.56s; }
 
+    /*
+     * NO FADE, AND A SHORT FIXED RISE. Both halves are measured, and the second exists only
+     * because of what the first exposed.
+     *
+     * THE FADE WAS THE WAIT. Chromium does not record a contentful paint for a composited
+     * opacity animation until it resolves, so a reader arriving here saw nothing legible until
+     * this finished. Tap to full-contrast ink on a phone at Slow-4G: ~870ms before, ~500ms
+     * after. (First-contentful-paint reads 788 -> 396ms cold, but quote that as FCP only — the
+     * delta is exactly the 0.4s duration in both the cold and warm runs, which is the
+     * signature of a duration rather than of a wait.)
+     *
+     * THE TRAVEL HAD TO SHRINK WITH IT, and this is the part a phone-only film could not show.
+     * `translateY(40%)` is 40% of each child's OWN height, and `backwards` fill means a child
+     * sits at the `from` keyframe for the whole of its delay. While that state was invisible
+     * nobody paid for it; drawn at full ink it is the finished page rendered in the wrong
+     * place. Measured on the built site at the first frame, at 1440x900 and 1024x797:
+     *
+     *     40% travel, faded    all six children invisible, displaced up to 282px, 327.6px clipped
+     *     40% travel, no fade  all six at opacity 1, displaced up to 282px, 327.6px clipped
+     *     12px travel, no fade all six at opacity 1, displaced 12px, NOTHING clipped
+     *
+     * The clipping is `main`'s own `overflow: hidden` (index.astro) and it was always there —
+     * the fade was hiding it. A 430x932 film reported none of this because `main`'s second
+     * child is `display: contents` there and children 3-6 are below the fold, so exactly one
+     * box was animating.
+     *
+     * So the entrance survives, the ladder and the reduced-motion block below stay meaningful,
+     * and the first frame is the page rather than a rehearsal of it. An absolute length rather
+     * than a percentage is the point: it cannot scale with a card's height, which is what made
+     * the 705px column move 282px.
+     */
     @keyframes card-in {
         from {
-            opacity: 0;
-            transform: translateY(40%);
+            transform: translateY(12px);
         }
     }
 

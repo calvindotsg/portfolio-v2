@@ -293,6 +293,41 @@ export function structuralSelector(selector: string): string {
     return out.replace(/(^|[>+~]\s*)(?=[>+~]|$)/g, "$1*").trim();
 }
 
+/**
+ * DOES THIS SELECTOR ONLY MATCH WHILE THE READER IS DOING SOMETHING?
+ *
+ * A gate that accepts a stateful rule as proof of a permanent affordance certifies the
+ * defect it was written for — the chip gate in build-output.test.ts records that at length,
+ * and the note there ends "a gate that accepts one is worse than no gate".
+ *
+ * IT IS STRUCTURAL RATHER THAN A LIST OF PSEUDO-CLASSES, and that is the whole point. The
+ * list form was `/:hover|:focus|:active|:visited|:target|\[aria-current/` and it was correct
+ * for exactly the states that existed when it was written. Adding a held-press state spelled
+ * `[data-leaving]` walked straight through it: an attribute is not a pseudo-class, so the
+ * held rule read as UNCONDITIONAL and satisfied the chip gate all by itself. Verified — with
+ * the chips' permanent border deleted the wall shipped borderless prose on all three pages
+ * and the suite stayed green at 290/290. The list would have needed one more alternation, and
+ * so would the state after that.
+ *
+ * So the question is inverted: a selector is unconditional only if everything in it is
+ * STRUCTURE — element names, classes, ids and combinators. Anything else (a pseudo-class, an
+ * attribute, a pseudo-element) makes it conditional, and a new state cannot be invented that
+ * this does not already cover.
+ *
+ * `[data-astro-cid-…]` is the one attribute that is not a state: Astro's scoping is how a
+ * component's rule finds its own elements, and it is present on every scoped rule whether the
+ * reader is touching anything or not. It is stripped before the question is asked.
+ *
+ * Three call sites, which used to hold two different alternation lists between them —
+ * build-output.test.ts's chip gate and rendered-html.test.ts's two affordance walks.
+ */
+export function isStateful(selector: string): boolean {
+    const scopeless = selector.replace(/\[data-astro-cid-[\w-]+(?:=(?:"[^"]*"|'[^']*'|[\w-]+))?\]/g, "");
+    const token = String.raw`(?:[a-zA-Z][\w-]*|\*|[.#](?:\\.|[\w-])+)+`;
+    const structural = new RegExp(String.raw`^\s*${token}(?:\s*[>+~]\s*|\s+)?(?:${token}(?:\s*[>+~]\s*|\s+)?)*$`);
+    return !structural.test(scopeless.trim());
+}
+
 /** The root font-size every width bound below is normalised to. */
 export const ROOT_PX = 16;
 

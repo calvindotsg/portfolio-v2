@@ -251,6 +251,41 @@ const description = goal === undefined
         }
     }
 
+    /*
+     * THE HELD PRESS, AND IT SITS ABOVE THE CURRENT-PAGE RULE WHERE ITS `:active` TWIN SITS
+     * BELOW. The asymmetry is the whole point and it is measured, not stylistic.
+     *
+     * `[data-leaving]` is the press kept on screen until the page actually goes (the inline
+     * script in BasicLayout.astro, and the shared idiom in uno.config.ts). Everywhere else on
+     * the site the twin carries exactly what `:active` carries. Here it must not, because the
+     * two states last for different lengths of time and one of these declarations is only
+     * defensible while it is brief.
+     *
+     * Both rules repaint the label `var(--accent)`. On an ordinary chip that lands on the page
+     * ground and is fine — 6.81:1 light, 13.22:1 dark. On the CURRENT chip the fill below is
+     * `var(--text)`, and accent ink on that fill measures 2.77:1 light and 1.37:1 dark against
+     * the 4.5:1 that 0.75rem/700 text asks for. The note under `:active` accepts that as the
+     * price of a press being felt, and it is right to: a tap is ~100ms. Holding the same
+     * declaration for a whole navigation — measured 376-788ms here, unbounded on a worse
+     * connection — deletes the word that argument rests on.
+     *
+     * Specificity is equal either side — (0,2,1) as authored, (0,4,1) once Astro scopes both —
+     * so ORDER is the
+     * entire fix: above, the current chip keeps its readable inverted label at 18.86:1 light
+     * and 18.09:1 dark, and every other chip still shows the held accent. Nothing is lost —
+     * the chip you are already on is the one press that cannot be telling you a page is
+     * coming.
+     */
+    .patch-filter a[data-leaving] {
+        border-color: var(--accent);
+        color: var(--accent);
+        /* Snap, for the reason the shortcut's own press does: the base rule above transitions
+           colour over 300ms, and an acknowledgement that fades in is not an acknowledgement of
+           the thing that just happened. Gated in tests/build-output.test.ts, which found this
+           rule ramping after it was written. */
+        transition: none;
+    }
+
     .patch-filter a[aria-current="page"] {
         background-color: var(--text);
         border-color: var(--text);
@@ -274,6 +309,34 @@ const description = goal === undefined
     .patch-filter a:active {
         border-color: var(--accent);
         color: var(--accent);
+        /* A tap is ~100ms against a 300ms colour transition, so without this the reader saw
+           about a third of the accent — the press was drawn, faintly, and then undrawn. */
+        transition: none;
+    }
+
+    /*
+     * AND THE CHIP YOU ARE ALREADY ON KEEPS ITS LABEL, which is a debt the line directly above
+     * created rather than an old one.
+     *
+     * `:active` sits below the current-page rule deliberately (see its note), so on the current
+     * chip it repaints the label `var(--accent)` over the `var(--text)` fill — 2.77:1 light,
+     * 1.37:1 dark, against the 4.5:1 that 0.75rem/700 text asks for. That was survivable while
+     * the 300ms transition meant a ~100ms tap only travelled about a quarter of the way there;
+     * snapping it takes the label the whole way, and in the dark theme it effectively erases it.
+     * So the snap is what made an accepted approximation into a real one.
+     *
+     * The press is NOT given up here — the accent border still fires, which is what says the tap
+     * landed. Only the glyphs keep the readable ink. Hoisting the whole `:active` above the
+     * current-page rule was the other candidate and is worse: it also demotes the accent border,
+     * leaving the current chip acknowledging a press with nothing, which is the exact debt the
+     * note above was written to pay off.
+     *
+     * `transition: none` is not optional — the snap gate in tests/build-output.test.ts walks
+     * every rule that carries a press and a `color`, and a bare colour here fails the deploy.
+     */
+    .patch-filter a[aria-current="page"]:active {
+        color: var(--background);
+        transition: none;
     }
 
     /* The count is quiet against its own label, whichever ground it lands on. */

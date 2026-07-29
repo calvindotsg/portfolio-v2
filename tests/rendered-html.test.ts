@@ -5,7 +5,7 @@ import {beforeAll, describe, expect, it} from "vitest";
 import Index from "../src/pages/index.astro";
 import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NEW_TAB_NOTICE, NEXT_RACE, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
 import {nextRace, nextRaceLine, patchesEarned} from "../src/lib/projection";
-import {decl, pageCss, parseRules} from "./helpers/css";
+import {decl, isStateful, pageCss, parseRules} from "./helpers/css";
 import {iconClass} from "../src/lib/icons";
 
 let doc: Document;
@@ -572,9 +572,17 @@ describe("page content", () => {
         // AND IT MUST BE UNCONDITIONAL. The first version of this probe accepted any matching
         // rule, so a `:hover` decoration satisfied it — which is exactly the affordance this
         // change exists to replace, since neither reader who reported the defect had a pointer.
-        const STATEFUL = /:hover|:focus|:active|:visited/;
+        //
+        // THE STATE TEST IS SHARED AND STRUCTURAL. It was a local list of pseudo-classes, and
+        // a held-press state spelled `[data-leaving]` walked straight through it: the shipped
+        // rule is `.control-cta[data-leaving],.control[data-leaving],.control:active,
+        // .control-cta:active`, so two of its four selectors carry no pseudo-class, `.every()`
+        // is false, and the whole rule read as UNCONDITIONAL here. Measured: moving
+        // `text-decoration-line` out of `.text-link` into that rule left this assertion green.
+        // `isStateful` asks whether everything in the selector is structure, which no future
+        // state can outrun. See tests/helpers/css.ts.
         const decorated = rules.some((r) => {
-            if (r.selectors.every((sel) => STATEFUL.test(sel))) return false;
+            if (r.selectors.every((sel) => isStateful(sel))) return false;
             const v = decl(r.body, "text-decoration-line") ?? decl(r.body, "text-decoration");
             return v !== undefined && /underline/i.test(v);
         });
@@ -794,11 +802,13 @@ describe("page content", () => {
         // to `.events-link`, and the border lives in the shared `control-cta` shortcut — so a
         // check against `rules` would report "no border" on a control that visibly has one,
         // which is how this assertion first went red on correct code.
-        const STATEFUL = /:hover|:focus|:active|:visited|:target|\[aria-current/;
+        // Shared, structural statefulness — same reason as the sibling walk above: the
+        // held-press rule merges `[data-leaving]` selectors into the same rule as `:active`,
+        // which flipped this `.every()` to false and made the rule read as permanent.
         const drawnRules = parseRules(pageCss())
             .filter((r) => r.selectors.some((s) => /\.(events-link|control-cta)\b/.test(s)));
         const boxIsDrawn = drawnRules.some((r) => {
-            if (r.selectors.every((sel) => STATEFUL.test(sel))) return false;
+            if (r.selectors.every((sel) => isStateful(sel))) return false;
             if (r.at) return false;
             const border = decl(r.body, "border-width") ?? decl(r.body, "border") ?? decl(r.body, "border-color");
             return border !== undefined && !/^(0|none)$/.test(border.trim());
