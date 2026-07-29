@@ -35,6 +35,25 @@ const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
     ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over});
 
 /**
+ * THE DAY A BUILT PAGE WAS DRAWN FOR, read off the page rather than recomputed.
+ *
+ * Every assertion that compares a rendered wall against `patchWall()` has to hand it a
+ * day, and the only correct one is the day that page was built for. Taking the default
+ * would take THIS process's day, which is a different thing the moment the artifact is
+ * older than the run — routine with SKIP_BUILD=1, and once a night for anyone whose
+ * suite straddles Singapore midnight. Both would redden entirely correct code, and the
+ * failure would read as a broken wall rather than a stale build.
+ *
+ * Fails loudly if the meta tag is missing: a page with no build date silently falling
+ * back to "today" is the exact bug this helper exists to prevent.
+ */
+const buildDateOf = (page: string): string => {
+    const found = /<meta name="build-date" content="(\d{4}-\d{2}-\d{2})"/.exec(read(page));
+    if (found === null) throw new Error(`${page} carries no <meta name="build-date">`);
+    return found[1];
+};
+
+/**
  * EVERY RENDERED BIB PAIRED WITH THE RACE IT DRAWS, BY POSITION RATHER THAN BY NAME.
  *
  * A race's name was a usable key until the wall became the whole calendar, and the same
@@ -55,14 +74,14 @@ const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
  * helper is a second reader of that guarantee, not a second guarantee.
  */
 const wallBibs = (page: string, sport?: Sport) => {
-    const wall = patchWall(sport);
+    const wall = patchWall(sport, buildDateOf(page));
     const bibs = [...parseHTML(read(page)).document.querySelectorAll(".bib")];
     expect(bibs.length, `${page} must render one bib per race`).toBe(wall.length);
     return bibs.map((bib, i) => ({bib, event: wall[i].event, state: wall[i].state}));
 };
 
 describe("a bib's state is derived from the calendar, never stored", () => {
-    it("is finished only once the whole event is behind the stamp", () => {
+    it("is finished only once the whole event is behind the build day", () => {
         const race = ev({date: "2026-06-10"});
         expect(patchState(race, "2026-06-09"), "the day before").toBe("booked");
         expect(patchState(race, "2026-06-10"), "the day itself — you have not finished it at 05:13").toBe("booked");
@@ -82,6 +101,49 @@ describe("a bib's state is derived from the calendar, never stored", () => {
         expect(patchState(tour, "2026-11-16")).toBe("finished");
     });
 
+    /**
+     * THE CASE THE CLOCK COULD NOT EXPRESS, and the reason a recording outranks it.
+     *
+     * A race run this morning is run. Under `stamp > end` it could not be entered as run
+     * until the bot pushed the NEXT day — and if no ride followed, the stamp froze and it
+     * stayed an outline indefinitely. Both halves are exercised here: the same-day case,
+     * and a clock left two weeks stale.
+     */
+    it("earns a bib from the recording, on the day of the race and against a frozen clock", () => {
+        const run = ev({date: "2026-06-10", elapsed_time: "0:58:26", strava_activity_id: "19513789157"});
+        expect(patchState(run, "2026-06-10"), "the day itself, hours after finishing").toBe("finished");
+        expect(patchState(run, "2026-05-27"), "a clock that stopped a fortnight ago").toBe("finished");
+    });
+
+    /**
+     * BOTH FIELDS, OR THE CLOCK RULES. Each half alone is a thing that can exist before
+     * the race does — a time can be typed, and an id can be pasted from a mapping made in
+     * advance — so neither alone may draw a solid bib.
+     */
+    it("takes a half-recording as no recording, leaving the day to decide", () => {
+        const timed = ev({date: "2026-06-10", elapsed_time: "0:58:26"});
+        const linked = ev({date: "2026-06-10", strava_activity_id: "19513789157"});
+        for (const half of [timed, linked]) {
+            expect(patchState(half, "2026-06-10"), `${JSON.stringify(half)} on the day`).toBe("booked");
+            expect(patchState(half, "2026-06-11"), "the day after, by the clock as before").toBe("finished");
+        }
+    });
+
+    /**
+     * A recorded race is not "still to ride", so the projection must stop counting it the
+     * moment the wall starts calling it earned. This is the same invariant the year-long
+     * sweep below enforces across the calendar; pinned here too because the sweep would
+     * still pass if BOTH sides forgot, and this one names which side did.
+     */
+    it("stops booking a recorded race's kilometres, on the day it is run", () => {
+        const run = ev({date: "2026-06-10", km: 10, sport: "running", elapsed_time: "0:58:26", strava_activity_id: "1"});
+        expect(bookedAhead("running", "2026-06-01", [run]), "still ahead by the calendar").toBe(0);
+        expect(bookedAhead("running", "2026-06-10", [run]), "the day of the race").toBe(0);
+        // The comparison: the same race without its recording is booked exactly as before.
+        const {elapsed_time: _t, strava_activity_id: _i, ...plain} = run;
+        expect(bookedAhead("running", "2026-06-01", [plain]), "no recording, so the clock still books it").toBe(10);
+    });
+
     it("calls an unparseable date booked, never finished", () => {
         // The two failures are not symmetric: a race rendered as still-to-come is
         // wrong, and a race rendered as run is a claim about a result.
@@ -95,12 +157,19 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      * `bookedAhead`'s comparison rather than inventing its own.
      *
      * Both answer "has this race happened yet", for the wall and for the goal cards.
-     * They are rendered on two pages a click apart, from one stamp. A wall calling
-     * the Formosa tour finished while the cycling card is still counting its 1,022 km
-     * as booked is the site contradicting itself, and neither figure is obviously the
-     * wrong one to a reader.
+     * A wall calling the Formosa tour finished while the cycling card is still counting
+     * its 1,022 km as booked is the site contradicting itself, and neither figure is
+     * obviously the wrong one to a reader.
      *
-     * Swept across the whole year rather than at the current stamp: today's date
+     * THEY NO LONGER READ ONE CLOCK, and this comment used to say they did ("rendered on
+     * two pages a click apart, from one stamp"). Since the clock split, the wall takes
+     * `BUILD_DATE` and the goal card's `bookedAhead` takes `UPDATED_AT`. So what this
+     * sweep pins is that the two COMPARISONS agree GIVEN THE SAME DAY — it hands both the
+     * same `iso` on purpose. The page's own build/stamp gap is a separate, deliberate
+     * disagreement, and the reasoning for leaving it alone is above `patchState` in
+     * projection.ts. Do not extend this sweep to build/stamp PAIRS expecting agreement.
+     *
+     * Swept across the whole year rather than at one day: today's date
      * exercises one point on a curve, and the disagreement these two could develop
      * lives at the boundaries — the start day, the days inside a span, the end day.
      *
@@ -148,8 +217,8 @@ describe("the wall's order", () => {
      * The wall is sorted NEXT RACE FIRST, so its order is a function of the day as
      * well as of the fixture. Every assertion in this block therefore passes its own
      * `iso` and its own events: an expected order taken from today's calendar at the
-     * default stamp would be a hand-counted property of the date, and the bot moves
-     * the stamp nightly.
+     * default build day would be a hand-counted property of the date, and that day moves
+     * every night.
      *
      * `SPREAD` straddles a pinned midpoint — three races behind it, three ahead, in
      * shuffled fixture order so nothing here can pass on fixture position.
@@ -358,7 +427,7 @@ describe("dist/patches", () => {
     it("renders one bib per race, in the wall's order, in the state the calendar says", () => {
         for (const [key, page] of Object.entries(PAGES)) {
             const sport = key === "all" ? undefined : GOALS.find((g) => g.goal_name.toLowerCase() === key)!.sport;
-            const expected = patchWall(sport);
+            const expected = patchWall(sport, buildDateOf(page));
             const bibs = [...parseHTML(read(page)).document.querySelectorAll(".bib")];
             expect(bibs.length, `${page} must render ${expected.length} bibs`).toBe(expected.length);
             bibs.forEach((bib, i) => {

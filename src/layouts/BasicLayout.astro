@@ -1,5 +1,6 @@
 ---
 import {METADATA, LINKS, CAREER} from "../lib/constants";
+import {BUILD_DATE} from "../lib/today";
 
 interface Props {
     title: string;
@@ -7,6 +8,21 @@ interface Props {
 }
 
 const {title, description} = Astro.props;
+
+/*
+ * `<meta name="build-date">` below is the Singapore day this page was drawn for.
+ * Machine-only, and deliberately not shown to a reader: the dateline they see is the
+ * bot's stamp, which answers a different question — see the two-clocks note in
+ * lib/projection.ts.
+ *
+ * IT IS HERE FOR THE SUITE FIRST. Several tests compare a rendered wall against
+ * `patchWall()` recomputed in the test process, and recomputing the clock there would
+ * ask "is this page right for TODAY" of an artifact built on some other day — which is
+ * what SKIP_BUILD=1 does every time it reuses a build. Reading the day off the page
+ * asks the fair question instead, and makes a stale deploy diagnosable from
+ * view-source. The comment lives here rather than beside the tag because
+ * build-output.test.ts ships no HTML comments to a reader.
+ */
 
 /*
  * The body's height floor below is a MINIMUM, deliberately, and the distinction
@@ -100,6 +116,7 @@ const schema = {
     <meta name="viewport" content="width=device-width"/>
     <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
     <meta name="generator" content={Astro.generator}/>
+    <meta name="build-date" content={BUILD_DATE}/>
     <title>{title}</title>
     <meta name="description" content={description}/>
     <meta name="robots" content="index, follow"/>
