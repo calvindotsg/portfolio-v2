@@ -262,6 +262,21 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * a complete bib rather than a broken one — which is what makes filling in a back
  * catalogue a data edit and not a code change.
  *
+ * RECORDING A RACE YOU HAVE JUST RUN IS A TWO-STEP EDIT, AND THE ORDER IS THE POINT.
+ * Run the `strava-progress` workflow by hand FIRST (`gh workflow run strava-progress.yml`,
+ * or the Run workflow button — it has always taken `workflow_dispatch`), and only then
+ * add the race here with its time and its activity id.
+ *
+ * Why that order. The two fields together are what tells the site the race has been RUN
+ * (see `hasRecording` in projection.ts), and a run race stops being counted as booked
+ * ahead. Its kilometres have to be somewhere: the bot's total is the only other place
+ * they can be. Edit this file first and, until the next fetch, the distance is in
+ * NEITHER — the goal card asks for a rate that is too high by the length of the race,
+ * and stays wrong until the bot next pushes, which is itself not guaranteed to be
+ * tomorrow. Fetch first and the kilometres are already banked when the race stops being
+ * booked, so no figure on the page is ever wrong. The rate erring HIGH is the safe
+ * direction rather than a harmless one — do not use it as a reason to skip the step.
+ *
  * `end_date` is for multi-day events and it is not decoration. With a single date,
  * the whole of a 1,022 km nine-day tour books as ridden on its start date while
  * Strava has recorded one day of it — a discontinuity that would drop a projection
@@ -335,6 +350,12 @@ export type RaceEvent = {
      * How long the race took, as `H:MM:SS`. Absent until the race has been run and the
      * figure typed in; a bib without one simply prints no time line.
      *
+     * WITH AN ACTIVITY ID BESIDE IT, THIS IS WHAT MAKES THE BIB A PATCH. The pair is the
+     * site's evidence that a race was run, and it outranks the calendar — which is the
+     * only reason a race can be recorded on the day it happened. See `hasRecording` in
+     * projection.ts for why one field alone is not enough, and read the two-step note
+     * above {@link EVENTS} before adding either to a race you have just finished.
+     *
      * IT IS ELAPSED, NOT MOVING, AND THE BIB SAYS SO. The two are far apart on these
      * rides — 8:32:05 elapsed against 5:03:55 moving — so an unlabelled time invites a
      * reader to divide it into the distance printed beside it and get 18.8 km/h, where
@@ -373,6 +394,13 @@ export type RaceEvent = {
      * The Strava activity this race was recorded as. Present only where the mapping has
      * been VERIFIED by reading the page — see the note above the type for how, and for
      * the login wall this knowingly accepts.
+     *
+     * IT IS ALSO HALF OF THE PROOF THAT THE RACE WAS RUN, so it is no longer only a link.
+     * Beside an `elapsed_time` it earns the bib outright, whatever day it is — see
+     * `hasRecording` in projection.ts. Do not paste one in ahead of a race because the
+     * mapping happens to exist: with a time already present that draws a solid patch for
+     * a race nobody has run, which is the one failure this file works hardest to avoid.
+     * The build refuses it (tests/projection.test.ts), so the cost is a red deploy.
      *
      * A string rather than a number: it is an opaque identifier that only ever goes into
      * a URL, and 19-digit ids are close enough to `Number.MAX_SAFE_INTEGER` that treating

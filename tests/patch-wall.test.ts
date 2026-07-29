@@ -35,6 +35,25 @@ const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
     ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over});
 
 /**
+ * THE DAY A BUILT PAGE WAS DRAWN FOR, read off the page rather than recomputed.
+ *
+ * Every assertion that compares a rendered wall against `patchWall()` has to hand it a
+ * day, and the only correct one is the day that page was built for. Taking the default
+ * would take THIS process's day, which is a different thing the moment the artifact is
+ * older than the run — routine with SKIP_BUILD=1, and once a night for anyone whose
+ * suite straddles Singapore midnight. Both would redden entirely correct code, and the
+ * failure would read as a broken wall rather than a stale build.
+ *
+ * Fails loudly if the meta tag is missing: a page with no build date silently falling
+ * back to "today" is the exact bug this helper exists to prevent.
+ */
+const buildDateOf = (page: string): string => {
+    const found = /<meta name="build-date" content="(\d{4}-\d{2}-\d{2})"/.exec(read(page));
+    if (found === null) throw new Error(`${page} carries no <meta name="build-date">`);
+    return found[1];
+};
+
+/**
  * EVERY RENDERED BIB PAIRED WITH THE RACE IT DRAWS, BY POSITION RATHER THAN BY NAME.
  *
  * A race's name was a usable key until the wall became the whole calendar, and the same
@@ -55,7 +74,7 @@ const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
  * helper is a second reader of that guarantee, not a second guarantee.
  */
 const wallBibs = (page: string, sport?: Sport) => {
-    const wall = patchWall(sport);
+    const wall = patchWall(sport, buildDateOf(page));
     const bibs = [...parseHTML(read(page)).document.querySelectorAll(".bib")];
     expect(bibs.length, `${page} must render one bib per race`).toBe(wall.length);
     return bibs.map((bib, i) => ({bib, event: wall[i].event, state: wall[i].state}));
@@ -80,6 +99,49 @@ describe("a bib's state is derived from the calendar, never stored", () => {
             expect(patchState(tour, iso), `${iso} is inside or before the tour`).toBe("booked");
         }
         expect(patchState(tour, "2026-11-16")).toBe("finished");
+    });
+
+    /**
+     * THE CASE THE CLOCK COULD NOT EXPRESS, and the reason a recording outranks it.
+     *
+     * A race run this morning is run. Under `stamp > end` it could not be entered as run
+     * until the bot pushed the NEXT day — and if no ride followed, the stamp froze and it
+     * stayed an outline indefinitely. Both halves are exercised here: the same-day case,
+     * and a clock left two weeks stale.
+     */
+    it("earns a bib from the recording, on the day of the race and against a frozen clock", () => {
+        const run = ev({date: "2026-06-10", elapsed_time: "0:58:26", strava_activity_id: "19513789157"});
+        expect(patchState(run, "2026-06-10"), "the day itself, hours after finishing").toBe("finished");
+        expect(patchState(run, "2026-05-27"), "a clock that stopped a fortnight ago").toBe("finished");
+    });
+
+    /**
+     * BOTH FIELDS, OR THE CLOCK RULES. Each half alone is a thing that can exist before
+     * the race does — a time can be typed, and an id can be pasted from a mapping made in
+     * advance — so neither alone may draw a solid bib.
+     */
+    it("takes a half-recording as no recording, leaving the day to decide", () => {
+        const timed = ev({date: "2026-06-10", elapsed_time: "0:58:26"});
+        const linked = ev({date: "2026-06-10", strava_activity_id: "19513789157"});
+        for (const half of [timed, linked]) {
+            expect(patchState(half, "2026-06-10"), `${JSON.stringify(half)} on the day`).toBe("booked");
+            expect(patchState(half, "2026-06-11"), "the day after, by the clock as before").toBe("finished");
+        }
+    });
+
+    /**
+     * A recorded race is not "still to ride", so the projection must stop counting it the
+     * moment the wall starts calling it earned. This is the same invariant the year-long
+     * sweep below enforces across the calendar; pinned here too because the sweep would
+     * still pass if BOTH sides forgot, and this one names which side did.
+     */
+    it("stops booking a recorded race's kilometres, on the day it is run", () => {
+        const run = ev({date: "2026-06-10", km: 10, sport: "running", elapsed_time: "0:58:26", strava_activity_id: "1"});
+        expect(bookedAhead("running", "2026-06-01", [run]), "still ahead by the calendar").toBe(0);
+        expect(bookedAhead("running", "2026-06-10", [run]), "the day of the race").toBe(0);
+        // The comparison: the same race without its recording is booked exactly as before.
+        const {elapsed_time: _t, strava_activity_id: _i, ...plain} = run;
+        expect(bookedAhead("running", "2026-06-01", [plain]), "no recording, so the clock still books it").toBe(10);
     });
 
     it("calls an unparseable date booked, never finished", () => {
@@ -358,7 +420,7 @@ describe("dist/patches", () => {
     it("renders one bib per race, in the wall's order, in the state the calendar says", () => {
         for (const [key, page] of Object.entries(PAGES)) {
             const sport = key === "all" ? undefined : GOALS.find((g) => g.goal_name.toLowerCase() === key)!.sport;
-            const expected = patchWall(sport);
+            const expected = patchWall(sport, buildDateOf(page));
             const bibs = [...parseHTML(read(page)).document.querySelectorAll(".bib")];
             expect(bibs.length, `${page} must render ${expected.length} bibs`).toBe(expected.length);
             bibs.forEach((bib, i) => {

@@ -118,8 +118,25 @@ block above it before giving either consumer the other's list.
 - `src/pages/patches/[...sport].astro` — the patch wall. One rest-parameter route
   prerenders three pages (`/patches`, `/patches/cycling`, `/patches/running`), so
   filtering by sport is a real URL rather than client state. Whether a bib is
-  earned is DERIVED from the calendar every build (`patchState` in
-  `projection.ts`) and must never become a stored flag
+  earned is DERIVED every build (`patchState` in `projection.ts`) and must never
+  become a stored flag
+- **The site has TWO clocks and they answer different questions.** `UPDATED_AT` is
+  the bot's stamp — "the day the kilometres last MOVED", frozen on purpose when they
+  do not — and it stays on the dateline and the required rate, whose numerator and
+  denominator must age together. `BUILD_DATE` (`src/lib/today.ts`, the one place in
+  `src/` that reads a clock) is what day it is, and the calendar questions take it:
+  `patchState`, `patchWall`, `patchesEarned`, `nextRace`. Using the stamp for those
+  froze the wall and the countdown for as long as the owner rested — the home page
+  said "in 5 days" on the day it was 4. Reverting the split was caught by nothing
+  until `tests/projection.test.ts` gained "the site's clock"; read those before
+  moving a default
+- **A race with BOTH `elapsed_time` and `strava_activity_id` is finished because it
+  was run**, whatever the clock says — that pair is the only way a race can be
+  recorded on the day it happened, and `bookedAhead` must skip the same races or the
+  wall and the goal cards contradict each other. Recording a race you have just run
+  is a two-step edit and the order matters: run the `strava-progress` workflow by
+  hand FIRST, then add the race. The reasoning is on `hasRecording` in
+  `projection.ts` and above `EVENTS` in `constants.ts`
 
 ## Content Management
 

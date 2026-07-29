@@ -11,6 +11,7 @@ import {
     stampYearMatchesGoalYear,
 } from "../src/lib/projection";
 import type {RaceEvent} from "../src/lib/constants";
+import {BUILD_DATE, singaporeDate as siteSingaporeDate} from "../src/lib/today";
 import {nextProgress, serialise, singaporeDate} from "../scripts/fetch-strava-progress.mjs";
 
 /**
@@ -102,6 +103,104 @@ describe("date handling", () => {
     it("stamps the goal year, so a stale JSON cannot divide fresh days into last year's km", () => {
         expect(stampYearMatchesGoalYear()).toBe(true);
         expect(stampYearMatchesGoalYear("2025-12-31", 2026)).toBe(false);
+    });
+});
+
+/**
+ * THE SITE'S CLOCK, and the defect that made it necessary.
+ *
+ * The wall and the countdown used to ask the bot's `updated_at` what day it was. It
+ * does not know: it means "the day the kilometres last MOVED", and it is frozen
+ * deliberately when they do not move so the workflow's `git diff --quiet` gate can stop
+ * a nightly commit-push-deploy. The first test below is that freeze, run against the
+ * SHIPPED script rather than described — it is the whole argument for `BUILD_DATE`, and
+ * if the bot ever starts stamping unconditionally it should be re-read, not deleted.
+ */
+describe("the site's clock", () => {
+    it("shows why the stamp cannot answer what day it is", () => {
+        const stamped = JSON.stringify({cycling_km: 2309.7, running_km: 158.6, updated_at: "2026-07-28"});
+        // Two weeks of rest. The bot runs nightly throughout and the date never moves.
+        for (const day of ["2026-07-29", "2026-08-05", "2026-08-12"]) {
+            expect(nextProgress(2309.7, 158.6, stamped, day).updated_at, `bot ran on ${day}`).toBe("2026-07-28");
+        }
+        // It moves only when the kilometres do — which is correct for what it means.
+        expect(nextProgress(2320.0, 158.6, stamped, "2026-08-12").updated_at).toBe("2026-08-12");
+    });
+
+    /**
+     * The site's copy of `singaporeDate` and the bot's must agree, or the two halves of
+     * the repo date the same instant differently — the site drawing a bib for one day
+     * while the stamp it renders beside it names another.
+     *
+     * The instants are chosen to break a UTC implementation: 21:13 UTC is the cron, and
+     * in Singapore it is already the next morning. A copy that forgot the timeZone would
+     * pass a midday check and fail all three of these.
+     */
+    it("dates an instant the same way the bot does, at the hours that discriminate", () => {
+        for (const iso of [
+            "2026-07-29T13:13:00Z",  // 21:13 SGT the same day
+            "2026-07-29T21:13:00Z",  // the cron: 05:13 SGT on the 30th
+            "2026-07-29T16:00:00Z",  // midnight SGT exactly
+            "2026-12-31T20:00:00Z",  // 04:00 SGT on 1 January — the year rolls too
+        ]) {
+            const at = new Date(iso);
+            expect(siteSingaporeDate(at), iso).toBe(singaporeDate(at));
+        }
+        expect(siteSingaporeDate(new Date("2026-07-29T21:13:00Z")), "the cron's own instant").toBe("2026-07-30");
+        expect(siteSingaporeDate(new Date("2026-12-31T20:00:00Z")), "new year in Singapore").toBe("2027-01-01");
+    });
+
+    it("reads one day for the whole build, in the shape every date function expects", () => {
+        expect(BUILD_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(parseIsoDate(BUILD_DATE), "a build date the arithmetic cannot read is worse than none").not.toBeNaN();
+    });
+
+    /**
+     * WHICH CLOCK EACH DEFAULT TAKES, and this block exists because reverting the split
+     * was caught by NOTHING. Measured, not assumed: with every `= BUILD_DATE` changed
+     * back to `= UPDATED_AT`, the whole suite stayed green at 311 passed. The behaviour
+     * was right and unguarded, which is the state a later tidy-up silently undoes.
+     *
+     * THE ONE LIMIT, stated rather than hidden: these can only discriminate on a day the
+     * two clocks actually differ. When the bot has pushed today they are equal, no
+     * observation can tell which one a function read, and these assertions stay true
+     * without proving anything. They are written so that they are never WRONG on such a
+     * day — each states the intended behaviour outright — and they bite on every other.
+     */
+    const shift = (iso: string, days: number): string =>
+        new Date(parseIsoDate(iso) + days * 86_400_000).toISOString().slice(0, 10);
+
+    it("counts the days to the next race from the build day, not from the stamp", () => {
+        const fixture: RaceEvent[] = [
+            {date: shift(BUILD_DATE, 10), name: "Ten Days Out", km: 10, sport: "running", country: "Nowhere"},
+        ];
+        expect(
+            nextRace("running", undefined, fixture)?.daysAway,
+            `a race ${shift(BUILD_DATE, 10)} is 10 days from ${BUILD_DATE}; reading the stamp ${UPDATED_AT} `
+            + "would add however many days the kilometres have not moved",
+        ).toBe(10);
+    });
+
+    it("calls yesterday's race finished, however long the kilometres have sat still", () => {
+        const yesterday: RaceEvent =
+            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", km: 10, sport: "running", country: "Nowhere"};
+        const today: RaceEvent = {...yesterday, date: BUILD_DATE, name: "Running Now"};
+        // No `iso` argument anywhere here: the default IS the subject.
+        expect(patchState(yesterday), `${yesterday.date} is behind ${BUILD_DATE}`).toBe("finished");
+        expect(patchState(today), "a day is not over until it is over").toBe("booked");
+        expect(patchWall("running", undefined, [yesterday, today]).map((p) => p.state)).toEqual(["booked", "finished"]);
+    });
+
+    it("leaves the required rate on the stamp, so its kilometres and its days age together", () => {
+        for (const goal of GOALS) {
+            const status = goalStatus(goal);
+            if (status.kind !== "rate" && status.kind !== "final") continue;
+            expect(
+                status.days,
+                `${goal.goal_name} divides by the days left from ${UPDATED_AT}; counting from the build day `
+                + "would divide fresh days into kilometres the bot has not refreshed",
+            ).toBe(daysRemaining(UPDATED_AT));
+        }
     });
 });
 
@@ -333,27 +432,63 @@ describe("EVENTS", () => {
     });
 
     /**
-     * A FINISHING TIME ONLY EXISTS FOR A RACE THAT HAS BEEN RUN, and the direction of
-     * this check is the whole of it: `elapsed_time` implies finished, never the reverse.
-     * Round the Island finishes on 3 August with nothing recorded and is a legitimate
-     * timeless finished bib, so the converse would be a red build on correct data.
+     * A FINISHING TIME ONLY EXISTS FOR A RACE THAT HAS BEEN RUN, and this is now the
+     * ONLY thing standing behind that sentence — which is why it is written more
+     * carefully than the assertion it replaced.
      *
-     * Written against `patchState` at the bot's own stamp rather than against a literal
-     * date. That makes it bot-driven — which is safe here in the one direction that
-     * matters, because a race that has been run stays run. The only way this goes red is
-     * a time typed against a race still ahead, which is exactly the mistake worth
-     * catching: the bib would print a result for a day that has not happened.
+     * IT USED TO ASSERT `elapsed_time` IMPLIES `patchState === "finished"`. Once a
+     * recording became a way to BE finished (see `hasRecording` in projection.ts), that
+     * assertion started proving itself: a race with a time and an id is finished because
+     * it has a time and an id. A tautology in the place of a gate is worse than no gate,
+     * because the file still reads as though the data were checked.
+     *
+     * SO IT ASKS THE QUESTION THE OLD ONE WAS REALLY ASKING: has the race started? A
+     * time typed against a race still ahead is the mistake worth catching — the bib
+     * would print a result for a day that has not happened — and it is now catchable
+     * ONLY here, because `patchState` would happily draw that bib as earned.
+     *
+     * AGAINST THE BUILD DAY, not the bot's stamp, and the difference is the whole point
+     * of the change this test belongs to: a race run this morning is a race that has
+     * started, whatever the kilometres say. Compared with `<=`, so a time entered on the
+     * day of the race passes — that is the case the wall could not previously record.
+     *
+     * Round the Island is ridden with nothing recorded and stays a legitimate timeless
+     * bib, so nothing here may require a time.
      */
-    it("carries a finishing time only for races that have finished", () => {
+    it("never carries a finishing time for a race that has not started", () => {
         // No `toBeGreaterThan(0)` on the subset — see the note in tests/patch-wall.test.ts.
         // `timed` is legitimately empty every January, and the suite is the Netlify build
         // command. The loop asserts a property OF each timed event; zero of them is a true
         // state of the calendar, not a broken test.
         const timed = EVENTS.filter((e) => e.elapsed_time !== undefined);
         for (const e of timed) {
-            expect(patchState(e), `${e.name} is not finished but carries elapsed_time ${e.elapsed_time}`)
-                .toBe("finished");
+            expect(parseIsoDate(e.date), `${e.name} has an unreadable date and a finishing time`).not.toBeNaN();
+            expect(
+                parseIsoDate(e.date) <= parseIsoDate(BUILD_DATE),
+                `${e.name} starts on ${e.date}, which is after ${BUILD_DATE}, but carries elapsed_time `
+                + `${e.elapsed_time} — the bib would print a result for a day that has not happened`,
+            ).toBe(true);
             expect(e.elapsed_time, `${e.name} elapsed_time must read H:MM:SS`).toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
+        }
+    });
+
+    /**
+     * THE OTHER HALF OF THE SAME GUARD. A recording is a finishing time AND an activity
+     * id, and the id is the half the test above cannot see: an id alone earns no bib, so
+     * a stray one is harmless — but an id beside a time is what makes `patchState` draw a
+     * solid bib, and pasting a Strava link next to a race still ahead is an easy slip.
+     *
+     * Stated separately rather than folded in, because the two say different things and a
+     * combined message would name the wrong field half the time.
+     */
+    it("never carries a recording for a race that has not started", () => {
+        const recorded = EVENTS.filter((e) => e.elapsed_time !== undefined && e.strava_activity_id !== undefined);
+        for (const e of recorded) {
+            expect(patchState(e), `${e.name} carries a full recording, so its bib must be earned`).toBe("finished");
+            expect(
+                parseIsoDate(e.date) <= parseIsoDate(BUILD_DATE),
+                `${e.name} would be drawn as an EARNED patch for ${e.date}, which has not happened yet`,
+            ).toBe(true);
         }
     });
 

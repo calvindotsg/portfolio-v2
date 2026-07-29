@@ -1,5 +1,6 @@
 import stravaProgress from "../data/strava-progress.json"
 import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, type Sport} from "./constants"
+import {BUILD_DATE} from "./today"
 
 /**
  * WHAT THIS FILE REFUSES TO COMPUTE, and why that is the whole design.
@@ -46,11 +47,28 @@ import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, type Sport} fro
  * ---
  *
  * EVERYTHING HERE IS PURE AND TAKES `today` AS AN ARGUMENT. Nothing calls
- * `new Date()`. A build-time clock would make every rendered figure drift daily and
- * every assertion about them non-deterministic — and it would be wrong anyway,
- * because the bot only redeploys when the kilometres move, so a fresh clock would
- * be divided into stale distance. `today` comes from the bot's own `updated_at`,
- * so the numerator and the denominator age together.
+ * `new Date()`; the clock is read once in `today.ts` and arrives here as a default
+ * argument, so every assertion in the suite can still pin its own day.
+ *
+ * TWO CLOCKS, AND WHICH ONE A FUNCTION TAKES IS A STATEMENT ABOUT ITS QUESTION.
+ * They were one clock until it emerged that one of them was not a clock at all.
+ *
+ *   `UPDATED_AT` — the bot's stamp — answers HOW FRESH THE KILOMETRES ARE, and every
+ *   function whose arithmetic touches them keeps it: {@link goalStatus},
+ *   {@link goalStatusLine}, {@link formatDateline}, {@link stampYearMatchesGoalYear}.
+ *   The reason is unchanged and still load-bearing: the required rate divides a
+ *   deficit by the days left, and a fresh clock divided into stale distance
+ *   over-states the rate. Numerator and denominator must age together.
+ *
+ *   `BUILD_DATE` — the Singapore day this build ran — answers WHAT DAY IT IS, and the
+ *   calendar questions take it: {@link patchState}, {@link patchWall},
+ *   {@link patchesEarned}, {@link nextRace}. Whether a race has been run is not a fact
+ *   about kilometre freshness, and answering it from the stamp meant the wall and the
+ *   countdown froze for as long as the owner rested — see the measurement in
+ *   `today.ts`.
+ *
+ * {@link bookedAhead} takes neither: it has no default, because it is called by both
+ * sides and must be handed the caller's own day rather than quietly pick one.
  *
  * This module deliberately lives outside `constants.ts`: that file is imported by
  * `uno.config.ts`, and arithmetic there would be evaluated during CSS generation.
@@ -104,8 +122,8 @@ export function parseIsoDate(iso: string): number {
  * AN UNPARSEABLE DATE FALLS OUT OF THE YEAR, and the direction is deliberate: a race
  * missing from `bookedAhead` makes the required rate HIGHER, never lower, so a typo
  * cannot flatter the card. The wall still draws the bib — `patchState` calls an
- * unreadable date booked — so the bad data is visible on the site rather than silently
- * dropped from it.
+ * unreadable date booked, and a recording on an unreadable date is refused at build —
+ * so the bad data is visible on the site rather than silently dropped from it.
  */
 export function eventsInYear(year: number, events: readonly RaceEvent[] = EVENTS): readonly RaceEvent[] {
     return events.filter((e) => !Number.isNaN(parseIsoDate(e.date)) && e.date.slice(0, 4) === String(year))
@@ -113,6 +131,40 @@ export function eventsInYear(year: number, events: readonly RaceEvent[] = EVENTS
 
 /** This year's races: the goal cards' calendar. Computed once — `EVENTS` is a constant. */
 const GOAL_YEAR_EVENTS: readonly RaceEvent[] = eventsInYear(GOAL_YEAR)
+
+/**
+ * THE EVIDENCE THAT A RACE HAS BEEN RUN, which is a different question from what day
+ * it is — and getting those two confused is what made a race unrecordable on the day
+ * it was run.
+ *
+ * A finishing time AND the activity it was recorded as. Both, deliberately:
+ *
+ *   A TIME ALONE is not enough because a time is typed, and this file's own rule is
+ *   that a race remembered without a recording is still a complete bib. Someone
+ *   filling in a back catalogue from memory should not thereby claim a result the
+ *   calendar has not reached.
+ *
+ *   AN ID ALONE is not enough because the mapping can exist before the race does.
+ *   Nothing stops an activity id being pasted next to a race still ahead, and a bib
+ *   drawn as earned for a race nobody has run is the failure this file most wants to
+ *   avoid — a page that claims a result is worse than a page that claims a plan.
+ *
+ * TOGETHER THEY ARE A RECORDING: a clock reading that came off a device, and the
+ * device's own record of it. You cannot have both for a race you have not run.
+ *
+ * THIS IS NOT THE FORBIDDEN `done` FLAG, and the difference is not a technicality. A
+ * flag has no content, so it says nothing when it is wrong and rots in the direction
+ * nobody notices. These two fields are facts with content: they are printed on the
+ * bib, one of them is a link a reader can follow, and typing either against a race
+ * that has not happened is caught at build by the gate in tests/projection.test.ts,
+ * which refuses a finishing time on a race that has not started.
+ *
+ * THE CLOCK STILL RULES EVERY RACE WITHOUT ONE. Round the Island is ridden with
+ * nothing recorded, and it becomes a finished bib the day after it is ridden, exactly
+ * as before. This is a second, sufficient way to be finished — not a replacement.
+ */
+const hasRecording = (event: RaceEvent): boolean =>
+    event.elapsed_time !== undefined && event.strava_activity_id !== undefined
 
 /**
  * Riding days from `iso` to 31 December of `GOAL_YEAR`, counting BOTH ends, never
@@ -157,6 +209,14 @@ export function bookedAhead(sport: Sport, iso: string, events: readonly RaceEven
     let km = 0
     for (const e of events) {
         if (e.sport !== sport) continue
+        // A race with a recording has been RIDDEN, whatever the day says — see
+        // `hasRecording`. Its kilometres are in the bot's total, or will be at the next
+        // fetch, so booking them here would count the race twice. Skipping is also the
+        // safe direction while the bot catches up: the deficit stays whole, so the rate
+        // reads high rather than flattering. The cross-consumer sweep in
+        // tests/patch-wall.test.ts forces this line — without it the wall calls a race
+        // finished while the card is still counting its kilometres as ahead.
+        if (hasRecording(e)) continue
         if (!Number.isFinite(e.km) || e.km < 0) continue
         const start = parseIsoDate(e.date)
         if (Number.isNaN(start)) continue
@@ -305,11 +365,27 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * Derivation cannot do that — the wall is rebuilt on every deploy and the bot
  * deploys whenever the kilometres move.
  *
- * `finished` MEANS THE WHOLE EVENT IS BEHIND THE STAMP, and it is spelled with the
- * same comparison `bookedAhead` uses for "wholly done" on purpose. The two answer
- * the same question — has this race happened yet — for two different consumers, and
- * a wall that calls the Formosa tour finished while the cycling card is still
- * counting its kilometres as booked is the page contradicting itself on one screen.
+ * THERE ARE TWO WAYS TO BE `finished`, AND THE ORDER MATTERS. A race with a
+ * recording is finished because it was run; a race without one is finished once the
+ * whole event is behind the day. The first is asked first, and it is the only reason
+ * a race can become a patch on the day it was run — the clock cannot see this
+ * morning's race, because a day is not over until it is over.
+ *
+ * WHY THE CLOCK ALONE WAS NOT ENOUGH, since this was one comparison for a while. It
+ * was `stamp > end`, and BOTH halves refused a same-day record: the stamp is the bot's
+ * kilometre-freshness date and freezes when the kilometres do not move, and `>`
+ * excludes the race's own day even from a perfect clock. So a race run on a Wednesday
+ * could not be entered as run until the bot pushed on the Thursday — and if no ride
+ * followed, not then either. The fix is not a looser comparison but a better question:
+ * ask the recording, and keep the clock for races that have none.
+ *
+ * BOTH WAYS STAY IN STEP WITH THE PROJECTION, which is the constraint that shapes
+ * them. `bookedAhead` answers the same "has this happened yet" for the goal cards, one
+ * click away, so it skips a race with a recording and shares the `today > end`
+ * comparison for every other. A wall that calls the Formosa tour finished while the
+ * cycling card still counts its 1,022 km as booked is the page contradicting itself on
+ * one screen; the year-long sweep in tests/patch-wall.test.ts is what holds the two
+ * together, and it fails on exactly that.
  *
  * A MULTI-DAY EVENT IN PROGRESS IS THEREFORE `booked`, which is a choice rather than
  * a fallout of the comparison: you earn the bib at the finish line, not at the start
@@ -317,16 +393,23 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * a way that is correct for its own job — it counts the untravelled days of a tour
  * pro rata, because it is measuring distance rather than completion.
  *
- * AN UNPARSEABLE DATE IS `booked`. That direction is deliberate and is the only one
- * available: the alternative failure renders a race nobody has run as finished, and
- * a page that claims a result is worse than a page that claims a plan.
+ * AN UNPARSEABLE DATE IS `booked` FOR EVERY RACE THE CLOCK RULES. That direction is
+ * deliberate and is the only one available: the alternative failure renders a race
+ * nobody has run as finished, and a page that claims a result is worse than a page that
+ * claims a plan. A race with a recording never reaches the comparison — it is finished
+ * on its recording — and that is not a way round the rule, because a finishing time on
+ * an unreadable date fails the build outright (tests/projection.test.ts).
  */
 export type PatchState = "finished" | "booked"
 
 /** The last day an event occupies — its own date unless it spans several. */
 const eventEnd = (event: RaceEvent): string => event.end_date ?? event.date
 
-export function patchState(event: RaceEvent, iso: string = UPDATED_AT): PatchState {
+export function patchState(event: RaceEvent, iso: string = BUILD_DATE): PatchState {
+    // The recording is the finish line. Asked before the clock, because the clock
+    // cannot see a race run this morning and this is the only way a race becomes a
+    // patch on the day it is run. See `hasRecording` for why it takes both fields.
+    if (hasRecording(event)) return "finished"
     const today = parseIsoDate(iso)
     const end = parseIsoDate(eventEnd(event))
     if (Number.isNaN(today) || Number.isNaN(end)) return "booked"
@@ -389,7 +472,7 @@ const STATE_RANK: Record<PatchState, number> = {booked: 0, finished: 1}
 
 export function patchWall(
     sport?: Sport,
-    iso: string = UPDATED_AT,
+    iso: string = BUILD_DATE,
     events: readonly RaceEvent[] = EVENTS,
 ): Patch[] {
     return events
@@ -510,7 +593,7 @@ export type NextRace = {
 
 export function nextRace(
     sport: Sport,
-    iso: string = UPDATED_AT,
+    iso: string = BUILD_DATE,
     events: readonly RaceEvent[] = GOAL_YEAR_EVENTS,
 ): NextRace | null {
     const next = patchWall(sport, iso, events).find((p) => p.state === "booked")
@@ -538,7 +621,7 @@ export function nextRace(
  */
 export function patchesEarned(
     sport: Sport,
-    iso: string = UPDATED_AT,
+    iso: string = BUILD_DATE,
     events: readonly RaceEvent[] = GOAL_YEAR_EVENTS,
 ): number {
     return patchWall(sport, iso, events).filter((p) => p.state === "finished").length
