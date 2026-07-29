@@ -262,20 +262,38 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * a complete bib rather than a broken one — which is what makes filling in a back
  * catalogue a data edit and not a code change.
  *
- * RECORDING A RACE YOU HAVE JUST RUN IS A TWO-STEP EDIT, AND THE ORDER IS THE POINT.
- * Run the `strava-progress` workflow by hand FIRST (`gh workflow run strava-progress.yml`,
- * or the Run workflow button — it has always taken `workflow_dispatch`), and only then
- * add the race here with its time and its activity id.
+ * RECORDING A RACE YOU HAVE JUST RUN IS A TWO-STEP EDIT, AND WHICH STEP GOES FIRST
+ * DEPENDS ON WHETHER THE RACE IS ALREADY ON THIS LIST. There is no order that is right at
+ * both moments — the page is out by the length of the race until the second step lands,
+ * and the only choice is which way it is out. An earlier draft of this note gave one
+ * unconditional order and claimed "no figure on the page is ever wrong"; that was false,
+ * and measured wrong by 6 km/wk in the case it got backwards.
  *
- * Why that order. The two fields together are what tells the site the race has been RUN
- * (see `hasRecording` in projection.ts), and a run race stops being counted as booked
- * ahead. Its kilometres have to be somewhere: the bot's total is the only other place
- * they can be. Edit this file first and, until the next fetch, the distance is in
- * NEITHER — the goal card asks for a rate that is too high by the length of the race,
- * and stays wrong until the bot next pushes, which is itself not guaranteed to be
- * tomorrow. Fetch first and the kilometres are already banked when the race stops being
- * booked, so no figure on the page is ever wrong. The rate erring HIGH is the safe
- * direction rather than a harmless one — do not use it as a reason to skip the step.
+ * The two fields together are what tells the site the race has been RUN (see
+ * `hasRecording` in projection.ts), and a run race stops being counted as booked ahead.
+ * Its kilometres have to be somewhere: the bot's total is the only other place they can
+ * be. So:
+ *
+ *   A RACE NOT YET ON THIS LIST — a one-off, or a back-catalogue entry. FETCH FIRST:
+ *   `gh workflow run strava-progress.yml` (or the Run workflow button; it has always
+ *   taken `workflow_dispatch`), then add it here. Exact for the whole window, because a
+ *   race that is not in `EVENTS` was never booked, so banking its kilometres first can
+ *   double nothing. This is the Garmin Run case.
+ *
+ *   A RACE ALREADY ON THIS LIST — every planned race, which is the common case. ADD THE
+ *   RECORDING FIRST, then let the 05:13 cron move the kilometres. Fetching first puts the
+ *   distance in BOTH places while the race sits here without its recording: measured on
+ *   the 2 August ride, 67 km/wk against an honest 73 — the deficit subtracted twice, in
+ *   the FLATTERING direction this file guards against everywhere else. Recording-first
+ *   errs the other way (79) until the next push, and the push is guaranteed here because
+ *   the race itself moved the kilometres, so `git diff --quiet` cannot suppress it.
+ *
+ * The rate erring HIGH is the safe direction rather than a harmless one — do not read it
+ * as licence to skip the second step. And note this procedure quietly falsified a premise
+ * stated elsewhere: the note above `daysRemaining` in projection.ts justifies counting the
+ * stamped day by saying the cron "names a day whose riding is entirely ahead of anyone
+ * reading the page". A hand-dispatched run after a race names a day whose riding is partly
+ * done. That is why fetch-first double-counts at all.
  *
  * `end_date` is for multi-day events and it is not decoration. With a single date,
  * the whole of a 1,022 km nine-day tour books as ridden on its start date while

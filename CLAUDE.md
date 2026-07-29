@@ -127,16 +127,23 @@ block above it before giving either consumer the other's list.
   `src/` that reads a clock) is what day it is, and the calendar questions take it:
   `patchState`, `patchWall`, `patchesEarned`, `nextRace`. Using the stamp for those
   froze the wall and the countdown for as long as the owner rested — the home page
-  said "in 5 days" on the day it was 4. Reverting the split was caught by nothing
-  until `tests/projection.test.ts` gained "the site's clock"; read those before
-  moving a default
+  said "in 5 days" on the day it was 4. **`tests/clock-split.test.ts` is what holds the
+  split**, and it mocks the bot's JSON on purpose: the gates in `projection.ts`'s "the
+  site's clock" block can only discriminate on a day the two clocks differ, so the bot
+  stamping today silently switched them off — reverting the whole split was green at 314
+  before that file existed. Mutate one default at a time when you touch this; flipping all
+  four at once only proves the union is covered, which is how `patchWall` stayed uncovered
 - **A race with BOTH `elapsed_time` and `strava_activity_id` is finished because it
   was run**, whatever the clock says — that pair is the only way a race can be
   recorded on the day it happened, and `bookedAhead` must skip the same races or the
-  wall and the goal cards contradict each other. Recording a race you have just run
-  is a two-step edit and the order matters: run the `strava-progress` workflow by
-  hand FIRST, then add the race. The reasoning is on `hasRecording` in
-  `projection.ts` and above `EVENTS` in `constants.ts`
+  wall and the goal cards contradict each other. Recording a race you have just run is a
+  two-step edit, and **which step goes first depends on whether the race is already in
+  `EVENTS`**: a race not yet listed — fetch first (`gh workflow run strava-progress.yml`),
+  then add it; a race already listed — add the recording first and let the cron follow.
+  Fetching first on an already-listed race counts its distance twice, measured at 67 km/wk
+  against an honest 73. There is no order that is right at both moments; read the note
+  above `EVENTS` in `constants.ts` before doing either, and `hasRecording` in
+  `projection.ts` for why the pair means "run"
 
 ## Content Management
 

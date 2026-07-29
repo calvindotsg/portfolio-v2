@@ -191,6 +191,19 @@ describe("the site's clock", () => {
         expect(patchWall("running", undefined, [yesterday, today]).map((p) => p.state)).toEqual(["booked", "finished"]);
     });
 
+    it("counts the year's patches from the build day, so the card cannot lag the wall", () => {
+        const yesterday: RaceEvent =
+            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", km: 10, sport: "running", country: "Nowhere"};
+        // Pinned separately from the test above because a GROUP mutation cannot tell
+        // "all four defaults are gated" from "one is": reverting `patchesEarned` alone
+        // was green until this existed. The card's count and the wall's bibs come out of
+        // one build, so a count read from the stamp prints one behind what is drawn.
+        expect(
+            patchesEarned("running", undefined, [yesterday]),
+            `${yesterday.date} is behind ${BUILD_DATE}; the stamp ${UPDATED_AT} may not be`,
+        ).toBe(1);
+    });
+
     it("leaves the required rate on the stamp, so its kilometres and its days age together", () => {
         for (const goal of GOALS) {
             const status = goalStatus(goal);
@@ -463,10 +476,15 @@ describe("EVENTS", () => {
         const timed = EVENTS.filter((e) => e.elapsed_time !== undefined);
         for (const e of timed) {
             expect(parseIsoDate(e.date), `${e.name} has an unreadable date and a finishing time`).not.toBeNaN();
+            // THE END OF THE EVENT, NOT ITS START. A nine-day tour that began last Tuesday
+            // has started and is not over, and a finishing time typed into it is still a
+            // result for a day that has not happened. Reading `e.date` here let exactly
+            // that through, and the message named the wrong field while doing it.
             expect(
-                parseIsoDate(e.date) <= parseIsoDate(BUILD_DATE),
-                `${e.name} starts on ${e.date}, which is after ${BUILD_DATE}, but carries elapsed_time `
-                + `${e.elapsed_time} — the bib would print a result for a day that has not happened`,
+                parseIsoDate(e.end_date ?? e.date) <= parseIsoDate(BUILD_DATE),
+                `${e.name} is not over until ${e.end_date ?? e.date}, which is after ${BUILD_DATE}, but it `
+                + `carries elapsed_time ${e.elapsed_time} — the bib would print a result for a day that `
+                + `has not happened`,
             ).toBe(true);
             expect(e.elapsed_time, `${e.name} elapsed_time must read H:MM:SS`).toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
         }
@@ -484,10 +502,18 @@ describe("EVENTS", () => {
     it("never carries a recording for a race that has not started", () => {
         const recorded = EVENTS.filter((e) => e.elapsed_time !== undefined && e.strava_activity_id !== undefined);
         for (const e of recorded) {
-            expect(patchState(e), `${e.name} carries a full recording, so its bib must be earned`).toBe("finished");
+            // Against a clock pinned before every race on the calendar, so ONLY the
+            // recording branch can answer. `patchState(e)` takes BUILD_DATE, under which
+            // every past race is finished by the clock anyway — the assertion could not
+            // fail, which is the tautology the comment above condemns.
             expect(
-                parseIsoDate(e.date) <= parseIsoDate(BUILD_DATE),
-                `${e.name} would be drawn as an EARNED patch for ${e.date}, which has not happened yet`,
+                patchState(e, "1970-01-01"),
+                `${e.name} carries a full recording, so its bib must be earned ahead of the clock`,
+            ).toBe("finished");
+            expect(
+                parseIsoDate(e.end_date ?? e.date) <= parseIsoDate(BUILD_DATE),
+                `${e.name} would be drawn as an EARNED patch, but it does not finish until `
+                + `${e.end_date ?? e.date}, which has not happened yet`,
             ).toBe(true);
         }
     });

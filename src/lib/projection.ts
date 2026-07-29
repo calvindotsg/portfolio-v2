@@ -379,13 +379,34 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * followed, not then either. The fix is not a looser comparison but a better question:
  * ask the recording, and keep the clock for races that have none.
  *
- * BOTH WAYS STAY IN STEP WITH THE PROJECTION, which is the constraint that shapes
- * them. `bookedAhead` answers the same "has this happened yet" for the goal cards, one
- * click away, so it skips a race with a recording and shares the `today > end`
- * comparison for every other. A wall that calls the Formosa tour finished while the
- * cycling card still counts its 1,022 km as booked is the page contradicting itself on
- * one screen; the year-long sweep in tests/patch-wall.test.ts is what holds the two
- * together, and it fails on exactly that.
+ * BOTH WAYS STAY IN STEP WITH THE PROJECTION *GIVEN ONE DAY*, and the qualifier is
+ * load-bearing — an earlier draft of this paragraph left it out and was simply false.
+ * `bookedAhead` answers the same "has this happened yet" for the goal cards, one click
+ * away, so it skips a race with a recording and shares the `today > end` comparison for
+ * every other. A wall that calls the Formosa tour finished while the cycling card still
+ * counts its 1,022 km as booked is the page contradicting itself on one screen; the
+ * year-long sweep in tests/patch-wall.test.ts is what holds the two COMPARISONS together,
+ * and it fails on exactly that — but it hands both functions the SAME `iso`, which the
+ * page no longer does.
+ *
+ * WHAT THE SWEEP THEREFORE CANNOT SEE, since the two consumers stopped sharing a day.
+ * `patchState` takes `BUILD_DATE` and `goalStatus` takes `UPDATED_AT`, so on any build
+ * later than the stamp, a race that ended in between is `finished` on the wall while
+ * `bookedAhead` still books its kilometres. Ride Round the Island on 2 August, deploy
+ * anything on the 3rd before the bot pushes, and the wall draws an earned patch while the
+ * cycling card is still counting its 121.98 km ahead.
+ *
+ * THAT IS THE DELIBERATE CONSEQUENCE OF THE SPLIT, NOT A BUG TO CLOSE, and the arithmetic
+ * is why: the stamp's kilometres do not include that ride yet, so booking it keeps the
+ * numerator and the denominator the same age and the distance counted exactly ONCE.
+ * Measured across the push — 71 km/wk before, 74 after, and the difference is five days
+ * of denominator, not a double count. Dropping the race from `booked` the moment the WALL
+ * calls it finished, without banking its kilometres, reads 77: further from the settled
+ * figure than leaving it alone, and it would be inventing a distance nobody has measured,
+ * which is the one thing the header of this file refuses to do. So do NOT "fix" this by
+ * moving `bookedAhead` onto `BUILD_DATE`, and do NOT add a sweep over (stamp, build)
+ * PAIRS — every pair where the stamp lags a finished race disagrees BY DESIGN, so such a
+ * gate is red on correct code.
  *
  * A MULTI-DAY EVENT IN PROGRESS IS THEREFORE `booked`, which is a choice rather than
  * a fallout of the comparison: you earn the bib at the finish line, not at the start
@@ -440,7 +461,7 @@ export type Patch = {event: RaceEvent, state: PatchState}
  *
  * WHICH MAKES THE STATE PART OF THE SORT KEY, and that is the one thing here that
  * can surprise a caller: this order is a function of `iso`, so the same fixture
- * reorders itself as races fall behind the stamp — and on the day after the last
+ * reorders itself as races fall behind the build day — and on the day after the last
  * race the booked run empties and the whole wall is plain descending. That is the
  * intended behaviour, not a degenerate case, and it is why the tests assert the
  * shape of the order at pinned dates rather than the order of today's calendar.
@@ -567,7 +588,7 @@ export function formatPatchDate(event: RaceEvent): string | null {
  *
  * `daysAway` COUNTS FROM THE STAMP TO THE START DAY and can be NEGATIVE, which is not
  * a bug to clamp: a multi-day event stays booked for every day it runs (you earn the
- * bib at the finish line), so mid-tour the start is behind the stamp while the race is
+ * bib at the finish line), so mid-tour the start is behind the build day while the race is
  * still the next one. `underWay` is that case named, so a caller does not have to
  * decide what "in -3 days" means.
  *
@@ -585,7 +606,7 @@ export function formatPatchDate(event: RaceEvent): string | null {
  */
 export type NextRace = {
     event: RaceEvent
-    /** Days from the stamp to the START day. Negative while a multi-day race runs. */
+    /** Days from the build day to the START day. Negative while a multi-day race runs. */
     daysAway: number
     /** True when the race has begun and has not finished. */
     underWay: boolean
@@ -649,7 +670,7 @@ const DAYS_BEFORE_WEEKS = 14
  * so both are ordinary.
  *
  * `underWay` is checked BEFORE the day count for the reason it exists: mid-tour the start
- * is behind the stamp, and the arithmetic branch would print "in -3 days".
+ * is behind the build day, and the arithmetic branch would print "in -3 days".
  *
  * THE WEEK COUNT IS FLOORED, AND THAT DIRECTION IS DELIBERATE. 61 days is eight weeks and
  * five days; floored it reads "in 8 weeks", which says the race arrives sooner than it

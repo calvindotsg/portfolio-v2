@@ -81,7 +81,7 @@ const wallBibs = (page: string, sport?: Sport) => {
 };
 
 describe("a bib's state is derived from the calendar, never stored", () => {
-    it("is finished only once the whole event is behind the stamp", () => {
+    it("is finished only once the whole event is behind the build day", () => {
         const race = ev({date: "2026-06-10"});
         expect(patchState(race, "2026-06-09"), "the day before").toBe("booked");
         expect(patchState(race, "2026-06-10"), "the day itself — you have not finished it at 05:13").toBe("booked");
@@ -157,12 +157,19 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      * `bookedAhead`'s comparison rather than inventing its own.
      *
      * Both answer "has this race happened yet", for the wall and for the goal cards.
-     * They are rendered on two pages a click apart, from one stamp. A wall calling
-     * the Formosa tour finished while the cycling card is still counting its 1,022 km
-     * as booked is the site contradicting itself, and neither figure is obviously the
-     * wrong one to a reader.
+     * A wall calling the Formosa tour finished while the cycling card is still counting
+     * its 1,022 km as booked is the site contradicting itself, and neither figure is
+     * obviously the wrong one to a reader.
      *
-     * Swept across the whole year rather than at the current stamp: today's date
+     * THEY NO LONGER READ ONE CLOCK, and this comment used to say they did ("rendered on
+     * two pages a click apart, from one stamp"). Since the clock split, the wall takes
+     * `BUILD_DATE` and the goal card's `bookedAhead` takes `UPDATED_AT`. So what this
+     * sweep pins is that the two COMPARISONS agree GIVEN THE SAME DAY — it hands both the
+     * same `iso` on purpose. The page's own build/stamp gap is a separate, deliberate
+     * disagreement, and the reasoning for leaving it alone is above `patchState` in
+     * projection.ts. Do not extend this sweep to build/stamp PAIRS expecting agreement.
+     *
+     * Swept across the whole year rather than at one day: today's date
      * exercises one point on a curve, and the disagreement these two could develop
      * lives at the boundaries — the start day, the days inside a span, the end day.
      *
@@ -210,8 +217,8 @@ describe("the wall's order", () => {
      * The wall is sorted NEXT RACE FIRST, so its order is a function of the day as
      * well as of the fixture. Every assertion in this block therefore passes its own
      * `iso` and its own events: an expected order taken from today's calendar at the
-     * default stamp would be a hand-counted property of the date, and the bot moves
-     * the stamp nightly.
+     * default build day would be a hand-counted property of the date, and that day moves
+     * every night.
      *
      * `SPREAD` straddles a pinned midpoint — three races behind it, three ahead, in
      * shuffled fixture order so nothing here can pass on fixture position.

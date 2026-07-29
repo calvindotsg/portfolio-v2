@@ -97,6 +97,29 @@ describe("dist/", () => {
     });
 
     /**
+     * THE ONE DAY THE BUILD WAS DRAWN FOR, asserted on the artifact rather than recomputed.
+     *
+     * `<meta name="build-date">` is what the wall assertions read to avoid comparing a page
+     * built yesterday against today's clock, and nothing gated the tag itself: delete it, or
+     * emit a different day per page, and the only symptom was a helper throwing elsewhere.
+     * One build must stamp exactly one Singapore day on every page.
+     *
+     * Deliberately CLOCK-FREE — it compares the pages to each other and checks the shape, so
+     * it can never redden on a future build day. The suite is the Netlify build command.
+     */
+    it("stamps every page with the one day the build was drawn for", () => {
+        const stamps = new Map<string, string>();
+        for (const page of builtPages()) {
+            const found = [...read(page).matchAll(/<meta name="build-date" content="([^"]*)"/g)];
+            expect(found.length, `${page} must carry exactly one <meta name="build-date">`).toBe(1);
+            expect(found[0][1], `${page}'s build date must be an ISO day`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+            stamps.set(page, found[0][1]);
+        }
+        expect(new Set(stamps.values()).size,
+            `one build, one day: saw ${[...new Set(stamps.values())].join(", ")}`).toBe(1);
+    });
+
+    /**
      * A CONTROL AND THE PAGE IT OPENS MUST USE THE SAME WORDS, and this is the assertion
      * the previous revision needed and did not have.
      *

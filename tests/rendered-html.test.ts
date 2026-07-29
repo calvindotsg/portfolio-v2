@@ -392,7 +392,7 @@ describe("page content", () => {
      * doing two jobs, with every other assertion here still green.
      *
      * Asserted against the same derivation the card used rather than against a phrase
-     * written here: which race is next is a function of the bot's stamp, and a literal
+     * written here: which race is next is a function of the build day, and a literal
      * would be a bot-triggered failed deploy the morning after any race.
      */
     it("prints the countdown as a figure, outside the control", () => {
