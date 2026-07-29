@@ -1,7 +1,6 @@
 # Implementation Plans
 
-**Two plans are executable right now: 016 and 017** (run 4; independent of
-each other, either order). Three prior runs are complete: plans 001–014
+**Nothing is executable right now.** Four runs are complete: plans 001–014
 are all DONE, merged, and live on https://calvin.sg, as is plan **015**, which
 came from the maintainer resolving DIRECT-01 rather than from an audit run.
 Every plan file and the full evidence log are archived in
@@ -71,7 +70,7 @@ recreated.
 | 014 | Assert the Now card and Career dates/company survive the render | P3 | S | 011 | **DONE** (`b7439e7`) |
 | 015 | Automate goal progress from Strava | P2 | M | — | **DONE** (`a4b419b`) |
 | 016 | Stop shipping rationale comments in the built HTML | P2 | S | — | **DONE** (`c3734b1`) |
-| 017 | Clear the clearable brace-expansion HIGH with an in-range lockfile refresh | P2 | S | — | TODO |
+| 017 | Clear the clearable brace-expansion HIGH with an in-range lockfile refresh | P2 | S | — | **DONE** (`6647c31`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -289,6 +288,14 @@ Goal.astro as "one edit from returning"; the wall's lack of a lifetime
 patch-count summary is the settled census-vs-count decision in
 `projection.ts`; in-range patch bumps (astro 7.1.5, eslint 10.8) are
 hygiene, picked up as a side effect of plan 017.
+
+**Run-4 closing state (both plans merged 2026-07-29, main `6647c31`):**
+suite **278**; production `/patches/` markup **2,005 B** brotli (was 3,717),
+`/patches/running/` **1,656 B** (was 3,359); `pnpm audit` **1 moderate +
+1 high, both documented residuals** (@opentelemetry/core via @netlify/otel;
+brace-expansion via jsx-a11y's minimatch@3 — no patched 1.x exists and the
+override is measured-broken, see plan 017 in `done/`). Per-plan verification
+evidence is in [`done/README.md`](done/README.md) § Run 4.
 
 **DEP-01's skeptic corrections, preserved** (DOWNGRADED, not flattened):
 the vulnerable resolutions are real (`brace-expansion@5.0.7` via
