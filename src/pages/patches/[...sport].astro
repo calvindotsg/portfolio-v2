@@ -269,7 +269,8 @@ const description = goal === undefined
      * declaration for a whole navigation — measured 376-788ms here, unbounded on a worse
      * connection — deletes the word that argument rests on.
      *
-     * Specificity is equal either side (0,2,1 both, before and after scoping), so ORDER is the
+     * Specificity is equal either side — (0,2,1) as authored, (0,4,1) once Astro scopes both —
+     * so ORDER is the
      * entire fix: above, the current chip keeps its readable inverted label at 18.86:1 light
      * and 18.09:1 dark, and every other chip still shows the held accent. Nothing is lost —
      * the chip you are already on is the one press that cannot be telling you a page is
@@ -310,6 +311,31 @@ const description = goal === undefined
         color: var(--accent);
         /* A tap is ~100ms against a 300ms colour transition, so without this the reader saw
            about a third of the accent — the press was drawn, faintly, and then undrawn. */
+        transition: none;
+    }
+
+    /*
+     * AND THE CHIP YOU ARE ALREADY ON KEEPS ITS LABEL, which is a debt the line directly above
+     * created rather than an old one.
+     *
+     * `:active` sits below the current-page rule deliberately (see its note), so on the current
+     * chip it repaints the label `var(--accent)` over the `var(--text)` fill — 2.77:1 light,
+     * 1.37:1 dark, against the 4.5:1 that 0.75rem/700 text asks for. That was survivable while
+     * the 300ms transition meant a ~100ms tap only travelled about a quarter of the way there;
+     * snapping it takes the label the whole way, and in the dark theme it effectively erases it.
+     * So the snap is what made an accepted approximation into a real one.
+     *
+     * The press is NOT given up here — the accent border still fires, which is what says the tap
+     * landed. Only the glyphs keep the readable ink. Hoisting the whole `:active` above the
+     * current-page rule was the other candidate and is worse: it also demotes the accent border,
+     * leaving the current chip acknowledging a press with nothing, which is the exact debt the
+     * note above was written to pay off.
+     *
+     * `transition: none` is not optional — the snap gate in tests/build-output.test.ts walks
+     * every rule that carries a press and a `color`, and a bare colour here fails the deploy.
+     */
+    .patch-filter a[aria-current="page"]:active {
+        color: var(--background);
         transition: none;
     }
 

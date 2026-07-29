@@ -1626,25 +1626,50 @@ describe("a press is acknowledged, and the acknowledgement outlives the finger",
     // The elements a selector reaches, ignoring the state that gates it.
     const reach = (sel: string): string => structuralSelector(sel).replace(HELD, "").trim();
 
+    /*
+     * WHAT THE INVARIANT ACTUALLY IS: a press that repaints must still repaint while held.
+     * NOT "the two carry identical declarations" — that was the first wording and it forbids a
+     * divergence the site deliberately needs. The current sport chip presses to a readable label
+     * on its inverted fill and holds to the accent border alone, because holding the label
+     * change would sit at 1.37:1 for the whole navigation. Identical-declarations reds on that,
+     * i.e. it forbids the accessibility fix it was meant to permit.
+     *
+     * The overlap requirement is what stops the weaker form being trivially satisfiable: a twin
+     * has to touch at least one property the press touches, so it cannot "repaint" with something
+     * unrelated and call the obligation discharged.
+     */
+    const props = (bodies: string[]) => new Set(
+        bodies.flatMap((b) => b.split(";")).map((d) => d.split(":")[0].trim()).filter(Boolean),
+    );
+
     it.each(builtPages())("gives every held-eligible link's press a twin that outlives it (%s)", (page) => {
         const doc = parseHTML(read(page)).document;
         const rules = parseRules(pageCss(page));
         const matching = (el: Element, state: RegExp) => rules
             .filter((r) => r.selectors.some((sel) => state.test(sel) && el.matches(reach(sel))))
-            .map((r) => declSet(r.body)).sort().join(" | ");
+            .map((r) => declSet(r.body));
 
         let checked = 0;
         for (const a of [...doc.querySelectorAll("a")]) {
             if (!scriptWouldHold(a)) continue;
             const press = matching(a, ACTIVE);
-            if (!press) continue;
+            if (!press.length) continue;
             checked++;
+            const held = matching(a, HELD);
+            const where = `${page}: <a href="${a.getAttribute("href")}">`;
             expect(
-                matching(a, HELD),
-                `${page}: <a href="${a.getAttribute("href")}"> repaints on :active but has no [data-leaving] twin, `
-                + "so its press vanishes the instant the finger lifts and the reader waits with nothing. "
-                + "Add the twin in the same shortcut (uno.config.ts) or beside the rule that draws the press.",
-            ).toBe(press);
+                held.length,
+                `${where} repaints on :active but has no [data-leaving] twin, so its press vanishes `
+                + "the instant the finger lifts and the reader waits with nothing. Add the twin in the "
+                + "same shortcut (uno.config.ts) or beside the rule that draws the press.",
+            ).toBeGreaterThan(0);
+            const shared = [...props(held)].filter((p) => props(press).has(p));
+            expect(
+                shared.length,
+                `${where} has a [data-leaving] rule, but it touches none of the properties the press `
+                + `touches (held: ${[...props(held)].join(",")}; press: ${[...props(press)].join(",")}), `
+                + "so the held state is not the press outliving the finger — it is something else.",
+            ).toBeGreaterThan(0);
         }
         expect(checked, `${page}: no link both draws a press and is held — this assertion is vacuous`).toBeGreaterThan(0);
     });
@@ -1689,6 +1714,40 @@ describe("a press is acknowledged, and the acknowledgement outlives the finger",
                 ).toBe("none");
             }
         }
+    });
+
+    it.each(builtPages())("only clears the held press on a RESTORE, not on every load (%s)", (page) => {
+        /*
+         * THE ONE ASSERTION IN THIS FILE THAT READS SCRIPT RATHER THAN CSS, and it is here
+         * because the defect it names actually shipped and no gate saw it.
+         *
+         * `pageshow` fires on EVERY presentation of a document, including the ordinary first
+         * load, immediately after `load` — measured at 44ms warm and 468ms on Slow-4G against
+         * the built site. Registered unguarded it deleted the hold of any tap that landed
+         * before `load`, and cleared the 8s fallback with it, so the feature was off for
+         * precisely the reader it exists for: the one whose page is still loading when they
+         * tap. A device check does not catch it, because a human taps a page that has settled.
+         *
+         * A text assertion is a blunt instrument and is the right one here: there is no browser
+         * in this suite, the handler is four tokens long, and the failure it guards is a
+         * silently-absent conditional rather than anything a DOM could show.
+         */
+        // Comments are NOT stripped from an `is:inline` script, and the handler carries a long
+        // one — a fixed-width window after the event name matched nothing on any page and broke
+        // the baseline. Strip comments first, then the statement is four tokens.
+        const script = read(page)
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/^\s*\/\/.*$/gm, "");
+        const handler = script.match(/addEventListener\(\s*["']pageshow["'][\s\S]*?\}\s*\)\s*;/);
+        expect(handler, `${page} registers no pageshow handler — the held press now survives a `
+            + "bfcache restore, so a reader who goes back finds a control still drawn pressed").not.toBeNull();
+        expect(
+            /\bpersisted\b/.test(handler![0]),
+            `${page} clears the held press on EVERY pageshow, not only a bfcache restore. `
+            + "pageshow fires on the ordinary first load too, so this deletes the hold of any tap "
+            + "that lands before `load` — the slow-connection reader the whole mechanism is for. "
+            + "Guard it with `if (event.persisted)`.",
+        ).toBe(true);
     });
 
     it("keeps the platform's own tap flash, and keeps it last", () => {

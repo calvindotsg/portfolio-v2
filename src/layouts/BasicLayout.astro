@@ -168,12 +168,15 @@ const schema = {
         cards' company names are the only ones on the site — the same two whose press ink is
         otherwise the slowest thing here.
 
-        TWO RESETS, and the second is the one a first draft of this missed. `pageshow` covers
-        the back button: bfcache restores the DOM as it was, attribute and all, so without it
-        a reader who navigates away and comes back finds a control still pressed. The timer
-        covers a navigation that is started and never completes — a cancelled load, an
-        offline drop — which no event reports. 8s is past any load the reader would still be
-        waiting through, and by then the browser is showing its own progress.
+        TWO RESETS, AND THE FIRST ONE MUST BE GUARDED — the unguarded version shipped in a
+        first draft and destroyed the feature for exactly the reader it is for. `pageshow`
+        covers the back button: bfcache restores the DOM as it was, attribute and all, so
+        without it a reader who navigates away and comes back finds a control still pressed.
+        But it fires on EVERY presentation including the ordinary first load, so it has to
+        test `event.persisted` — see the note on the handler itself. The timer covers a
+        navigation that is started and never completes — a cancelled load, an offline drop —
+        which no event reports. 8s is past any load the reader would still be waiting
+        through, and by then the browser is showing its own progress.
     */}
     <script is:inline>
         (() => {
@@ -193,10 +196,27 @@ const schema = {
                 if (anchor.hasAttribute("download")) return;
                 const to = new URL(anchor.href, location.href);
                 if (to.hash && to.href.split("#")[0] === location.href.split("#")[0]) return;
+                // One control at a time. `timer` is a single slot, so without this a second
+                // press leaves BOTH drawn pressed and the first press's timeout — now
+                // orphaned — clears both at the first deadline, cutting the second
+                // acknowledgement short. Measured before this line: two goal-card CTAs held
+                // at once, and a press at 7.5s got 499ms instead of 8000.
+                clear();
                 anchor.setAttribute(HELD, "");
                 timer = setTimeout(clear, 8000);
             });
-            addEventListener("pageshow", clear);
+            addEventListener("pageshow", (event) => {
+                // ONLY A RESTORE. `pageshow` fires on EVERY presentation of a document,
+                // including the ordinary first load, immediately after `load` — measured
+                // firing at 44ms on a warm cache and at 468ms on Slow-4G. Unguarded, it
+                // deleted the hold of any tap that landed before `load`, and cleared the 8s
+                // fallback with it, leaving nothing to re-arm. That is precisely the reader
+                // this whole mechanism exists for: the one on a slow connection, whose page
+                // is still loading when they tap. It cannot fire wrongly the other way —
+                // only this script writes the attribute, so a freshly parsed document can
+                // never carry one.
+                if (event.persisted) clear();
+            });
         })();
     </script>
 </head>
