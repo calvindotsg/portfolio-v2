@@ -412,6 +412,7 @@ export type RaceEvent = {
 export const EVENTS: readonly RaceEvent[] = [
     {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
     {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31", strava_activity_id: "19279762093"},
+    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.00, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
     {date: "2026-08-02", name: "Round the Island Bike Adventure", km: 121.98, sport: "cycling", country: "Singapore"},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
     {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
