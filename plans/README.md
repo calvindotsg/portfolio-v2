@@ -1,6 +1,7 @@
 # Implementation Plans
 
-**Nothing is executable right now.** Three runs are complete: plans 001–014
+**Two plans are executable right now: 016 and 017** (run 4; independent of
+each other, either order). Three prior runs are complete: plans 001–014
 are all DONE, merged, and live on https://calvin.sg, as is plan **015**, which
 came from the maintainer resolving DIRECT-01 rather than from an audit run.
 Every plan file and the full evidence log are archived in
@@ -27,7 +28,7 @@ audits anything. Read it first.
 
 ## If you are starting a new run
 
-- **Numbering continues at `016`.** The improve skill requires monotonic
+- **Numbering continues at `018`.** The improve skill requires monotonic
   numbering across runs — do not restart at 001. (*"If `plans/` already exists
   from a previous run, reconcile, don't duplicate: read `plans/README.md`, keep
   numbering monotonic, skip findings already planned or listed as rejected."*)
@@ -69,6 +70,8 @@ recreated.
 | 013 | Fix the entrance-stagger off-by-one and lock the ladder to the card count | P2 | S | 012 | **DONE** (`8036d3c`) |
 | 014 | Assert the Now card and Career dates/company survive the render | P3 | S | 011 | **DONE** (`b7439e7`) |
 | 015 | Automate goal progress from Strava | P2 | M | — | **DONE** (`a4b419b`) |
+| 016 | Stop shipping rationale comments in the built HTML | P2 | S | — | TODO |
+| 017 | Clear the clearable brace-expansion HIGH with an in-range lockfile refresh | P2 | S | — | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -227,6 +230,79 @@ smaller* wins than the first one found, and should say so plainly when a finding
 is cosmetic.
 
 ## Findings considered and rejected
+
+### Run 4 (2026-07-29, audited at `45e286f`)
+
+Nine read-only opus auditors (playbook categories, with the maintainer's
+three directed leads folded into their natural categories), one opus skeptic
+per finding. **Seven categories returned zero findings; two findings total
+survived** — PERF-01 (skeptic-CONFIRMED → plan 016) and DEP-01
+(skeptic-DOWNGRADED with corrections → plan 017). On this baseline that
+shape is the correct outcome, and it matches runs 2–3's trajectory of fewer,
+smaller wins.
+
+**The three directed leads, resolved with evidence:**
+
+- **Lead 1 (simplification pass over the post-run-3 surface): zero findings.**
+  The debt and tests auditors read the whole new surface and every plausible
+  simplification was refuted by a measured comment already in the file (the
+  `w-max` removal, the `::before`→background-image perforation rewrite, the
+  `text-link` shortcut vs three inline copies, the duplicated
+  `grid-template-areas` on `.bib--linked` — a documented height decision).
+  Near-misses recorded so they are not re-derived: the WCAG contrast math
+  appears in three test files (~20 lines total) but with three different
+  input types — extraction is signature negotiation, not simplification;
+  `build-output.test.ts` shadows the imported `decl` helper with a local one
+  (lexically correct, reader-confusing, taste-tier); `formatPatchDate` is
+  called only from tests but is the named anti-drift witness for
+  `patchDateSegments`, not dead code.
+- **Lead 2 (UnoCSS/CSS cleanup): zero findings.** Every `.bib*`,
+  `.patch-*`, `.events-link*`, `.goal-*` and `.measure`/`.progress-fill`
+  class was traced authored→worn→emitted in `dist/_astro/*.css`; nothing
+  orphaned, nothing cancelled, no repeated group worth a third shortcut
+  (Now.astro's corner anchor shares 4 tokens with `text-link`'s expansion
+  but is neither of the site's two declared control kinds — a third
+  vocabulary would be abstraction for its own sake).
+- **Lead 3 (`/patches` loading time): no problem exists**, measured two
+  ways. Production transfer (brotli confirmed, 3 identical samples/URL):
+  `/patches` 3,717 B + 6,798 B + 1,392 B CSS ≈ 11.9 KB cold, zero external
+  first-party JS. Lighthouse (local runs over headless Chrome, mobile
+  emulation, 3 runs × 3 URLs): performance 0.95–1.00, median 0.99, TBT 0
+  everywhere. The two mechanisms the lead named were both **refuted**:
+  per-bib CSS is O(1) — Astro scoped styles emit one ruleset per component,
+  so a new race costs ~700 B raw HTML and zero CSS; and the two-stylesheet
+  split is clean — the 1.4 KB patches-only sheet is quarantined to the three
+  patch pages, and `/` does not load it. (The shared sheet does carry 12
+  icon data-URIs `/patches` never uses; per-route CSS splitting on UnoCSS's
+  single-sheet architecture would be a large change for ~2 KB brotli — bad
+  trade, deliberately not raised.) The one real item on this surface is
+  PERF-01 → plan 016: ten `<!-- -->` rationale comments survive the build
+  and are ~45–50% of the compressed markup on the patch pages.
+
+**Also recorded by the auditors as deliberately-not-findings** (do not
+re-derive): `actions/checkout@v5` pinned by major tag is standard for
+first-party actions; the Strava workflow's commit-message interpolation is
+digit-only by construction (validated via `kmFromMeters`); ignoring Strava's
+rotated `refresh_token` is plan 015's documented fail-loud posture;
+`Goal.progress_last_year` configured-but-unrendered is documented in
+Goal.astro as "one edit from returning"; the wall's lack of a lifetime
+patch-count summary is the settled census-vs-count decision in
+`projection.ts`; in-range patch bumps (astro 7.1.5, eslint 10.8) are
+hygiene, picked up as a side effect of plan 017.
+
+**DEP-01's skeptic corrections, preserved** (DOWNGRADED, not flattened):
+the vulnerable resolutions are real (`brace-expansion@5.0.7` via
+`minimatch@10.2.5`, pulled by typescript-estree, eslint itself, and
+`@eslint/config-array`), but impact is dev-only posture erosion, not
+exposure — the deploy gate never runs eslint. The chair's own dry-run
+established the rest: `pnpm update --no-save` clears exactly one of the two
+HIGHs; the `eslint-plugin-jsx-a11y → minimatch@3.1.5 → brace-expansion@1.1.16`
+path has **no patched 1.x** (the advisory's only patched release is 5.0.8),
+`eslint-plugin-jsx-a11y@6.10.2` is its latest release, and an override was
+built and measured to **break at runtime** (`brace-expansion@5`'s CJS entry
+is a namespace object; `minimatch@3` calls it → `TypeError: expand is not a
+function`). Plan 017 therefore leaves it as a second documented residual
+beside the `@opentelemetry/core` moderate.
 
 ### PR #61 review (2026-07-26, uniform controls / md height lock / one Strava name)
 
