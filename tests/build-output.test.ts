@@ -1841,11 +1841,27 @@ describe("a press is acknowledged, and the acknowledgement outlives the finger",
 
 describe("hashed assets are cached forever, and are hashed", () => {
     it("declares the immutable header for /_astro/", () => {
-        const toml = read("netlify.toml").replace(/\s+/g, " ");
-        expect(toml, "netlify.toml no longer caches /_astro/*; every hashed asset costs a "
+        /*
+         * ASSERTED AGAINST THE EMITTED ARTIFACT, not against the source file, and that is
+         * the whole point of the port. The old form read `netlify.toml` — a file the host
+         * parsed and the build never touched, so the assertion proved a rule was WRITTEN
+         * rather than SHIPPED. `public/_headers` is copied verbatim by Astro, so reading
+         * `dist/_headers` proves the header reached the output the deploy uploads. It also
+         * survives the next host change: nothing here names a platform.
+         */
+        // Asked with existsSync rather than by reading, because `read` throws ENOENT and a
+        // stack trace does not tell you WHICH file the deploy will be missing or why it
+        // matters. The first draft of this line asserted on the contents and the message
+        // below was unreachable.
+        expect(existsSync("dist/_headers"), "dist/_headers is missing — public/_headers did not "
+            + "reach the build, so Cloudflare Pages will serve /_astro/ with no cache header at "
+            + "all").toBe(true);
+        const headers = read("dist/_headers");
+        const rule = headers.split(/\n(?=\S)/).find((block) => block.startsWith("/_astro/*"));
+        expect(rule, "dist/_headers no longer caches /_astro/*; every hashed asset costs a "
             + "render-blocking round trip to be told it has not changed (measured 168ms and 175ms, "
-            + "transferSize 300 — a 304 carrying no content)").toMatch(/for = "\/_astro\/\*"/);
-        expect(toml).toMatch(/cache-control = "public, max-age=31536000, immutable"/);
+            + "transferSize 300 — a 304 carrying no content)").toBeDefined();
+        expect(rule!.replace(/\s+/g, " ")).toMatch(/Cache-Control: public, max-age=31536000, immutable/i);
     });
 
     it("only emits content-addressed filenames there, which is what makes that safe", () => {
@@ -1859,6 +1875,6 @@ describe("hashed assets are cached forever, and are hashed", () => {
         expect(files.length, "dist/_astro is empty — this assertion is vacuous").toBeGreaterThan(0);
         const unhashed = files.filter((f) => !/\.[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/.test(f));
         expect(unhashed, "these /_astro/ assets carry no content hash, so the immutable header in "
-            + "netlify.toml would pin a stale file for a year").toEqual([]);
+            + "dist/_headers would pin a stale file for a year").toEqual([]);
     });
 });

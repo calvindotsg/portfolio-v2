@@ -1,0 +1,16 @@
+# Cloudflare Pages reads this file from the root of the deployed output. Astro copies
+# `public/` verbatim, so this lands at `dist/_headers` and needs no build step.
+#
+# It replaces the `[[headers]]` block in `netlify.toml`, which Netlify read and
+# Cloudflare never will. The rule is the same one, and the reason is unchanged: every
+# filename under `/_astro/` carries a hash of its own contents, so a URL there can
+# never mean two things, and a year of `immutable` costs nothing. Without it each
+# hashed asset spends a render-blocking round trip being told it has not changed —
+# measured at 168ms and 175ms, transferSize 300, a 304 carrying no content.
+#
+# THE HASHING IS THE PRECONDITION, not a detail. `tests/build-output.test.ts` asserts
+# it separately, because the day one asset lands here without a hash this rule pins a
+# stale file for a year and nothing else would say so.
+
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
