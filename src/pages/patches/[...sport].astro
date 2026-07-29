@@ -110,19 +110,19 @@ const description = goal === undefined
     <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
         <div class="flex flex-col gap-4">
             <p>
-                <!-- `min-h-6` is 1.5rem, which is the floor this codebase already set for a small
+                {/* `min-h-6` is 1.5rem, which is the floor this codebase already set for a small
                      link: the Now card's explainer anchor is sized the same way and its comment
                      records why — 24px at the default text size is SC 2.5.8's AA minimum on the
                      nose, and a font-relative box grows with the reader's text instead of staying
                      put. Without it this link measures 60.25 x 20 and is the only control on the
                      site under that floor. Measured: it does not actually FAIL 2.5.8, because the
                      spacing exception applies at 143.82px to the nearest other target — so this is
-                     the repo's own standard rather than the specification's. -->
-                <!-- `text-link` is the shared idiom, and this link takes it for the reason
+                     the repo's own standard rather than the specification's. */}
+                {/* `text-link` is the shared idiom, and this link takes it for the reason
                      EventsLink.astro takes it: the two are meant to be one object, mirrored —
                      one goes out to the wall and this one comes back. They were drawn alike by
                      hand in two places, in the same colour as the body text around them; now
-                     they are drawn alike by construction. See uno.config.ts. -->
+                     they are drawn alike by construction. See uno.config.ts. */}
                 <a
                         href="/"
                         class="text-link inline-flex items-center gap-2 min-h-6 text-sm"
@@ -131,7 +131,7 @@ const description = goal === undefined
                 </a>
             </p>
             <div class="flex flex-col gap-2">
-                <!-- `break-anywhere` IS WHAT STOPS THE DOCUMENT SCROLLING SIDEWAYS UNDER TEXT ZOOM,
+                {/* `break-anywhere` IS WHAT STOPS THE DOCUMENT SCROLLING SIDEWAYS UNDER TEXT ZOOM,
                      and the mechanism is not about this heading. Every text column on the home page
                      sits inside a card that clips, so a word too long for 320px is absorbed there;
                      this heading is the site's only un-clipped text column, so ITS minimum intrinsic
@@ -159,7 +159,7 @@ const description = goal === undefined
                      appears at a 72px root is NOT this heading and is unchanged by the rename:
                      identical on a build of the previous revision, so it is something else on the
                      page and predates all of this. Nothing changes at any ordinary size — neither
-                     value breaks a word that has another way to fit. -->
+                     value breaks a word that has another way to fit. */}
                 <h1 class="text-3xl font-bold m-0 break-anywhere">{heading}</h1>
                 <p class="text-sm max-w-[60ch] m-0">{lede}</p>
             </div>

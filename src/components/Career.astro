@@ -19,7 +19,7 @@ import {iconClass} from "../lib/icons";
         <p class="text-xs font-light">
             {job.start_date} - {job.end_date}
         </p>
-        <!-- THE COMPANY NAME IS A LINK, AND IT WAS THE ONLY ONE ON THIS SITE WITH NO SIGNIFIER
+        {/* THE COMPANY NAME IS A LINK, AND IT WAS THE ONLY ONE ON THIS SITE WITH NO SIGNIFIER
              AT ALL. It carried exactly `text-xs font-light` — the same two classes as the date
              line directly above it — so a reader saw two identical lines of which one navigated
              and the other did not, with no colour delta, no glyph and not even a hover.
@@ -29,7 +29,7 @@ import {iconClass} from "../lib/icons";
              notice. This one could only be found by reading the source, and it was found by
              auditing the class rather than by fixing the two instances that were named.
 
-             `text-link` carries the whole treatment; see uno.config.ts. -->
+             `text-link` carries the whole treatment; see uno.config.ts. */}
         <a href={job.company_url} class="text-link text-xs font-light">
             {job.company}
         </a>
