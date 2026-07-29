@@ -21,7 +21,14 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      # Pinned to a full commit SHA, not a tag, because the repository is about to
+      # enable `sha_pinning_required` and GitHub's documentation states no exemption
+      # for GitHub-authored actions or for immutable tags — `@v5` is a tag, so the
+      # policy would fail this job on its next nightly run with nothing watching.
+      # This is a PIN, not an upgrade: the SHA is exactly what `@v5` resolved to.
+      # Dependabot can bump a SHA but cannot convert a tag into one, so any new
+      # `uses:` line has to be written pinned by hand.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Fetch YTD totals and write src/data/strava-progress.json
         # ubuntu-latest ships node >= 20 preinstalled (22.x on 24.04) —
         # built-in fetch, zero deps, no setup-node needed.
@@ -41,5 +48,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/data/strava-progress.json
+          # shellcheck disable=SC2016
+          # The `${...}` below are a JS template literal read by `node -e`, not shell
+          # parameters. Single quotes are what keeps the shell's hands off them; the
+          # double quotes shellcheck suggests would expand them to empty strings and
+          # commit a message with no numbers in it.
           git commit -m "$(node -e 'const p=require("./src/data/strava-progress.json"); console.log(`chore(goals): update Strava progress to ${p.cycling_km} km ride / ${p.running_km} km run`)')"
           git push

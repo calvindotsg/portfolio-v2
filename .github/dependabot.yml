@@ -1,0 +1,20 @@
+# Keeps SHA-pinned actions from going stale.
+#
+# Pinning to a commit SHA is what `sha_pinning_required` demands, but a pin with
+# nothing bumping it is a security control that decays into an outdated dependency.
+# Dependabot updates the SHA and rewrites the trailing `# vN` comment to match.
+#
+# WHAT IT CANNOT DO: convert a tag into a SHA. A `uses:` line written as `@v5` stays
+# a tag forever as far as Dependabot is concerned, and would fail the pinning policy.
+# New actions must be added pinned by hand.
+#
+# Monthly, not weekly: this repository has two workflows and a solo maintainer, so a
+# weekly cadence produces noise rather than signal.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore(deps)
