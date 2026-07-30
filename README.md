@@ -90,6 +90,20 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
    the site's Strava link goes*. Changing accounts means editing both. Updating only
    the variable publishes the new athlete's distances while the link still points at
    the old profile, and nothing in the build or the suite can catch that.
+4. Analytics is the `UMAMI_ID` repository *variable*, read at build time by
+   `BasicLayout.astro`. It is deliberately a variable and not a secret: the id is
+   served in the HTML of every page, so it is already public, and marking it secret
+   would mask it in build logs while protecting nothing — and a secret cannot be read
+   back, so drift becomes undetectable.
+
+   **It fails open**, which is the reason CI asserts on it. When the value is unset the
+   `data-website-id` attribute is dropped entirely and the Umami `<script>` still loads,
+   so the page looks correct, returns 200, and records nothing. The `build` job in
+   `.github/workflows/ci.yml` therefore greps *every* built page for the id's exact
+   value — not one page, and not a pattern — because the tag comes from the shared
+   layout and a build-wide property asked of `index.html` alone would miss the other
+   three. That step is skipped for fork PRs and for Dependabot, which are never
+   deployed and may not be able to read the variable at all.
 
 ## Testing
 
