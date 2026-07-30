@@ -123,7 +123,8 @@ export const CAREER: {
  *
  * WHY IT LIVES HERE AND NOT IN `llms.txt` ITSELF. The file it feeds used to be a
  * hand-written `public/llms.txt`, and it had drifted twice over: it paraphrased the
- * descriptions rather than quoting them, and it omitted `cc-menubar` completely. A fact
+ * descriptions rather than quoting them, and it omitted `homebrew-tap` completely — while
+ * listing `granola-to-minutes`, which the profile README does not. A fact
  * written down in two places diverges; this file is the one place the rest of the site
  * already treats as the source of truth, so putting it here means the endpoint is
  * derived and the drift class is closed rather than the wording merely corrected.

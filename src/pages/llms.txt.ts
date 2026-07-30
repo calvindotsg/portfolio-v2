@@ -1,5 +1,7 @@
 import type {APIRoute} from "astro"
-import {ABOUT_ME, CAREER, EVENTS, GOAL_YEAR, GOALS, LINKS, METADATA, PROJECTS} from "../lib/constants"
+import {
+    ABOUT_ME, CAREER, EVENTS, GOAL_YEAR, GOALS, LINKS, METADATA, NEXT_RACE, PATCHES, PROJECTS,
+} from "../lib/constants"
 import stravaProgress from "../data/strava-progress.json"
 import {patchState} from "../lib/projection"
 import {BUILD_DATE} from "../lib/today"
@@ -25,8 +27,12 @@ import {BUILD_DATE} from "../lib/today"
  * every axis at once — it called the job "Business Systems Analyst" where
  * `CAREER[0].job_name` says "Founding Business Systems Analyst", it paraphrased two
  * project descriptions instead of quoting them, and it omitted a third project entirely.
- * Nothing detected any of that, because nothing could: a flat file in `public/` has no
- * relationship to the constants it paraphrases. Deriving it closes the class;
+ * Nothing detected any of that, because nothing looked — and "nothing COULD" is the
+ * stronger claim this comment used to make and cannot support. A test could always have
+ * grepped `public/llms.txt` for `CAREER[0].job_name`; run the assertion below against the
+ * old file and it goes red. What a flat file in `public/` really costs is that every such
+ * check has to be written and remembered one fact at a time, against a copy that has no
+ * relationship to its source. Deriving it closes the class instead;
  * `tests/build-output.test.ts` then asserts the emitted file still carries the constants
  * it claims to summarise.
  *
@@ -46,6 +52,7 @@ export const GET: APIRoute = ({site}) => {
     const abs = (path: string) => new URL(path, site).href
 
     const job = CAREER[0]
+    const previous = CAREER[1]
     const isExternal = (link: string) => /^https?:\/\//.test(link)
     const run = (event: typeof EVENTS[number]) => {
         const when = event.end_date ? `${event.date} to ${event.end_date}` : event.date
@@ -68,13 +75,26 @@ export const GET: APIRoute = ({site}) => {
     const body = [
         `# ${METADATA.full_name}`,
         "",
-        `> ${METADATA.description}`,
+        // THE BLOCKQUOTE CARRIES THE IDENTITY. The spec calls it "a short summary …
+        // containing key information necessary for understanding the rest of the file",
+        // and it used to carry `METADATA.description` — the meta description, written to
+        // earn a click from a person who can already see the page. An agent that reads
+        // only this line should come away knowing who this is, which is a thing the
+        // hand-written file this replaced actually did better.
+        `> ${job.job_name} at ${job.company} in ${METADATA.address_locality}. `
+        + METADATA.professional_summary,
         "",
-        `${job.job_name} at ${job.company}, a loyalty and travel rewards platform in `
-        + `${METADATA.address_locality}, since ${job.start_date}. Previously ${CAREER[1].job_name} `
-        + `at ${CAREER[1].company} (${CAREER[1].start_date}–${CAREER[1].end_date}).`,
+        // THE COMPANY IS LINKED, NOT DESCRIBED. This line used to call HeyMax "a loyalty
+        // and travel rewards platform" — the one hand-written fact left in an endpoint
+        // whose whole purpose is that facts are derived, and a claim no constant, test or
+        // page could contradict. `company_url` already exists and names a resolvable
+        // entity, which is worth more to an answer engine than an adjective it has to
+        // take on trust.
+        `${job.job_name} at [${job.company}](${job.company_url}) since ${job.start_date}. `
+        + `Previously ${previous.job_name} at [${previous.company}](${previous.company_url}) `
+        + `(${previous.start_date}–${previous.end_date}).`,
         "",
-        METADATA.professional_summary,
+        METADATA.description,
         "",
         ABOUT_ME.description.join(" "),
         "",
@@ -85,7 +105,14 @@ export const GET: APIRoute = ({site}) => {
             `- ${goal.goal_name}: ${goal.raw_progress} of ${goal.total_goal} `
             + `${goal.measurable_unit} (${Math.round(goal.raw_progress / goal.total_goal * 100)}%)`),
         "",
-        `Races and challenges in ${GOAL_YEAR}, completed:`,
+        // NO YEAR ON THIS HEADING, and the site has already made this exact mistake once.
+        // `EVENTS` is the WHOLE calendar — see the scope rule above `eventsInYear` — while
+        // `GOAL_YEAR` is what a goal card counts. Writing "Races and challenges in 2026"
+        // over the unfiltered list marries one consumer's scope to the other's label, and
+        // it reads true only for as long as every race happens to fall in one year. The
+        // wall's own title carried "My events · 2026" and dropped it for this reason; the
+        // note is in `[...sport].astro`. The dates carry the year, one race at a time.
+        "Races and challenges, completed:",
         "",
         ...(done.length ? done.map(run) : ["- none yet"]),
         "",
@@ -93,13 +120,19 @@ export const GET: APIRoute = ({site}) => {
         "",
         ...(upcoming.length ? upcoming.map(run) : ["- nothing scheduled"]),
         "",
-        `## Pages`,
+        "## Pages",
         "",
-        `- [Home](${abs("/")}): the goals, the day job, and where to find me`,
-        `- [Patches](${abs("/patches/")}): every race and challenge, earned and upcoming`,
+        // EACH PAGE IS CALLED WHAT THE SITE CALLS IT. These labels were hand-written as
+        // "Patches" and "Running patches" — names no reader can see anywhere, because the
+        // wall is headed "My events" and each sport page answers to the very string the
+        // goal card's control wears. See the note above `heading` in `[...sport].astro`,
+        // which fixed that break once already. An answer engine citing "the Patches page"
+        // would be naming something that exists under no such name.
+        `- [${PATCHES.home_label}](${abs("/")}): the goals, the day job, and where to find me`,
+        `- [${PATCHES.heading}](${abs("/patches/")}): every race and challenge, earned and upcoming`,
         ...GOALS.map((goal) =>
-            `- [${goal.goal_name} patches](${abs(`/patches/${goal.sport}/`)}): `
-            + `${goal.goal_name.toLowerCase()} events only`),
+            `- [${NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())}]`
+            + `(${abs(`/patches/${goal.sport}/`)}): ${goal.goal_name.toLowerCase()} events only`),
         "",
         "## Projects",
         "",
@@ -109,11 +142,27 @@ export const GET: APIRoute = ({site}) => {
         "",
         ...LINKS.filter((item) => isExternal(item.link)).map((item) => `- [${item.name}](${item.link})`),
         "",
+        // `## Optional` IS RESERVED BY THE SPEC for "secondary information … can be
+        // skipped if a shorter context is needed", so it holds the one thing here an agent
+        // can afford to miss. Its path comes off `LINKS` rather than being typed a second
+        // time: the résumé already has a home, and this endpoint exists because a fact in
+        // two places drifts.
         "## Optional",
         "",
-        `- [Résumé (PDF)](${abs("/resume.pdf")}): the same career history, formatted for a person`,
+        ...LINKS.filter((item) => !isExternal(item.link)).map((item) =>
+            `- [${item.name}](${abs(item.link)}): the same career history, formatted for a person`),
         "",
     ].join("\n")
 
+    // THE STATIC BUILD DISCARDS THIS HEADER, and it is worth saying so rather than
+    // leaving a line that looks load-bearing. With `output: "static"` and no adapter,
+    // Astro keeps a route's response headers only for an adapter that asks for them, so
+    // nothing here reaches `dist/`. Measured: setting this to `application/x-nonsense`
+    // and rebuilding leaves `dist/` byte-identical. What actually serves the file is the
+    // host, from the `.txt` extension — Cloudflare Pages answers `text/plain;
+    // charset=utf-8` for `/llms.txt` today, which is the value below by coincidence
+    // rather than by cause. The header stays because it is the correct answer the day
+    // this site gains an adapter, and because deleting it would leave the question
+    // unanswered somewhere else.
     return new Response(body, {headers: {"content-type": "text/plain; charset=utf-8"}})
 }
