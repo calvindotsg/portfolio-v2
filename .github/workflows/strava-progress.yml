@@ -50,8 +50,17 @@ jobs:
           git add src/data/strava-progress.json
           # shellcheck disable=SC2016
           # The `${...}` below are a JS template literal read by `node -e`, not shell
-          # parameters. Single quotes are what keeps the shell's hands off them; the
-          # double quotes shellcheck suggests would expand them to empty strings and
-          # commit a message with no numbers in it.
+          # parameters, and the single quotes are what keep the shell's hands off them.
+          #
+          # WHAT THE DOUBLE QUOTES SHELLCHECK ASKS FOR ACTUALLY DO, measured rather than
+          # reasoned, because the first version of this comment guessed and got the ending
+          # wrong. Bash tries to expand `${p.cycling_km}`, which is not a valid parameter
+          # name, so it prints `bad substitution` and the substitution yields an EMPTY
+          # string. That is NOT fatal on its own — in argument position it does not even
+          # stop the step under Actions' `bash -e` — so the step gets as far as
+          # `git commit -m ""`, and it is GIT that refuses: "Aborting commit due to empty
+          # commit message", exit 1. The step therefore fails LOUDLY and nothing is
+          # pushed. The one outcome that cannot happen is the silent numberless commit
+          # this comment used to warn about, so do not "fix" the quoting to prevent it.
           git commit -m "$(node -e 'const p=require("./src/data/strava-progress.json"); console.log(`chore(goals): update Strava progress to ${p.cycling_km} km ride / ${p.running_km} km run`)')"
           git push
