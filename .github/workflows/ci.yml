@@ -32,16 +32,30 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Supersede an in-flight run for the same PR, but NEVER for main. Once deploys land,
-# cancelling a main run between build and deploy would leave production on an older
-# artifact behind a run that reads as cancelled-not-failed — a state nobody
-# investigates. Both keys accept expressions; this is one of the few places it matters.
+# Supersede an in-flight run for the same PR, but NEVER for main. Cancelling a main run
+# between build and deploy would leave production on an older artifact behind a run that
+# reads as cancelled-not-failed — a state nobody investigates. Both keys accept expressions;
+# this is one of the few places it matters.
+#
+# THE EVENT NAME IS PART OF THE KEY ON PURPOSE, and `cancel-in-progress: false` is not what
+# covers it. That flag only protects a run that has already STARTED; GitHub cancels the
+# PENDING member of a group when a new one queues. Keying both `push` to main and
+# `workflow_dispatch` on main as `ci-refs/heads/main` therefore let a push silently cancel a
+# queued nightly Strava dispatch — again reading as cancelled-not-failed, on the one deploy
+# path that is unattended. Separating them lets a push and a dispatch build concurrently,
+# which is fine: `pages-production` at job level still serialises the deploys themselves.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
+
+env:
+  # Pinned deliberately — but read the limit stated honestly in the deploy step: this pins
+  # wrangler's OWN version, not its dependency tree.
+  WRANGLER_VERSION: "4.114.0"
+  PAGES_PROJECT: calvindotsg
 
 jobs:
   build:
@@ -142,3 +156,275 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────────────
+  # THE TWO DEPLOY JOBS. Neither rebuilds: they download the artifact the `build` job
+  # asserted against, so what ships is what the suite gated. `needs: build` is the edge
+  # that makes a red suite block a deploy — the property Netlify gave us for free by
+  # making the build command BE the suite. Nothing here re-runs the tests, so that edge
+  # is the whole of it. Do not remove it, and do not add a gating check downstream of a
+  # deploy: anything that needs a live URL is reporting, not gating.
+  #
+  # WHAT "RUNS NO REPO CODE" DOES AND DOES NOT MEAN. No repository SOURCE is executed in
+  # the runner — there is no checkout and no `pull_request_target`. It is not a claim that
+  # a PR cannot influence these jobs: for a `pull_request` the workflow definition itself
+  # comes from the PR's own merge ref, so a same-repo PR can add a step here and it runs
+  # with the preview token. The exposure set for that is push access, which is one person.
+  # ─────────────────────────────────────────────────────────────────────────────────────
+
+  deploy-preview:
+    name: deploy preview
+    needs: build
+    # Three conditions, and the third is not redundant with the second. Fork PRs have no
+    # secrets, so the job would fail opaquely rather than skip. DEPENDABOT branches live IN
+    # this repository, so `head.repo` matches and the fork guard admits them — but GitHub
+    # treats Dependabot-triggered runs as fork-like and withholds Actions secrets, so
+    # wrangler would die non-interactively on every bot PR. Keyed on the ACTOR rather than
+    # `pull_request.user.login`, which is frozen at the PR author and would get a human
+    # pushing a commit onto a bot branch backwards.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.url }}
+    # Defence in depth only: the workflow-level group already cancels the whole run for the
+    # same PR, so two of these can never contend today. Kept because it is what holds the
+    # line if the workflow-level `cancel-in-progress` is ever set to false, and spelled with
+    # the same expression as that group so the two cannot drift apart.
+    concurrency:
+      group: pages-preview-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist
+
+      # THE ARTIFACT IS PERISHABLE AND NOTHING ELSE CHECKS ITS AGE. The build stamps the
+      # Singapore calendar day into every page, and "re-run failed jobs" does NOT re-run
+      # `build` — so a deploy that fails at 23:xx SGT and is re-run the next morning
+      # republishes yesterday's dist: wrong build-date, wrong countdown, and races finished
+      # overnight still drawn as unearned outlines. Netlify could not hit this, because its
+      # retry re-ran the build command and re-derived the day; this design cannot.
+      # MEASURED: the suite is 319/319 green against a dist stamped one day stale, so no
+      # test can catch it. It has to be caught here, against the clock, at deploy time.
+      # Accepted cost: a build that legitimately straddles midnight SGT goes red. Rare,
+      # loud, and fixed by re-running the WHOLE workflow rather than just this job.
+      # Inline and duplicated across both deploy jobs on purpose — a shared file would need
+      # a checkout, which is the property this block is built to avoid.
+      - name: refuse to publish an artifact drawn for another day
+        run: |
+          STAMP=$(grep -o 'name="build-date" content="[0-9-]*"' dist/index.html | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | head -1)
+          TODAY=$(TZ=Asia/Singapore date +%F)
+          if [ -z "$STAMP" ]; then
+            echo "::error::dist/index.html carries no build-date stamp, so the age of this artifact cannot be established."
+            exit 1
+          fi
+          if [ "$STAMP" != "$TODAY" ]; then
+            echo "::error::artifact was drawn for $STAMP but today is $TODAY in Asia/Singapore. Re-run the whole workflow so the build re-derives the day; re-running only this job would republish a stale wall and countdown."
+            exit 1
+          fi
+          echo "artifact build-date $STAMP matches today in Asia/Singapore."
+
+      # Hardcoded because this job has no checkout and therefore cannot read `.nvmrc`, which
+      # is the single source of truth for the build job. Nothing tests the agreement; if you
+      # bump `.nvmrc`, bump these two literals with it. The alternative is a sparse-checkout
+      # of one file, which costs the "no repository source in the runner" property above.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+
+      - id: deploy
+        name: wrangler pages deploy (preview)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # A repository VARIABLE, not a secret: it is a 32-hex value printed in every
+          # dashboard URL and in wrangler's own error output, so masking it would redact
+          # that substring from unrelated log lines — including the dashboard link wrangler
+          # prints when it cannot ascertain a deployment's status. It is also FUNCTIONALLY
+          # REQUIRED, not a convenience: wrangler's `getActiveAccountId` resolves it with no
+          # API call, and without it falls back to `GET /accounts`, which a Pages-scoped
+          # token cannot do — producing an auth error that looks like a bad token.
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          # A PATH, not a DIRECTORY. `WRANGLER_OUTPUT_FILE_DIRECTORY` names the file
+          # `wrangler-output-<timestamp>-<6 random hex>.json`, which a later step cannot
+          # address. Verified in wrangler's own `getOutputFilePath()`.
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler.json
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # WHAT THE VERSION PIN BUYS, STATED HONESTLY: it pins wrangler's own version and
+        # NOT its dependency tree. `npx --yes` resolves ~91 packages with no lockfile and no
+        # integrity pinning, 23 of them on floating ranges, two with install scripts — in
+        # the same process as the deploy token, while every `uses:` above is SHA-pinned for
+        # exactly that threat. The control that actually bounds this is the token's scope:
+        # `Cloudflare Pages: Edit` on one account, which cannot touch DNS, zones or Workers.
+        # Closing it properly needs a committed lockfile and therefore a checkout, which
+        # trades away the property described at the top of this block. Cloudflare's own
+        # `wrangler-action` has the same shape.
+        run: |
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy dist \
+            --project-name="${PAGES_PROJECT}" \
+            --branch="pr-${PR_NUMBER}" \
+            --commit-hash="${HEAD_SHA}"
+          node -e '
+            const fs = require("fs");
+            const want = process.argv[1];
+            const out = process.env.WRANGLER_OUTPUT_FILE_PATH;
+            let entries;
+            try {
+              entries = fs.readFileSync(out, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+            } catch (err) {
+              console.error("::error::could not read or parse " + out + ": " + err.message);
+              process.exit(1);
+            }
+            const d = entries.reverse().find((e) => e.type === "pages-deploy-detailed");
+            if (!d) {
+              console.error("::error::wrangler wrote no pages-deploy-detailed entry to " + out);
+              process.exit(1);
+            }
+            if (d.environment !== want) {
+              console.error("::error::deployed to " + d.environment + ", expected " + want +
+                " (project production_branch=" + d.production_branch + ")");
+              process.exit(1);
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+              "url=" + d.url + "\nalias=" + (d.alias || "") + "\n");
+          ' preview
+
+      - name: summary
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+          ALIAS: ${{ steps.deploy.outputs.alias }}
+        run: |
+          {
+            echo "### Preview deployed"
+            echo ""
+            echo "- $URL"
+            if [ -n "$ALIAS" ] && [ "$ALIAS" != "$URL" ]; then echo "- $ALIAS"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-production:
+    name: deploy production
+    needs: build
+    # BOTH halves are load-bearing. `!= 'pull_request'` alone is TRUE for a
+    # `workflow_dispatch` on ANY ref, and this job hardcodes `--branch=main` — so a dispatch
+    # from a feature branch would publish that branch's artifact to production, and the
+    # output assertion below would cheerfully confirm `environment: production` because the
+    # deploy genuinely did reach production. The ref test is what closes it.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # The `production` environment holds CLOUDFLARE_API_TOKEN behind a deployment branch
+    # policy limited to `main`. That is a STRUCTURAL control and it fails differently from
+    # the `if:` above: a job on another ref cannot read the secret at all, where the guard
+    # is a convention a refactor can drop. Both are here for that reason.
+    #
+    # WHAT IT DOES NOT BUY IS A CAPABILITY DIFFERENCE. `preview`'s token is the same
+    # account-scoped `Pages: Edit` — Cloudflare offers no per-project scope for Pages — so
+    # either token can publish production. The policy binds THIS COPY to `main`; it is not a
+    # limit on what the other one can do. The invariant that keeps it meaningful is that
+    # `CLOUDFLARE_API_TOKEN` must exist ONLY as an environment secret: a repository-level
+    # secret of the same name is inherited by any job that omits `environment:`, and then
+    # the branch policy is void with nothing reporting it.
+    environment:
+      name: production
+      url: https://calvindotsg.pages.dev
+    concurrency:
+      group: pages-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist
+
+      # THE ARTIFACT IS PERISHABLE AND NOTHING ELSE CHECKS ITS AGE. The build stamps the
+      # Singapore calendar day into every page, and "re-run failed jobs" does NOT re-run
+      # `build` — so a deploy that fails at 23:xx SGT and is re-run the next morning
+      # republishes yesterday's dist: wrong build-date, wrong countdown, and races finished
+      # overnight still drawn as unearned outlines. Netlify could not hit this, because its
+      # retry re-ran the build command and re-derived the day; this design cannot.
+      # MEASURED: the suite is 319/319 green against a dist stamped one day stale, so no
+      # test can catch it. It has to be caught here, against the clock, at deploy time.
+      # Accepted cost: a build that legitimately straddles midnight SGT goes red. Rare,
+      # loud, and fixed by re-running the WHOLE workflow rather than just this job.
+      # Inline and duplicated across both deploy jobs on purpose — a shared file would need
+      # a checkout, which is the property this block is built to avoid.
+      - name: refuse to publish an artifact drawn for another day
+        run: |
+          STAMP=$(grep -o 'name="build-date" content="[0-9-]*"' dist/index.html | grep -o '[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' | head -1)
+          TODAY=$(TZ=Asia/Singapore date +%F)
+          if [ -z "$STAMP" ]; then
+            echo "::error::dist/index.html carries no build-date stamp, so the age of this artifact cannot be established."
+            exit 1
+          fi
+          if [ "$STAMP" != "$TODAY" ]; then
+            echo "::error::artifact was drawn for $STAMP but today is $TODAY in Asia/Singapore. Re-run the whole workflow so the build re-derives the day; re-running only this job would republish a stale wall and countdown."
+            exit 1
+          fi
+          echo "artifact build-date $STAMP matches today in Asia/Singapore."
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+
+      - id: deploy
+        name: wrangler pages deploy (production)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler.json
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy dist \
+            --project-name="${PAGES_PROJECT}" \
+            --branch=main \
+            --commit-hash="${HEAD_SHA}"
+          # `--branch=main` is production ONLY if the project's stored production_branch is
+          # also `main`; wrangler decides with `isProduction = project.production_branch ===
+          # branch` and says nothing when it is false. Get it wrong and every "production"
+          # deploy is a preview, calvindotsg.pages.dev serves the last real one, and nothing
+          # reports it. The reader asserts the environment came back `production`, so the
+          # misconfiguration fails the run instead of shipping.
+          # Duplicated verbatim from deploy-preview, and kept that way deliberately: hoisting
+          # it into a committed .mjs would need a checkout in the token-holding job.
+          node -e '
+            const fs = require("fs");
+            const want = process.argv[1];
+            const out = process.env.WRANGLER_OUTPUT_FILE_PATH;
+            let entries;
+            try {
+              entries = fs.readFileSync(out, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+            } catch (err) {
+              console.error("::error::could not read or parse " + out + ": " + err.message);
+              process.exit(1);
+            }
+            const d = entries.reverse().find((e) => e.type === "pages-deploy-detailed");
+            if (!d) {
+              console.error("::error::wrangler wrote no pages-deploy-detailed entry to " + out);
+              process.exit(1);
+            }
+            if (d.environment !== want) {
+              console.error("::error::deployed to " + d.environment + ", expected " + want +
+                " (project production_branch=" + d.production_branch + ")");
+              process.exit(1);
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+              "url=" + d.url + "\nalias=" + (d.alias || "") + "\n");
+          ' production
+
+      - name: summary
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          {
+            echo "### Production deployed"
+            echo ""
+            echo "- $URL"
+          } >> "$GITHUB_STEP_SUMMARY"
