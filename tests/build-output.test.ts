@@ -3,7 +3,9 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
+import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PROJECTS, WELCOME} from "../src/lib/constants";
+import stravaProgress from "../src/data/strava-progress.json";
+import {BUILD_DATE} from "../src/lib/today";
 import {iconClass} from "../src/lib/icons";
 import {decl, isStateful, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
 import {builtPages, classTokens, cssChunks} from "./helpers/pages";
@@ -41,6 +43,126 @@ describe("dist/", () => {
     it("emits a sitemap index referencing the deployed origin", () => {
         expect(existsSync("dist/sitemap-index.xml")).toBe(true);
         expect(read("dist/sitemap-index.xml")).toContain(METADATA.site_url);
+    });
+
+    /**
+     * ROBOTS.TXT MUST NOT GIVE ANY CRAWLER ITS OWN GROUP. A draft of the generated
+     * `robots.txt` listed eight answer-engine agents -- GPTBot, ClaudeBot,
+     * PerplexityBot and friends -- each with `Allow: /`, meaning to say that citation
+     * is welcome. It said nothing `User-agent: *` was not already saying, and it armed
+     * a trap: under the robots protocol a crawler obeys the single most specific group
+     * matching its name and IGNORES `*` entirely. The day a `Disallow:` is added to
+     * `*`, every separately-named agent would sail past it.
+     *
+     * So this asserts the shape rather than the wording: exactly ONE `User-agent`
+     * group. Naming an agent is legitimate only to give it rules that DIFFER from `*`,
+     * and on a site where everything is public there are none -- so if this ever needs
+     * to change, the reason belongs beside the change.
+     */
+    it("gives no crawler its own robots.txt group, so none can escape the * rules", () => {
+        const groups = read("dist/robots.txt").split("\n")
+            .filter((line) => /^\s*User-agent:/i.test(line));
+        expect(groups, `robots.txt must declare exactly one User-agent group, found: ${groups.join(", ")}`)
+            .toHaveLength(1);
+        expect(groups[0]).toMatch(/User-agent:\s*\*/);
+    });
+
+    /**
+     * `lastmod` MUST BE THE DAY THE CONTENT CHANGED, NOT THE DAY THE SITE WAS BUILT.
+     *
+     * This site rebuilds every night whether or not anything happened, so stamping
+     * `BUILD_DATE` would claim all four pages changed today, every day, forever.
+     * Google uses `lastmod` only "if it's consistently and verifiably accurate" and
+     * counts a main-content change as significant where "an update to the copyright
+     * date is not" -- a countdown ticking down on an otherwise identical page is the
+     * latter. The penalty for being caught is that `lastmod` is discounted for the
+     * whole feed, including on the days the kilometres really did move.
+     *
+     * `stravaProgress.updated_at` is the honest signal, and it is honest for a reason
+     * that reads like a bug until you get to `today.ts`: the bot FREEZES it when the
+     * numbers do not move. The calibration this test is built on: on 2026-07-30 the
+     * build ran while `updated_at` still said 2026-07-29 -- so the two values were
+     * observed to differ, and asserting the right one is not vacuous.
+     */
+    it("dates the sitemap by when the kilometres moved, not by when it was built", () => {
+        const stamps = [...read("dist/sitemap-0.xml").matchAll(/<lastmod>([^<]+)<\/lastmod>/g)]
+            .map((m) => m[1]);
+        expect(stamps.length, "every sitemap entry needs a lastmod").toBe(builtPages()
+            .filter((page) => page !== NOT_FOUND_PAGE).length);
+        for (const stamp of stamps) {
+            expect(stamp.slice(0, 10), "lastmod must be the Strava updated_at")
+                .toBe(stravaProgress.updated_at);
+        }
+        // Only meaningful while the two differ; on a day the kilometres moved they are
+        // equal and this says nothing, which is why it is a soft note and not an assert.
+        if (stravaProgress.updated_at !== BUILD_DATE) {
+            expect(stamps.some((s) => s.startsWith(BUILD_DATE)),
+                "lastmod must not be the build date").toBe(false);
+        }
+    });
+
+    /**
+     * `/llms.txt` IS DERIVED, AND THIS IS WHAT MAKES THAT TRUE RATHER THAN INTENDED.
+     * It replaced a hand-written `public/llms.txt` that had drifted on every axis --
+     * wrong job title, paraphrased project descriptions, a whole project missing --
+     * and none of that was detectable because a file in `public/` has no relationship
+     * to the constants it paraphrases. These assertions are that relationship.
+     *
+     * WHAT THIS CANNOT CATCH, AND WHY THAT IS CORRECT — found by calibrating it wrongly
+     * first. Editing a description in `constants.ts` leaves this GREEN, because the
+     * endpoint regenerates from the same constant the assertion reads: both sides move
+     * together and the comparison is a tautology. That is not a hole to plug. Pinning
+     * the literal string here would put the description in two places again, which is
+     * the precise defect the endpoint was written to remove.
+     *
+     * So the axis this DOES gate is omission, and the calibration has to mutate the
+     * ENDPOINT rather than the constant. Executed: deleting the `PROJECTS` map, the
+     * completed-race list, and the `full_name` H1 each turn it red, with the messages
+     * naming which. A green here means every constant still reaches the file — not that
+     * any constant is right.
+     */
+    it("emits an llms.txt carrying the constants it claims to summarise", () => {
+        expect(existsSync("dist/llms.txt")).toBe(true);
+        const llms = read("dist/llms.txt");
+
+        expect(llms.startsWith(`# ${METADATA.full_name}\n`), "H1 must be the full name").toBe(true);
+        expect(llms).toContain(`> ${METADATA.description}`);
+        expect(llms).toContain(METADATA.professional_summary);
+        expect(llms).toContain(CAREER[0].job_name);
+        expect(llms).toContain(CAREER[0].company);
+        expect(llms).toContain(stravaProgress.updated_at);
+
+        for (const goal of GOALS) {
+            expect(llms, `${goal.goal_name} progress must appear`)
+                .toContain(`${goal.raw_progress} of ${goal.total_goal} ${goal.measurable_unit}`);
+        }
+        for (const event of EVENTS) {
+            expect(llms, `${event.name} must appear`).toContain(event.name);
+        }
+        for (const project of PROJECTS) {
+            expect(llms, `${project.name} must link to its repo`).toContain(project.repo_url);
+            expect(llms, `${project.name} must quote its description`).toContain(project.description);
+        }
+    });
+
+    /**
+     * THE llms.txt FORMAT IS A SPEC, NOT A VIBE (llmstxt.org): H1, then a blockquote,
+     * then free prose, then `##` sections whose every list item carries a REQUIRED
+     * `[name](url)` link. The first draft of the endpoint put the goals under a
+     * `## Goals` heading as bare `- Running: 168.8 of 600 km` bullets, which is exactly
+     * what an H2 section may not contain -- they are facts, not links. This catches
+     * that shape, which review did not.
+     */
+    it("keeps llms.txt to the spec: every H2 list item is a markdown link", () => {
+        const lines = read("dist/llms.txt").split("\n");
+        const firstH2 = lines.findIndex((line) => line.startsWith("## "));
+        expect(firstH2, "llms.txt must have at least one H2 section").toBeGreaterThan(-1);
+
+        const offenders = lines.slice(firstH2)
+            .filter((line) => line.startsWith("- "))
+            .filter((line) => !/^- \[[^\]]+]\(https?:\/\/[^)]+\)/.test(line));
+        expect(offenders, `H2 list items must be [name](url): ${offenders.join(" ;; ")}`)
+            .toEqual([]);
     });
 
     /**
@@ -401,8 +523,10 @@ describe("dist/", () => {
     /**
      * Plan 011 migrated every emoji to presetIcons mask classes. This is the
      * gate that keeps them out: emoji pictographs must never appear in the
-     * shipped page or stylesheet again (llms.txt is maintainer-owned prose and
-     * deliberately not scanned). FE0F is the emoji variation selector; the
+     * shipped page or stylesheet again. (`dist/llms.txt` is generated from
+     * `constants.ts` since the SEO/AEO pass and is deliberately not scanned here --
+     * it carries no markup and the constants it quotes are gated elsewhere.)
+     * FE0F is the emoji variation selector; the
      * F000-block ranges cover pictographs, transport symbols and skin tones.
      */
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;

@@ -119,7 +119,7 @@ describe("JSON-LD structured data", () => {
 
     it("describes a Person with the configured name", () => {
         expect(schema["@type"]).toBe("Person");
-        expect(schema.name).toBe(METADATA.name);
+        expect(schema.name).toBe(METADATA.full_name);
     });
 
     it("exposes sameAs as a flat list of the absolute LINKS URLs", () => {
