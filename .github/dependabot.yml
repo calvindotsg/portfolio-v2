@@ -1,15 +1,33 @@
 # Keeps SHA-pinned actions from going stale.
 #
 # Pinning to a commit SHA is what `sha_pinning_required` demands, but a pin with
-# nothing bumping it is a security control that decays into an outdated dependency.
-# Dependabot updates the SHA and rewrites the trailing `# vN` comment to match.
+# nothing bumping it decays into an outdated dependency. Dependabot updates the SHA
+# and rewrites the trailing `# vN` comment to match. That is the whole of what this
+# file buys — action pins, nothing else. It declares only the `github-actions`
+# ecosystem, so the npm tree is NOT covered here and Dependabot alerts and security
+# updates are both switched off on this repository; #92 ("refresh lockfile in-range,
+# clearing one brace-expansion HIGH") was a manual chore for that reason and the next
+# one will be too. Turning either on is a separate decision, not something this file
+# quietly implies.
 #
-# WHAT IT CANNOT DO: convert a tag into a SHA. A `uses:` line written as `@v5` stays
-# a tag forever as far as Dependabot is concerned, and would fail the pinning policy.
-# New actions must be added pinned by hand.
+# THIS FILE IS INERT UNTIL SOMEONE CLICKS ENABLE, because this repository is a FORK
+# (of Ladvace/astro-bento-portfolio). GitHub: "Version updates are not automatically
+# enabled on forks when a `dependabot.yml` configuration file is present" — on a fork
+# you must also enable it under Settings > Advanced Security > Dependabot version
+# updates. Merging this file therefore opens no pull request and bumps no pin. Until
+# that click happens the pins it exists to refresh go stale anyway, which is the one
+# failure mode worth knowing about: it looks configured and does nothing.
+#
+# WHAT IT CANNOT DO EVEN THEN: convert a tag into a SHA. A `uses:` line written as
+# `@v5` stays a tag forever as far as Dependabot is concerned, and would fail the
+# pinning policy. New actions must be added pinned by hand.
 #
 # Monthly, not weekly: this repository has two workflows and a solo maintainer, so a
-# weekly cadence produces noise rather than signal.
+# weekly cadence produces noise rather than signal. Cadence alone does not buy that,
+# though — the default is one pull request PER dependency, and after the CI workflow
+# lands there are five distinct actions across the two files, so an active month
+# would open five PRs, each spawning its own CI run. `groups` is what makes the
+# monthly claim true: one pull request, every action in it.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -18,3 +36,7 @@ updates:
       interval: monthly
     commit-message:
       prefix: chore(deps)
+    groups:
+      actions:
+        patterns:
+          - "*"
