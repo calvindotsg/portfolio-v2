@@ -42,8 +42,19 @@ on:
 # PENDING member of a group when a new one queues. Keying both `push` to main and
 # `workflow_dispatch` on main as `ci-refs/heads/main` therefore let a push silently cancel a
 # queued nightly Strava dispatch — again reading as cancelled-not-failed, on the one deploy
-# path that is unattended. Separating them lets a push and a dispatch build concurrently,
-# which is fine: `pages-production` at job level still serialises the deploys themselves.
+# path that is unattended.
+#
+# WHAT THE SPLIT COSTS, because an earlier version of this comment claimed it was free and was
+# wrong. Separating the groups lets a push and a dispatch on main build CONCURRENTLY, and
+# `pages-production` at job level then SERIALISES the two deploys without ORDERING them:
+# GitHub releases pending members of a group first-in-first-out by the time each started
+# WAITING, "not the time each workflow was dispatched", and states plainly that "ordering is
+# not guaranteed". So whichever build finishes later publishes later, and production can end
+# up on the older of two same-day artifacts. Nothing here checks that. The trade is still the
+# right way round — the cancellation it replaces was certain and total, this inversion is rare
+# and self-heals on the next push — but it is a trade, not a free win. A real fix belongs with
+# WP4 and needs to be a monotonicity check that fails the JOB, not a `run:` step calling
+# `exit 0`, which ends only the step and would let wrangler publish anyway.
 concurrency:
   group: ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -226,7 +237,7 @@ jobs:
             exit 1
           fi
           if [ "$STAMP" != "$TODAY" ]; then
-            echo "::error::artifact was drawn for $STAMP but today is $TODAY in Asia/Singapore. Re-run the whole workflow so the build re-derives the day; re-running only this job would republish a stale wall and countdown."
+            echo "::error::artifact was drawn for $STAMP but today is $TODAY in Asia/Singapore. Push a commit, or dispatch this workflow against the ref you want published, so the build re-derives the day. Do NOT reach for Re-run all jobs on an OLD run: that rebuilds the old commit, stamps it today, passes this gate, and publishes that older tree over whatever is live."
             exit 1
           fi
           echo "artifact build-date $STAMP matches today in Asia/Singapore."
@@ -311,12 +322,20 @@ jobs:
   deploy-production:
     name: deploy production
     needs: build
-    # BOTH halves are load-bearing. `!= 'pull_request'` alone is TRUE for a
-    # `workflow_dispatch` on ANY ref, and this job hardcodes `--branch=main` — so a dispatch
-    # from a feature branch would publish that branch's artifact to production, and the
-    # output assertion below would cheerfully confirm `environment: production` because the
-    # deploy genuinely did reach production. The ref test is what closes it.
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # AN ALLOW-LIST OF EVENTS, AND A REF TEST. Both halves are load-bearing, and the allow-list
+    # is deliberate: the obvious spelling, `!= 'pull_request'`, is a DENY-list, so every trigger
+    # added to `on:` in future would deploy production BY DEFAULT. That is not hypothetical —
+    # `pull_request_target` and `issue_comment` both carry `github.ref` = `refs/heads/main`, so
+    # they would satisfy the ref test too, and `pull_request_target` is the one that runs
+    # PR-authored refs with secrets available. Naming the two events that may publish means a
+    # new trigger is inert here until someone adds it on purpose.
+    #
+    # The ref test is what stops a `workflow_dispatch` on a feature branch: this job hardcodes
+    # `--branch=main`, so without it that branch's artifact reaches production and the output
+    # assertion below cheerfully confirms `environment: production`, because it genuinely did.
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -365,7 +384,7 @@ jobs:
             exit 1
           fi
           if [ "$STAMP" != "$TODAY" ]; then
-            echo "::error::artifact was drawn for $STAMP but today is $TODAY in Asia/Singapore. Re-run the whole workflow so the build re-derives the day; re-running only this job would republish a stale wall and countdown."
+            echo "::error::artifact was drawn for $STAMP but today is $TODAY in Asia/Singapore. Push a commit, or dispatch this workflow against the ref you want published, so the build re-derives the day. Do NOT reach for Re-run all jobs on an OLD run: that rebuilds the old commit, stamps it today, passes this gate, and publishes that older tree over whatever is live."
             exit 1
           fi
           echo "artifact build-date $STAMP matches today in Asia/Singapore."
