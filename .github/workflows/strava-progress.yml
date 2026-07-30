@@ -7,8 +7,15 @@ on:
     - cron: "13 21 * * *"
   workflow_dispatch: {}   # manual runs, and re-enabling after auto-disable
 
+# `actions: write` is what lets the last step dispatch `ci.yml`, and it has to be
+# written here rather than assumed: a `permissions:` block REPLACES the defaults
+# wholesale, so before this line `actions` was `none` and the dispatch would have
+# returned 403 — on the one path nobody watches. It is also independent of the
+# repository's `default_workflow_permissions`, which is `read`; an explicit block
+# is the only way a job gets more than that.
 permissions:
   contents: write
+  actions: write
 
 # A manual run overlapping the cron would push the same file from two checkouts;
 # the second push is then rejected non-fast-forward. Never cancel in flight —
@@ -56,7 +63,7 @@ jobs:
       - name: Commit and push only if the km values changed
         run: |
           if git diff --quiet -- src/data/strava-progress.json; then
-            echo "Progress unchanged; no commit, no deploy."
+            echo "Progress unchanged; nothing to commit. Today's build still runs — the site's clock moved even if the kilometres did not. See the next step."
             exit 0
           fi
           git config user.name "github-actions[bot]"
@@ -78,3 +85,47 @@ jobs:
           # this comment used to warn about, so do not "fix" the quoting to prevent it.
           git commit -m "$(node -e 'const p=require("./src/data/strava-progress.json"); console.log(`chore(goals): update Strava progress to ${p.cycling_km} km ride / ${p.running_km} km run`)')"
           git push
+
+      # THE ONLY UNATTENDED DEPLOY THE SITE HAS. A push made with `GITHUB_TOKEN` does not
+      # trigger a workflow run — GitHub suppresses it to stop recursion — so the commit above
+      # reaches `main` and, on its own, nothing builds. Netlify never had this problem because
+      # its webhook watched the repository rather than the Actions event stream; moving the
+      # build into Actions moved this failure mode in with it. `workflow_dispatch` is one of
+      # the two documented exceptions to the suppression rule, which is why the fix is a
+      # dispatch and not, say, a second push or a tag.
+      #
+      # UNCONDITIONAL ON PURPOSE, and this is the part that is NOT mere Netlify parity. The
+      # step above commits only when the KILOMETRES moved, but the site has a clock as well as
+      # a distance: `BUILD_DATE` in `src/lib/today.ts` feeds the countdown, `patchState`,
+      # `patchWall` and `nextRace`, and every one of those turns over at Singapore midnight
+      # whether or not the owner trained. Firing only on a commit therefore reinstates, by a
+      # different mechanism, the exact defect CLAUDE.md records being fixed once already — the
+      # home page reading "in 5 days" on the day it was 4, frozen for as long as the owner
+      # rested. MEASURED before writing this: the cron ran and succeeded every day from
+      # 2026-07-22 to 2026-07-30, and committed nothing on 07-24, so that day the live site was
+      # never rebuilt. One build a night is the fix, and it is also the cheapest possible
+      # heartbeat for an unattended pipeline: a broken build is discovered within a day instead
+      # of whenever the owner next happens to ride.
+      #
+      # A FAILED PUSH MUST NOT DEPLOY, and it cannot: steps default to `if: success()`, so a
+      # non-fast-forward rejection above stops the run here and the day goes unbuilt loudly
+      # rather than publishing a tree that is not on `main`.
+      #
+      # HOW THIS FAILS LOUDLY, which is the whole reason WP4 exists as its own piece of work.
+      # `gh workflow run` exits non-zero when the API refuses — a missing `actions: write`
+      # scope, a disabled workflow, a ref with no `workflow_dispatch` trigger — so the job goes
+      # red, and a red scheduled run is the only alerting this path has. Know who that reaches:
+      # GitHub sends a scheduled workflow's failure notification to whoever LAST EDITED THE CRON
+      # SYNTAX in this file, not to the repository owner and not to whoever wrote the step that
+      # broke. What the step does NOT do is wait for the dispatched run, so green here means
+      # "the build was asked for", never "the build passed". Read the CI run itself.
+      - name: Ask CI to build and deploy, since the push above triggers nothing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh workflow run ci.yml --ref main; then
+            echo "::error::could not dispatch ci.yml on main, so today's build and deploy did not happen. Nothing else in this repository will notice — check the actions:write permission on this workflow and that ci.yml is enabled."
+            exit 1
+          fi
+          echo "Dispatched ci.yml on main. This step does not wait for it; follow it at:"
+          echo "https://github.com/${GITHUB_REPOSITORY}/actions/workflows/ci.yml"
