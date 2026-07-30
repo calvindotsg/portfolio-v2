@@ -346,9 +346,11 @@ describe("the deploy guards, executed in GitHub's own evaluator", () => {
 });
 
 /**
- * NON-VACUITY. Nine contexts sound thorough, but the previous version of this gate had four
- * and reported clean on a guard that deployed a feature branch to production — the row that
- * would have caught it simply was not in the table. So each historical defect is replayed
+ * NON-VACUITY. A table this size sounds thorough — and the previous version of this gate had
+ * four rows, reported clean, and let a guard that deployed a feature branch to production
+ * through, because the row that would have caught it simply was not in the table. So do not
+ * read the length as evidence; the count is deliberately not written down here, because a
+ * number in a comment is one edit away from being wrong about the list beside it. So each historical defect is replayed
  * here against the SAME context set, and each must be caught. A future edit that trims the
  * contexts, or relaxes the intent table, goes red here rather than quietly reporting a pass.
  *
