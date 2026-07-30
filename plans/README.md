@@ -477,29 +477,32 @@ None of these is an agent's call. They are recorded so a new run does not
 "helpfully" do them; the first two have since been resolved and are kept with
 their resolutions rather than deleted.
 
-- **`www.calvin.sg` serves the site instead of redirecting, and the cause is not a
-  missing rule.** `www` is an *attached custom domain on the Pages project* — active,
-  with its own Google Trust Services certificate — so Pages routes it by Host header
-  exactly as it routes the apex. The two hostnames are equal origin bindings. The
-  first diagnosis recorded here said "a Redirect Rule is missing", which was reading
-  the symptom: a rule masks the duplicate, detaching the domain removes it.
+- ~~**`www.calvin.sg` serves the site instead of redirecting.**~~ **Resolved 2026-07-30.**
+  `https://www.calvin.sg/` now answers `301` to the apex, preserving path and query, in
+  one hop. `.scratchpad/verify-canonical.sh` is **15/15**, from 9/5 before. HSTS is on at
+  180 days (deliberately no `includeSubDomains`, no preload — it is close to irreversible,
+  so this is the ramp), both legacy Page Rules are deleted, and the slickshots forward
+  moved to a Single Redirect.
 
-  **Order is load-bearing** — add the redirect rule *first*, while `www` is still
-  attached, then detach. Single Redirects execute first in the rules pipeline and take
-  precedence over Page Rules, so the rule answers before Pages ever sees the request;
-  detaching first would make `www` fail until the rule existed.
+  **The cause was never a missing rule**, and that matters for the next hostname. `www`
+  was an *attached custom domain on the Pages project*, with its own certificate — so
+  Pages routed it by Host exactly as it routed the apex, and the two were equal origin
+  bindings. A redirect rule *masks* that; detaching removes it. When a hostname serves
+  something you did not intend, read the custom-domain list before the rules list.
 
-  Two more findings from the same review. The `Always Use HTTPS` Page Rule is disabled
-  **and** its pattern `http://*.calvin.sg/*` cannot match the apex, so it never did the
-  job it appears to — both hostnames upgrade anyway from the zone-level setting. And
-  neither hostname sends HSTS.
+  **Order was load-bearing**: redirect rule first, detach second. Single Redirects execute
+  first in the rules pipeline and take precedence over Page Rules, so the rule answers
+  before origin selection and the hostname never stops responding.
 
-  **No agent can apply any of it.** Measured against the API, not inferred from the CLI:
-  the `cf` OAuth profile is 403 on `rulesets`, `pagerules` and `settings/*`, and 403 on
-  both token-minting endpoints, so it cannot even grant itself the scope. The 1Password
-  token is Pages-only. The runbook and a calibrated gate are in
-  `.scratchpad/canonicalise-www.sh` and `.scratchpad/verify-canonical.sh`; the gate is
-  red on 5 of 14 checks today and must be green after.
+  **Two instrument failures worth keeping**, both caught only because the config was
+  re-read after the run rather than trusting it. (1) The apply script reported `www`
+  "already detached" when its API read had been *refused* — a failed GET and an absent
+  domain were indistinguishable to it, and it gave the reassuring one. It now probes every
+  surface it will later write to, and exits rather than interpreting a failed read.
+  (2) The gate passed **14/14 while `www` was still bound**: the redirect fires before
+  origin selection, so from outside every observable was correct and the structure was
+  not. A behavioural probe cannot see a redundancy that something upstream is masking —
+  check 11 reads the binding itself and is the one that would have caught it.
 
 - ~~`public/preview.jpg` is still the August 2024 screenshot.~~ **Resolved
   2026-07-21**: the maintainer supplied a current dark-theme screenshot. It
