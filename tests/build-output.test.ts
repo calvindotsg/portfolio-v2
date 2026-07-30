@@ -1889,6 +1889,12 @@ describe("hashed assets are cached forever, and are hashed", () => {
         expect(rule, "dist/_headers installs no rule for exactly /_astro/*; every hashed asset "
             + "costs a render-blocking round trip to be told it has not changed (measured 168ms "
             + "and 175ms, transferSize 300 — a 304 carrying no content)").toBeDefined();
+        // Byte equality is DELIBERATE and is stricter than HTTP: `public,max-age=31536000,immutable`
+        // means the same thing to every cache and would redden here. The gate's job is the bytes
+        // the deploy installs, not their semantics — loosen it and it stops being able to see a
+        // value that drifted. The calibration that shows this parser bought something over the
+        // old one is commenting the `cache-control:` line out of `public/_headers`: RED here,
+        // GREEN under both the shipped-in-#101 and the pre-#101 assertions.
         expect(rule!["cache-control"], "the /_astro/* rule exists but does not cache immutably — "
             + "a narrowed, overridden or removed cache-control here is the same regression as "
             + "having no rule at all").toBe("public, max-age=31536000, immutable");
