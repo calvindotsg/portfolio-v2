@@ -77,12 +77,20 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
    bot-owned. A daily GitHub Actions run
    (`.github/workflows/strava-progress.yml`) writes Strava's year-to-date ride
    and run totals to `src/data/strava-progress.json`, which `constants.ts`
-   imports. Its only inputs are the `STRAVA_ATHLETE_ID` repository *variable*
-   and the `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and
+   imports. Its only inputs are the `STRAVA_ATHLETE_ID` and `STRAVA_CLIENT_ID`
+   repository *variables* and the `STRAVA_CLIENT_SECRET` and
    `STRAVA_REFRESH_TOKEN` repository *secrets* — the script holds no
    configuration of its own. To bump a figure by hand, edit that JSON rather
    than `constants.ts`; `total_goal` stays in `constants.ts` and caps the
    displayed figure.
+
+   The variable/secret split follows the one test: **does the value ship
+   publicly?** The athlete id is on the site's Strava links, and a Strava client
+   id is a query parameter of the OAuth authorize URL, so both are public and
+   both are variables. Only the client secret and the refresh token authenticate,
+   so only those are secrets — and because a GitHub secret can never be read
+   back, those two are also kept in 1Password (`calvindotsg-strava`), which is
+   the only recoverable copy that exists.
 
    Note that the athlete id appears in two of the three sanctioned homes, for two
    different jobs: the `STRAVA_ATHLETE_ID` variable decides *whose kilometres* are

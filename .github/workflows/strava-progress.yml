@@ -33,9 +33,23 @@ jobs:
         # ubuntu-latest ships node >= 20 preinstalled (22.x on 24.04) —
         # built-in fetch, zero deps, no setup-node needed.
         env:
-          # Not a secret — the athlete id is public on the site's Strava links.
+          # THE SPLIT HERE IS THE PROJECT'S OWN TEST — "does the value ship publicly?", not
+          # "does it feel private". The first two fail that test and are variables; the last
+          # two pass it and stay secrets.
+          #
+          # The athlete id is public on the site's Strava links. A Strava CLIENT ID is public
+          # by protocol: it is a query parameter of the OAuth authorize URL, so anyone who has
+          # connected the app has already seen it in their address bar. Storing a public value
+          # as a secret costs something real and buys nothing — GitHub masks it, so it prints
+          # as `***` exactly when you are trying to read what the job sent, and a secret cannot
+          # be read back at all, which makes drift against the 1Password copy undetectable.
+          #
+          # The client SECRET and the refresh TOKEN are what actually authenticate, so they
+          # stay secrets. Both are backed up in 1Password (`calvindotsg-strava`) — which
+          # matters precisely because a GitHub secret cannot be read back: before that backup
+          # existed they had no recoverable copy anywhere.
           STRAVA_ATHLETE_ID: ${{ vars.STRAVA_ATHLETE_ID }}
-          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_ID: ${{ vars.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: node scripts/fetch-strava-progress.mjs
