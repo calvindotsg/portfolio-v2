@@ -52,9 +52,18 @@ on:
 # not guaranteed". So whichever build finishes later publishes later, and production can end
 # up on the older of two same-day artifacts. Nothing here checks that. The trade is still the
 # right way round — the cancellation it replaces was certain and total, this inversion is rare
-# and self-heals on the next push — but it is a trade, not a free win. A real fix belongs with
-# WP4 and needs to be a monotonicity check that fails the JOB, not a `run:` step calling
-# `exit 0`, which ends only the step and would let wrangler publish anyway.
+# and self-heals on the next push — but it is a trade, not a free win.
+#
+# WP4 LOOKED AT FIXING THAT AND DELIBERATELY DID NOT, so nobody goes hunting for a fix that was
+# never written. The nightly dispatch WP4 adds makes `workflow_dispatch` on main a daily event
+# rather than a rare manual one, but it lands at 05:13 SGT, so it only collides with a push
+# made within minutes of that. The fix itself is the problem: a monotonicity check has to know
+# whether the currently-live deployment's commit is a DESCENDANT of this one, which is a git
+# ancestry question, and these jobs have no checkout by design — see the block above
+# `deploy-preview`. Comparing `github.run_number` or the wrangler timestamps instead answers a
+# different question and would pass exactly when the inversion happens. Whatever replaces this
+# must fail the JOB: a `run:` step calling `exit 0` ends only the step, and wrangler would
+# publish anyway.
 concurrency:
   group: ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
