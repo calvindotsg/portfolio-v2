@@ -1,6 +1,7 @@
 import type {APIRoute} from "astro"
 import {ABOUT_ME, CAREER, EVENTS, GOAL_YEAR, GOALS, LINKS, METADATA, PROJECTS} from "../lib/constants"
 import stravaProgress from "../data/strava-progress.json"
+import {patchState} from "../lib/projection"
 import {BUILD_DATE} from "../lib/today"
 
 /**
@@ -51,9 +52,18 @@ export const GET: APIRoute = ({site}) => {
         const time = event.elapsed_time ? `, ${event.elapsed_time}` : ""
         return `- ${when} — ${event.name}, ${event.km} km, ${event.country}${time}`
     }
-    // `EVENTS` is chronological, so "has it happened" is a date comparison, not a flag.
-    const done = EVENTS.filter((e) => (e.end_date ?? e.date) < BUILD_DATE)
-    const upcoming = EVENTS.filter((e) => (e.end_date ?? e.date) >= BUILD_DATE)
+    // "Has it happened" is `patchState`, NOT a date comparison — asking the site's own
+    // predicate rather than restating it, which is the whole point of this endpoint.
+    //
+    // A DATE COMPARISON IS WRONG HERE AND WAS WRONG IN THE FIRST DRAFT. `patchState` asks
+    // `hasRecording` BEFORE it asks the clock, because a race run this morning is a patch
+    // today (#97, "let a race be recorded the day it is run"). A plain
+    // `end < BUILD_DATE` misses exactly that case, so on the day of a race the wall would
+    // have said "finished" while this file still said "still to come". Masked on the day
+    // it was written — the 2026-07-29 Garmin run already had yesterday's date by then —
+    // which is precisely how it would have shipped.
+    const done = EVENTS.filter((event) => patchState(event) === "finished")
+    const upcoming = EVENTS.filter((event) => patchState(event) !== "finished")
 
     const body = [
         `# ${METADATA.full_name}`,

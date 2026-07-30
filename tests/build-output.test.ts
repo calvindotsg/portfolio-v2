@@ -5,6 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PROJECTS, WELCOME} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
+import {patchState} from "../src/lib/projection";
 import {BUILD_DATE} from "../src/lib/today";
 import {iconClass} from "../src/lib/icons";
 import {decl, isStateful, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
@@ -142,6 +143,42 @@ describe("dist/", () => {
         for (const project of PROJECTS) {
             expect(llms, `${project.name} must link to its repo`).toContain(project.repo_url);
             expect(llms, `${project.name} must quote its description`).toContain(project.description);
+        }
+    });
+
+    /**
+     * llms.txt MUST SPLIT RACES THE WAY THE WALL DOES. The endpoint asks `patchState`;
+     * the first draft compared `end_date ?? date` against `BUILD_DATE` instead, and that
+     * is wrong on exactly one day — the day of a race. `patchState` asks `hasRecording`
+     * BEFORE the clock, because a race run this morning is a patch today (#97). A date
+     * comparison misses it, so the wall would read "finished" while llms.txt still read
+     * "still to come".
+     *
+     * It was invisible when written: the most recent race already had yesterday's date.
+     *
+     * WHAT THIS GATE IS AND IS NOT, because the calibration came back green and that is
+     * worth reporting rather than burying. Restoring the date comparison leaves this
+     * PASSING on an ordinary day — the two predicates agree on every day that is not a
+     * race day, so there is nothing to catch. It goes red on the day it matters, which is
+     * the day the bug appears, and that is the whole of its value: it is a correct
+     * assertion with a CALENDAR-DEPENDENT reach, not a proof that ran.
+     *
+     * Making it fire every day would need a synthetic event injected into the built
+     * artifact, which `EVENTS` does not allow. The compensating cover is that
+     * `patchState` itself — including the `hasRecording`-before-the-clock rule this
+     * depends on — is unit-tested against pinned days in `tests/projection.test.ts`.
+     */
+    it("splits llms.txt races by patchState, not by a date comparison", () => {
+        const llms = read("dist/llms.txt");
+        const completed = llms.slice(llms.indexOf("completed:"), llms.indexOf("Still to come:"));
+        const ahead = llms.slice(llms.indexOf("Still to come:"), llms.indexOf("## Pages"));
+
+        for (const event of EVENTS) {
+            const finished = patchState(event) === "finished";
+            expect(completed.includes(event.name), `${event.name} finished=${finished}: wrong side of "completed"`)
+                .toBe(finished);
+            expect(ahead.includes(event.name), `${event.name} finished=${finished}: wrong side of "still to come"`)
+                .toBe(!finished);
         }
     });
 
