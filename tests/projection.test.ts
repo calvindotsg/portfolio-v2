@@ -256,9 +256,9 @@ describe("booked race distance", () => {
  * rather than a style preference.
  *
  * `GOALS[].raw_progress` and `UPDATED_AT` are rewritten by the nightly Strava bot,
- * and `netlify.toml` runs `pnpm check && pnpm test` as the BUILD COMMAND. So an
- * assertion against the live values turns an ordinary ride into a failed
- * production deploy, pushed by a bot with no human in the loop — and the failure
+ * and A RED SUITE BLOCKS THE DEPLOY. So an assertion against the live values
+ * turns an ordinary ride into a failed production deploy, pushed by a bot with
+ * no human in the loop — and the failure
  * freezes the very "Updated …" dateline this feature adds, because the deploy that
  * would refresh it is the one being blocked.
  *
@@ -470,8 +470,8 @@ describe("EVENTS", () => {
      */
     it("never carries a finishing time for a race that has not started", () => {
         // No `toBeGreaterThan(0)` on the subset — see the note in tests/patch-wall.test.ts.
-        // `timed` is legitimately empty every January, and the suite is the Netlify build
-        // command. The loop asserts a property OF each timed event; zero of them is a true
+        // `timed` is legitimately empty every January, and a red suite blocks the
+        // deploy. The loop asserts a property OF each timed event; zero of them is a true
         // state of the calendar, not a broken test.
         const timed = EVENTS.filter((e) => e.elapsed_time !== undefined);
         for (const e of timed) {

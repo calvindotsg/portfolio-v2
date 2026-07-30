@@ -1,4 +1,4 @@
-import {readFileSync} from "node:fs";
+import {readFileSync, readdirSync} from "node:fs";
 import {Evaluator, Lexer, Parser, data} from "@actions/expressions";
 import {truthy} from "@actions/expressions/result";
 import {parse} from "yaml";
@@ -38,6 +38,7 @@ interface Step {
     run?: string;
     if?: string;
     env?: Record<string, string>;
+    with?: Record<string, string>;
     /**
      * HYPHENATED, BECAUSE THAT IS THE KEY GITHUB READS. Spelling this `continue_on_error`
      * type-checks, reads `undefined` off every real workflow, and leaves the guard below
@@ -430,5 +431,76 @@ describe("the context set is sharp enough to catch the defects it was written fo
         expect(evaluate("true", {})).toBe(true);
         expect(evaluate("false", {})).toBe(false);
         expect(evaluate("'' == 0", {})).toBe(true);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// The Node version, which had three homes and one of them was a comment asking nicely.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `.nvmrc` IS THE SINGLE SOURCE OF TRUTH AND TWO JOBS COULD NOT READ IT.
+ *
+ * The `build` job takes `node-version-file: .nvmrc`. The two deploy jobs cannot — they have
+ * no checkout, deliberately, so that no repository source runs in a runner holding the deploy
+ * token — and so they hardcode the version instead. `ci.yml` said as much and asked the reader
+ * to bump the literals by hand, which is the shape of every drift this repository has a test
+ * for: one fact, three homes, nothing comparing them.
+ *
+ * It is a real defect and not a tidiness complaint. The deploy jobs run `npx wrangler`, so a
+ * `.nvmrc` bump past a major wrangler has dropped leaves the build green on the new Node and
+ * the publish running on the old one — and the two jobs that would notice are the two nobody
+ * reads when the board is green.
+ *
+ * Asserted over EVERY workflow rather than over `ci.yml` alone: the defect is "a Node version
+ * written somewhere other than `.nvmrc`", and a new workflow is exactly where the next copy
+ * would land. `strava-progress.yml` has no `setup-node` at all today and is silently fine.
+ */
+describe("the Node version has one home", () => {
+    const WORKFLOWS = ".github/workflows";
+    const NVMRC = readFileSync(".nvmrc", "utf8").trim();
+
+    const setupNodeSteps = readdirSync(WORKFLOWS)
+        .filter((file) => /\.ya?ml$/.test(file))
+        .flatMap((file) => {
+            const doc = parse(readFileSync(`${WORKFLOWS}/${file}`, "utf8")) as {jobs?: Record<string, Job>};
+            return Object.entries(doc.jobs ?? {}).flatMap(([job, definition]) =>
+                (definition.steps ?? [])
+                    .filter((step) => /^actions\/setup-node@/.test(step.uses ?? ""))
+                    .map((step) => ({where: `${file} → ${job}`, with: step.with ?? {}})));
+        });
+
+    it("reads a version out of .nvmrc at all, so the assertions below are not comparing to nothing", () => {
+        expect(NVMRC, ".nvmrc is empty or unreadable").toMatch(/^v?\d+(\.\d+)*$/);
+        expect(setupNodeSteps.length, `no job in ${WORKFLOWS} uses actions/setup-node, so every assertion `
+            + "in this block is vacuous").toBeGreaterThan(0);
+    });
+
+    it("points at least one job at the file itself, which is what makes it the source", () => {
+        const fromFile = setupNodeSteps.filter((s) => s.with["node-version-file"] !== undefined);
+        expect(fromFile.map((s) => s.where), "no job reads `node-version-file`, so `.nvmrc` is documentation "
+            + "rather than configuration and the literals below agree with nothing").not.toEqual([]);
+        for (const step of fromFile) {
+            expect(step.with["node-version-file"], `${step.where} reads a version file that is not .nvmrc`).toBe(".nvmrc");
+        }
+    });
+
+    it("gives every hardcoded version the same value .nvmrc holds", () => {
+        for (const step of setupNodeSteps) {
+            const literal = step.with["node-version"];
+            if (literal === undefined) continue;
+            expect(String(literal), `${step.where} pins Node ${String(literal)} while .nvmrc says ${NVMRC}. That job `
+                + "has no checkout by design and so cannot read the file — bump the literal with it, or the job that "
+                + "builds the site and the job that publishes it run on different Node versions.").toBe(NVMRC);
+        }
+    });
+
+    it("lets no setup-node step decide the version for itself", () => {
+        for (const step of setupNodeSteps) {
+            const declared = ["node-version", "node-version-file"].filter((key) => step.with[key] !== undefined);
+            expect(declared, `${step.where} declares ${JSON.stringify(declared)}. With neither, the step takes `
+                + "whatever Node the runner image happens to ship and the version silently tracks GitHub's "
+                + "rollout schedule; with both, `node-version` wins and the file is decoration.").toHaveLength(1);
+        }
     });
 });

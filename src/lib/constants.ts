@@ -284,8 +284,8 @@ export const GOAL_YEAR = 2026
  * literals to `string`, and `Sport` would resolve to `string` — accepting every
  * typo while still type-checking. This is the load-bearing half of the pattern and
  * it looks like a style choice, so: do not "tidy" the declaration back to an
- * annotation. `pnpm check` is the first half of Netlify's build command, so a real
- * type error here cannot reach production; a widened one is not a type error at all.
+ * annotation. `pnpm check` runs in CI ahead of the tests and gates the deploy, so a
+ * real type error here cannot reach production; a widened one is not a type error at all.
  */
 export type Sport = typeof RAW_GOALS[number]["sport"]
 
@@ -400,9 +400,8 @@ export type RaceEvent = {
      * Where the race is, as a country name a reader would say out loud.
      *
      * REQUIRED RATHER THAN OPTIONAL, deliberately. Every bib prints it, so an event
-     * without one is a bib with a blank line — and `pnpm check` is the first half of
-     * Netlify's build command, so making it required means the next race added cannot
-     * quietly omit it. Optional would put that guarantee in a test that has to be
+     * without one is a bib with a blank line — and `pnpm check` gates the deploy, so
+     * making it required means the next race added cannot quietly omit it. Optional would put that guarantee in a test that has to be
      * written and remembered; the type does it for free.
      *
      * A NAME, NOT AN ISO CODE AND NOT A FLAG. This string is printed for a person to

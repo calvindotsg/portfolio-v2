@@ -27,7 +27,7 @@ import type {Goal, RaceEvent} from "../src/lib/constants";
  *
  * EVERY DAY IS PINNED AS A LITERAL and the stamp is derived by subtracting a lag, so
  * nothing here can go red on a future build day — the failure mode this repo cares most
- * about, since the suite is the Netlify build command.
+ * about, since a red suite blocks the deploy.
  */
 
 /** A fixed "today" for the build clock. Never `new Date()`: see projection.ts's header. */

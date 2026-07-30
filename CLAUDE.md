@@ -22,13 +22,16 @@ block above it before giving either consumer the other's list.
   the `dist/` assertions have real artifacts; that setup honours `SKIP_BUILD=1` to
   reuse an existing `dist/` while iterating
 - `pnpm eslint` and `pnpm check` — not `lint`, not `typecheck`; neither of those
-  script names exists. Netlify's build command is `pnpm check && pnpm test`.
+  script names exists. The `build` job in `.github/workflows/ci.yml` runs all
+  three (`check`, `eslint`, `test`), and both deploy jobs sit behind
+  `needs: build`, so a red run of any of them blocks the deploy.
   `eslint` globs `src/**/*.{js,astro}` only, so a clean run says nothing about
   the `.ts` files — those are gated by `pnpm check` (tsconfig includes `**/*`)
   and by the suite
 - `pnpm preview` serves the built `dist/` directory locally on
-  http://localhost:4321 — the site is a static build with no adapter, so the
-  preview is byte-identical to what Netlify serves
+  http://localhost:4321 — the site is a static build with no adapter, and the
+  deploy jobs upload the very `dist/` the suite asserted against rather than
+  rebuilding, so the preview is byte-identical to production
 
 ## Key Architecture Points
 

@@ -64,8 +64,8 @@ const buildDateOf = (page: string): string => {
  * Measured rather than feared. A 2025 "Round the Island Bike Adventure" beside the 2026
  * one reddens two of these tests on data that is entirely correct — `expected 'Booked' to
  * be null` and `expected '121.98' to be '118.50'` — and the messages name the race twice
- * without being able to say which edition they mean. netlify.toml runs this suite as the
- * BUILD command, so that is a failed production deploy caused by an ordinary data edit:
+ * without being able to say which edition they mean. A red suite BLOCKS THE DEPLOY, so
+ * that is a failed production deploy caused by an ordinary data edit:
  * precisely the edit {@link GOAL_YEAR}'s January checklist now asks for, having stopped
  * telling the maintainer to delete last year's races.
  *
@@ -422,7 +422,7 @@ describe("dist/patches", () => {
      * The rendered state is compared against `patchState` recomputed here rather than
      * against a list of races written into this file. A hard-coded expectation would
      * be correct today and would become a bot-triggered failed deploy the morning
-     * after any of these six races is run — the suite is the Netlify build command.
+     * after any of these six races is run — a red suite blocks the deploy.
      */
     it("renders one bib per race, in the wall's order, in the state the calendar says", () => {
         for (const [key, page] of Object.entries(PAGES)) {
@@ -452,8 +452,8 @@ describe("dist/patches", () => {
      * It opened with `expect(booked.length).toBeGreaterThan(0)` as a non-vacuity
      * floor — a hand-counted property of *today's calendar* dressed as an invariant.
      * On 7 December 2026, the morning after the last race on the list, every bib is
-     * finished and that floor goes red. `netlify.toml` runs the suite as the build
-     * command and the Strava bot pushes unattended at 05:13 SGT, so the first symptom
+     * finished and that floor goes red. A red suite blocks the deploy and the Strava
+     * bot pushes unattended at 05:13 SGT, so the first symptom
      * would have been a failed production deploy with nobody watching. Simulated: the
      * suite is green on five future bot pushes and red on 2026-12-07 and 2026-12-31.
      *
@@ -528,8 +528,8 @@ describe("dist/patches", () => {
         // owner records the last one. A skeptic proved that: at a 31 December 2026 stamp this
         // file was red for that reason alone while origin/main was green.
         //
-        // netlify.toml runs the suite as the BUILD command, so either failure is a failed
-        // production deploy triggered by ordinary data entry.
+        // A red suite BLOCKS THE DEPLOY, so either failure is a failed production deploy
+        // triggered by ordinary data entry.
         //
         // The loops below need no floor. Each covers every race on the wall — not the subset —
         // and asserts the equivalence in BOTH directions per race, so they are vacuous only if
@@ -663,7 +663,7 @@ describe("dist/patches", () => {
      *
      * NO FLOOR ON THE LINKED SUBSET. `.toBeGreaterThan(0)` here would be a hand-counted property
      * of today's calendar: no race carries an activity id every January after the rollover, and
-     * this suite is the Netlify BUILD COMMAND, so that failure is a failed production deploy
+     * a red suite BLOCKS THE DEPLOY, so that failure is a failed production deploy
      * triggered by ordinary data entry. The loop covers every race on the wall and both
      * branches per race, so it is vacuous only if EVENTS is empty — the one guard that is safe.
      */

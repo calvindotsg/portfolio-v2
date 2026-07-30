@@ -1,13 +1,13 @@
 # The site's only builder.
 #
-# THE ONE ORDERING PROPERTY THIS FILE WILL EXIST TO HOLD. On Netlify, "a failing suite
+# THE ONE ORDERING PROPERTY THIS FILE EXISTS TO HOLD. On Netlify, "a failing suite
 # blocks the deploy" was a property of the platform: the build command WAS the suite,
-# so a red suite could not produce a deploy. Once the deploy jobs land (plan 019 WP3)
-# that degrades to a property of this file — `needs: build` — which a careless
-# refactor removes silently and no test catches. If you are rearranging these jobs,
-# that edge is the thing you must not drop.
+# so a red suite could not produce a deploy. Here it is a property of this file —
+# `needs: build` — which a careless refactor removes silently. If you are rearranging
+# these jobs, that edge is the thing you must not drop; `tests/workflow-guards.test.ts`
+# is what now notices, and it EXECUTES the `if:` expressions rather than reading them.
 #
-# THE JOB GRAPH THIS GROWS INTO, and why nothing that gates is downstream of a deploy:
+# THE JOB GRAPH, and why nothing that gates is downstream of a deploy:
 #
 #   build ──┬── deploy-preview      (pull_request from THIS repo)
 #           └── deploy-production   (push to main, or workflow_dispatch)
@@ -252,9 +252,11 @@ jobs:
           echo "artifact build-date $STAMP matches today in Asia/Singapore."
 
       # Hardcoded because this job has no checkout and therefore cannot read `.nvmrc`, which
-      # is the single source of truth for the build job. Nothing tests the agreement; if you
-      # bump `.nvmrc`, bump these two literals with it. The alternative is a sparse-checkout
+      # is the single source of truth for the build job. The alternative is a sparse-checkout
       # of one file, which costs the "no repository source in the runner" property above.
+      # `tests/workflow-guards.test.ts` compares every hardcoded version in every workflow to
+      # `.nvmrc`, so bumping the file without bumping these two literals is red rather than
+      # silent — which is what it used to be, and this comment used to say so.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "26"

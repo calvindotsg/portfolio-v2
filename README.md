@@ -7,7 +7,7 @@
 
 [![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/w/calvindotsg/portfolio-v2/main)](https://github.com/calvindotsg/portfolio-v2/commits/main/)
 [![GitHub license](https://img.shields.io/github/license/calvindotsg/portfolio-v2)](./LICENSE)
-[![Netlify Status](https://api.netlify.com/api/v1/badges/1e7b40f5-97bf-4baa-8648-dd03494f3e53/deploy-status)](https://app.netlify.com/sites/calvindotsg/deploys)
+[![CI](https://github.com/calvindotsg/portfolio-v2/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/calvindotsg/portfolio-v2/actions/workflows/ci.yml)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/calvindotsg/portfolio-v2)
 
 ## Overview
@@ -27,7 +27,8 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 - Fully responsive layout
 - Dark/Light mode support
 - Optimized for performance, accessibility, and SEO
-- CI/CD integration with [Netlify](https://www.netlify.com/)
+- CI/CD on [GitHub Actions](https://github.com/calvindotsg/portfolio-v2/actions),
+  deployed to [Cloudflare Pages](https://pages.cloudflare.com/)
 
 ## Tech Stack
 
@@ -36,7 +37,7 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 - [Iconify](https://iconify.design/) (Font Awesome 6 Brands + Remix Icon sets)
 - [Umami](https://umami.is/)
 - [Vitest](https://vitest.dev/)
-- [Netlify](https://www.netlify.com/)
+- [Cloudflare Pages](https://pages.cloudflare.com/)
 
 ## Getting Started
 
@@ -123,7 +124,7 @@ pnpm test
 pnpm test:watch
 ```
 
-Ten suites under `tests/`, plus shared helpers in `tests/helpers/`. The three
+Suites live under `tests/`, with shared helpers in `tests/helpers/`. The three
 that carry most of the weight:
 
 - `tests/rendered-html.test.ts` — renders `src/pages/index.astro` in-process with
@@ -140,8 +141,11 @@ that carry most of the weight:
   JavaScript, no serverless function, and the public assets the page links to.
 
 The rest are geometry and content gates — `page-fit`, `card-fill`,
-`control-geometry`, `icon-alignment`, `mobile-hero-contrast`, `patch-wall` and
-`projection`. Deliberately no exact count in prose: read it from `pnpm test`.
+`control-geometry`, `icon-alignment`, `mobile-hero-contrast`, `patch-wall`,
+`projection` and `clock-split` — plus `workflow-guards`, which is the odd one
+out: it reads `.github/workflows/` rather than the site, and executes the deploy
+jobs' `if:` guards in GitHub's own expression evaluator. Deliberately no counts
+in prose, of suites or of assertions: read them from `pnpm test`.
 
 `pnpm test` runs `pnpm build` once as a global setup so the build-output suite
 has real artifacts. Set `SKIP_BUILD=1` to reuse an existing `dist/` while
@@ -149,20 +153,29 @@ iterating.
 
 ## Deployment
 
-### Deploy on Netlify
-
 The site builds to a fully static `dist/` directory — no adapter, no serverless
-function. `netlify.toml` is the single source of truth for the build: the command
-is `pnpm check && pnpm test` — the suite runs `pnpm build` itself, so every
-deploy is gated on typechecking and the assertions — and the publish directory is
-`dist`. To deploy your own copy:
+function — and `.github/workflows/ci.yml` is the only thing that builds it.
+
+One `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test` (the suite runs
+`pnpm build` itself), then uploads that `dist/` as an artifact. Two deploy jobs
+download **that same artifact** and publish it to Cloudflare Pages with
+`wrangler pages deploy` — a preview per pull request, production on a push to
+`main`. Neither rebuilds, so what ships is what the suite asserted against, and
+both sit behind `needs: build`, so a red run of any of the three commands blocks
+the deploy. That edge is the whole of the gate; `tests/workflow-guards.test.ts`
+is what stops a refactor dropping it quietly.
+
+To deploy your own copy:
 
 1. Fork this repository.
-2. Link the forked repo to your Netlify account.
+2. Create a Cloudflare Pages project and point `PAGES_PROJECT` in `ci.yml` at it.
+3. Add the `CLOUDFLARE_API_TOKEN` secret (scoped `Cloudflare Pages: Edit`) to a
+   `production` and a `preview` [environment], and the `CLOUDFLARE_ACCOUNT_ID`
+   and `UMAMI_ID` repository variables. The account id is a variable rather than
+   a secret on purpose — it appears in every dashboard URL, so masking it would
+   redact that substring from unrelated log lines while protecting nothing.
 
-Alternatively, deploy directly with this button:
-
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/calvindotsg/portfolio-v2)
+[environment]: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
 
 ## Contact
 
