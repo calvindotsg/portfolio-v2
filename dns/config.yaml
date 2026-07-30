@@ -1,0 +1,87 @@
+# octoDNS manager config for calvin.sg.
+#
+# Run from the REPOSITORY ROOT, not from this directory — `directory:` below resolves against
+# the working directory, not against this file:
+#
+#   octodns-sync --config-file dns/config.yaml            # plan only; writes nothing
+#   octodns-sync --config-file dns/config.yaml --doit     # applies
+#
+# Three settings in here are load-bearing in the sense that getting them wrong takes something
+# down rather than producing an error. Each is commented at the point it appears, and
+# `tests/dns-config.test.ts` fails if any of them is edited away.
+
+# Makes a dry run emit `checksum=<sha256>` over the computed plan, and makes an apply refuse
+# unless it is handed that same checksum. It is `terraform plan -out` for DNS: what gets applied
+# is the plan a human read, and if the zone moved underneath it in the meantime the apply fails
+# instead of writing something nobody reviewed.
+#
+# IT ALSO MOVES WHERE THE SAFETY LIVES, WHICH IS THE PART THAT SURPRISES PEOPLE. Once this is
+# on, `--doit` stops being the thing that decides — octodns' own help says it is "ignored when
+# Manager.enable_checksum is used", and `Manager.sync` has no dry-run guard on its apply loop
+# (manager.py:1135 is the only exit, `if dry_run and not checksum: return 0`). So
+# `octodns-sync --checksum=...` WRITES, with or without `--doit`.
+#
+# The rule that follows is short: a run that must not write must not be given a checksum.
+# `.github/workflows/dns.yml` splits exactly on that, and gives the planning job a read-only
+# token as well so that two independent things would have to be wrong before anything changed.
+manager:
+  enable_checksum: true
+
+providers:
+  config:
+    class: octodns.provider.yaml.YamlProvider
+    directory: ./dns/zones
+
+  cloudflare:
+    class: octodns_cloudflare.CloudflareProvider
+    token: env/CLOUDFLARE_DNS_TOKEN
+
+    # NOT THE DEFAULT, AND THE MOST DANGEROUS LINE IN THIS FILE.
+    #
+    # `pagerules` defaults to TRUE. With it on, the provider adds URLFWD to SUPPORTS, reads
+    # the zone's legacy Page Rules as if they were records, and deletes any it cannot find in
+    # `zones/`. This zone file declares no URLFWD records and never will — so on the default
+    # the very first plan plausibly proposes deleting the redirect rules, including the one
+    # that makes www 301 to the apex and the one that forwards slickshots to Instagram.
+    #
+    # Those rules were created by hand in the dashboard one day before this file existed.
+    # Redirects are not DNS and are not managed here; false makes the provider blind to them
+    # rather than merely quiet about them.
+    pagerules: false
+
+processors:
+  # Cloudflare Email Routing owns these three MX records and marks them `meta.email_routing`.
+  # Managing them here would mean this file becoming the source of truth for inbound mail,
+  # which it must not be — the routing UI would rewrite them and the next plan would fight it.
+  #
+  # A REJECT LIST IS NOT A DELETE LIST. `include_target` defaults to true, which removes the
+  # record from BOTH the desired and the existing zone before the diff is taken, so no Delete
+  # can be generated for it. Setting it to false is what would allow deletion. Do not "fix"
+  # the polarity — `dns/test_filters.py` executes this on the pinned version and proves it.
+  email-routing-owns-the-mx:
+    class: octodns.processor.filter.TypeRejectlistFilter
+    rejectlist:
+      - MX
+
+  names-not-managed-here:
+    class: octodns.processor.filter.NameRejectlistFilter
+    rejectlist:
+      # The Email Routing DKIM key. Cloudflare marks this one `read_only` on top of
+      # `email_routing`, so excluding it is not tidiness — the API refuses to write it, and a
+      # plan containing it would fail at apply rather than at review.
+      - cf2024-1._domainkey
+      # DMARC, excluded for a reason that has nothing to do with DNS: its `rua=` is a personal
+      # mailbox, and no email address appears anywhere else in this public repository. Putting
+      # it here would be the first, and git history does not forget. The record is live and
+      # correct; it is simply not managed from git. Delete this line to adopt it.
+      - _dmarc
+
+zones:
+  calvin.sg.:
+    sources:
+      - config
+    processors:
+      - email-routing-owns-the-mx
+      - names-not-managed-here
+    targets:
+      - cloudflare

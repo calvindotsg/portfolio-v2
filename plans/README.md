@@ -87,6 +87,17 @@ here because two entries below — the DX-01 rejection and the deploy-gate basel
 — would otherwise read as current policy and send a run to re-derive a decision
 that has already been reversed.
 
+**That work package closed on 2026-07-31 with DNS-as-code (`dns/`), the last item
+in it.** One correction is worth carrying forward, because the plan asserted the
+opposite and a future run would inherit it: WP6 proposed excluding the apex and
+`www` CNAMEs as "Pages-managed". They are not. Cloudflare marks what it owns —
+the Email Routing records carry `meta.email_routing`, the DKIM key also carries
+`read_only` — and both CNAMEs carry `meta: {}`, i.e. they are ordinary
+hand-managed records. They are in git. What the plan did *not* anticipate is the
+`pagerules: true` default, which would have planned the deletion of the very
+redirect rules WP5 had created the day before; `dns/config.yaml` turns it off and
+`dns/test_filters.py` executes both settings to show the difference.
+
 ## Baseline: what this repo is now (verified at `f129245`, updated after run 2 at `1f06c27`, re-verified for run 3 at `4e15674`, re-measured for run 4 at `45e286f`)
 
 Run-3 corrections to the table below (audit at `4e15674`, final state after
@@ -228,11 +239,12 @@ is left as written because it records what was true when it was measured.
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
 | components | 14 `.astro` files (11 components, 1 layout, 2 page routes → 4 pages); **no UI framework**, no `.svelte`, no islands |
 | `uno.config.ts` | 506 lines — safelist, blocklist, five `rem` breakpoints, the two shortcuts; mostly measured rationale |
-| tests | **277** assertions, 10 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`. **Now 362 in 12 files** — measured 2026-07-30 on the commit that deleted `netlify.toml` (`git log --diff-filter=D -- netlify.toml`), read off `pnpm test` rather than counted. The two new files are `clock-split` (the `BUILD_DATE`/`UPDATED_AT` split) and `workflow-guards` (the deploy gate, executed rather than read) |
+| tests | **277** assertions, 10 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`. **Now 362 in 12 files** — measured 2026-07-30 on the commit that deleted `netlify.toml` (`git log --diff-filter=D -- netlify.toml`), read off `pnpm test` rather than counted. The two new files are `clock-split` (the `BUILD_DATE`/`UPDATED_AT` split) and `workflow-guards` (the deploy gate, executed rather than read). **Now 393 in 13 files** — measured 2026-07-31 off `pnpm test`; the new file is `dns-config` (the DNS workflow's guards, also executed). A further 9 checks live in `dns/test_filters.py`, which needs Python and runs in `.github/workflows/dns.yml` rather than here |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
 | `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up. **Run 4: now 1 moderate + 2 high** — both highs are brace-expansion GHSA-mh99-v99m-4gvg on dev-only lint paths; plan 017 clears one in-range and documents the other as a second deliberate residual (no patched 1.x exists; the override is measured-broken). **`@netlify/otel` survived the cutover and always would have**: it arrives as `astro` → `unstorage` → `@netlify/blobs`, so it is an Astro dependency and has nothing to do with where the site is hosted — leaving Netlify does not clear it |
 | deploy gate | **Changed after run 4.** `.github/workflows/ci.yml` — a `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test`, uploads `dist/`, and two `wrangler pages deploy` jobs sit behind `needs: build` and publish that same artifact without rebuilding. It replaced `netlify.toml` running `pnpm check && pnpm test`; that file and the Netlify project are both deleted. `tests/workflow-guards.test.ts` is what holds the `needs:` edge |
 | host | **Cloudflare Pages** (project `calvindotsg`), zone on Cloudflare DNS. Was Netlify until 2026-07-30 |
+| DNS | **In git since 2026-07-31** — `dns/zones/calvin.sg.yaml` (octoDNS), planned and applied by `.github/workflows/dns.yml`. Ten of the zone's fifteen records; the three Email Routing `MX`, the `read_only` DKIM key and `_dmarc` are each excluded for a different reason, stated in `dns/config.yaml` beside the exclusion. **Inert until two Cloudflare API tokens exist** — see `dns/README.md`; nothing in this repository can mint them |
 | content source | everything user-facing is in `src/lib/constants.ts` |
 
 The obvious simplifications were taken. A new run should expect *fewer and

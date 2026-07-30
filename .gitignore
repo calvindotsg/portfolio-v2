@@ -31,3 +31,7 @@ pnpm-debug.log*
 .scratchpad/
 .claude/worktrees/
 
+
+# python, for dns/ only — octoDNS is the one Python toolchain here
+__pycache__/
+dns/.venv/

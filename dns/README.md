@@ -1,0 +1,83 @@
+# DNS as code
+
+The calvin.sg zone, in git. `zones/calvin.sg.yaml` is the record of intent, `config.yaml` says
+what octoDNS may touch, and `.github/workflows/dns.yml` runs it. Each of those files explains its
+own decisions at the line that makes them; this page is the part that lives nowhere else — what
+to do, and what has to exist first.
+
+## It is not switched on yet
+
+Nothing here can run until two API tokens exist, and neither `cf` nor any token in CI can create
+them: Cloudflare's token-minting endpoints refuse every credential this repository holds, by
+design. **Both must be made by hand at
+[dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens).**
+
+| Secret | Scope | Zone resources | Where it goes |
+|---|---|---|---|
+| `CLOUDFLARE_DNS_READ_TOKEN` | Zone → Zone: **Read**, Zone → DNS: **Read** | Include → Specific zone → `calvin.sg` | Repository secret |
+| `CLOUDFLARE_DNS_WRITE_TOKEN` | Zone → Zone: **Read**, Zone → DNS: **Edit** | Include → Specific zone → `calvin.sg` | **`dns` environment** secret |
+
+Two tokens rather than one, because the job that runs weekly and on every PR should not be able
+to change anything — and one token would mean it could. The write token belongs to the `dns`
+environment specifically: a repository-level secret of that name would be readable by every job
+that omits `environment:`, and the separation would be decorative. That is the same invariant
+`ci.yml` states for `CLOUDFLARE_API_TOKEN`.
+
+Neither token grants Pages, Workers, or account access, so neither can deploy the site, and the
+existing `CLOUDFLARE_API_TOKEN` cannot touch DNS. Until both secrets exist the workflow fails
+with a message naming the missing one rather than a Cloudflare authentication error.
+
+## What is managed, and what is deliberately not
+
+Ten of the zone's fifteen records are in `zones/calvin.sg.yaml`. The other five are excluded, and
+`config.yaml` gives the reason beside each exclusion:
+
+- **The three `MX` records** belong to Cloudflare Email Routing, which marks them as its own and
+  rewrites them from its own UI.
+- **`cf2024-1._domainkey`** is the Email Routing DKIM key, and Cloudflare marks it `read_only` —
+  the API refuses to write it at all.
+- **`_dmarc`** is excluded for a reason that is not about DNS: its `rua=` is a personal mailbox,
+  and no email address appears anywhere else in this public repository. Deleting one line from
+  the name reject list adopts it, and that is a choice about publishing an address, not about
+  correctness.
+
+An excluded record is invisible to octoDNS on **both** sides of the diff, so no plan can ever
+propose deleting one. `test_filters.py` proves that by executing it rather than by citing it.
+
+## Making a change
+
+1. Edit `zones/calvin.sg.yaml`. Keys must stay sorted — octoDNS refuses to parse the file
+   otherwise, so a wrongly ordered record fails loudly rather than silently.
+2. Open a PR. The **DNS** workflow proves the filter semantics and prints the plan to the job
+   summary, along with a checksum.
+3. Merge, then run the workflow from the Actions tab with that **checksum** pasted into the input.
+   That is what applies it. Leaving the input empty re-plans and changes nothing.
+
+The checksum is not a confirmation prompt. It identifies *which* plan you approved: if the zone
+moved between the plan and the apply, octoDNS refuses rather than writing something nobody read.
+
+## The weekly run is the point
+
+Realistically, DNS gets changed in the Cloudflare dashboard — that is how the `www` redirect and
+every record here came to exist. So the job this repository is actually good for is noticing when
+the zone and the file disagree. The Monday-morning run plans against the live zone and **fails if
+it finds anything**, which is the only way a drift becomes a notification rather than a surprise.
+
+When it fails, one of two things is true: someone edited DNS by hand, and the file should be
+updated to match; or the file is ahead of the zone, and wants applying.
+
+## Working on it locally
+
+```sh
+uv venv dns/.venv && uv pip install --python dns/.venv/bin/python -r dns/requirements.txt
+dns/.venv/bin/python dns/test_filters.py          # no network, no credentials
+```
+
+`test_filters.py` runs a real octoDNS plan against a fixture of the live zone with only the HTTP
+call stubbed, so it exercises the shipped code path. It needs no token and should stay that way.
+To plan against the live zone you need the read token in `CLOUDFLARE_DNS_TOKEN`, and then
+`octodns-sync --config-file dns/config.yaml` **from the repository root** — `directory:` in the
+config resolves against the working directory, not against the config file.
+
+Never pass `--checksum` to a run you intend as a dry run. With `enable_checksum: true` that flag,
+not `--doit`, is what makes octoDNS write.
