@@ -1913,4 +1913,25 @@ describe("hashed assets are cached forever, and are hashed", () => {
         expect(unhashed, "these /_astro/ assets carry no content hash, so the immutable header in "
             + "dist/_headers would pin a stale file for a year").toEqual([]);
     });
+
+    it("ships no file the host would execute rather than serve", () => {
+        /*
+         * THE ARTIFACT IS SUPPOSED TO BE INERT, and two filenames break that. Cloudflare
+         * Pages reads `_worker.js` as advanced-mode server code and `_routes.json` as
+         * routing configuration — both arriving from `public/`, which is PR-authored, and
+         * neither validated at deploy time: `wrangler pages deploy` appends the directory
+         * and lets the server decide. So the deploy jobs' "no repository source runs" only
+         * covers the RUNNER; these two would run at the edge instead.
+         *
+         * This site is a static build with no adapter and should never grow either. Asserted
+         * here rather than in the workflow because an assertion about the artifact belongs
+         * with the rest of them, and because this way it is caught locally before it ships.
+         */
+        for (const forbidden of ["_worker.js", "_routes.json"]) {
+            expect(existsSync(`dist/${forbidden}`), `dist/${forbidden} exists — Cloudflare Pages `
+                + `treats it as executable configuration rather than a static file, so this build `
+                + `would stop being the inert artifact the deploy jobs assume. If an adapter was `
+                + `added on purpose, the deploy design needs revisiting, not this assertion`).toBe(false);
+        }
+    });
 });
