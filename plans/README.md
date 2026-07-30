@@ -477,11 +477,29 @@ None of these is an agent's call. They are recorded so a new run does not
 "helpfully" do them; the first two have since been resolved and are kept with
 their resolutions rather than deleted.
 
-- **`www.calvin.sg` does not redirect to the apex.** It answers 200 in its own
-  right, so the site is reachable at two hostnames and the canonical tag is the
-  only thing saying which one counts. The fix is a Cloudflare Redirect Rule, and
-  it is dashboard-only: the Rules API returns 403 for the OAuth profile the `cf`
-  CLI holds, so no agent can apply it and none should keep proposing it.
+- **`www.calvin.sg` serves the site instead of redirecting, and the cause is not a
+  missing rule.** `www` is an *attached custom domain on the Pages project* — active,
+  with its own Google Trust Services certificate — so Pages routes it by Host header
+  exactly as it routes the apex. The two hostnames are equal origin bindings. The
+  first diagnosis recorded here said "a Redirect Rule is missing", which was reading
+  the symptom: a rule masks the duplicate, detaching the domain removes it.
+
+  **Order is load-bearing** — add the redirect rule *first*, while `www` is still
+  attached, then detach. Single Redirects execute first in the rules pipeline and take
+  precedence over Page Rules, so the rule answers before Pages ever sees the request;
+  detaching first would make `www` fail until the rule existed.
+
+  Two more findings from the same review. The `Always Use HTTPS` Page Rule is disabled
+  **and** its pattern `http://*.calvin.sg/*` cannot match the apex, so it never did the
+  job it appears to — both hostnames upgrade anyway from the zone-level setting. And
+  neither hostname sends HSTS.
+
+  **No agent can apply any of it.** Measured against the API, not inferred from the CLI:
+  the `cf` OAuth profile is 403 on `rulesets`, `pagerules` and `settings/*`, and 403 on
+  both token-minting endpoints, so it cannot even grant itself the scope. The 1Password
+  token is Pages-only. The runbook and a calibrated gate are in
+  `.scratchpad/canonicalise-www.sh` and `.scratchpad/verify-canonical.sh`; the gate is
+  red on 5 of 14 checks today and must be green after.
 
 - ~~`public/preview.jpg` is still the August 2024 screenshot.~~ **Resolved
   2026-07-21**: the maintainer supplied a current dark-theme screenshot. It
