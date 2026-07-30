@@ -16,6 +16,18 @@
 # is one build that also gates the deploy on typechecking and the assertion
 # suite. A failing suite fails the deploy and production keeps serving the
 # previous build.
+#
+# THE NODE VERSION OF THIS BUILD IS SET BY `.nvmrc`, NOT BY ANYTHING IN THIS FILE.
+# Netlify's precedence is `.nvmrc` > `.node-version` > the `NODE_VERSION` environment
+# variable > the UI setting, so `.nvmrc` sits at the TOP and adding `NODE_VERSION`
+# here would NOT override it. That file was added for GitHub Actions ("so CI and the
+# laptop cannot diverge") and moved this host from Node 22 to 26 as a side effect --
+# green, but nobody aimed it. The coupling is easy to miss precisely because a
+# `.nvmrc` cannot carry a comment of its own, so it is recorded here: while this file
+# lives, bumping `.nvmrc` for a CI reason also repoints the build that ships
+# calvin.sg. Verify what a build actually resolved by reading its log for
+# "Attempting Node.js version" rather than trusting the dashboard, which -- see above
+# -- looks authoritative and is not.
 [build]
   command = "pnpm check && pnpm test"
   publish = "dist"
