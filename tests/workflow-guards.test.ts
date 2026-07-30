@@ -38,6 +38,13 @@ interface Step {
     run?: string;
     if?: string;
     env?: Record<string, string>;
+    /**
+     * HYPHENATED, BECAUSE THAT IS THE KEY GITHUB READS. Spelling this `continue_on_error`
+     * type-checks, reads `undefined` off every real workflow, and leaves the guard below
+     * permanently satisfied — a fix that looks applied and is not, which is the exact trap
+     * this repository's doctrine names. `parse()` hands back the literal key.
+     */
+    "continue-on-error"?: boolean | string;
 }
 
 interface Job {
@@ -45,6 +52,7 @@ interface Job {
     if?: string;
     environment?: string | {name?: string; url?: string};
     steps?: Step[];
+    "continue-on-error"?: boolean | string;
 }
 
 const CI_PATH = ".github/workflows/ci.yml";
@@ -65,7 +73,14 @@ const needsOf = (id: string): string[] => {
  * `tests/control-geometry.test.ts` discovers controls from the CSS signature for the same
  * reason and says so in the same words.
  */
-const publishingJobs = jobIds.filter((id) => JSON.stringify(CI.jobs[id]).includes("secrets.CLOUDFLARE_API_TOKEN"));
+/**
+ * BOTH SPELLINGS, because GitHub accepts both and a substring match on the dot form is a
+ * naming convention wearing a capability check. `secrets['CLOUDFLARE_API_TOKEN']` and
+ * `secrets["CLOUDFLARE_API_TOKEN"]` are exactly equivalent index syntax, and a job spelled
+ * that way was invisible to every assertion in this file.
+ */
+const TOKEN_REFERENCE = /secrets\s*(?:\.\s*CLOUDFLARE_API_TOKEN\b|\[\s*(['"])CLOUDFLARE_API_TOKEN\1\s*])/;
+const publishingJobs = jobIds.filter((id) => TOKEN_REFERENCE.test(JSON.stringify(CI.jobs[id])));
 
 /** Every job reachable from `id` by following `needs`, `id` excluded. */
 const upstreamOf = (id: string): Set<string> => {
@@ -80,8 +95,47 @@ const upstreamOf = (id: string): Set<string> => {
     return seen;
 };
 
+/**
+ * "RUNS THE SUITE" HAS TO MEAN "A RED SUITE FAILS THIS JOB", NOT "THIS STRING APPEARS".
+ *
+ * The first version of this predicate was a substring match on the step's `run` text, and an
+ * adversarial review put four one-line bypasses through it, each leaving all 21 tests green
+ * while a red suite shipped an untested artifact:
+ *
+ *   - `continue-on-error: true` on the step (or on the job) — the step cannot fail the job
+ *   - `pnpm test || true` — the shell swallows the exit code
+ *   - a `run:` block whose only mention of the suite is inside a `#` comment
+ *   - conversely `pnpm run test`, the other legal spelling of the same command, reddened a
+ *     CORRECT workflow with a message accusing it of no longer gating the deploy, which is
+ *     how a reader gets trained to loosen a gate
+ *
+ * So the command is matched as a whole line, comments are stripped first, both pnpm spellings
+ * are accepted, and anything that neuters the exit code disqualifies the step. `|| true` and
+ * friends fail the line match rather than being blocklisted, which is the right way round: an
+ * exact command is a small set, and the ways to swallow a status are not.
+ *
+ * A step-level `if:` is deliberately NOT rejected. The review flagged it, and it is real
+ * blindness, but it is not reachable here: `pnpm test` is the only step that produces `dist/`,
+ * so skipping it makes the next step's `find dist -name '*.html'` exit 1 under `bash -e` and
+ * the job goes red anyway. Gating on it would be a rule with no defect behind it.
+ */
+const NEUTERED = (v: boolean | string | undefined) => v === true || v === "true";
+
+const suiteSteps = (id: string): Step[] =>
+    (CI.jobs[id]?.steps ?? []).filter((s) => (s.run ?? "")
+        .split("\n")
+        .filter((line) => !/^\s*#/.test(line))
+        .some((line) => /^pnpm (run )?test$/.test(line.trim())));
+
 const runsTheSuite = (id: string): boolean =>
-    (CI.jobs[id]?.steps ?? []).some((s) => /(^|\s|&&)pnpm test(\s|$)/.test(s.run ?? ""));
+    !NEUTERED(CI.jobs[id]?.["continue-on-error"])
+    && suiteSteps(id).some((s) => !NEUTERED(s["continue-on-error"]));
+
+/** `environment:` takes a bare string or a mapping; both spellings name the same thing. */
+const environmentNameOf = (id: string): string | undefined => {
+    const env = CI.jobs[id]?.environment;
+    return typeof env === "string" ? env : env?.name;
+};
 
 describe("a red suite still blocks a deploy", () => {
     /**
@@ -96,8 +150,28 @@ describe("a red suite still blocks a deploy", () => {
         for (const id of publishingJobs) {
             const upstream = [...upstreamOf(id)];
             expect(upstream.some(runsTheSuite), `job "${id}" can read the Cloudflare deploy token, so it publishes `
-                + `the site, but no job it needs runs \`pnpm test\` — it reaches ${JSON.stringify(upstream)}. A red `
-                + `suite would no longer block a deploy, and nothing else in this repository would notice.`).toBe(true);
+                + `the site, but no job it needs runs \`pnpm test\` in a way that can FAIL — it reaches `
+                + `${JSON.stringify(upstream)}. Check for continue-on-error, a swallowed exit code such as `
+                + `\`pnpm test || true\`, or a suite step that has been commented out. A red suite would no longer `
+                + `block a deploy, and nothing else in this repository would notice.`).toBe(true);
+        }
+    });
+
+    /**
+     * `always()` IS THE ONE SPELLING THAT DECOUPLES A JOB FROM ITS `needs:`, and before this
+     * assertion existed the gate's response to it was a parser crash. `@actions/expressions`
+     * ships `wellKnownFunctions` without the status functions, so any of them in a guard threw
+     * before evaluation and took 13 of 21 tests down with a message about the test's own parser
+     * — identical treatment for `always()`, which is the hole, and `success()`, which is the
+     * implicit default and harmless. Named here so the two fail differently and legibly.
+     */
+    it("lets no publishing job run regardless of whether the suite passed", () => {
+        for (const id of publishingJobs) {
+            expect(guardOf(id), `job "${id}" publishes the site and its if: calls a status function. `
+                + "`always()` runs the job even when a job it needs FAILED, which silently deletes the "
+                + "`needs:` edge this whole file exists to hold; `failure()` and `cancelled()` do the same. "
+                + "If you meant the implicit default, write no status function at all.")
+                .not.toMatch(/\b(always|failure|cancelled)\s*\(/);
         }
     });
 
@@ -121,9 +195,22 @@ describe("a red suite still blocks a deploy", () => {
      */
     it("gives every publishing job an environment, which is what binds its token to a branch policy", () => {
         for (const id of publishingJobs) {
-            expect(CI.jobs[id]?.environment, `job "${id}" reads secrets.CLOUDFLARE_API_TOKEN without declaring an `
+            expect(environmentNameOf(id), `job "${id}" reads the Cloudflare deploy token without declaring an `
                 + `environment:, so it is not covered by any deployment branch policy.`).toBeDefined();
         }
+    });
+
+    /**
+     * THE NAME, NOT MERELY THE PRESENCE, and the difference is the likelier mistake. Only the
+     * `production` environment carries the deployment branch policy limited to `main`; asserting
+     * that a block EXISTS lets `deploy-production` point at `preview` and keep a green board,
+     * which voids the structural control `ci.yml` leans on while looking untouched in review.
+     * Copy-pasting a deploy job and forgetting to change the environment name is a far more
+     * ordinary error than deleting the block outright.
+     */
+    it("points each publishing job at its own environment, since only one carries the main-only policy", () => {
+        expect(environmentNameOf("deploy-production")).toBe("production");
+        expect(environmentNameOf("deploy-preview")).toBe("preview");
     });
 });
 
@@ -136,6 +223,17 @@ const toData = (v: unknown): data.ExpressionData => {
     if (typeof v === "string") return new data.StringData(v);
     if (typeof v === "boolean") return new data.BooleanData(v);
     if (typeof v === "number") return new data.NumberData(v);
+    /*
+     * THE ARRAY BRANCH IS NOT OPTIONAL, and its absence failed SILENTLY IN THE UNSAFE
+     * DIRECTION. Without it an array fell through to `Object.entries` and arrived as a
+     * Dictionary keyed "0","1",… — on which `contains(arr, x)` returns false where GitHub
+     * returns true, and `join(arr, ',')` returns "" where GitHub returns the joined value.
+     * A guard using either would be reported as "this job does not deploy" for a payload
+     * where GitHub deploys, which is the one error direction a deploy gate must not have.
+     * Nothing in `ci.yml` uses an array today; the point is that the harness must model the
+     * platform whether or not the current file exercises the case. Proved below.
+     */
+    if (Array.isArray(v)) return new data.Array(...v.map(toData));
     return new data.Dictionary(...Object.entries(v as object).map(([key, value]) => ({key, value: toData(value)})));
 };
 
@@ -152,12 +250,23 @@ const evaluate = (expr: string, github: unknown): boolean => {
 };
 
 const REPO = "calvindotsg/portfolio-v2";
-const prContext = (n: number, headRepo: string, actor: string) => ({
+/**
+ * `pull_request.user.login` IS POPULATED BECAUSE GITHUB ALWAYS SENDS IT, and omitting it made
+ * a defect row below pass for the wrong reason. The author-keyed spelling of the fork guard
+ * evaluated true against the old fixture only because the dereference yielded null — nothing
+ * to do with authorship — so the row demonstrated a missing field rather than the defect it
+ * names. It defaults to the actor, which is the ordinary case; the tenth context below is the
+ * one where they legitimately differ.
+ */
+const prContext = (n: number, headRepo: string, actor: string, author: string = actor) => ({
     actor,
     event_name: "pull_request",
     repository: REPO,
     ref: `refs/pull/${n}/merge`,
-    event: {number: n, pull_request: {number: n, head: {repo: {full_name: headRepo}, sha: "deadbeef"}}},
+    event: {
+        number: n,
+        pull_request: {number: n, head: {repo: {full_name: headRepo}, sha: "deadbeef"}, user: {login: author}},
+    },
 });
 
 /**
@@ -175,6 +284,11 @@ const CONTEXTS: Record<string, unknown> = {
     "same-repo PR from a human": prContext(1, REPO, "calvindotsg"),
     "fork PR": prContext(2, "someone/portfolio-v2", "someone"),
     "Dependabot PR": prContext(3, REPO, "dependabot[bot]"),
+    // THE ROW WHERE ACTOR AND AUTHOR DIVERGE, and the only one that can tell the shipped guard
+    // apart from the author-keyed spelling of it. A human pushing a commit onto a bot's branch
+    // gets a run whose ACTOR is the human and whose `pull_request.user` is frozen at the bot;
+    // secrets follow the actor, so this run has them and must get its preview.
+    "human pushes onto a Dependabot branch": prContext(4, REPO, "calvindotsg", "dependabot[bot]"),
     "pull_request_target, ref=main": {actor: "someone", event_name: "pull_request_target", repository: REPO, ref: "refs/heads/main",
         event: {number: 9, pull_request: {number: 9, head: {repo: {full_name: "someone/portfolio-v2"}, sha: "cafe"}}}},
     "issue_comment, ref=main": {actor: "someone", event_name: "issue_comment", repository: REPO, ref: "refs/heads/main", event: {}},
@@ -189,6 +303,7 @@ const INTENDED: Record<string, string[]> = {
     "same-repo PR from a human": ["deploy-preview"],
     "fork PR": [],
     "Dependabot PR": [],
+    "human pushes onto a Dependabot branch": ["deploy-preview"],
     "pull_request_target, ref=main": [],
     "issue_comment, ref=main": [],
 };
@@ -196,7 +311,12 @@ const INTENDED: Record<string, string[]> = {
 const guardOf = (id: string): string => {
     const guard = CI.jobs[id]?.if;
     if (typeof guard !== "string") throw new Error(`job "${id}" can publish the site and has no if: guard at all`);
-    return guard;
+    // An explicit leading `success() &&` is GitHub's implicit default written out, and is
+    // semantically identical to omitting it. The evaluator has no status functions, so it
+    // would throw; stripping it keeps a harmless spelling readable. The genuinely dangerous
+    // ones — always/failure/cancelled — are NOT stripped, and are rejected by their own
+    // assertion above so they fail with a message about the workflow rather than the parser.
+    return guard.replace(/^\s*success\s*\(\s*\)\s*&&\s*/, "");
 };
 
 const deployedBy = (context: unknown): string[] => publishingJobs.filter((id) => evaluate(guardOf(id), context));
@@ -233,8 +353,14 @@ describe("the deploy guards, executed in GitHub's own evaluator", () => {
  *
  * These are the real spellings, not inventions: every one of them was either shipped or was
  * one review comment away from shipping.
+ *
+ * A ROW READS IN ONE OF TWO DIRECTIONS, and conflating them is how the last row came to pass
+ * for the wrong reason. `admits` means the defective guard says YES where the shipped one says
+ * no — a run that should not deploy, deploying. `refuses` is the mirror: the defective guard
+ * says NO where the shipped one says yes, which is the shape of a defect that silently skips a
+ * job, and a skipped job renders as a grey check that reads as a pass.
  */
-const HISTORICAL_DEFECTS: {defect: string; job: string; guard: string; admits: string}[] = [
+const HISTORICAL_DEFECTS: {defect: string; job: string; guard: string; admits?: string; refuses?: string}[] = [
     {
         defect: "the ref-blind production guard — true for a workflow_dispatch on ANY ref, while the job hardcodes --branch=main",
         job: "deploy-production",
@@ -263,19 +389,41 @@ const HISTORICAL_DEFECTS: {defect: string; job: string; guard: string; admits: s
         defect: "the fork test written against the PR author instead of the actor — a human pushing onto a bot branch is still refused",
         job: "deploy-preview",
         guard: "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]'",
-        admits: "Dependabot PR",
+        // Read the other way round from every row above it: here the defective guard REFUSES a
+        // run the shipped one admits. Row asserted by `refuses` rather than `admits` below.
+        refuses: "human pushes onto a Dependabot branch",
     },
 ];
 
 describe("the context set is sharp enough to catch the defects it was written for", () => {
-    it.each(HISTORICAL_DEFECTS)("catches $defect", ({job, guard, admits}) => {
+    it.each(HISTORICAL_DEFECTS)("catches $defect", ({job, guard, admits, refuses}) => {
         expect(guard, "the defective spelling is identical to the shipped one, so this row proves nothing")
             .not.toBe(guardOf(job));
-        expect(evaluate(guard, CONTEXTS[admits]),
-            `"${admits}" no longer distinguishes this defect from the shipped guard, so the context set has `
-            + "gone blunt — restore the context or the intent row that made it discriminate.").toBe(true);
-        expect(evaluate(guardOf(job), CONTEXTS[admits]),
-            `the shipped guard for "${job}" admits "${admits}", which is the defect itself.`).toBe(false);
+
+        // Exactly one direction per row, or the row is not saying anything definite.
+        const context = admits ?? refuses;
+        expect([admits, refuses].filter(Boolean), "a row must name `admits` OR `refuses`, not both and not neither")
+            .toHaveLength(1);
+
+        // The two clauses are the same shape read opposite ways: the defective guard and the
+        // shipped one must DISAGREE on this context. Asserting both halves is what stops a row
+        // passing because the context is degenerate for both.
+        const want = admits !== undefined;
+        expect(evaluate(guard, CONTEXTS[context as string]),
+            `"${context}" no longer distinguishes this defect from the shipped guard, so the context set has `
+            + "gone blunt — restore the context or the intent row that made it discriminate.").toBe(want);
+        expect(evaluate(guardOf(job), CONTEXTS[context as string]),
+            want
+                ? `the shipped guard for "${job}" admits "${context}", which is the defect itself.`
+                : `the shipped guard for "${job}" also refuses "${context}", so it has the defect this row names.`)
+            .toBe(!want);
+    });
+
+    /** The array branch in `toData`, proved rather than assumed — see its note. */
+    it("hands GitHub's own functions a real Array, so contains() and join() answer as the platform does", () => {
+        expect(evaluate("contains(github.labels, 'deploy')", {labels: ["deploy", "other"]})).toBe(true);
+        expect(evaluate("contains(github.labels, 'absent')", {labels: ["deploy", "other"]})).toBe(false);
+        expect(evaluate("join(github.labels, ',') == 'a,b'", {labels: ["a", "b"]})).toBe(true);
     });
 
     it("evaluates literals the way GitHub does, so a green run above is not an engine that answers false to everything", () => {
