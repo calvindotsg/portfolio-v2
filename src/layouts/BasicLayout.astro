@@ -5,9 +5,23 @@ import {BUILD_DATE} from "../lib/today";
 interface Props {
     title: string;
     description: string;
+    /**
+     * ASK CRAWLERS NOT TO INDEX THIS PAGE, AND DROP ITS CANONICAL. Only the 404 sets it, and
+     * it is a real control rather than a tidy-up: a status page that answers 200 anywhere it
+     * can be fetched directly, declares itself indexable, and self-canonicalises is the
+     * textbook soft-404 signal — the exact class of thing `src/pages/404.astro` exists to
+     * prevent. Keeping it out of the sitemap is not the same control: a sitemap is a hint
+     * about what to crawl, not an instruction about what to index, and nothing stops a
+     * crawler reaching a URL it was linked to.
+     *
+     * The canonical goes with it. `Astro.url.href` resolves to `…/404/` here, and the build
+     * emits `dist/404.html` — no `404/index.html` — so the page would point at a URL that
+     * does not exist. A canonical to a 404 is worse than none.
+     */
+    noindex?: boolean;
 }
 
-const {title, description} = Astro.props;
+const {title, description, noindex = false} = Astro.props;
 
 /*
  * `<meta name="build-date">` below is the Singapore day this page was drawn for.
@@ -119,7 +133,7 @@ const schema = {
     <meta name="build-date" content={BUILD_DATE}/>
     <title>{title}</title>
     <meta name="description" content={description}/>
-    <meta name="robots" content="index, follow"/>
+    <meta name="robots" content={noindex ? "noindex, follow" : "index, follow"}/>
     {/* Basic OG tags for sharing your website's content on platforms like Facebook and LinkedIn */}
     <meta property="og:title" content={title}/>
     <meta property="og:description" content={description}/>
@@ -131,7 +145,7 @@ const schema = {
          shared link to /patches/cycling unfurled as calvin.sg. Found by a review panel;
          `Astro.url.href` is what the canonical already uses, so the two now agree by
          construction rather than by coincidence. */}
-    <meta property="og:url" content={Astro.url.href}/>
+    {!noindex && <meta property="og:url" content={Astro.url.href}/>}
     <meta
             property="og:image"
             content={image}
@@ -144,7 +158,7 @@ const schema = {
             name="twitter:image"
             content={image}
     />
-    <link href={Astro.url.href} rel="canonical"/>
+    {!noindex && <link href={Astro.url.href} rel="canonical"/>}
     <script type="application/ld+json" set:html={JSON.stringify(schema)}/>
     <script defer src="https://cloud.umami.is/script.js" data-website-id={import.meta.env.UMAMI_ID}></script>
     <link rel="sitemap" href="/sitemap-index.xml"/>
