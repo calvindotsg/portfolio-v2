@@ -15,6 +15,20 @@ import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
 const read = (p: string) => readFileSync(p, "utf8");
 
+/**
+ * THE ONE PAGE TWO BUILD-WIDE GATES BELOW CANNOT HOLD, and it is named here rather than
+ * described, so the exemption is a fact about THIS page and a second unlisted or
+ * unreachable page still fails.
+ *
+ * `src/pages/404.astro` exists because Cloudflare Pages answers an unknown path by serving
+ * `/index.html` with a 200 where no `404.html` is present — see the note in that file. What
+ * it cannot be is a page in the sitemap or a page anything links to: it is the answer to a
+ * URL the site does not have, so a crawler must not index it and no reader can be sent to
+ * it deliberately. Both properties are asserted positively beside the loops that skip it —
+ * the gates keep their reach, and this page keeps having to earn its exemption.
+ */
+const NOT_FOUND_PAGE = "dist/404.html";
+
 describe("dist/", () => {
     it("emits a robots.txt that points crawlers at the sitemap", () => {
         expect(existsSync("dist/robots.txt")).toBe(true);
@@ -45,11 +59,57 @@ describe("dist/", () => {
             [...read("dist/sitemap-0.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]),
         );
         expect(urls.size, "the sitemap must list something").toBeGreaterThan(0);
-        for (const page of builtPages()) {
+
+        // The status page must be ABSENT, which is the assertion its exemption below is
+        // worth. `@astrojs/sitemap` already excludes it — `STATUS_CODE_PAGES` is its own
+        // set, nothing here configures it — so this pins behaviour the site depends on and
+        // does not control.
+        expect(
+            [...urls].filter((u) => /\/404(\.html)?\/?$/.test(u)),
+            "the 404 page is in the sitemap, which asks crawlers to index the page that says a page does not exist",
+        ).toEqual([]);
+
+        for (const page of builtPages().filter((p) => p !== NOT_FOUND_PAGE)) {
             // dist/index.html -> "/", dist/patches/cycling/index.html -> "/patches/cycling/"
             const path = page.replace(/^dist/, "").replace(/index\.html$/, "");
             const expected = new URL(path, METADATA.site_url).href;
             expect(urls.has(expected), `${page} is built but ${expected} is not in the sitemap`).toBe(true);
+        }
+    });
+
+    /**
+     * THE SITEMAP IS NOT THE CONTROL, which is what this test exists to say. A sitemap is a
+     * hint about what to CRAWL; it says nothing about what to index, and nothing stops a
+     * crawler reaching a URL it was linked to. The 404 was kept out of the sitemap — with an
+     * assertion — while shipping `robots: index, follow`, a self-canonical to `/404/` and an
+     * `og:url` to match. `/404/` is a URL the build never emits, and a page that answers 200
+     * when fetched directly, declares itself indexable and canonicalises to a dead address is
+     * the textbook soft-404 signal that `src/pages/404.astro` exists to prevent. Caught by a
+     * review panel rather than by any of this file's gates.
+     *
+     * Its own test rather than a clause inside the sitemap one, because these three failures
+     * used to report under "lists every built page in the sitemap" — a name that describes
+     * neither the defect nor the fix, and would send the next reader to the wrong file.
+     */
+    it("asks crawlers not to index the page that says a page does not exist", () => {
+        const head = parseHTML(read(NOT_FOUND_PAGE)).document;
+        expect(head.querySelector('meta[name="robots"]')?.getAttribute("content"),
+            "the 404 page asks crawlers to index it, which is the soft-404 signal it exists to prevent")
+            .toContain("noindex");
+        expect(head.querySelector('link[rel="canonical"]'),
+            "the 404 page self-canonicalises to a URL the build does not emit — there is no dist/404/index.html")
+            .toBe(null);
+        expect(head.querySelector('meta[property="og:url"]'),
+            "the 404 page advertises an og:url the build does not emit — the canonical's twin, same defect")
+            .toBe(null);
+    });
+
+    /** …and the flag that does it must not leak onto a page that SHOULD be found. */
+    it("leaves every real page indexable", () => {
+        for (const page of builtPages().filter((p) => p !== NOT_FOUND_PAGE)) {
+            expect(parseHTML(read(page)).document.querySelector('meta[name="robots"]')?.getAttribute("content"),
+                `${page} is no longer indexable — the 404's noindex flag has leaked onto a real page`)
+                .toBe("index, follow");
         }
     });
 
@@ -73,8 +133,22 @@ describe("dist/", () => {
      */
     it("reaches every built page from the site root by following links", () => {
         const pathOf = (page: string) => page.replace(/^dist/, "").replace(/index\.html$/, "");
-        const byPath = new Map(builtPages().map((page) => [pathOf(page), page]));
+        const byPath = new Map(builtPages().filter((p) => p !== NOT_FOUND_PAGE).map((page) => [pathOf(page), page]));
         expect(byPath.has("/"), "the site root must be built").toBe(true);
+
+        // THE EXEMPTION EARNS ITSELF HERE. The 404 page is unreachable by design, but a
+        // reader who lands on it by mistyping must not be stranded — it is the one page
+        // whose whole job is to point back into the site, so it is required to link home
+        // rather than merely permitted to be an island.
+        // AN ANCHOR, NOT ANY href. Regexing the raw HTML for `href="/..."` also matched
+        // `<link>` elements in <head>, and this page ships `<link rel="canonical">` — so the
+        // assertion whose stated job is "what a stranded reader can click" was satisfied by
+        // something no reader can click. The document is parsed instead, as everywhere else
+        // in this file.
+        const notFoundLinks = [...parseHTML(read(NOT_FOUND_PAGE)).document.querySelectorAll("a[href]")]
+            .map((a) => a.getAttribute("href"));
+        expect(notFoundLinks, `${NOT_FOUND_PAGE} is reachable from nothing, so a reader who lands on it can only `
+            + "leave by an anchor it carries — and it carries none to the site root").toContain("/");
 
         const seen = new Set<string>(["/"]);
         const queue = ["/"];
@@ -776,11 +850,50 @@ describe("forced colours never paint a system colour on top of itself", () => {
         fieldtext: ["field"],
     };
 
+    /**
+     * THIS IS AN ADDITION, NOT A REPLACEMENT, AND THE DIFFERENCE WAS A REAL DEFECT.
+     *
+     * The 404 page legitimately ships no `forced-colors` rule — it wears the shared layout and
+     * no component that declares one — so the per-page floor below had to stop applying to it.
+     * The first attempt relaxed that floor BUILD-WIDE, to "some page has such rules", and
+     * claimed in this comment that nothing was weakened. That claim was false, and a review
+     * caught it by measurement: with the floor relaxed, every forced-colours rule can be
+     * deleted from all three patch-wall pages and the full suite still passes 327/327. Because
+     * `pageCss()` resolves per page, the per-page floor was the ONLY assertion reaching the
+     * wall's forced-colours rules at all.
+     *
+     * So the floor is restored and the 404 is exempted BY NAME — the idiom this file already
+     * uses twice for the sitemap and reachability gates, twenty lines up. A named exemption
+     * loses exactly one page; a relaxed rule loses every page but one, which is the opposite
+     * trade and the easy mistake.
+     *
+     * What survives from that attempt is genuinely worth keeping, which is why it is still
+     * here: a build-wide check that the `at` filter matches SOMETHING. The old spelling could
+     * not catch a filter that stopped recognising `forced-colors` — every page would fail
+     * identically and the failure would read as a site-wide styling regression rather than as
+     * a broken test. And `rules.length > 0` per page is the question the old floor was
+     * standing in for: did `pageCss()` resolve this page's CSS at all.
+     */
+    it("ships forced-colors rules somewhere, so the per-page assertion below can bite", () => {
+        const pagesWithRules = builtPages()
+            .filter((page) => parseRules(pageCss(page)).some((r) => (r.at ?? "").includes("forced-colors")));
+        expect(pagesWithRules.length, "no page in the build ships a single forced-colors rule — either the site "
+            + "stopped declaring them or the `at` filter below stopped recognising them, and every per-page "
+            + "assertion has gone vacuous").toBeGreaterThan(0);
+    });
+
     it.each(builtPages())("pairs every opted-out background with a readable foreground (%s)", (page) => {
         const doc = parseHTML(read(page)).document;
-        const forced = parseRules(pageCss(page)).filter((r) => (r.at ?? "").includes("forced-colors"));
-        expect(forced.length, `${page} ships no forced-colors rules — this assertion would be vacuous`)
-            .toBeGreaterThan(0);
+        const rules = parseRules(pageCss(page));
+        expect(rules.length, `${page} resolved to no CSS at all — pageCss() found nothing, so every assertion `
+            + "in this test would pass by having nothing to look at").toBeGreaterThan(0);
+        const forced = rules.filter((r) => (r.at ?? "").includes("forced-colors"));
+        // The per-page floor, kept, with the one page that cannot meet it named rather than
+        // the rule relaxed for everybody. See the note above this test.
+        if (page !== NOT_FOUND_PAGE) {
+            expect(forced.length, `${page} ships no forced-colors rules — this assertion would be vacuous`)
+                .toBeGreaterThan(0);
+        }
 
         const matches = (sel: string, el: Element) => {
             try {
@@ -1458,7 +1571,13 @@ describe("dist/index.html is prerendered", () => {
         // four: the three /patches routes each advertised the home page to a social
         // card while their own rel=canonical said otherwise. Asserted against the
         // canonical rather than against a literal, so the two cannot drift apart again.
-        for (const page of builtPages()) {
+        //
+        // THE 404 IS EXEMPT AND MUST CARRY NEITHER. `Astro.url.href` resolves to `…/404/`
+        // there and the build emits `dist/404.html` — no `404/index.html` — so a canonical
+        // would point at a URL that does not exist, and `og:url` is the same claim made to a
+        // social card. Both are dropped by the layout's `noindex` prop, and both are asserted
+        // ABSENT beside the sitemap gate rather than merely skipped here.
+        for (const page of builtPages().filter((p) => p !== NOT_FOUND_PAGE)) {
             const doc = parseHTML(read(page)).document;
             const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute("href");
             const ogUrl = doc.querySelector('meta[property="og:url"]')?.getAttribute("content");

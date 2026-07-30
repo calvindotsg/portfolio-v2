@@ -871,6 +871,62 @@ export const THEME_TOGGLE: {
     name: "Dark theme"
 }
 
+/**
+ * THE PAGE THAT ANSWERS A URL THIS SITE DOES NOT HAVE, and it exists because of what the
+ * host does WITHOUT it rather than because a 404 is nice to have.
+ *
+ * Cloudflare Pages resolves an unknown path by walking up looking for `${dir}/404.html`
+ * and, finding none, serving `/index.html` instead — with a **200**. Measured on a real
+ * preview deployment: `/does-not-exist` and `/patches/nonsense` both returned 200 and the
+ * home page, while the same two paths on the outgoing host returned 404. So without this
+ * page every dead link becomes a soft success that no uptime monitor, crawler or link
+ * checker can ever see. Astro emits `dist/404.html` from this file, which both hosts pick
+ * up, so the fix is one page rather than a per-host redirect rule.
+ *
+ * THE COPY SAYS WHAT THE HEADING DOES NOT. "Page not found" already carries the apology,
+ * so the line under it spends its words on the only thing a reader can act on — that this
+ * site is small enough to list in full, and here it is.
+ *
+ * {@link home_icon} is deliberately the same glyph as {@link PATCHES.home_icon}: the two
+ * are the site's only ways back, and drawing them alike is the same argument the wall's
+ * back link makes about `EventsLink`. It still gets its OWN entry in `uno.config.ts`'s
+ * safelist rather than riding on the wall's — the note there is explicit that relying on
+ * another constant to have already emitted a class is how an icon ships as a zero-size
+ * mask box behind a green build.
+ */
+export const NOT_FOUND: {
+    /**
+     * THE STATUS CODE, DRAWN AS A RACE NUMBER. It is content rather than plumbing because
+     * it is the largest thing a reader sees — see the page's own note for why a bib is the
+     * right object for it. Nothing derives this from the response: the page is prerendered
+     * and the host decides the status, so these two agree by being written down once.
+     */
+    code: string
+    heading: string
+    lede: string
+    description: string
+    home_label: string
+    home_icon: string
+} = {
+    code: "404",
+    heading: "Page not found",
+    /*
+     * A START LIST is what a race publishes: every number that will be on the course. A URL
+     * this site does not have is a number that was never on it, which is the same sentence
+     * in the subject's own words — and it says what happened rather than apologising for it
+     * or blaming the reader for typing.
+     *
+     * "DID NOT START" WAS THE FIRST DRAFT AND IS THE EXACT TERM — DNS is what a results
+     * sheet prints against a bib that never crossed the line. It is cut because on a WEB
+     * error page those three letters read as Domain Name System, and a reader who takes it
+     * that way has been told their network is broken. The right word in the wrong venue.
+     */
+    lede: "That number is not on the start list. The rest of the site is:",
+    description: "That page is not part of Calvin's site.",
+    home_label: "Home",
+    home_icon: "ri:arrow-left-line"
+}
+
 export const FOOTER: {
     prefix: string
     icon: string
