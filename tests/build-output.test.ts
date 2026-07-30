@@ -3,7 +3,9 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {CAREER, FOOTER, GOALS, LINKS, METADATA, WELCOME} from "../src/lib/constants";
+import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PROJECTS, WELCOME} from "../src/lib/constants";
+import stravaProgress from "../src/data/strava-progress.json";
+import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
 import {decl, isStateful, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
 import {builtPages, classTokens, cssChunks} from "./helpers/pages";
@@ -41,6 +43,240 @@ describe("dist/", () => {
     it("emits a sitemap index referencing the deployed origin", () => {
         expect(existsSync("dist/sitemap-index.xml")).toBe(true);
         expect(read("dist/sitemap-index.xml")).toContain(METADATA.site_url);
+    });
+
+    /**
+     * ROBOTS.TXT MUST NOT GIVE ANY CRAWLER ITS OWN GROUP. A draft of the generated
+     * `robots.txt` listed eight answer-engine agents -- GPTBot, ClaudeBot,
+     * PerplexityBot and friends -- each with `Allow: /`, meaning to say that citation
+     * is welcome. It said nothing `User-agent: *` was not already saying, and it armed
+     * a trap: under the robots protocol a crawler obeys the single most specific group
+     * matching its name and IGNORES `*` entirely. The day a `Disallow:` is added to
+     * `*`, every separately-named agent would sail past it.
+     *
+     * So this asserts the shape rather than the wording: exactly ONE `User-agent`
+     * group. Naming an agent is legitimate only to give it rules that DIFFER from `*`,
+     * and on a site where everything is public there are none -- so if this ever needs
+     * to change, the reason belongs beside the change.
+     */
+    it("grants the whole site to one group, and gives no crawler its own", () => {
+        const directives = read("dist/robots.txt").split("\n")
+            .map((line) => line.trim().replace(/\s+/g, " "))
+            .filter((line) => line && !line.startsWith("#"));
+        expect(directives.map((line) => line.toLowerCase()),
+            "robots.txt must say exactly this and nothing else").toEqual([
+            "user-agent: *",
+            "allow: /",
+            `sitemap: ${new URL("sitemap-index.xml", METADATA.site_url).href}`.toLowerCase(),
+        ]);
+    });
+
+    /**
+     * THE SITEMAP CARRIES NO `lastmod`, AND THAT IS THE ASSERTION -- an absent date is
+     * ignored at no cost, while a wrong one is a claim. The reasoning is in
+     * `astro.config.mjs`; the short version is that both candidate dates fail Google's
+     * own "consistently and verifiably accurate" test on this site, measured:
+     *
+     *   `BUILD_DATE` claims all four pages changed on every nightly rebuild.
+     *   `updated_at` is worse than it looks. Move the kilometres and the three patch
+     *   pages get a new stamp while coming out BYTE-IDENTICAL -- they contain no Strava
+     *   kilometre at all. Freeze the kilometres and run the calendar forward six days and
+     *   all four pages change -- countdowns tick, a bib flips to earned -- while the stamp
+     *   does not move. The second direction is the harmful one: a frozen `lastmod` on a
+     *   page that did change is an instruction not to come back.
+     *
+     * So this gate is pointed at the thing most likely to be re-added by someone who
+     * reads "the sitemap has no lastmod" as an oversight. If a real per-URL date ever
+     * exists -- derived from the built OUTPUT, not from an input -- this is the test to
+     * rewrite, and the config comment says what to watch out for.
+     */
+    it("puts no date on the sitemap, having none it can stand behind", () => {
+        for (const file of ["dist/sitemap-0.xml", "dist/sitemap-index.xml"]) {
+            expect(read(file), `${file} carries a <lastmod> this site cannot justify per URL`)
+                .not.toContain("<lastmod>");
+        }
+    });
+
+    /**
+     * `/llms.txt` IS DERIVED, AND THIS IS WHAT MAKES THAT TRUE RATHER THAN INTENDED.
+     * It replaced a hand-written `public/llms.txt` that had drifted on every axis --
+     * wrong job title, paraphrased project descriptions, a whole project missing --
+     * and none of that was detectable because a file in `public/` has no relationship
+     * to the constants it paraphrases. These assertions are that relationship.
+     *
+     * WHAT THIS CANNOT CATCH, AND WHY THAT IS CORRECT — found by calibrating it wrongly
+     * first. Editing a description in `constants.ts` leaves this GREEN, because the
+     * endpoint regenerates from the same constant the assertion reads: both sides move
+     * together and the comparison is a tautology. That is not a hole to plug. Pinning
+     * the literal string here would put the description in two places again, which is
+     * the precise defect the endpoint was written to remove.
+     *
+     * So the axis this DOES gate is omission, and the calibration has to mutate the
+     * ENDPOINT rather than the constant. Executed: deleting the `PROJECTS` map, the
+     * completed-race list, and the `full_name` H1 each turn it red, with the messages
+     * naming which. A green here means every constant still reaches the file — not that
+     * any constant is right.
+     */
+    it("emits an llms.txt carrying the constants it claims to summarise", () => {
+        expect(existsSync("dist/llms.txt")).toBe(true);
+        const llms = read("dist/llms.txt");
+
+        const lines = llms.split("\n");
+
+        // ASSOCIATION, NOT PRESENCE, and this is the correction that matters. Asserting
+        // each constant independently only says every token is SOMEWHERE in the file, so
+        // the endpoint may pair any name with another row's url, description or distance
+        // and stay green. Each row is therefore found by its own key and the rest of the
+        // row asserted ON THAT LINE.
+        const rowFor = (key: string, what: string) => {
+            const row = lines.find((line) => line.includes(key));
+            expect(row, `${what} must appear in llms.txt`).toBeDefined();
+            return row as string;
+        };
+
+        expect(llms.startsWith(`# ${METADATA.full_name}\n`), "H1 must be the full name").toBe(true);
+        expect(lines[2].startsWith("> "), "a blockquote summary must follow the H1").toBe(true);
+        expect(lines[2], "the blockquote must say who this is").toContain(CAREER[0].job_name);
+        expect(lines[2], "the blockquote must carry the summary").toContain(METADATA.professional_summary);
+        expect(llms).toContain(METADATA.description);
+        expect(llms).toContain(CAREER[0].company);
+        expect(llms).toContain(stravaProgress.updated_at);
+
+        // NON-EMPTY, because `toContain("")` is true of every string. An emptied
+        // `professional_summary` shipped three blank-ish lines with the whole suite green.
+        expect(METADATA.professional_summary.length, "the summary must say something").toBeGreaterThan(0);
+        expect(PROJECTS.length, "there must be projects to list").toBeGreaterThan(0);
+        expect(GOALS.length, "there must be goals to list").toBeGreaterThan(0);
+        expect(EVENTS.length, "there must be events to list").toBeGreaterThan(0);
+
+        for (const goal of GOALS) {
+            const row = rowFor(`- ${goal.goal_name}:`, `${goal.goal_name}'s progress`);
+            expect(row, `${goal.goal_name}'s own numbers must be on its own line`)
+                .toContain(`${goal.raw_progress} of ${goal.total_goal} ${goal.measurable_unit}`);
+        }
+        for (const event of EVENTS) {
+            const row = rowFor(event.name, event.name);
+            expect(row, `${event.name}'s distance must be on its own line`).toContain(`${event.km} km`);
+            expect(row, `${event.name}'s country must be on its own line`).toContain(event.country);
+            expect(row, `${event.name}'s date must be on its own line`).toContain(event.date);
+        }
+        for (const project of PROJECTS) {
+            const row = rowFor(`](${project.repo_url})`, `${project.name}'s repo link`);
+            expect(row, `${project.name} must be the label on its own repo link`)
+                .toContain(`[${project.name}](`);
+            expect(row, `${project.name} must quote its description`).toContain(project.description);
+        }
+
+        // EVERY BUILT PAGE MUST BE LINKED, which nothing asserted: the whole `## Pages`
+        // section could be deleted and the suite stayed green. llms.txt is a map of the
+        // site, and a map missing the wall is the one failure it exists to prevent.
+        for (const page of builtPages().filter((p) => p !== NOT_FOUND_PAGE)) {
+            const url = new URL(page.replace(/^dist/, "").replace(/index\.html$/, ""), METADATA.site_url).href;
+            expect(llms, `${page} is built but ${url} is linked from nowhere in llms.txt`)
+                .toContain(`](${url})`);
+        }
+    });
+
+    /**
+     * llms.txt MUST SPLIT RACES THE WAY THE WALL DOES. The endpoint asks `patchState`;
+     * the first draft compared `end_date ?? date` against `BUILD_DATE` instead, and that
+     * is wrong on exactly one day — the day of a race. `patchState` asks `hasRecording`
+     * BEFORE the clock, because a race run this morning is a patch today (#97). A date
+     * comparison misses it, so the wall would read "finished" while llms.txt still read
+     * "still to come".
+     *
+     * It was invisible when written: the most recent race already had yesterday's date.
+     *
+     * WHAT THIS GATE IS AND IS NOT, because the calibration came back green and that is
+     * worth reporting rather than burying. Restoring the date comparison leaves this
+     * PASSING on an ordinary day — the two predicates agree on every day that is not a
+     * race day, so there is nothing to catch. It goes red on the day it matters, which is
+     * the day the bug appears, and that is the whole of its value: it is a correct
+     * assertion with a CALENDAR-DEPENDENT reach, not a proof that ran.
+     *
+     * Making it fire every day would need a synthetic event injected into the built
+     * artifact, which `EVENTS` does not allow. The compensating cover is that
+     * `patchState` itself — including the `hasRecording`-before-the-clock rule this
+     * depends on — is unit-tested against pinned days in `tests/projection.test.ts`.
+     */
+    it("splits llms.txt races by patchState, not by a date comparison", () => {
+        const llms = read("dist/llms.txt");
+        // FIND THE BOUNDS BEFORE SLICING BETWEEN THEM. A missing marker makes `indexOf`
+        // return -1, and `slice(-1, n)` is a silently empty or wildly wrong window rather
+        // than an error -- so renaming a heading would have degraded this gate into one
+        // that reports on a string nobody meant, instead of failing.
+        const bounds = ["completed:", "Still to come:", "## Pages"].map((marker) => {
+            const at = llms.indexOf(marker);
+            expect(at, `llms.txt must contain the "${marker}" marker this gate slices on`)
+                .toBeGreaterThan(-1);
+            return at;
+        });
+        const completed = llms.slice(bounds[0], bounds[1]);
+        const ahead = llms.slice(bounds[1], bounds[2]);
+
+        // THESE LISTS ARE THE WHOLE CALENDAR, SO THEIR HEADINGS MAY NOT NAME A YEAR.
+        // `EVENTS` is every race in any year -- the scope rule above `eventsInYear` --
+        // while `GOAL_YEAR` is what a goal card counts, and the first draft wrote "Races
+        // and challenges in 2026" over the unfiltered list. That reads true only while
+        // every race falls in one year, which is exactly why the wall dropped "My events
+        // · 2026" from its own title. Unlike the split below, this fires on any day.
+        //
+        // TAKE THE WHOLE LINE, NOT THE SLICE. Written against `completed.split("\n")[0]`
+        // this passed the very mutation it exists to catch: the slice begins AT the
+        // "completed:" marker, so a heading of "Races and challenges in 2026, completed:"
+        // puts the year BEFORE the window and the assertion inspects "completed:" alone.
+        const headings = llms.split("\n")
+            .filter((line) => line.endsWith("completed:") || line === "Still to come:");
+        expect(headings, "both race-list headings must be found").toHaveLength(2);
+        for (const heading of headings) {
+            expect(heading, `"${heading}" names a year over the whole-calendar EVENTS list`)
+                .not.toMatch(/\d{4}/);
+        }
+
+        for (const event of EVENTS) {
+            const finished = patchState(event) === "finished";
+            expect(completed.includes(event.name), `${event.name} finished=${finished}: wrong side of "completed"`)
+                .toBe(finished);
+            expect(ahead.includes(event.name), `${event.name} finished=${finished}: wrong side of "still to come"`)
+                .toBe(!finished);
+        }
+    });
+
+    /**
+     * THE llms.txt FORMAT IS A SPEC, NOT A VIBE (llmstxt.org): H1, then a blockquote,
+     * then free prose, then `##` sections whose every list item carries a REQUIRED
+     * `[name](url)` link. The first draft of the endpoint put the goals under a
+     * `## Goals` heading as bare `- Running: 168.8 of 600 km` bullets, which is exactly
+     * what an H2 section may not contain -- they are facts, not links. This catches
+     * that shape, which review did not.
+     */
+    it("keeps llms.txt to the spec: every H2 list item is a markdown link", () => {
+        const lines = read("dist/llms.txt").split("\n");
+        const firstH2 = lines.findIndex((line) => line.startsWith("## "));
+        expect(firstH2, "llms.txt must have at least one H2 section").toBeGreaterThan(-1);
+
+        // ASSERT THE WHOLE POPULATION BELOW THE FIRST H2, not the lines that happen to
+        // begin "- ". The spec says an H2 section IS a file list, so every non-blank,
+        // non-heading line down there must be a link item -- and stating it that way is
+        // what makes the list MARKER irrelevant. Matching `- ` alone gated the spelling
+        // rather than the rule: markdown treats `*`, `+` and `1.` as the same construct,
+        // and the exact violation this test exists to catch shipped green written `* `.
+        const LINK_ITEM = /^- \[[^\]]+]\(https?:\/\/[^)]+\)(: .+)?$/;
+        const offenders = lines.slice(firstH2)
+            .filter((line) => line.trim() && !line.startsWith("## "))
+            .filter((line) => !LINK_ITEM.test(line));
+        expect(offenders, `every line under an H2 must be a [name](url) item: ${offenders.join(" ;; ")}`)
+            .toEqual([]);
+
+        // AND NO SECTION MAY BE EMPTY. Deleting a section's items leaves the heading with
+        // nothing under it, which the offender sweep above reads as clean -- an empty
+        // population has no offenders in it.
+        const sections = lines.slice(firstH2).join("\n").split(/^## /m).filter(Boolean);
+        for (const section of sections) {
+            const [name, ...rest] = section.split("\n");
+            expect(rest.filter((line) => LINK_ITEM.test(line)).length,
+                `## ${name} has no link items`).toBeGreaterThan(0);
+        }
     });
 
     /**
@@ -401,16 +637,24 @@ describe("dist/", () => {
     /**
      * Plan 011 migrated every emoji to presetIcons mask classes. This is the
      * gate that keeps them out: emoji pictographs must never appear in the
-     * shipped page or stylesheet again (llms.txt is maintainer-owned prose and
-     * deliberately not scanned). FE0F is the emoji variation selector; the
+     * shipped page or stylesheet again. FE0F is the emoji variation selector; the
      * F000-block ranges cover pictographs, transport symbols and skin tones.
+     *
+     * `dist/llms.txt` IS SCANNED TOO, and the excuse this used to carry for skipping it
+     * -- "the constants it quotes are gated elsewhere" -- was simply false. `PROJECTS`
+     * and `METADATA.professional_summary` reach no page, so an emoji in either would have
+     * been shipped by nothing else and read by nobody's test. Scanning the file is a
+     * cheaper answer than the sentence explaining why it was not.
      */
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
 
-    it("ships no emoji in any page or its stylesheet", () => {
+    it("ships no emoji in any page, stylesheet or text endpoint", () => {
         for (const page of builtPages()) {
             expect(read(page), `${page} ships an emoji pictograph`).not.toMatch(EMOJI);
             expect(pageCss(page), `${page}'s stylesheet ships an emoji pictograph`).not.toMatch(EMOJI);
+        }
+        for (const file of ["dist/llms.txt", "dist/robots.txt"]) {
+            expect(read(file), `${file} ships an emoji pictograph`).not.toMatch(EMOJI);
         }
     });
 

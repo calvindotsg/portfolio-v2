@@ -105,7 +105,9 @@ const image = `${Astro.url.origin}/preview.jpg`;
 const schema = {
     "@context": "https://schema.org",
     "@type": "Person",
-    name: METADATA.name,
+    // The FULL name, not the page-title one -- see METADATA.full_name. "Calvin" alone is
+    // a poor entity for a search or answer engine, and the sameAs profiles say calvin-loh.
+    name: METADATA.full_name,
     url: METADATA.site_url,
     sameAs: LINKS.filter(item => /^https?:\/\//.test(item.link)).map(item => item.link),
     image: METADATA.image_url,

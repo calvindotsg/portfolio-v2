@@ -117,6 +117,56 @@ export const CAREER: {
     icon: "ri:search-line"
 }]
 
+/**
+ * The open-source tools, for `/llms.txt`. Not rendered on any page — the bento grid has
+ * no room and gained none for this.
+ *
+ * WHY IT LIVES HERE AND NOT IN `llms.txt` ITSELF. The file it feeds used to be a
+ * hand-written `public/llms.txt`, and it had drifted twice over: it paraphrased the
+ * descriptions rather than quoting them, and it omitted `homebrew-tap` completely — while
+ * listing `granola-to-minutes`, which the profile README does not. A fact
+ * written down in two places diverges; this file is the one place the rest of the site
+ * already treats as the source of truth, so putting it here means the endpoint is
+ * derived and the drift class is closed rather than the wording merely corrected.
+ *
+ * THE SOURCE IS CALVIN'S OWN PROFILE README (github.com/calvindotsg/calvindotsg), read
+ * 2026-07-30 — his selection, in his wording, because `llms.txt` is a self-description
+ * and the alternative is me summarising a summary. An earlier draft of this list was
+ * built from the GitHub repos API instead and got the membership WRONG in both
+ * directions: it invented an inclusion rule ("public, not a fork, has a description"),
+ * which pulled in tools he does not lead with and dropped `portfolio-v2` and
+ * `homebrew-tap`, which he does. A curated list is not a stale API — it is the answer to
+ * a different question, and it is the question `llms.txt` asks.
+ *
+ * TWO PUBLIC REPOS ARE DELIBERATELY ABSENT because the README omits them:
+ * `granola-to-minutes` (3 stars, his most-starred) and `cc-menubar`. That is his editorial
+ * call to revisit, not a bug to fix here — but it is written down so the next person does
+ * not "helpfully" re-add them from the API and undo the curation.
+ *
+ * MAINTAINED BY HAND, with the cost named. The obvious alternative is the pattern
+ * {@link GOALS} uses — a scheduled job writing a bot-owned JSON — and it was built here
+ * and then deleted, because these change a few times a year where kilometres change
+ * daily, and because a bot cannot curate. The cost is that this list is exactly as
+ * current as the profile README; when that changes, change this.
+ */
+export const PROJECTS: {
+    name: string
+    description: string
+    repo_url: string
+}[] = [{
+    name: "portfolio-v2",
+    description: "My personal landing page calvin.sg: who I am, what I'm working on now, and a live tracker for this year's cycling and running goals.",
+    repo_url: "https://github.com/calvindotsg/portfolio-v2"
+}, {
+    name: "mac-upkeep",
+    description: "Why do dev tools scatter caches and updates across macOS with no coordinated cleanup? A zero-config CLI that runs unified maintenance on boot and weekly via launchd.",
+    repo_url: "https://github.com/calvindotsg/mac-upkeep"
+}, {
+    name: "homebrew-tap",
+    description: "Why ship install instructions when `brew install` exists? A personal tap that turns every CLI above into a one-line install on macOS, auto-bumped by release-please dispatch.",
+    repo_url: "https://github.com/calvindotsg/homebrew-tap"
+}]
+
 export const ABOUT_ME: {
     description: string[]
 } = {
@@ -942,6 +992,33 @@ export const METADATA: {
     description: string
     site_url: string
     name: string
+    /**
+     * The full name, for machines: schema.org's `name` and `/llms.txt`'s H1.
+     *
+     * SEPARATE FROM {@link METADATA.name} BECAUSE THEY HAVE DIFFERENT JOBS. `name` is
+     * what a page title says — "Page not found — Calvin" — where the surname would be
+     * stiff and the reader already knows whose site they are on. This is the opposite
+     * case: "Calvin" alone is a first name shared by millions and is close to useless as
+     * an entity for a search or answer engine trying to decide which Calvin this is.
+     * The `sameAs` profiles already say `calvin-loh`; the schema should agree with them.
+     *
+     * Read from his own profile README (github.com/calvindotsg/calvindotsg), which opens
+     * "Hi, I'm Calvin Loh".
+     */
+    full_name: string
+    /**
+     * One sentence on the work, in his own words, for `/llms.txt`.
+     *
+     * NOT {@link ABOUT_ME}, WHICH IS THE WRONG REGISTER FOR THIS. That copy is the
+     * page's voice — waking before sunrise, #cyclehome — and it is right there and wrong
+     * here: an agent asked "what does Calvin do professionally" should not have to infer
+     * it from cycling banter. {@link METADATA.description} is no better; it is a meta
+     * description, written to earn a click.
+     *
+     * Quoted from the profile README rather than paraphrased, so the sentence GitHub
+     * shows and the sentence an answer engine reads are the same string.
+     */
+    professional_summary: string
     image_url: string
     address_locality: string
     address_country: string
@@ -951,6 +1028,8 @@ export const METADATA: {
     description: "Building things at a startup, probably cycling when you find me. Join my 5000km cycling and 600km running goals this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
+    full_name: "Calvin Loh",
+    professional_summary: "I build the systems that keep operations running and improving: docs-as-code platforms, workflow automation, and tooling that helps teams work with less friction.",
     image_url: "https://calvin.sg/preview.jpg",
     address_locality: "Singapore",
     address_country: "SG",
