@@ -11,6 +11,16 @@
 # THE HASHING IS THE PRECONDITION, not a detail. `tests/build-output.test.ts` asserts
 # it separately, because the day one asset lands here without a hash this rule pins a
 # stale file for a year and nothing else would say so.
+#
+# THE HEADER NAME IS LOWER CASE ON PURPOSE, and it must stay that way until
+# `netlify.toml` is deleted at the cutover. Netlify merges this file with the
+# `[[headers]]` block in `netlify.toml`, and its de-duplication keys on a stable
+# stringify of the whole rule object without ever case-normalising the name — so
+# `Cache-Control` here and `cache-control` there are two DIFFERENT rules, both survive
+# the merge, and what the edge then emits for the site that is actually serving readers
+# today is unspecified. Measured with Netlify's own `@netlify/headers-parser`: title
+# case yields two `/_astro/*` rules, lower case collapses to exactly one. Cloudflare
+# lower-cases the name either way, so this costs nothing there.
 
 /_astro/*
-  Cache-Control: public, max-age=31536000, immutable
+  cache-control: public, max-age=31536000, immutable

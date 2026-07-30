@@ -1856,12 +1856,42 @@ describe("hashed assets are cached forever, and are hashed", () => {
         expect(existsSync("dist/_headers"), "dist/_headers is missing — public/_headers did not "
             + "reach the build, so Cloudflare Pages will serve /_astro/ with no cache header at "
             + "all").toBe(true);
-        const headers = read("dist/_headers");
-        const rule = headers.split(/\n(?=\S)/).find((block) => block.startsWith("/_astro/*"));
-        expect(rule, "dist/_headers no longer caches /_astro/*; every hashed asset costs a "
-            + "render-blocking round trip to be told it has not changed (measured 168ms and 175ms, "
-            + "transferSize 300 — a 304 carrying no content)").toBeDefined();
-        expect(rule!.replace(/\s+/g, " ")).toMatch(/Cache-Control: public, max-age=31536000, immutable/i);
+        /*
+         * PARSED THE WAY BOTH HOSTS PARSE IT, which the first draft of this test did not.
+         * That draft split the file on indentation and prefix-matched the path, inventing a
+         * third grammar that neither host implements — both `trim()` every line and decide
+         * path-vs-header on a leading `/` and the presence of a colon. Executed against
+         * Cloudflare's own `parseHeaders.ts`, the old form gave four wrong verdicts: GREEN on
+         * a file whose rule was COMMENTED OUT (the header text inside the `#` line satisfied
+         * an unanchored regex), GREEN when only `/_astro/*.css` was cached (`startsWith`
+         * matched the narrower path), and RED on two files both hosts serve correctly
+         * (unindented headers, and a narrower rule listed above the real one).
+         * The three calibrations that passed it were all mutations of PRESENCE, so none of
+         * them entered the divergent region.
+         */
+        const rules = new Map<string, Record<string, string>>();
+        let current: Record<string, string> | undefined;
+        for (const raw of read("dist/_headers").split("\n")) {
+            const line = raw.trim();
+            if (line === "" || line.startsWith("#")) continue;
+            if (line.startsWith("/")) {
+                current = rules.get(line) ?? {};
+                rules.set(line, current);
+                continue;
+            }
+            const colon = line.indexOf(":");
+            if (colon === -1 || current === undefined) continue;
+            const name = line.slice(0, colon).trim().toLowerCase();
+            const value = line.slice(colon + 1).trim();
+            if (name && value) current[name] = current[name] === undefined ? value : `${current[name]}, ${value}`;
+        }
+        const rule = rules.get("/_astro/*");
+        expect(rule, "dist/_headers installs no rule for exactly /_astro/*; every hashed asset "
+            + "costs a render-blocking round trip to be told it has not changed (measured 168ms "
+            + "and 175ms, transferSize 300 — a 304 carrying no content)").toBeDefined();
+        expect(rule!["cache-control"], "the /_astro/* rule exists but does not cache immutably — "
+            + "a narrowed, overridden or removed cache-control here is the same regression as "
+            + "having no rule at all").toBe("public, max-age=31536000, immutable");
     });
 
     it("only emits content-addressed filenames there, which is what makes that safe", () => {
