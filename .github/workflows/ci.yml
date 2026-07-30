@@ -1,0 +1,144 @@
+# The site's only builder.
+#
+# THE ONE ORDERING PROPERTY THIS FILE WILL EXIST TO HOLD. On Netlify, "a failing suite
+# blocks the deploy" was a property of the platform: the build command WAS the suite,
+# so a red suite could not produce a deploy. Once the deploy jobs land (plan 019 WP3)
+# that degrades to a property of this file — `needs: build` — which a careless
+# refactor removes silently and no test catches. If you are rearranging these jobs,
+# that edge is the thing you must not drop.
+#
+# THE JOB GRAPH THIS GROWS INTO, and why nothing that gates is downstream of a deploy:
+#
+#   build ──┬── deploy-preview      (pull_request from THIS repo)
+#           └── deploy-production   (push to main, or workflow_dispatch)
+#
+# An earlier draft of the plan put a `verify` job between build and deploy that ran
+# "against the deployed preview URL" — which cannot be ordered, because the URL does
+# not exist until the deploy it is meant to gate has already happened. The resolution
+# is not a cleverer ordering: every blocking check belongs HERE, in `build`, where it
+# runs against the artifact, and anything needing a live URL is reporting rather than
+# gating.
+#
+# EVERY `permissions:` BLOCK BELOW REPLACES THE DEFAULTS WHOLESALE. An unlisted scope
+# is `none`, which is the intent — and is also how a job loses a scope it silently
+# depended on. `contents: read` is all this needs; nothing writes to the repo and
+# nothing comments on the PR.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Supersede an in-flight run for the same PR, but NEVER for main. Once deploys land,
+# cancelling a main run between build and deploy would leave production on an older
+# artifact behind a run that reads as cancelled-not-failed — a state nobody
+# investigates. Both keys accept expressions; this is one of the few places it matters.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build and test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check
+
+      - run: pnpm eslint
+
+      # `pnpm test` runs `pnpm build` first via vitest's globalSetup, so the artifact
+      # uploaded below IS the artifact the suite asserted against. That identity is
+      # why the deploy jobs will never rebuild.
+      - run: pnpm test
+        env:
+          UMAMI_ID: ${{ vars.UMAMI_ID }}
+
+      # Umami fails OPEN, which is why this is a step and not a code-review note.
+      # `data-website-id={import.meta.env.UMAMI_ID}` drops the whole attribute when the
+      # value is unset, and the <script> still loads — so the page looks correct,
+      # returns 200, and records nothing. Measured on a local build with the variable
+      # absent: `<script defer src="https://cloud.umami.is/script.js">`, no attribute.
+      #
+      # Skipped for fork PRs on purpose: they are never deployed, so demanding this
+      # repository's analytics id of them would redden the seven historical
+      # upstream-sync PRs for a property that cannot matter to them.
+      #
+      # DEPENDABOT IS THE THIRD CASE, and the fork guard alone does not catch it: its
+      # branches live IN this repository, so `head.repo` matches and the guard admits
+      # the run — but GitHub treats Dependabot-triggered runs as fork-like. Secrets are
+      # documented as withheld; whether `vars` is withheld too is documented NOWHERE,
+      # which is the reason to skip rather than to gamble. The asymmetry decides it: a
+      # bot PR that bumps an action SHA cannot affect analytics, so skipping costs
+      # nothing, while guessing wrong reddens every one of them. Keyed on the ACTOR,
+      # not on `pull_request.user.login` — secret availability tracks whoever triggered
+      # the run, so a human pushing onto a dependabot branch correctly gets the check
+      # back. (Moot until someone enables Dependabot: this repo is a fork, see
+      # `.github/dependabot.yml`.)
+      #
+      # Asserted over EVERY built page and against the id's actual VALUE. The tag comes
+      # from `BasicLayout.astro`, which wraps all four pages, so asking `dist/index.html`
+      # alone was a build-wide question put to one page — the repo has a named doctrine
+      # and a `builtPages()` helper for exactly that mistake. The old pattern was also a
+      # length check wearing a UUID costume: `[0-9a-f-]\{36\}` accepts 36 dashes and
+      # rejects a valid upper-case id. Comparing to `$UMAMI_ID` is both stricter and
+      # simpler, and catches the paste-the-wrong-uuid case no pattern can.
+      - name: analytics must not have been silently dropped
+        if: >-
+          github.actor != 'dependabot[bot]'
+          && (github.event_name != 'pull_request'
+          || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          UMAMI_ID: ${{ vars.UMAMI_ID }}
+        run: |
+          if [ -z "$UMAMI_ID" ]; then
+            echo "::error::the UMAMI_ID repository variable is unset or unreadable, so every page built without a data-website-id."
+            exit 1
+          fi
+          pages=$(find dist -name '*.html')
+          if [ -z "$pages" ]; then
+            echo "::error::dist contains no HTML at all — this check would otherwise pass vacuously."
+            exit 1
+          fi
+          fail=0
+          for f in $pages; do
+            if ! grep -q "data-website-id=\"$UMAMI_ID\"" "$f"; then
+              echo "::error file=$f::no data-website-id=\"$UMAMI_ID\" — the umami script still loads here and records nothing."
+              fail=1
+            fi
+          done
+          [ "$fail" = 0 ]
+
+      # `include-hidden-files` is what makes the identity claim above TRUE. The action
+      # defaults it to `false`, so any dot-prefixed path under `dist/` is present for
+      # every assertion the suite just made and then silently absent from the artifact
+      # the deploy jobs will publish — and `if-no-files-found: error` cannot see it,
+      # because that fires only when the whole path is empty. There is no such file
+      # today; the ordinary way to create one is a `public/.well-known/` entry
+      # (domain verification, `security.txt`), which every local preview and the
+      # outgoing host would serve and the new host would 404, on a green run.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
