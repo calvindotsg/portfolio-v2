@@ -415,7 +415,7 @@ describe("dist/", () => {
      * One build must stamp exactly one Singapore day on every page.
      *
      * Deliberately CLOCK-FREE — it compares the pages to each other and checks the shape, so
-     * it can never redden on a future build day. The suite is the Netlify build command.
+     * it can never redden on a future build day. A red suite blocks the deploy.
      */
     it("stamps every page with the one day the build was drawn for", () => {
         const stamps = new Map<string, string>();
@@ -1046,8 +1046,8 @@ describe("dist/", () => {
  *
  * NO PER-CATEGORY FLOOR. Asserting that some link of each kind exists would be a hand-counted
  * property of today's content: zero bibs carry a Strava id every January after the rollover, and
- * this suite is the Netlify BUILD COMMAND, so that failure is a failed production deploy caused
- * by ordinary data entry. The loop is vacuous only if a page has no links, which IS checked.
+ * a red suite BLOCKS THE DEPLOY, so that failure is a failed production deploy caused by ordinary
+ * data entry. The loop is vacuous only if a page has no links, which IS checked.
  *
  * It reads the shipped stylesheet through `parseRules` and matches selectors by regex rather
  * than using this file's local `decl(css, classes, prop)` helper, which does a literal `.token{`
@@ -1471,9 +1471,9 @@ describe("the offset plate actually paints", () => {
      * not "the offsets are non-zero".
      *
      * This stays a stylesheet parse rather than a browser assertion on purpose:
-     * `netlify.toml` runs `pnpm test` as the deploy gate, and putting playwright
-     * and a chromium download inside a zero-client-JS static site's production
-     * build is a worse trade than coupling to presetWind3's emit format.
+     * `pnpm test` is the deploy gate, and putting playwright and a chromium
+     * download inside a zero-client-JS static site's production build is a worse
+     * trade than coupling to presetWind3's emit format.
      */
     const LEN = String.raw`(-?[\d.]+)(?:px|r?em)?`;
     const COMPLETE_PLATE = new RegExp(
@@ -1546,8 +1546,8 @@ describe("the stylesheet ships no rule nobody wears", () => {
      * blocklisting a real utility means a future author writing it as a class
      * silently gets nothing, which is how `static` already behaves here.
      *
-     * KNOWN COST, stated so nobody is surprised by it: `pnpm test` is the Netlify
-     * deploy gate, and UnoCSS reads English. Editing prose in an .astro file can
+     * KNOWN COST, stated so nobody is surprised by it: `pnpm test` is the deploy
+     * gate, and UnoCSS reads English. Editing prose in an .astro file can
      * turn the deploy red — appending ", visible to all" to an sr-only string
      * emits `.visible`. That is a real trade, accepted because the gate has
      * already caught three dead rules this change would otherwise have shipped
@@ -1604,10 +1604,10 @@ describe("the stylesheet ships no rule nobody wears", () => {
      * — nothing on the site is in that state, so both rules ship with no wearer and this
      * gate goes red on a correct page.
      *
-     * That is not hypothetical and it is not merely a red test: `netlify.toml` runs the
-     * suite as the build command, and the Strava bot pushes unattended, so it is a
-     * failed production deploy triggered by a bot on a day nobody is watching. Found by
-     * simulating eight future bot pushes rather than by reasoning about it.
+     * That is not hypothetical and it is not merely a red test: a red suite blocks the
+     * deploy, and the Strava bot pushes unattended, so it is a failed production deploy
+     * triggered by a bot on a day nobody is watching. Found by simulating eight future
+     * bot pushes rather than by reasoning about it.
      *
      * WHY NOT KNOWN_ORPHANS: that list means "a rule that should not exist and we have
      * not got round to removing", and its anti-rot test demands the rule still ship. A
@@ -1697,8 +1697,8 @@ describe("the stylesheet ships no rule nobody wears", () => {
 
 /**
  * These assertions only became possible once `output: "static"` replaced the
- * Netlify SSR adapter (plan 002). Before that, `pnpm build` emitted no
- * `dist/index.html` at all — the page lived inside a 2.4 MB serverless function.
+ * SSR adapter (plan 002). Before that, `pnpm build` emitted no `dist/index.html`
+ * at all — the page lived inside a 2.4 MB serverless function.
  *
  * NOTE: `dist/index.html` starts with a hoisted <script> above <html>, which
  * makes linkedom treat that script as documentElement and leaves document.body
@@ -1831,9 +1831,13 @@ describe("dist/index.html is prerendered", () => {
     });
 
     it("serves the portrait as a build-emitted asset, not a runtime image CDN URL", () => {
+        // The anchored `/_astro/` prefix IS the whole assertion, and it holds against every
+        // host: an on-demand image service answers on a path of its own (`/.netlify/images`,
+        // `/cdn-cgi/image`, `/_image`), so none of them can match it. A second line naming one
+        // vendor's path used to sit here and could not fail without this one failing first.
         const src = doc().querySelector("main img")?.getAttribute("src") ?? "";
-        expect(src).toMatch(/^\/_astro\//);
-        expect(src).not.toContain(".netlify");
+        expect(src, "the portrait is being fetched from an image service at request time rather "
+            + "than emitted by the build, so it is neither hashed nor covered by dist/_headers").toMatch(/^\/_astro\//);
     });
 
     /**
@@ -1861,13 +1865,24 @@ describe("dist/index.html is prerendered", () => {
 });
 
 describe("no on-demand rendering output", () => {
-    it("emits no Netlify serverless or edge function", () => {
+    /*
+     * ONE PROPERTY, EVERY SHAPE IT COULD TAKE. `output: "static"` with no adapter is the
+     * decision (plan 002); an adapter is how it gets undone, and each one writes somewhere
+     * different, so a guard naming a single path only holds against the adapter it was
+     * written for. `tests/setup/build.ts` clears `.netlify/` before the build, which is what
+     * makes the first two lines a question about THIS build rather than about whatever is
+     * left on the machine from the SSR era.
+     *
+     * The Netlify paths are kept although that host is gone: they cost two lines, they are
+     * the only thing that would notice `@astrojs/netlify` coming back, and the failure they
+     * describe — the page shipping inside a serverless function instead of as HTML — is the
+     * one this repo spent a plan removing. `dist/_worker.js` is the same question asked of
+     * the host that ships the site today.
+     */
+    it("emits no server runtime for any host", () => {
         expect(existsSync(".netlify/v1/functions"), "the SSR adapter is gone; no function may be emitted").toBe(false);
         expect(existsSync(".netlify/v1/edge-functions")).toBe(false);
-    });
-
-    it("emits no server bundle inside dist/", () => {
-        expect(existsSync("dist/_worker.js")).toBe(false);
+        expect(existsSync("dist/_worker.js"), "a Cloudflare adapter would put the whole site in here").toBe(false);
         expect(existsSync("dist/server")).toBe(false);
     });
 });

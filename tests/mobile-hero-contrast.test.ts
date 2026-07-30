@@ -155,8 +155,8 @@ describe("mobile hero legibility", () => {
      * updating the expectation — that harness is the only thing that can tell you
      * whether the scrim still covers the words.
      *
-     * The suite is the deploy gate (netlify.toml runs `pnpm check && pnpm test`),
-     * so a silent hole here ships straight to production.
+     * The suite is the deploy gate — a red run blocks the deploy — so a silent
+     * hole here ships straight to production.
      */
     it("pins the scrim geometry the 68% arithmetic depends on", () => {
         const scrim = rule(sheet(), "intro-type[^{}]*:{1,2}after");

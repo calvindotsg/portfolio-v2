@@ -77,6 +77,16 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 Plan 008 did not come from the audit — it was raised from a production PageSpeed
 report mid-run and executed out of numeric order.
 
+**The host and CI moved outside this numbering, and the table is silent about it
+on purpose.** On 2026-07-30 the site left Netlify for Cloudflare Pages, with
+`.github/workflows/ci.yml` becoming its only builder; the Netlify project and
+`netlify.toml` are deleted. That work was planned and executed under a separate
+lifecycle (`~/.claude/plans/019-cloudflare-migration.md`), so it has no plan file
+in `plans/done/` and adding a row here would point at nothing. It is recorded
+here because two entries below — the DX-01 rejection and the deploy-gate baseline
+— would otherwise read as current policy and send a run to re-derive a decision
+that has already been reversed.
+
 ## Baseline: what this repo is now (verified at `f129245`, updated after run 2 at `1f06c27`, re-verified for run 3 at `4e15674`, re-measured for run 4 at `45e286f`)
 
 Run-3 corrections to the table below (audit at `4e15674`, final state after
@@ -218,10 +228,11 @@ is left as written because it records what was true when it was measured.
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
 | components | 14 `.astro` files (11 components, 1 layout, 2 page routes → 4 pages); **no UI framework**, no `.svelte`, no islands |
 | `uno.config.ts` | 506 lines — safelist, blocklist, five `rem` breakpoints, the two shortcuts; mostly measured rationale |
-| tests | **277** assertions, 10 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test` |
+| tests | **277** assertions, 10 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`. **Now 362 in 12 files** — measured 2026-07-30 on the commit that deleted `netlify.toml` (`git log --diff-filter=D -- netlify.toml`), read off `pnpm test` rather than counted. The two new files are `clock-split` (the `BUILD_DATE`/`UPDATED_AT` split) and `workflow-guards` (the deploy gate, executed rather than read) |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
-| `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up. **Run 4: now 1 moderate + 2 high** — both highs are brace-expansion GHSA-mh99-v99m-4gvg on dev-only lint paths; plan 017 clears one in-range and documents the other as a second deliberate residual (no patched 1.x exists; the override is measured-broken) |
-| deploy gate | `netlify.toml` runs `pnpm check && pnpm test`; the UI command is deliberately empty |
+| `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up. **Run 4: now 1 moderate + 2 high** — both highs are brace-expansion GHSA-mh99-v99m-4gvg on dev-only lint paths; plan 017 clears one in-range and documents the other as a second deliberate residual (no patched 1.x exists; the override is measured-broken). **`@netlify/otel` survived the cutover and always would have**: it arrives as `astro` → `unstorage` → `@netlify/blobs`, so it is an Astro dependency and has nothing to do with where the site is hosted — leaving Netlify does not clear it |
+| deploy gate | **Changed after run 4.** `.github/workflows/ci.yml` — a `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test`, uploads `dist/`, and two `wrangler pages deploy` jobs sit behind `needs: build` and publish that same artifact without rebuilding. It replaced `netlify.toml` running `pnpm check && pnpm test`; that file and the Netlify project are both deleted. `tests/workflow-guards.test.ts` is what holds the `needs:` edge |
+| host | **Cloudflare Pages** (project `calvindotsg`), zone on Cloudflare DNS. Was Netlify until 2026-07-30 |
 | content source | everything user-facing is in `src/lib/constants.ts` |
 
 The obvious simplifications were taken. A new run should expect *fewer and
@@ -386,9 +397,11 @@ Killed by the run-2 skeptic pass or advisor review — do not re-audit:
   `@typescript-eslint` compatibility unestablished, and the repo has almost no
   hand-written TS. Investigate-only; no leverage.
 - **lint-staged 16 → 17.** No changelog signal affecting the hook. Skipped.
-- **Security headers (CSP etc.) via netlify.toml.** Static one-pager, no
+- **Security headers (CSP etc.) via the host's headers file.** Static one-pager, no
   forms/auth/cookies/user input; a real CSP needs `unsafe-inline` plus a
-  cloud.umami.is allow-list. Marginal value, deliberately not raised.
+  cloud.umami.is allow-list. Marginal value, deliberately not raised. (Raised against
+  `netlify.toml`; the file that would carry it now is `public/_headers`, and the
+  reasoning is unchanged by the move.)
 - **DX micro-items** — silencing the two `astro(4000)` is:inline hints (they
   communicate intent), `.editorconfig`, widening the eslint glob (settled:
   constants.ts is test-gated), pre-commit check/test duplication, a Umami
@@ -415,14 +428,20 @@ re-audited next run:
   `createRequire` and switches its processor depending on whether it is present.
   Verified empirically by linting in a sandbox with the package removed.
   **Do not remove this package.**
-- **DX-01 — add a GitHub Actions CI workflow.** The finding's impact claim is
-  inverted: the commit it cites as proof that a type error "reached production"
-  (`2595328`) actually shows `astro build` rejecting the file and the Netlify
-  deploy failing, so production kept serving the previous build. More
-  importantly, the maintainer was offered a CI workflow on 2026-07-21 and chose
-  to skip it. That decision is respected here. Plan 002 instead makes the
-  *existing* Netlify pipeline run `pnpm check && pnpm test`, which closes the gap
-  without introducing a second CI system.
+- **DX-01 — add a GitHub Actions CI workflow. REVERSED 2026-07-30 — this is now
+  how the site ships; do not read the rejection below as standing policy.** The
+  maintainer decided to leave Netlify, and with the host went the platform
+  guarantee the rejection rested on, so `.github/workflows/ci.yml` became the only
+  builder rather than a second one. What survives of the original reasoning is the
+  part that was never about Netlify: there must be exactly ONE pipeline, and the
+  thing that gates must be the thing that builds — which is why the deploy jobs
+  publish the `build` job's artifact instead of rebuilding.
+  The rest is recorded as it stood. The finding's impact claim was inverted: the
+  commit it cited as proof that a type error "reached production" (`2595328`)
+  actually shows `astro build` rejecting the file and the deploy failing, so
+  production kept serving the previous build. And the maintainer was offered a CI
+  workflow on 2026-07-21 and chose to skip it; plan 002 instead made the *existing*
+  pipeline run `pnpm check && pnpm test`, which closed the gap at the time.
 - **DX-04 — the eslint config and pre-commit hook cannot block anything.** False.
   `no-undef`, `no-debugger`, `astro/no-unused-define-vars-in-style` and
   `astro/valid-compile` are all set to `error`, and a probe through the real
@@ -454,8 +473,15 @@ remains open:
 
 ## Open items owned by the maintainer
 
-Neither is an agent's call. Both are recorded so a new run does not "helpfully"
-do them.
+None of these is an agent's call. They are recorded so a new run does not
+"helpfully" do them; the first two have since been resolved and are kept with
+their resolutions rather than deleted.
+
+- **`www.calvin.sg` does not redirect to the apex.** It answers 200 in its own
+  right, so the site is reachable at two hostnames and the canonical tag is the
+  only thing saying which one counts. The fix is a Cloudflare Redirect Rule, and
+  it is dashboard-only: the Rules API returns 403 for the OAuth profile the `cf`
+  CLI holds, so no agent can apply it and none should keep proposing it.
 
 - ~~`public/preview.jpg` is still the August 2024 screenshot.~~ **Resolved
   2026-07-21**: the maintainer supplied a current dark-theme screenshot. It
@@ -471,10 +497,15 @@ do them.
   first crop was called out and fixed). The README hero, `og:image` and
   `twitter:image` all resolve from this one filename — a future refresh is a
   new screenshot through this same recipe.
-- **`public/llms.txt` duplicates facts from `src/lib/constants.ts` by hand**,
-  with nothing keeping them in sync. That is exactly how its job title went stale
-  once, and how plan 007 nearly re-staled it in the opposite direction. Add it to
-  the checklist whenever anything about the current role changes.
+- ~~**`public/llms.txt` duplicates facts from `src/lib/constants.ts` by hand**,
+  with nothing keeping them in sync.~~ **Resolved 2026-07-30 (PR #108).** Both
+  `llms.txt` and `robots.txt` are now generated endpoints — `src/pages/llms.txt.ts`
+  and `src/pages/robots.txt.ts` — deriving every fact from `constants.ts`, and
+  `tests/build-output.test.ts` asserts the association row by row rather than
+  token by token. `public/` holds no text file at all now. The checklist item this
+  used to add is gone: nothing about the current role can go stale there any more,
+  which is what made it stale once and what plan 007 nearly re-staled in the
+  opposite direction.
 
 ## Where the evidence lives
 
