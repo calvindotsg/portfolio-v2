@@ -1,0 +1,206 @@
+---
+import Layout from "../layouts/BasicLayout.astro";
+import {METADATA, NOT_FOUND, PATCHES} from "../lib/constants";
+import {iconClass} from "../lib/icons";
+
+/*
+ * THIS FILE EXISTS BECAUSE OF WHAT THE HOST DOES WITHOUT IT. Cloudflare Pages answers an
+ * unknown path by walking up looking for `${dir}/404.html`, and where there is none it
+ * falls through to serving `/index.html` — with a 200. Measured on a real preview
+ * deployment before this page was written: `/does-not-exist` and `/patches/nonsense` both
+ * returned 200 and the home page, while the same two paths on the outgoing host returned
+ * 404. A dead link that answers 200 is invisible to every uptime monitor, crawler and link
+ * checker there is, so the whole class of broken URL would have stopped being reportable at
+ * the moment the domain moved.
+ *
+ * Astro emits this route as `dist/404.html`, which is the file BOTH hosts look for, so one
+ * page fixes the incoming host and improves the outgoing one. No redirect rule, and nothing
+ * host-specific in the repository.
+ *
+ * ───────────────────────────────────────────────────────────────────────────────────────
+ * WHY THE NUMBER IS A BIB, which is the only real design decision on this page.
+ *
+ * A 404 page's stock answers are a cartoon, a magnifying glass, or the number set huge in
+ * the body face — and all three could be lifted onto any site on the internet, which is the
+ * argument against them. This site already owns one distinctive object, drawn in CSS and
+ * used nowhere else on the web: the race bib on `/patches`. An HTTP status code is a number
+ * a reader was handed for something that is not there, and a bib is a number pinned to
+ * something that is. Setting 404 as a race number states the whole thing without a caption.
+ *
+ * FOUR PIN HOLES, ARRIVED AT BY BUILDING THE OPPOSITE FIRST. `Patch.astro` punches four for
+ * a run and two for a ride — "the count is the information" — and `.bib--booked` removes them
+ * entirely, because a hole is a void in an opaque face and a booked bib has none. That
+ * argument is sound, and following it gave a bib with no holes, which I built and then
+ * looked at: alone on the page it reads as a rectangle with a number in it, which is exactly
+ * the stock 404 this design exists to avoid. Five neighbouring bibs are what keep the wall's
+ * outline treatment legible; this one has no neighbours and has to carry the shape by
+ * itself. So the holes come back, painted as the edge of the punch rather than as the void —
+ * the stylesheet has the mechanism and what was measured.
+ *
+ * WHAT WAS CUT. The first draft tagged the bib `DNS — Did Not Start`, which is precisely
+ * what a results sheet prints against a number that never crossed the line, and it is the
+ * best phrase in the whole subject. It is gone because on a WEB error page those three
+ * letters read as Domain Name System, and a reader who takes it that way has been told
+ * their network is broken. The bib now carries the number and nothing else.
+ *
+ * NO NEW VOCABULARY ANYWHERE. No colour that is not already a theme token, and deliberately
+ * NOT `--accent`: this site spends the accent on controls and marks, and an error is
+ * neither. No new typeface — the numeral wears the bib's own display treatment from
+ * `Patch.astro`, which exists for exactly this, a number on a bib. And no animation: the
+ * site is static and minimal, so a bib that slid or faded in would be the one moving thing
+ * on the whole domain. Nothing here moves, so there is nothing for `prefers-reduced-motion`
+ * to turn off.
+ *
+ * DRAWN IN ITS OWN SCOPED RULES RATHER THAN BY IMPORTING `Patch.astro`, which was the other
+ * candidate. That component takes a `RaceEvent`, and there is no honest way to hand it one:
+ * `EVENTS` is the owner's real racing history and a fake entry would reach the wall, the
+ * projection and the goal cards. The shared construction is the TOKENS below — the same
+ * hairline mix, the same 2px radius, the same numeral metric — which is how every other
+ * component on this site stays in the family. See `BasicLayout.astro`.
+ * ───────────────────────────────────────────────────────────────────────────────────────
+ *
+ * IT IS THE ONE PAGE THE BUILD-WIDE GATES CANNOT HOLD, and `tests/build-output.test.ts`
+ * names it in both rather than being loosened. It is in no sitemap — `@astrojs/sitemap`
+ * excludes status pages itself, so nothing here configures that — and it is reachable from
+ * no link, because a page you arrive at by mistyping is not a destination anything links to.
+ * Both exemptions are asserted as facts about THIS page, so a second unreachable page still
+ * fails, and the 404 is separately REQUIRED to link home so a reader who lands here is not
+ * stranded.
+ *
+ * A real Astro route on the shared layout rather than a static `public/404.html`, which is
+ * what keeps it inside the theme, the analytics tag and the build-date stamp instead of
+ * being a hand-maintained copy of the shell that silently rots.
+ */
+
+const title = `${NOT_FOUND.heading} — ${METADATA.name}`;
+---
+
+<Layout title={title} description={NOT_FOUND.description}>
+    <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
+        <div class="flex flex-col gap-6">
+            {/* The number is read out before the heading, and that order is deliberate rather
+                 than a side effect of putting the big thing first: "404", then "Page not
+                 found", then what to do about it, is a sensible sequence however a reader
+                 takes it in. It is NOT `aria-hidden` — the status code is real information,
+                 and hiding it would leave a screen reader user the only one not told which
+                 error this is. */}
+            <p class="dns-bib"><span class="dns-number">{NOT_FOUND.code}</span></p>
+
+            <div class="flex flex-col gap-2">
+                {/* `break-anywhere` for the reason the wall's heading carries it: these are
+                     the site's only un-clipped text columns, so their minimum intrinsic width
+                     sets the document's, and a word too long for 320px scrolls the whole page
+                     sideways under text zoom rather than being absorbed by a card. */}
+                <h1 class="text-3xl font-bold m-0 break-anywhere">{NOT_FOUND.heading}</h1>
+                <p class="text-sm max-w-[60ch] m-0">{NOT_FOUND.lede}</p>
+            </div>
+
+            {/* THE REST OF THE SITE, WHICH IS WHAT THE LEDE PROMISES. Two entries, because two
+                 is genuinely all there is — the wall's own filter row takes a reader on to the
+                 per-sport pages from there, and repeating those here would be a menu longer
+                 than the site.
+
+                 `text-link` on both: this codebase's idiom for a link that is a run of words,
+                 and what makes them perceptible as links rather than as the prose above them.
+                 A build-wide gate walks every `<a>` on every page for that.
+
+                 ONLY THE FIRST TAKES THE GLYPH. The home link is drawn exactly like the wall's
+                 way back — same arrow, same box — because they are the same object pointing
+                 the same way. The second is not a way back to anywhere, and an arrow-left
+                 beside it would say it was; `text-link` alone is what this site already uses
+                 for a link that is a run of words, as each role card's company name is.
+                 `min-h-6` on both is the 1.5rem floor this codebase set for a small link,
+                 font-relative so it grows with the reader's text. */}
+            <ul class="flex flex-col gap-2 list-none m-0 p-0">
+                <li>
+                    <a href="/" class="text-link inline-flex items-center gap-2 min-h-6 text-sm">
+                        <span class={iconClass(NOT_FOUND.home_icon)} aria-hidden="true"></span>{NOT_FOUND.home_label}
+                    </a>
+                </li>
+                <li>
+                    <a href="/patches" class="text-link inline-flex items-center min-h-6 text-sm">{PATCHES.heading}</a>
+                </li>
+            </ul>
+        </div>
+    </main>
+</Layout>
+
+<style>
+    /*
+     * THE BIB, IN THE ONE TREATMENT THAT FITS: no face, hairline edge, normal-polarity ink —
+     * `.bib--booked`'s shape in `Patch.astro`, reached by the same reasoning rather than by
+     * copying a class. A solid bib is one you have earned; an outline is one still ahead of
+     * you; a page that does not exist is neither, and of the two the outline is the honest
+     * one, because the face is what a bib gets when there is a race behind it.
+     *
+     * Every value here is either a theme token or a metric taken from the bib: the 32%
+     * hairline and the 2px radius are `.bib--booked`'s own, so a re-tone moves both together.
+     * `container-type` is what makes the `cqi` below resolve, exactly as the wall's bib does
+     * for its distance.
+     */
+    .dns-bib {
+        container-type: inline-size;
+        width: min(22rem, 100%);
+        margin: 0;
+        /* A bib is a landscape rectangle and the number is centred on it — that proportion
+           and that centring are most of what makes the shape legible as a bib at a glance.
+           The wall can leave its number top-left because five neighbours establish what the
+           object is; this one is alone and has to say so by itself. */
+        padding: 2rem 1.5rem;
+        display: grid;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--text) 32%, transparent);
+        border-radius: 2px;
+        color: var(--text);
+        /*
+         * FOUR PIN HOLES, WHICH IS THE WHOLE REASON THIS READS AS A BIB AND NOT AS A BOX.
+         * Drawn with the same technique as `Patch.astro` — radial gradients rather than
+         * pseudo-elements, one declaration for four dots, the same 7px inset and the same
+         * 1.7px→1.8px antialiasing band, because a hard stop renders a stepped circle at
+         * this size.
+         *
+         * THEY ARE PAINTED, NOT PUNCHED, AND THAT IS A DEPARTURE WORTH STATING. On the wall
+         * a hole is a VOID: `--hole` is the card colour showing through an opaque ink face,
+         * and `.bib--booked` drops the holes precisely because a bib with no face has
+         * nothing to punch. That argument is right, and following it here was the first
+         * draft of this page — which I built, screenshotted and threw away. Alone on the
+         * page background an unpunched outline reads as a rectangle with a number in it,
+         * which is the generic 404 this design exists to avoid. So the holes are drawn as
+         * the EDGE of the punch, in the same hairline the border uses, rather than as the
+         * void: same object, different rendering, because the ground changed. Using
+         * `--background` as the fill instead was measured and rejected — #FAFAFA on #FAFAFA
+         * light and #111111 on #111111 dark, four invisible dots.
+         */
+        background-image:
+            radial-gradient(circle at 9px 9px, color-mix(in srgb, var(--text) 32%, transparent) 0 1.7px, transparent 1.8px),
+            radial-gradient(circle at calc(100% - 9px) 9px, color-mix(in srgb, var(--text) 32%, transparent) 0 1.7px, transparent 1.8px),
+            radial-gradient(circle at 9px calc(100% - 9px), color-mix(in srgb, var(--text) 32%, transparent) 0 1.7px, transparent 1.8px),
+            radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), color-mix(in srgb, var(--text) 32%, transparent) 0 1.7px, transparent 1.8px);
+    }
+
+    /*
+     * THE NUMERAL WEARS THE BIB'S DISPLAY METRIC — weight 800, line-height 0.82, the
+     * -0.045em tracking — because that treatment was designed for a number printed on a
+     * bib, and this is one. Only the SIZE differs, and it has to: on the wall a bib is one
+     * cell of a six-item grid, and here it is alone on the page.
+     *
+     * `min(6rem, 34cqi)` keeps both bounds the wall's shape. The rem is a floor the
+     * reader's text size moves — nothing on this site is pinned to a length the reader
+     * cannot change — and the `cqi` stops the digits overflowing the bib on a narrow
+     * phone, where three characters at a flat 6rem would not fit.
+     *
+     * `font-variant-numeric` is written out rather than taken as the `tabular-nums`
+     * utility because that token is BLOCKLISTED in uno.config.ts — it appears there as a
+     * declaration value elsewhere in this codebase and would emit a rule for a class
+     * nothing wears. It earns its place here on three digits that are the largest thing on
+     * the page: proportional figures set a lonely `1`-width gap between the two zeroes.
+     */
+    .dns-number {
+        display: block;
+        font-size: min(6rem, 34cqi);
+        font-weight: 800;
+        line-height: 0.82;
+        letter-spacing: -0.045em;
+        font-variant-numeric: tabular-nums;
+    }
+</style>

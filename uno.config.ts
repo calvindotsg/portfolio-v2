@@ -1,6 +1,6 @@
 import {defineConfig, presetIcons, presetWind3} from "unocss";
 
-import {CAREER, FOOTER, GOALS, LINKS, NEXT_RACE, NOW, PATCHES, WELCOME} from "./src/lib/constants";
+import {CAREER, FOOTER, GOALS, LINKS, NEXT_RACE, NOT_FOUND, NOW, PATCHES, WELCOME} from "./src/lib/constants";
 import {iconClass} from "./src/lib/icons";
 
 export default defineConfig({
@@ -26,6 +26,11 @@ export default defineConfig({
         iconClass(PATCHES.home_icon),
         iconClass(PATCHES.strava_icon),
         iconClass(NEXT_RACE.icon),
+        // Resolves to the same class as `PATCHES.home_icon` today, and is listed anyway
+        // for the reason the comment on `strava_icon` gives: a constant that relies on
+        // another constant having already emitted its class ships a zero-size mask box
+        // the moment that other one changes, with correct markup and a green build.
+        iconClass(NOT_FOUND.home_icon),
     ],
     /** UnoCSS extracts from the text of `<style>` blocks too, so the declaration
      *  `position: static` in IntroCard emits a utility rule for a class no

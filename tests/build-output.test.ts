@@ -15,6 +15,20 @@ import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
 const read = (p: string) => readFileSync(p, "utf8");
 
+/**
+ * THE ONE PAGE TWO BUILD-WIDE GATES BELOW CANNOT HOLD, and it is named here rather than
+ * described, so the exemption is a fact about THIS page and a second unlisted or
+ * unreachable page still fails.
+ *
+ * `src/pages/404.astro` exists because Cloudflare Pages answers an unknown path by serving
+ * `/index.html` with a 200 where no `404.html` is present — see the note in that file. What
+ * it cannot be is a page in the sitemap or a page anything links to: it is the answer to a
+ * URL the site does not have, so a crawler must not index it and no reader can be sent to
+ * it deliberately. Both properties are asserted positively beside the loops that skip it —
+ * the gates keep their reach, and this page keeps having to earn its exemption.
+ */
+const NOT_FOUND_PAGE = "dist/404.html";
+
 describe("dist/", () => {
     it("emits a robots.txt that points crawlers at the sitemap", () => {
         expect(existsSync("dist/robots.txt")).toBe(true);
@@ -45,7 +59,17 @@ describe("dist/", () => {
             [...read("dist/sitemap-0.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]),
         );
         expect(urls.size, "the sitemap must list something").toBeGreaterThan(0);
-        for (const page of builtPages()) {
+
+        // The status page must be ABSENT, which is the assertion its exemption below is
+        // worth. `@astrojs/sitemap` already excludes it — `STATUS_CODE_PAGES` is its own
+        // set, nothing here configures it — so this pins behaviour the site depends on and
+        // does not control.
+        expect(
+            [...urls].filter((u) => /\/404(\.html)?\/?$/.test(u)),
+            "the 404 page is in the sitemap, which asks crawlers to index the page that says a page does not exist",
+        ).toEqual([]);
+
+        for (const page of builtPages().filter((p) => p !== NOT_FOUND_PAGE)) {
             // dist/index.html -> "/", dist/patches/cycling/index.html -> "/patches/cycling/"
             const path = page.replace(/^dist/, "").replace(/index\.html$/, "");
             const expected = new URL(path, METADATA.site_url).href;
@@ -73,8 +97,16 @@ describe("dist/", () => {
      */
     it("reaches every built page from the site root by following links", () => {
         const pathOf = (page: string) => page.replace(/^dist/, "").replace(/index\.html$/, "");
-        const byPath = new Map(builtPages().map((page) => [pathOf(page), page]));
+        const byPath = new Map(builtPages().filter((p) => p !== NOT_FOUND_PAGE).map((page) => [pathOf(page), page]));
         expect(byPath.has("/"), "the site root must be built").toBe(true);
+
+        // THE EXEMPTION EARNS ITSELF HERE. The 404 page is unreachable by design, but a
+        // reader who lands on it by mistyping must not be stranded — it is the one page
+        // whose whole job is to point back into the site, so it is required to link home
+        // rather than merely permitted to be an island.
+        const notFoundLinks = [...read(NOT_FOUND_PAGE).matchAll(/href="(\/[^"#?]*)"/g)].map((m) => m[1]);
+        expect(notFoundLinks, `${NOT_FOUND_PAGE} is reachable from nothing, so a reader who lands on it can only `
+            + "leave by a link it carries — and it carries none to the site root").toContain("/");
 
         const seen = new Set<string>(["/"]);
         const queue = ["/"];
@@ -776,11 +808,36 @@ describe("forced colours never paint a system colour on top of itself", () => {
         fieldtext: ["field"],
     };
 
+    /**
+     * THE NON-VACUITY GUARD BELONGS TO THE BUILD, NOT TO EACH PAGE, and the difference is
+     * what the 404 page exposed. It used to demand a `forced-colors` rule on EVERY page and
+     * read as a vacuity check, but it was really two questions wearing one assertion: "did
+     * `pageCss()` resolve this page's CSS" and "does the build carry forced-colours rules at
+     * all". Those come apart the moment a page legitimately has none — `404.astro` wears the
+     * shared layout and no component that declares one — and the gate reddened about a page
+     * with nothing to guard.
+     *
+     * Split, both questions are still asked and neither is weakened: every page must have
+     * CSS (which is what catches a `pageCss()` that silently returns nothing), and the build
+     * must carry forced-colours rules somewhere (which is what catches a broken `at` filter
+     * matching nothing anywhere). The old spelling would have passed a build where the
+     * filter matched nothing on a page that happened to have rules — it never checked that
+     * the ones it found were the ones it wanted.
+     */
+    it("ships forced-colors rules somewhere, so the per-page assertion below can bite", () => {
+        const pagesWithRules = builtPages()
+            .filter((page) => parseRules(pageCss(page)).some((r) => (r.at ?? "").includes("forced-colors")));
+        expect(pagesWithRules.length, "no page in the build ships a single forced-colors rule — either the site "
+            + "stopped declaring them or the `at` filter below stopped recognising them, and every per-page "
+            + "assertion has gone vacuous").toBeGreaterThan(0);
+    });
+
     it.each(builtPages())("pairs every opted-out background with a readable foreground (%s)", (page) => {
         const doc = parseHTML(read(page)).document;
-        const forced = parseRules(pageCss(page)).filter((r) => (r.at ?? "").includes("forced-colors"));
-        expect(forced.length, `${page} ships no forced-colors rules — this assertion would be vacuous`)
-            .toBeGreaterThan(0);
+        const rules = parseRules(pageCss(page));
+        expect(rules.length, `${page} resolved to no CSS at all — pageCss() found nothing, so every assertion `
+            + "in this test would pass by having nothing to look at").toBeGreaterThan(0);
+        const forced = rules.filter((r) => (r.at ?? "").includes("forced-colors"));
 
         const matches = (sel: string, el: Element) => {
             try {
