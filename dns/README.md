@@ -5,12 +5,16 @@ what octoDNS may touch, and `.github/workflows/dns.yml` runs it. Each of those f
 own decisions at the line that makes them; this page is the part that lives nowhere else — what
 to do, and what has to exist first.
 
-## It is not switched on yet
+## The two tokens it runs on
 
-Nothing here can run until two API tokens exist, and neither `cf` nor any token in CI can create
-them: Cloudflare's token-minting endpoints refuse every credential this repository holds, by
-design. **Both must be made by hand at
-[dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens).**
+**Live since 2026-07-31.** The first plan against the real zone reported *"No changes were
+planned"* — Cloudflare returned 11 records, the reject lists removed 3, and the remaining 8 matched
+this directory exactly.
+
+Neither `cf` nor any token in CI can create these: Cloudflare's token-minting endpoints refuse
+every credential this repository holds, by design. **Both were made by hand at
+[dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens)**, and a
+replacement has to be too.
 
 | Secret | Scope | Zone resources | Where it goes |
 |---|---|---|---|
@@ -24,8 +28,15 @@ that omits `environment:`, and the separation would be decorative. That is the s
 `ci.yml` states for `CLOUDFLARE_API_TOKEN`.
 
 Neither token grants Pages, Workers, or account access, so neither can deploy the site, and the
-existing `CLOUDFLARE_API_TOKEN` cannot touch DNS. Until both secrets exist the workflow fails
-with a message naming the missing one rather than a Cloudflare authentication error.
+existing `CLOUDFLARE_API_TOKEN` cannot touch DNS. If either secret goes missing the workflow fails
+naming it, rather than surfacing a Cloudflare authentication error.
+
+**The separation is measured, not assumed.** Both tokens were exercised against the live API
+before being stored: each lists only `calvin.sg` and reads all 15 records, and on an attempted
+write the read token returns **403 Authentication error** while the write token returns 400 for an
+invalid record type — permission present, body rejected, zone unchanged at 15 records throughout.
+Re-run that check after any rotation; a token pasted from the wrong place passes every test except
+using it.
 
 ## What is managed, and what is deliberately not
 
