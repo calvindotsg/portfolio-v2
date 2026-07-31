@@ -995,6 +995,13 @@ export const FOOTER: {
     suffix: ", more love to Astro template by Gianmarco"
 }
 
+/**
+ * Written once, read twice: as {@link METADATA.full_name} and inside
+ * {@link METADATA.title}. A field of an object literal cannot reference a sibling field,
+ * and the whole point of the title below is that it stops carrying its own copy of a fact.
+ */
+const FULL_NAME = "Calvin Loh"
+
 export const METADATA: {
     /**
      * The page title — and THE JOB IN IT IS DERIVED, not typed.
@@ -1007,13 +1014,38 @@ export const METADATA: {
      *
      * A copy of a fact drifts the moment the fact moves, and a title is the last place
      * anyone thinks to edit — so the copy is gone rather than corrected. `CAREER[0]` is
-     * where a job title changes, once. `tests/rendered-html.test.ts` reads the BUILT
-     * page's `<title>` back against `CAREER[0].job_name`, so the gate is on the shipped
-     * document rather than on this expression.
+     * where a job title changes, once, and `FULL_NAME` is where the name does.
+     * `tests/rendered-html.test.ts` reads the BUILT page's `<title>` back against
+     * `CAREER[0].job_name`, so the gate is on the shipped document rather than on this
+     * expression.
      *
-     * The h1 on the intro card ({@link WELCOME}) still says the short form. That is copy,
-     * not a second record of the job: it is four lines of self-introduction sized to the
-     * card, and it is not what a machine reads.
+     * THE BUDGET IS PIXELS, AND THIS TITLE HAS NEVER FIT ONE. Google's desktop result
+     * renders a title in Arial 20px in a container about 600px wide, and cuts what does
+     * not fit. Measured in Chrome (canvas `measureText`, cross-checked against a laid-out
+     * span in the same face): the four-part title this replaces ran **724px**, and the
+     * pre-promotion one it inherited from ran **635px** — so "Enthusiastic Learner" has
+     * never been shown to anyone searching, and the fix that put the real job title in
+     * pushed "Road Cyclist" out with it. The copy here measures **578px** and is the whole
+     * string a reader sees.
+     *
+     * WHAT THE REWRITE DROPPED AND WHY. "Enthusiastic Learner" is the one segment naming
+     * nothing on this site — no card, no page, and nobody searches it — so it went first
+     * and bought the room for the rest. Cycling stayed: half of what is here is a goal
+     * card and a wall of race bibs. The name is the FULL one because a title is where a
+     * search engine decides which Calvin this is, which is the same reason
+     * {@link METADATA.full_name} exists for the schema — and the em dash matches the
+     * `<heading> — <name>` shape every other page's title already uses.
+     *
+     * A LONGER JOB TITLE NOW LENGTHENS THIS AUTOMATICALLY, which is the cost of deriving
+     * it: 578 of 600px leaves 22px, or about two characters. `tests/constants.test.ts`
+     * caps the length so that lands as a red test rather than as a silent truncation —
+     * the cap is a character count standing in for a pixel measurement, so when it fails,
+     * re-measure rather than raising it.
+     *
+     * The h1 on the intro card ({@link WELCOME}) still says the short job title, and still
+     * says "Enthusiastic learner". That is copy, not a second record of the job: it is
+     * four lines of self-introduction sized to the card, read by someone already on the
+     * page rather than deciding whether to open it.
      */
     title: string
     description: string
@@ -1051,11 +1083,11 @@ export const METADATA: {
     address_country: string
     email_obfuscated: string
 } = {
-    title: `Calvin - ${CAREER[0].job_name} | Road Cyclist | Enthusiastic Learner`,
+    title: `${FULL_NAME} — ${CAREER[0].job_name} | Road Cyclist`,
     description: "Building things at a startup, probably cycling when you find me. Join my 5000km cycling and 600km running goals this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
-    full_name: "Calvin Loh",
+    full_name: FULL_NAME,
     professional_summary: "I build the systems that keep operations running and improving: docs-as-code platforms, workflow automation, and tooling that helps teams work with less friction.",
     image_url: "https://calvin.sg/preview.jpg",
     address_locality: "Singapore",

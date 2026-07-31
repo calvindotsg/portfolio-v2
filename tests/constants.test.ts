@@ -249,8 +249,21 @@ describe("METADATA", () => {
         expect(METADATA.image_url).toMatch(/^https:\/\//);
     });
 
+    /*
+     * The upper bound is a PROXY, and knowing that is the point of it. A search result
+     * truncates by pixel width — about 600px of Arial 20px on desktop — and the shipped
+     * title measures 578px at 61 characters (Chrome canvas measureText, cross-checked
+     * against a laid-out span). Every earlier version of this title overflowed that
+     * container unnoticed, at 635px and then 724px, because nothing here looked.
+     *
+     * The job title is now interpolated from CAREER, so a promotion lengthens this string
+     * without anyone editing it. 61 is where the measurement was taken, so exceeding it
+     * means the measurement no longer covers the string: re-measure and move the bound to
+     * what you measured. Do not raise it to whatever the new title happens to be.
+     */
     it("keeps the title and description within useful SEO lengths", () => {
         expect(METADATA.title.length).toBeGreaterThan(10);
+        expect(METADATA.title.length, "re-measure the rendered width before raising this").toBeLessThanOrEqual(61);
         expect(METADATA.description.length).toBeGreaterThan(50);
         expect(METADATA.description.length).toBeLessThanOrEqual(200);
     });
