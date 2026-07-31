@@ -45,12 +45,19 @@ Ten of the zone's fifteen records are in `zones/calvin.sg.yaml`. The other five 
 
 - **The three `MX` records** belong to Cloudflare Email Routing, which marks them as its own and
   rewrites them from its own UI.
-- **`cf2024-1._domainkey`** is the Email Routing DKIM key, and Cloudflare marks it `read_only` —
-  the API refuses to write it at all.
+- **Any `._domainkey` name** is an Email Routing DKIM key, and Cloudflare marks it `read_only` —
+  the API refuses to write it at all. Matched by suffix rather than by name on purpose: the
+  selector carries a year, and an exclusion pinned to `cf2024-1._domainkey` stops covering the
+  key the moment Cloudflare rotates it.
 - **`_dmarc`** is excluded for a reason that is not about DNS: its `rua=` is a personal mailbox,
-  and no email address appears anywhere else in this public repository. Deleting one line from
-  the name reject list adopts it, and that is a choice about publishing an address, not about
-  correctness.
+  and no email address appears anywhere else in this public repository. That is a choice about
+  publishing an address, not about correctness.
+
+To adopt `_dmarc` later, **add the record to `zones/calvin.sg.yaml` first, then remove it from the
+reject list** — in that order. Removing the line on its own does not adopt the record, it plans a
+**delete** of it: the name becomes visible to the diff, which finds it live and absent from the
+file. This page and `config.yaml` both used to say "delete the line to adopt it", which is exactly
+backwards; running it plans `Delete TXT _dmarc`.
 
 An excluded record is invisible to octoDNS on **both** sides of the diff, so no plan can ever
 propose deleting one. `test_filters.py` proves that by executing it rather than by citing it.

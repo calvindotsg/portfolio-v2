@@ -337,9 +337,24 @@ describe("the octoDNS config still asks for the exclusions it documents", () => 
         expect(types).toContain("MX");
     });
 
-    it("keeps the read-only DKIM key on the name reject list", () => {
+    /**
+     * PORTS octoDNS' OWN MATCHING RULE rather than comparing strings: an entry wrapped in `/` is
+     * a regex applied with `search`, anything else is an exact name
+     * (`octodns/processor/filter.py:124`). Asserting `toContain("cf2024-1._domainkey")` is what
+     * this used to do, and it pinned the test to one year's selector just as the config pinned
+     * the exclusion — so the assertion agreed with the bug instead of catching it.
+     */
+    const rejects = (patterns: string[], name: string): boolean =>
+        patterns.some((p) => (p.startsWith("/") ? new RegExp(p.slice(1, -1)).test(name) : p === name));
+
+    it("keeps every DKIM selector off the managed set, not just this year's", () => {
         const names = processors.find((p) => p.class.endsWith("NameRejectlistFilter"))?.rejectlist ?? [];
-        expect(names).toContain("cf2024-1._domainkey");
+        expect(rejects(names, "cf2024-1._domainkey")).toBe(true);
+        // The rotation. Cloudflare moves this on its own schedule, and the old exclusion did not.
+        expect(rejects(names, "cf2025-1._domainkey")).toBe(true);
+        // The control: a pattern that excluded everything would pass the two above and be useless.
+        expect(rejects(names, "www")).toBe(false);
+        expect(rejects(names, "battleship")).toBe(false);
     });
 
     /**

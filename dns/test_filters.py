@@ -71,7 +71,15 @@ LIVE_PAGERULES = [
 ]
 
 
-def cloudflare(pagerules, pagerule_result=()):
+# Cloudflare rotates the Email Routing DKIM selector, and the selector carries a year. This is
+# what the live zone looks like the day after that happens.
+ROTATED_DKIM = {
+    "name": "cf2025-1._domainkey.calvin.sg", "type": "TXT",
+    "content": "v=DKIM1; h=sha256; k=rsa; p=ROTATED", "ttl": 1, "proxied": False,
+}
+
+
+def cloudflare(pagerules, pagerule_result=(), extra_records=()):
     """A real CloudflareProvider with its single HTTP seam stubbed.
 
     Everything above the seam is the shipped code path — pagination, the SUPPORTS filter,
@@ -84,7 +92,8 @@ def cloudflare(pagerules, pagerule_result=()):
             return {"result": [{"name": "calvin.sg", "id": ZONE_ID, "plan": {"legacy_id": "free"}}],
                     "result_info": {"count": 1, "per_page": 50}}
         if path == f"/zones/{ZONE_ID}/dns_records":
-            return {"result": LIVE_RECORDS, "result_info": {"count": len(LIVE_RECORDS), "per_page": 100}}
+            records = LIVE_RECORDS + list(extra_records)
+            return {"result": records, "result_info": {"count": len(records), "per_page": 100}}
         if path == f"/zones/{ZONE_ID}/pagerules":
             return {"result": list(pagerule_result)}
         # Anything else means the provider tried to reach a surface this test does not model,
@@ -108,6 +117,15 @@ def deletions(processors, pagerules=False, pagerule_result=()):
     return sorted(f"{c.existing._type} {c.existing.name or '@'}" for c in changes if isinstance(c, Delete))
 
 
+def deletions_after_dkim_rotation(processors):
+    """Deletes planned against a live zone whose DKIM selector has rolled to next year's."""
+    plan = cloudflare(pagerules=False, extra_records=[ROTATED_DKIM]).plan(
+        committed_zone(), processors=processors
+    )
+    changes = plan.changes if plan else []
+    return sorted(f"{c.existing._type} {c.existing.name or '@'}" for c in changes if isinstance(c, Delete))
+
+
 def unmanaged():
     """The names and types the SHIPPED config declines to manage, read off the filters themselves.
 
@@ -123,21 +141,33 @@ def unmanaged():
     protecting it — reddens the gate itself. The two together cover both directions; neither
     does alone.
     """
-    types, names = set(), set()
+    types, names, patterns = set(), set(), []
     for p in SAFE:
         types |= getattr(p, "_list", set())
         names |= getattr(p, "exact", set())
-    return types, names
+        # A `/…/` entry is a regex, not a name. Reading only `exact` would quietly stop covering
+        # the DKIM key the moment its exclusion became a pattern — which it now is.
+        patterns += getattr(p, "regex", [])
+    return types, names, patterns
+
+
+def is_unmanaged(record):
+    """Mirrors octoDNS' own matching: exact name, regex `search`, or rejected type."""
+    types, names, patterns = unmanaged()
+    return (
+        record._type in types
+        or record.name in names
+        or any(r.search(record.name) for r in patterns)
+    )
 
 
 def changes_touching_unmanaged(processors):
     """Any change at all — Create, Update or Delete — against a record this zone file excludes."""
-    types, names = unmanaged()
     plan = cloudflare(pagerules=False).plan(committed_zone(), processors=processors)
     return sorted(
         f"{type(c).__name__} {c.record._type} {c.record.name or '@'}"
         for c in (plan.changes if plan else [])
-        if c.record._type in types or c.record.name in names
+        if is_unmanaged(c.record)
     )
 
 
@@ -230,6 +260,18 @@ def main():
     print("\n── the claim: a reject list is not a delete list ──────────────────────────────")
     check("MX survives the type rejectlist", deletions(SAFE), [])
     check("DKIM and DMARC survive the name rejectlist", deletions(SAFE), [])
+    # NEXT year's key, not this one. The exclusion is matched by suffix precisely so that a
+    # rotation is not an outage waiting on a calendar.
+    check("so does the DKIM key Cloudflare has not rotated to yet",
+          deletions_after_dkim_rotation(SAFE), [])
+    # The control, and the reason the line above is not decoration: pinned to one literal
+    # selector — which is what shipped until 2026-07-31 — the rotated key IS deleted.
+    check("pinned to one selector, a rotation would have been deleted",
+          deletions_after_dkim_rotation([
+              TypeRejectlistFilter("mx", ["MX"]),
+              NameRejectlistFilter("names", ["cf2024-1._domainkey", "_dmarc"]),
+          ]),
+          ["TXT cf2025-1._domainkey"])
 
     print("\n── the controls: each says the same thing with one guard removed ──────────────")
     # Without the MX filter the three MX records are in `existing` and absent from `desired`, so

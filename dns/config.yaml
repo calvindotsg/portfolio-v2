@@ -73,10 +73,21 @@ processors:
   names-not-managed-here:
     class: octodns.processor.filter.NameRejectlistFilter
     rejectlist:
-      # The Email Routing DKIM key. Cloudflare marks this one `read_only` on top of
-      # `email_routing`, so excluding it is not tidiness — the API refuses to write it, and a
-      # plan containing it would fail at apply rather than at review.
-      - cf2024-1._domainkey
+      # The Email Routing DKIM key. Cloudflare marks it `read_only` on top of `email_routing`,
+      # so excluding it is not tidiness — the API refuses to write it, and a plan containing it
+      # would fail at apply rather than at review.
+      #
+      # MATCHED BY SUFFIX, NOT BY NAME, because the selector carries a year. This was
+      # `cf2024-1._domainkey` until 2026-07-31, which excluded exactly today's key and nothing
+      # else: when Cloudflare rotates to `cf2025-1._domainkey` the new name is unexcluded, so it
+      # is in the live zone, absent from this file, and the diff plans a DELETE of a key the API
+      # will not let anyone delete. Executed before changing it — a rotated selector added to the
+      # fixture in `test_filters.py` planned `Delete TXT cf2025-1._domainkey`.
+      #
+      # A leading and trailing `/` is how octoDNS marks a pattern as a regex, applied with
+      # `re.search` (`octodns/processor/filter.py:124`). This one therefore covers every DKIM
+      # selector at any name, which is the whole class rather than this year's instance.
+      - '/\._domainkey$/'
       # DMARC, excluded for a reason that has nothing to do with DNS: its `rua=` is a personal
       # mailbox, and no email address appears anywhere else in this public repository. Putting
       # it here would be the first, and git history does not forget. The record is live and
