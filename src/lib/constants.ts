@@ -167,6 +167,15 @@ export const PROJECTS: {
     repo_url: "https://github.com/calvindotsg/homebrew-tap"
 }]
 
+/**
+ * The intro card's own voice — and the second line NAMES A CHALLENGE THAT IS STILL ON.
+ *
+ * ITS AGE IS NOT EVIDENCE OF DRIFT. A copy audit reached for this line because it had
+ * not changed in over a year, which measures the git log rather than the challenge:
+ * the ride it names is one the maintainer is still riding, so the sentence is current
+ * and was kept. The only thing that can settle this line is the challenge itself —
+ * check that before rewriting it, and do not take a commit date as the answer.
+ */
 export const ABOUT_ME: {
     description: string[]
 } = {
