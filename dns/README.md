@@ -77,6 +77,15 @@ it finds anything**, which is the only way a drift becomes a notification rather
 When it fails, one of two things is true: someone edited DNS by hand, and the file should be
 updated to match; or the file is ahead of the zone, and wants applying.
 
+Which makes *how it decides* load-bearing, and it is not the exit code — `octodns-sync` exits 0
+whether or not it found changes. It reports in prose instead: a `checksum=` line when there is at
+least one change, `No changes were planned` when there is none. `drift.sh` reads both signals and
+requires them to agree, and **exits non-zero when it can tell neither**, because the alternative is
+a check reporting a zone it failed to read as unchanged. `test_drift.sh` executes that against
+fixtures of every shape, including a plan whose checksum line has changed format — the realistic
+version-bump case, which under the original one-line grep reported "No changes" and took Monday's
+run green.
+
 ## Working on it locally
 
 ```sh

@@ -82,6 +82,12 @@ jobs:
 
       - run: python dns/test_filters.py
 
+      # The other half of the offline proof, and it needs no octodns at all: the `plan` job reads
+      # whether the zone drifted out of octodns' TEXT, so that reading is parsing and can rot
+      # silently. This executes it against fixtures of every output shape, including the two that
+      # must fail rather than report "clean".
+      - run: bash dns/test_drift.sh
+
       # Catches what the proof above cannot: a config that does not load at all, a record whose
       # value is not a legal one for its type, a zone file octoDNS refuses to parse. It
       # constructs the providers but makes no API call, so the token only has to EXIST — a real
@@ -149,7 +155,17 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
         run: |
-          CHECKSUM=$(grep -o 'checksum=[0-9a-f]\{64\}' plan.txt | head -1 | cut -d= -f2)
+          # `dns/drift.sh` reads BOTH of octodns' signals and requires them to agree, and exits 2
+          # if it cannot tell. That non-zero fails this step, which is the point: this line used
+          # to be a bare grep for the checksum, and a grep that stops matching reports a drifted
+          # zone as "No changes" and takes the Monday run green. `dns/test_drift.sh` executes
+          # that behaviour against fixtures in the `semantics` job.
+          RESULT=$(bash dns/drift.sh plan.txt)
+          if [ "$RESULT" = "CLEAN" ]; then
+            CHECKSUM=""
+          else
+            CHECKSUM=${RESULT#DRIFT }
+          fi
           {
             echo "### DNS plan"
             echo ""

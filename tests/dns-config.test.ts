@@ -74,6 +74,19 @@ const needsOf = (id: string): string[] => {
 
 const stepsOf = (id: string): Step[] => WF.jobs[id]?.steps ?? [];
 const runScript = (id: string): string => stepsOf(id).map((s) => s.run ?? "").join("\n");
+/**
+ * The run scripts with comment-only lines dropped. A script NAMED in a comment is not a script
+ * CALLED, and the difference is not academic: the first version of the drift assertions below
+ * matched `dns/drift.sh` anywhere in the step, so deleting the invocation while leaving the
+ * comment that explains it kept them green. Caught by mutating the workflow and watching only
+ * one of three guards go red.
+ */
+const runCommands = (id: string): string =>
+    runScript(id)
+        .split("\n")
+        .filter((line) => !/^\s*#/.test(line))
+        .join("\n");
+
 const envText = (id: string): string =>
     stepsOf(id)
         .flatMap((s) => Object.values(s.env ?? {}))
@@ -152,6 +165,32 @@ describe("the checksum is what separates planning from applying", () => {
 
     it("enables the checksum in the octoDNS config, or none of the above means anything", () => {
         expect(CONFIG.manager?.enable_checksum).toBe(true);
+    });
+});
+
+describe("the drift decision is delegated, so that it can be executed", () => {
+    /**
+     * WHY THIS READS THE WORKFLOW RATHER THAN TRUSTING `dns/test_drift.sh`. That script proves
+     * `dns/drift.sh` behaves; it says nothing about whether the workflow still CALLS it. Restore
+     * the bare `grep -o 'checksum=...'` this replaced and every behavioural check stays green
+     * while the plan job goes back to reporting a drifted zone as "No changes" — the redundancy
+     * is invisible from below, so one assertion has to look at the config itself.
+     *
+     * The original was fail-open in a way exit codes cannot catch: octodns-sync exits 0 whether
+     * or not it found changes, so a grep that stops matching is indistinguishable from a clean
+     * zone. `drift.sh` requires octodns' two signals to agree and exits non-zero when it cannot
+     * tell, which fails the step instead of reporting a zone it never checked.
+     */
+    it("the plan job asks drift.sh, instead of parsing octodns' output inline", () => {
+        expect(runCommands("plan")).toMatch(/dns\/drift\.sh/);
+    });
+
+    it("does not go back to reading the checksum line as the only drift signal", () => {
+        expect(runCommands("plan")).not.toMatch(/grep[^\n]*checksum=/);
+    });
+
+    it("the semantics job executes drift.sh against its fixtures", () => {
+        expect(runCommands("semantics")).toMatch(/dns\/test_drift\.sh/);
     });
 });
 
