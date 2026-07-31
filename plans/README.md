@@ -81,8 +81,9 @@ report mid-run and executed out of numeric order.
 on purpose.** On 2026-07-30 the site left Netlify for Cloudflare Pages, with
 `.github/workflows/ci.yml` becoming its only builder; the Netlify project and
 `netlify.toml` are deleted. That work was planned and executed under a separate
-lifecycle (`~/.claude/plans/019-cloudflare-migration.md`), so it has no plan file
-in `plans/done/` and adding a row here would point at nothing. It is recorded
+lifecycle (`~/.claude/plans/done/019-cloudflare-migration.md`, archived there on
+2026-07-31 once WP6 merged), so it has no plan file in this repository's
+`plans/done/` and adding a row here would point at nothing. It is recorded
 here because two entries below — the DX-01 rejection and the deploy-gate baseline
 — would otherwise read as current policy and send a run to re-derive a decision
 that has already been reversed.
