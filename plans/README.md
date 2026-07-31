@@ -217,6 +217,8 @@ identical samples per URL):
   and `tests/setup/build.ts`; `pnpm test` builds `dist/` first and runs in ~3 s.
 - Pages: **4 prerendered** — `/`, `/patches`, `/patches/cycling`,
   `/patches/running` (one rest-parameter route builds the three patch pages).
+  *(`/404` landed after this measurement; the table below carries the current
+  figure, as it does for every row here.)*
 - Source: 14 `.astro` files; `src/lib/{constants,projection,icons}.ts` at
   839/587/9 lines; `uno.config.ts` **506 lines**, most of it measured rationale.
 - Page weight, local gzip -9 / production brotli: `/` 6,575 / 6,167 B;
@@ -236,11 +238,11 @@ is left as written because it records what was true when it was measured.
 | output mode | `static` — no adapter, no SSR function, no middleware |
 | astro integrations | `sitemap()`, `UnoCSS({injectReset: true})` — that is all |
 | direct dependencies | **18** |
-| client JavaScript | **zero external files**; ~525 B inline (the pre-paint theme script) |
+| client JavaScript | **zero external files**, which is not the same as none. **Three first-party scripts, all inline**: the pre-paint theme resolver and the press-hold (`data-leaving`) listener, both in `BasicLayout.astro` and on every page, plus `ThemeSwitcher`'s toggle listener, inlined as a module on the home page only. The ~525 B figure quoted here before was the theme resolver alone, and it was labelled as the total. **Nothing gates this row** — a census gate was written and then deliberately deleted, because pinning a count is what puts a rotting fact somewhere nobody revisits. Re-derive it from the script elements in `dist/` when you touch it |
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
-| components | 14 `.astro` files (11 components, 1 layout, 2 page routes → 4 pages); **no UI framework**, no `.svelte`, no islands |
-| `uno.config.ts` | 506 lines — safelist, blocklist, five `rem` breakpoints, the two shortcuts; mostly measured rationale |
-| tests | **277** assertions, 10 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`. **Now 362 in 12 files** — measured 2026-07-30 on the commit that deleted `netlify.toml` (`git log --diff-filter=D -- netlify.toml`), read off `pnpm test` rather than counted. The two new files are `clock-split` (the `BUILD_DATE`/`UPDATED_AT` split) and `workflow-guards` (the deploy gate, executed rather than read). **Now 402 in 13 files** — measured 2026-07-31 off `pnpm test` after rebasing onto #113, whose three new assertions are included; the new file is `dns-config` (the DNS workflow's guards, also executed). A further 13 checks live in `dns/test_filters.py` and 6 in `dns/test_drift.sh`, both of which run in `.github/workflows/dns.yml` rather than here — the first needs Python and octoDNS, the second needs neither |
+| components | 15 `.astro` files (11 components, 1 layout, 3 page routes → **5 prerendered pages**: `/`, `/patches`, `/patches/cycling`, `/patches/running` and `/404`, plus the `robots.txt` and `llms.txt` endpoints); **no UI framework**, no `.svelte`, no islands |
+| `uno.config.ts` | 726 lines — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale |
+| tests | **277** assertions, 10 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`. **Now 362 in 12 files** — measured 2026-07-30 on the commit that deleted `netlify.toml` (`git log --diff-filter=D -- netlify.toml`), read off `pnpm test` rather than counted. The two new files are `clock-split` (the `BUILD_DATE`/`UPDATED_AT` split) and `workflow-guards` (the deploy gate, executed rather than read). **Now 402 in 13 files** — measured 2026-07-31 off `pnpm test` after rebasing onto #113, whose three new assertions are included; the new file is `dns-config` (the DNS workflow's guards, also executed). **Now 410 in 14 files** — the new file is `docs-drift`, which asserts this repository's prose against its code. It splits the documentation by kind: a current-state document (this table included) is gated for accuracy, while `.devin/wiki.json` — a standing instruction read on every future generation — is gated for *durability*, i.e. forbidden from stating a count, a component filename or an exported constant at all, and required to say where each is derived instead. That file is where the rot was worst, and the fix was to delete the facts rather than to pin them. A further 13 checks live in `dns/test_filters.py` and 6 in `dns/test_drift.sh`, both of which run in `.github/workflows/dns.yml` rather than here — the first needs Python and octoDNS, the second needs neither |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
 | `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up. **Run 4: now 1 moderate + 2 high** — both highs are brace-expansion GHSA-mh99-v99m-4gvg on dev-only lint paths; plan 017 clears one in-range and documents the other as a second deliberate residual (no patched 1.x exists; the override is measured-broken). **`@netlify/otel` survived the cutover and always would have**: it arrives as `astro` → `unstorage` → `@netlify/blobs`, so it is an Astro dependency and has nothing to do with where the site is hosted — leaving Netlify does not clear it |
 | deploy gate | **Changed after run 4.** `.github/workflows/ci.yml` — a `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test`, uploads `dist/`, and two `wrangler pages deploy` jobs sit behind `needs: build` and publish that same artifact without rebuilding. It replaced `netlify.toml` running `pnpm check && pnpm test`; that file and the Netlify project are both deleted. `tests/workflow-guards.test.ts` is what holds the `needs:` edge |
@@ -543,8 +545,10 @@ their resolutions rather than deleted.
 
 ## Where the evidence lives
 
-[`done/README.md`](done/README.md) carries the per-plan verification log for all
-eight plans: what was mutation-tested, what each preview-vs-production diff
-showed, and every plan defect found during execution. Read it when you need to
+[`done/README.md`](done/README.md) carries the per-plan verification log for every
+archived plan — count them from `plans/done/` rather than from this sentence, which
+said "all eight plans" for nine plans after that stopped being true: what was
+mutation-tested, what each preview-vs-production diff showed, and every plan defect
+found during execution. Read it when you need to
 know *why* something was done a particular way, or before assuming a past
 decision was arbitrary.

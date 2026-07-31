@@ -32,6 +32,27 @@ block above it before giving either consumer the other's list.
   http://localhost:4321 — the site is a static build with no adapter, and the
   deploy jobs upload the very `dist/` the suite asserted against rather than
   rebuilding, so the preview is byte-identical to production
+- **`pnpm test` gates the prose too, and it is the only thing that does.**
+  `tests/docs-drift.test.ts` reads this file, `README.md`, `.devin/wiki.json` and
+  every comment under `src/`, and holds each against the code. **Which gate applies
+  depends on what kind of document it is**, and that distinction is the design
+  rather than a detail:
+  - a **current-state** document (this file, `README.md`, `plans/README.md`'s
+    baseline table, every comment under `src/`) may state facts and is gated for
+    accuracy — a path, a `pnpm` script or a configured name in backticks must
+    exist; `README.md` must name every suite; this file must name every shortcut
+    and how many there are, by **canonical phrase**: the number is derived from
+    `uno.config.ts` and the sentence must contain it spelled out (`four
+    shortcuts`), so reword around it freely and never edit the number by hand
+  - `.devin/wiki.json` is a **standing instruction** for a wiki generator, read on
+    every future run against code that has moved. It is gated for durability, not
+    accuracy: **no counts, no component filenames, no exported constant names**,
+    and every page it specifies must say where to derive those at generation
+    time. Do not "helpfully" add a fact to it — the right fix for a fact that
+    could go stale is to delete the claim and name its source. That file once
+    said the site's client JS was two inline scripts when the build shipped three
+  - measurement and rationale are ungated everywhere; `plans/done/` is exempt as
+    an archive. When one of these goes red, the document is what is wrong
 - **`pnpm test` does not cover the DNS zone.** What a plan would actually do to
   `calvin.sg` — that Email Routing's `MX` records, the `read_only` DKIM key and
   `_dmarc` all survive the reject lists, and that `pagerules` stays off so the
@@ -127,6 +148,13 @@ block above it before giving either consumer the other's list.
   `/patches/<sport>`, and `tests/build-output.test.ts` walks the link graph from `/`
   to keep it that way — and asserts the destination is headed with the control's own
   words, which is a pairing no single-page test can see
+- `src/pages/404.astro` — the answer to a URL the site does not have, and the only
+  user of `BasicLayout`'s `noindex` prop, which flips the robots directive to
+  `noindex, follow` **and** drops the canonical and `og:url` together. It exists because Cloudflare Pages serves
+  `/index.html` with a 200 for an unknown path where no `404.html` is present, which is
+  the textbook soft-404. Two build-wide gates in `tests/build-output.test.ts` name it as
+  their one exemption — it is in no sitemap and nothing links to it — and both
+  exemptions are asserted as facts about this page, so a second unreachable page fails
 - `src/pages/patches/[...sport].astro` — the patch wall. One rest-parameter route
   prerenders three pages (`/patches`, `/patches/cycling`, `/patches/running`), so
   filtering by sport is a real URL rather than client state. Whether a bib is
