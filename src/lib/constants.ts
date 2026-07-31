@@ -85,6 +85,16 @@ export const LINKS: {
     link: "/resume.pdf", logo: "ri:file-pdf-2-line", name: "View résumé (PDF)"
 },];
 
+/**
+ * `CAREER[0].job_name` IS THE SITE'S ONLY RECORD OF THE CURRENT JOB, and five surfaces derive from
+ * it: the JSON-LD `jobTitle` in `BasicLayout.astro`, the `/llms.txt` blockquote and career line,
+ * the intro card's h1 ({@link WELCOME}), and the page title ({@link METADATA.title}) — which also
+ * feeds `og:title` and `twitter:title`. Change it here and every one of them moves.
+ *
+ * ONE THING IS NOT AUTOMATIC: the title has a width budget, so a longer job title can fail
+ * `tests/constants.test.ts` with a measured overflow. That is the gate working, not a bug — read
+ * the note on {@link METADATA.title} before shortening anything to get past it.
+ */
 export const CAREER: {
     company: string
     company_url: string
@@ -167,6 +177,15 @@ export const PROJECTS: {
     repo_url: "https://github.com/calvindotsg/homebrew-tap"
 }]
 
+/**
+ * The intro card's own voice — and the second line NAMES A CHALLENGE THAT IS STILL ON.
+ *
+ * ITS AGE IS NOT EVIDENCE OF DRIFT. A copy audit reached for this line because it had
+ * not changed in over a year, which measures the git log rather than the challenge:
+ * the ride it names is one the maintainer is still riding, so the sentence is current
+ * and was kept. The only thing that can settle this line is the challenge itself —
+ * check that before rewriting it, and do not take a commit date as the answer.
+ */
 export const ABOUT_ME: {
     description: string[]
 } = {
@@ -579,12 +598,34 @@ export const goalForSport = (sport: Sport): Goal => {
     return goal
 }
 
+/**
+ * The intro card's h1 stack — one `<h1>` per line, and THE JOB LINE IS DERIVED like every other
+ * statement of the job on this site.
+ *
+ * IT USED TO BE A TYPED COPY, AND IT WAS WRONG. The line read "Business Systems Analyst." —
+ * character-identical to {@link CAREER}[1].job_name, the title held at NCS until Aug 2023 — while
+ * the role card a few hundred pixels below it announced the current "Founding Business Systems
+ * Analyst" and showed the NCS one with its own dates. The page stated the previous employer's job
+ * title as the present tense, in its own largest type. A review panel found it while the fix for
+ * the identical defect in `<title>` was in flight: correcting one typed copy of a fact and leaving
+ * the other is not a fix, it is a relocation.
+ *
+ * "ENTHUSIASTIC LEARNER" IS GONE, and the reason is the one the maintainer gave: it is not a
+ * reference worth keeping anywhere. It named nothing else on the site — no card, no page, no goal,
+ * no event — and it was already cut from {@link METADATA.title} for the pixels. Cutting it here too
+ * is what makes that a decision about the copy rather than a truncation forced by a budget, and it
+ * pays for the longer job line: the stack is three h1s where it was four.
+ *
+ * ANY EDIT HERE OWES A `public/preview.jpg` REGENERATION. That file is both the OG/social image and
+ * README's hero, and it is a render of this very card, so it goes stale invisibly — nothing builds
+ * it and no test reads what it depicts. The recipe is recorded with the file.
+ */
 export const WELCOME: {
     greeting_icon: string
     description: string[]
 } = {
     greeting_icon: "ri:open-arm-line",
-    description: ["Hi, I'm Calvin", "Business Systems Analyst.", "Road cyclist.", "Enthusiastic learner."]
+    description: ["Hi, I'm Calvin", `${CAREER[0].job_name}.`, "Road cyclist."]
 }
 
 /**
@@ -986,20 +1027,88 @@ export const FOOTER: {
     suffix: ", more love to Astro template by Gianmarco"
 }
 
+/**
+ * Written once, read twice: as {@link METADATA.full_name} and inside
+ * {@link METADATA.title}. A field of an object literal cannot reference a sibling field,
+ * and the whole point of the title below is that it stops carrying its own copy of a fact.
+ */
+const FULL_NAME = "Calvin Loh"
+
 export const METADATA: {
+    /**
+     * The page title — and THE JOB IN IT IS DERIVED, not typed.
+     *
+     * ONE PAGE USED TO GIVE TWO ANSWERS TO "WHAT IS HIS JOB". The JSON-LD in
+     * `BasicLayout.astro` reads {@link CAREER}[0] and served "Founding Business Systems
+     * Analyst"; this string was a hand-typed copy of the same fact and still served the
+     * pre-promotion "Business Systems Analyst". A reader saw one in the tab and a search
+     * engine parsed the other out of the same document.
+     *
+     * A copy of a fact drifts the moment the fact moves, and a title is the last place
+     * anyone thinks to edit — so the copy is gone rather than corrected. `CAREER[0]` is
+     * where a job title changes, once; `FULL_NAME` is where the name does; and
+     * {@link WELCOME} derives the h1 from the same place, so the page now has one record
+     * of the job rather than a corrected one and a forgotten one.
+     *
+     * TWO TESTS, AND THEY GUARD DIFFERENT HALVES. `tests/rendered-html.test.ts` renders
+     * this page in-process and asserts the `<title>` it produces carries both
+     * `CAREER[0].job_name` and `METADATA.full_name` — that is a gate on the RENDER, which
+     * is what catches this expression being re-typed as a literal.
+     * `tests/build-output.test.ts` is the one that reads `dist/index.html` off disk, and it
+     * now makes the same assertion there. Neither sentence is decorative: the first version
+     * of this comment claimed the render test read the built page, and a reviewer disproved
+     * it by corrupting `dist/index.html` by hand and watching that test stay green.
+     *
+     * THE BUDGET IS PIXELS, AND THIS TITLE HAS NEVER FIT ONE. A desktop Google result
+     * renders a title link in Arial 20px and cuts what does not fit. **~600px is an SEO
+     * convention, not a documented constant** — Google states only that a title link is
+     * "truncated… typically to fit the device width", and the vendor figures in circulation
+     * disagree (580–600px, and a 2014 measurement of 482px at 18px Arial). Treat it as an
+     * estimate that tells you to front-load, not as a specification with slack to spend.
+     * Against that estimate, measured in Chrome: the four-part title this replaces ran
+     * **724px**, and the pre-promotion one it inherited from ran **635px**, so on a desktop
+     * result "Enthusiastic Learner" was never shown to anyone; the copy here runs **578px**.
+     *
+     * WHAT THE REWRITE DROPPED AND WHY. "Enthusiastic Learner" went first because no card,
+     * page, goal or event on this site is about it, and it is now cut from {@link WELCOME}
+     * too rather than surviving in the copy the title had to drop for width. Cycling stayed
+     * because it is what the intro card's own h1 claims and what half the site is — a goal
+     * card and a wall of race bibs. Running has an equal claim and does not fit: five
+     * phrasings naming both sports were measured and the cheapest is 601px, which is the
+     * real reason only one sport is named. The name is the FULL one because a title is
+     * where a search engine decides which Calvin this is, which is the same reason
+     * {@link METADATA.full_name} exists for the schema. The em dash is the separator every
+     * other page's title already uses — those pages are `<heading> — Calvin`, so this one
+     * inverts the order and takes the full name deliberately: the home page is the entity,
+     * not a section of it.
+     *
+     * A LONGER JOB TITLE NOW LENGTHENS THIS AUTOMATICALLY, which is the cost of deriving it,
+     * and `tests/constants.test.ts` measures the width rather than counting characters. It
+     * used to count: a cap pinned at this string's own length, which two reviewers
+     * independently broke in both directions — a 33-character job title that renders 606px
+     * passed it, and a 40-character one that renders 565px failed it. The advance-width
+     * table behind the gate is `tests/helpers/arial-20px.ts`.
+     */
     title: string
     description: string
     site_url: string
     name: string
     /**
-     * The full name, for machines: schema.org's `name` and `/llms.txt`'s H1.
+     * The entity name: schema.org's `name`, `/llms.txt`'s H1, and the HOME page's title.
      *
-     * SEPARATE FROM {@link METADATA.name} BECAUSE THEY HAVE DIFFERENT JOBS. `name` is
-     * what a page title says — "Page not found — Calvin" — where the surname would be
-     * stiff and the reader already knows whose site they are on. This is the opposite
-     * case: "Calvin" alone is a first name shared by millions and is close to useless as
-     * an entity for a search or answer engine trying to decide which Calvin this is.
-     * The `sameAs` profiles already say `calvin-loh`; the schema should agree with them.
+     * SEPARATE FROM {@link METADATA.name} BECAUSE THEY HAVE DIFFERENT JOBS, and the split
+     * is by page rather than by audience. `name` is the site-name slot in a SECONDARY
+     * page's title — "Page not found — Calvin", "My cycling events — Calvin" — where the
+     * surname would be stiff and the reader already knows whose site they are on. The home
+     * page is the opposite case, and it is the one a stranger meets first: "Calvin" alone
+     * is a first name shared by millions and is close to useless as an entity for a search
+     * or answer engine trying to decide which Calvin this is. The `sameAs` profiles already
+     * say `calvin-loh`; the title and the schema should agree with them.
+     *
+     * This comment used to say `name` is "what a page title says" full stop, which
+     * {@link METADATA.title} then made false — a rule and the code disagreeing, with
+     * nothing to catch it. If a future title changes which name it takes, change this
+     * sentence in the same edit.
      *
      * Read from his own profile README (github.com/calvindotsg/calvindotsg), which opens
      * "Hi, I'm Calvin Loh".
@@ -1023,11 +1132,11 @@ export const METADATA: {
     address_country: string
     email_obfuscated: string
 } = {
-    title: "Calvin - Business Systems Analyst | Road Cyclist | Enthusiastic Learner",
+    title: `${FULL_NAME} — ${CAREER[0].job_name} | Road Cyclist`,
     description: "Building things at a startup, probably cycling when you find me. Join my 5000km cycling and 600km running goals this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
-    full_name: "Calvin Loh",
+    full_name: FULL_NAME,
     professional_summary: "I build the systems that keep operations running and improving: docs-as-code platforms, workflow automation, and tooling that helps teams work with less friction.",
     image_url: "https://calvin.sg/preview.jpg",
     address_locality: "Singapore",

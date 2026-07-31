@@ -99,6 +99,25 @@ describe("document head", () => {
         expect(doc.querySelector("title")?.textContent).toBe(METADATA.title);
     });
 
+    /*
+     * The title and the JSON-LD below answer "what is his job" in the same document, and
+     * they used to disagree: the schema read CAREER[0] while the title carried a typed
+     * copy that had missed a promotion. This reads the RENDERED `<title>` against the two
+     * facts it is built from, so re-typing it as a literal — the exact way the two came
+     * apart — goes red rather than shipping a second, staler answer.
+     *
+     * Both halves are needed, and the name half is here because a reviewer deleted it: a
+     * title of "Road Cyclist | Founding Business Systems Analyst" — no name at all — passed
+     * a job-title-only version of this test with the whole suite green, as did emptying
+     * FULL_NAME. The equivalent assertion on the built artifact lives in
+     * tests/build-output.test.ts; this file renders in-process and never reads dist/.
+     */
+    it("serves the job title and the name that <title> is built from", () => {
+        const title = doc.querySelector("title")?.textContent;
+        expect(title).toContain(CAREER[0].job_name);
+        expect(title).toContain(METADATA.full_name);
+    });
+
     it("renders the meta description", () => {
         expect(doc.querySelector('meta[name="description"]')?.getAttribute("content")).toBe(METADATA.description);
     });

@@ -6,6 +6,7 @@ import {
 } from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {kmFromMeters} from "../scripts/fetch-strava-progress.mjs";
+import {arial20pxWidth} from "./helpers/arial-20px";
 
 /**
  * `src/lib/constants.ts` is the single source of truth for every piece of site
@@ -223,9 +224,18 @@ describe("CAREER", () => {
         expect(CAREER.length).toBeGreaterThan(0);
     });
 
-    it("gives every entry a company, dates and at least one bullet", () => {
+    /*
+     * `job_name` is asserted here because three assertions elsewhere check it with
+     * `toContain` — the title, the career card and the llms.txt blockquote — and
+     * `"anything".includes("")` is true, so an empty job title satisfies all three at once
+     * while shipping `<title>Calvin Loh —  | Road Cyclist</title>`, `"jobTitle":""` and an
+     * llms blockquote that starts " at HeyMax". A reviewer set it empty and watched the
+     * whole suite stay green. A degenerate value is where a `toContain` gate goes quiet.
+     */
+    it("gives every entry a company, a job title, dates and at least one bullet", () => {
         for (const job of CAREER) {
             expect(job.company, "company must be set").toBeTruthy();
+            expect(job.job_name, `${job.company} job_name must be set`).toBeTruthy();
             expect(job.company_url).toMatch(/^https?:\/\//);
             expect(job.start_date).toBeTruthy();
             expect(job.end_date).toBeTruthy();
@@ -249,8 +259,43 @@ describe("METADATA", () => {
         expect(METADATA.image_url).toMatch(/^https:\/\//);
     });
 
+    /*
+     * The name reaches five shipped strings — <title>, og:title, twitter:title, the schema's
+     * `name` and llms.txt's H1 — and every assertion on those compares them back to
+     * `METADATA.full_name` itself, which proves only that the pipeline is consistent. Set it
+     * to "" and the suite stayed green at 363 while the title shipped as " — Founding
+     * Business Systems Analyst | Road Cyclist" and llms.txt opened with a bare "#".
+     *
+     * `METADATA.name` is an independent literal, so relating the two is the cheapest
+     * non-tautological check available: the full name must contain the short one, and must
+     * actually be more than one word.
+     */
+    it("states a full name that agrees with the short one and is more than a first name", () => {
+        expect(METADATA.name, "the short name must be set").toBeTruthy();
+        expect(METADATA.full_name.startsWith(METADATA.name)).toBe(true);
+        expect(METADATA.full_name.trim().split(/\s+/).length).toBeGreaterThanOrEqual(2);
+    });
+
+    /*
+     * THE TITLE IS GATED ON WIDTH, NOT ON LENGTH, because that is the quantity a search
+     * result actually truncates on: roughly 600px of Arial 20px on desktop. This started
+     * as a character cap pinned at the shipped string's own length, and a review panel
+     * broke it in both directions with job titles nobody would blink at — "Warehouse
+     * Automation Manager, WMS" is 33 characters like today's and renders 606px (the cap
+     * passed it, truncated); "Institutional Litigation Field Officer I" renders 565px and
+     * the cap failed it with 35px to spare. A count cannot stand in for a width when one
+     * character spans 3.8px to 20.3px.
+     *
+     * The 600 is an SEO convention rather than a documented constant (see the note on
+     * METADATA.title), so it is a tripwire, not a specification. What it protects against
+     * is real: the job title is interpolated from CAREER, so a promotion lengthens this
+     * string with nobody editing it.
+     */
     it("keeps the title and description within useful SEO lengths", () => {
         expect(METADATA.title.length).toBeGreaterThan(10);
+        const width = arial20pxWidth(METADATA.title);
+        expect(width, `the title renders ${width.toFixed(1)}px of Arial 20px; a desktop result cuts near 600`)
+            .toBeLessThanOrEqual(600);
         expect(METADATA.description.length).toBeGreaterThan(50);
         expect(METADATA.description.length).toBeLessThanOrEqual(200);
     });
