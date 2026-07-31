@@ -38,6 +38,8 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 - [Umami](https://umami.is/)
 - [Vitest](https://vitest.dev/)
 - [Cloudflare Pages](https://pages.cloudflare.com/)
+- [octoDNS](https://github.com/octodns/octodns) (the `calvin.sg` DNS zone, kept
+  in `dns/` and applied by `.github/workflows/dns.yml`)
 
 ## Getting Started
 
@@ -142,10 +144,11 @@ that carry most of the weight:
 
 The rest are geometry and content gates — `page-fit`, `card-fill`,
 `control-geometry`, `icon-alignment`, `mobile-hero-contrast`, `patch-wall`,
-`projection` and `clock-split` — plus `workflow-guards`, which is the odd one
-out: it reads `.github/workflows/` rather than the site, and executes the deploy
-jobs' `if:` guards in GitHub's own expression evaluator. Deliberately no counts
-in prose, of suites or of assertions: read them from `pnpm test`.
+`projection` and `clock-split` — plus `workflow-guards` and `dns-config`, which
+read `.github/workflows/` rather than the site and execute those workflows' `if:`
+guards in GitHub's own expression evaluator: the deploy gate and the DNS apply
+gate respectively. Deliberately no counts in prose, of suites or of assertions:
+read them from `pnpm test`.
 
 `pnpm test` runs `pnpm build` once as a global setup so the build-output suite
 has real artifacts. Set `SKIP_BUILD=1` to reuse an existing `dist/` while
@@ -164,6 +167,15 @@ download **that same artifact** and publish it to Cloudflare Pages with
 both sit behind `needs: build`, so a red run of any of the three commands blocks
 the deploy. That edge is the whole of the gate; `tests/workflow-guards.test.ts`
 is what stops a refactor dropping it quietly.
+
+DNS is in git as well, and separately: `dns/zones/calvin.sg.yaml` is the
+`calvin.sg` zone, and `.github/workflows/dns.yml` plans it against Cloudflare on
+every pull request touching `dns/` and again weekly, so drift shows up as a red
+check rather than a surprise. Applying is a manual dispatch from `main` that has
+to quote the checksum its own plan printed, and the plan and apply jobs hold
+different Cloudflare tokens — read and edit — so nothing scheduled, and nothing
+running on a pull request, can change a record. Details in
+[`dns/README.md`](dns/README.md).
 
 To deploy your own copy:
 

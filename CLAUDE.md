@@ -32,6 +32,15 @@ block above it before giving either consumer the other's list.
   http://localhost:4321 — the site is a static build with no adapter, and the
   deploy jobs upload the very `dist/` the suite asserted against rather than
   rebuilding, so the preview is byte-identical to production
+- **`pnpm test` does not cover the DNS zone.** What a plan would actually do to
+  `calvin.sg` — that Email Routing's `MX` records, the `read_only` DKIM key and
+  `_dmarc` all survive the reject lists, and that `pagerules` stays off so the
+  `www` redirect is invisible rather than deleted — is proved by
+  `dns/test_filters.py`, which needs Python plus octoDNS and runs only in
+  `.github/workflows/dns.yml`. `tests/dns-config.test.ts` *is* in the suite, but
+  it guards that workflow's `if:` gates and reads the shipped `dns/config.yaml`;
+  it says nothing about the resulting plan. A green `pnpm test` is therefore not
+  evidence that a DNS change is safe — read the `plan` job's output for that
 
 ## Key Architecture Points
 
