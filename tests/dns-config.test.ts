@@ -201,6 +201,13 @@ const CONTEXTS: Record<string, {github: unknown; inputs: unknown}> = {
         github: {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main", event: {}},
         inputs: {checksum: CHECKSUM},
     },
+    // A dispatch runs against whatever ref the Actions tab was pointed at, and `apply` writes the
+    // zone file from THAT ref. The checksum cannot catch it — the plan job computed it from the
+    // same branch, so it matches honestly. Only a ref test stops unreviewed DNS reaching the zone.
+    "dispatch with a checksum on a feature branch": {
+        github: {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/feat/dns-as-code", event: {}},
+        inputs: {checksum: CHECKSUM},
+    },
     "same-repo PR touching dns/": {
         github: {
             actor: "calvindotsg", event_name: "pull_request", repository: REPO, ref: "refs/pull/1/merge",
@@ -238,6 +245,7 @@ const INTENDED: Record<string, string[]> = {
     "weekly drift schedule": ["plan"],
     "dispatch with no checksum (plan only)": ["plan"],
     "dispatch with a checksum (apply)": ["plan", "apply"],
+    "dispatch with a checksum on a feature branch": ["plan"],
     "same-repo PR touching dns/": ["plan"],
     "fork PR touching dns/": [],
     "Dependabot PR": [],

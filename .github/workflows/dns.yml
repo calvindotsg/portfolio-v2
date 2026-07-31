@@ -181,12 +181,21 @@ jobs:
   apply:
     name: apply
     needs: [semantics, plan]
-    # An ALLOW-LIST of one event plus a non-empty checksum. Spelling it as a deny-list would
-    # mean any trigger added to `on:` later could write DNS by default, which is the mistake
-    # `ci.yml` documents at `deploy-production`. A dispatch with the input left empty is a
-    # plan-only run and correctly skips this job.
+    # An ALLOW-LIST of one event, a non-empty checksum, AND a ref test. Spelling the first as a
+    # deny-list would mean any trigger added to `on:` later could write DNS by default, which is
+    # the mistake `ci.yml` documents at `deploy-production`. A dispatch with the input left empty
+    # is a plan-only run and correctly skips this job.
+    #
+    # THE REF TEST IS NOT REDUNDANT, and it was missing from the first version of this file.
+    # `workflow_dispatch` runs against whatever ref you pick in the Actions tab, and this job
+    # applies the zone file from THAT ref — so without it, dispatching from a feature branch
+    # writes unreviewed DNS to the live zone, with a checksum that legitimately matches because
+    # the plan job computed it from the same branch. `deploy-production` carries the identical
+    # test for the identical reason; the `dns` environment's branch policy is the structural
+    # backstop behind it.
     if: >-
       github.event_name == 'workflow_dispatch'
+      && github.ref == 'refs/heads/main'
       && inputs.checksum != ''
     runs-on: ubuntu-latest
     permissions:
