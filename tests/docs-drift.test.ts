@@ -1,0 +1,446 @@
+import {existsSync, readFileSync, readdirSync, statSync} from "node:fs";
+import {join, resolve} from "node:path";
+import {describe, expect, it} from "vitest";
+
+import unoConfig from "../uno.config";
+
+/**
+ * THE PROSE IS NOT GATED BY ANYTHING ELSE IN THIS SUITE, AND IT IS THE LARGEST
+ * SURFACE IN THE REPOSITORY.
+ *
+ * Every other file here asserts that the site is right. This one asserts that what
+ * the repository SAYS about itself is right, because nothing else can: a comment
+ * that names a deleted file, a README that names a script that was renamed, a
+ * generator config that counts two of something there are now three of — all of
+ * them build, lint, type-check and deploy green.
+ *
+ * TWO KINDS OF DOCUMENT LIVE HERE, AND THEY NEED OPPOSITE GATES. Getting this wrong
+ * is what the first version of this file did, so the distinction is the load-bearing
+ * idea rather than a taxonomy:
+ *
+ *   A CURRENT-STATE DOCUMENT describes the repository as it is today. README.md,
+ *   CLAUDE.md, plans/README.md's baseline table and every comment under src/ are
+ *   these. They are allowed — required — to state facts, and the gate they need is
+ *   ACCURACY: the facts must match the code.
+ *
+ *   A STANDING-INSTRUCTION DOCUMENT is read on every future run against a codebase
+ *   that has moved. `.devin/wiki.json` is the one here: it configures the generated
+ *   DeepWiki, and it is written once and consulted indefinitely. A fact stated in
+ *   such a document is a fact nobody will revisit, so the gate it needs is not
+ *   accuracy but DURABILITY — it must not contain the kind of claim that can go
+ *   stale at all. Facts belong in the code, where they are true by construction;
+ *   the instruction belongs here, and says where to read them.
+ *
+ * THE FIRST VERSION OF THIS FILE GATED THE WRONG PROPERTY, and the mistake is worth
+ * recording because it is the more tempting of the two. `.devin/wiki.json` said the
+ * site's total first-party client JavaScript was 'two tiny inline scripts'. The build
+ * ships three; the missing one is the press-hold script that every `data-[leaving]:`
+ * declaration in uno.config.ts depends on. The fix taken then was to correct the
+ * sentence to three and add an assertion pinning it to a census of the build — which
+ * works, and which entrenches a rotting fact in the one document that must not carry
+ * one, and pays for it with a test that fails whenever a script is legitimately added.
+ * The fix taken now is to delete the claim: the wiki says how to enumerate the scripts
+ * at generation time, the generator reads them out of the repository, and the class of
+ * defect is designed out rather than monitored. Where a claim can be deleted instead
+ * of gated, delete it.
+ *
+ * WHAT REMAINS GATEABLE, in the current-state documents:
+ *
+ *   1. REFERENCES — a path, a command, a configured name. Checkable against the
+ *      filesystem and the manifest with no judgement at all, and the checks apply to
+ *      standing instructions too: a durable pointer still has to point somewhere.
+ *   2. ENUMERATIONS — "these are the suites", "these are the shortcuts". Derive the
+ *      real set from the code and require the document to name every member.
+ *   3. COUNTS — "four shortcuts". Derive the number, then require the document to
+ *      contain the phrase it belongs to, spelled out. This is the mechanism
+ *      `tests/constants.test.ts` already uses to keep `METADATA.description` naming
+ *      each goal's target figure: everything around the phrase is free prose, the
+ *      number is not. Parsing prose instead invites a gate that is right about
+ *      grammar and wrong about facts.
+ *
+ * Rationale, measurement and history are none of those and are deliberately left
+ * alone in every document. A gate that tried to hold them would be a gate on writing.
+ *
+ * `plans/done/` IS EXCLUDED, AND THAT IS THE ONE STRUCTURAL DECISION HERE. Those
+ * files are an archive: plan 003 describes deleting the Svelte ProgressBar component
+ * and must go on naming it. A plan that stopped naming what it deleted would stop
+ * being a record of the deletion. `plans/README.md` is NOT archived — it calls itself
+ * the living index and its baseline table claims to be updated in place, so it is
+ * held to the same standard as everything else.
+ *
+ * IT GATES ITSELF, which is not a curiosity: the first run of this file failed on its
+ * own prose three times over — for naming a deleted component in backticks, for the
+ * words meaning a pnpm script reading as a command, and for a shape name reading as a
+ * constant. Two of those were the extractors being too loose and were fixed there; one
+ * was this comment being wrong in exactly the way it exists to catch.
+ *
+ * CALIBRATED BY MUTATION, one gate at a time, because two of the original gates were
+ * green against the change they exist to catch and looked correct while being so. Each
+ * of these was executed and turned this file red: a document naming a component under
+ * src/components that does not exist; a document telling the reader to run a pnpm
+ * script that is not in package.json (typecheck — the very name CLAUDE.md warns
+ * about); a document naming an undeclared constant; a fifth shortcut added to
+ * `uno.config.ts`; a new suite added without a README mention; a frozen count written
+ * into the wiki; a component filename written into the wiki; and a wiki page stripped
+ * of its derivation directive.
+ *
+ * Note that the first two of those had to be written WITHOUT backticks here. Putting a
+ * fake path or command in backticks in this comment makes it a claim like any other and
+ * reddens the build — which is the gate working, and is why the examples are described
+ * rather than quoted.
+ */
+
+/**
+ * `.scratchpad` AND `.claude/worktrees` ARE SKIPPED BECAUSE `.gitignore` PROVISIONS THEM,
+ * and leaving them in made this suite fail on a developer's machine while passing in CI —
+ * the worst shape a gate can have, because the person who hits it did nothing wrong and
+ * the obvious response is to delete the gate.
+ *
+ * Both hold agent working files: scratch notes naming a path that was never real, and
+ * whole nested checkouts of this repository. The second is the sharper one. `plans/done/`
+ * is exempt as an archive, but the exemption tested the START of the path, so a worktree
+ * at `.claude/worktrees/x` put the archive at `.claude/worktrees/x/plans/done/` where the
+ * prefix no longer matched — measured at 13 failures from one copied plan file, every one
+ * of them naming a component that plan exists to record deleting. The archive test now
+ * matches the segment anywhere in the path, which is correct for a nested checkout and
+ * costs nothing otherwise.
+ *
+ * CI never saw either, because a fresh `actions/checkout` has neither directory. That is
+ * exactly why it is worth a comment: a green pipeline was not evidence here.
+ */
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".astro", ".venv", "coverage", ".scratchpad"]);
+const SKIP_PATHS = new Set([".claude/worktrees"]);
+const ARCHIVE = "plans/done/";
+const WIKI = ".devin/wiki.json";
+const read = (p: string) => readFileSync(p, "utf8");
+
+function walk(dir: string, out: string[] = []): string[] {
+    for (const name of readdirSync(dir)) {
+        if (SKIP_DIRS.has(name)) continue;
+        const p = join(dir, name);
+        if (SKIP_PATHS.has(p.replace(/^\.\//, ""))) continue;
+        if (statSync(p).isDirectory()) walk(p, out);
+        else out.push(p);
+    }
+    return out;
+}
+
+/**
+ * EVERY FILE THAT CARRIES PROSE ABOUT THIS REPOSITORY, discovered rather than listed
+ * for the reason `tests/helpers/pages.ts` gives about routes: a hand-kept list is the
+ * failure mode this whole file is a response to, and a new document that no gate
+ * reaches is the same defect as a stale one.
+ *
+ * Source files are in scope alongside the Markdown because that is where most of the
+ * prose actually lives — `uno.config.ts` is the better part of a thousand lines,
+ * overwhelmingly comment, and `src/layouts/BasicLayout.astro` explains two client
+ * scripts and a palette. Excluding them would gate the small half.
+ */
+function liveDocs(): string[] {
+    return walk(".")
+        .map((p) => p.replace(/^\.\//, ""))
+        .filter((p) => /\.(md|ts|astro|mjs|yml|yaml|json|py|sh)$/.test(p))
+        .filter((p) => !p.includes(ARCHIVE) && p !== "pnpm-lock.yaml" && p !== "package.json")
+        .sort();
+}
+
+/** Every backticked run of non-whitespace in `file`, with the line it sits on. */
+function backticked(file: string): {token: string, line: number}[] {
+    const out: {token: string, line: number}[] = [];
+    read(file).split("\n").forEach((text, i) => {
+        for (const m of text.matchAll(/`([^`\n]{2,120})`/g)) {
+            const token = m[1].trim().replace(/[\\),.:;]+$/, "");
+            if (token && !/\s/.test(token)) out.push({token, line: i + 1});
+        }
+    });
+    return out;
+}
+
+const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven",
+    "eight", "nine", "ten", "eleven", "twelve"];
+
+describe("documentation, against the code it describes", () => {
+    /**
+     * WHAT A DOCUMENT NAMES MUST BE THERE. The cheapest class of rot and the only one
+     * with no judgement in it: a path is either on disk or it is not.
+     *
+     * Only repository-relative paths are considered — a token has to begin with one of
+     * the real top-level directories. Everything else in backticks on this site is code:
+     * template literals, regular expressions, URL paths, CSS selectors and npm specifiers,
+     * none of which is a claim about the filesystem. Restricting by prefix rather than by
+     * shape is what keeps this at zero false positives; the earlier draft matched anything
+     * containing a slash and reported 261 "misses", of which every one was code.
+     *
+     * A `:12` or `:12-30` line anchor is stripped before the check. Anchors DO rot — the
+     * line moves and the pointer silently starts citing something else — but a gate on
+     * them would fail on every unrelated edit above the cited line, which is a gate that
+     * gets deleted rather than obeyed. They survive in the archive and are not written in
+     * live prose.
+     */
+    const TOP_LEVEL = ["src/", "tests/", "dns/", "plans/", "public/", "scripts/",
+        ".github/", ".husky/", ".devin/", ".vscode/"];
+
+    /**
+     * PATHS NAMED IN ORDER TO SAY THEY ARE NOT THERE, each with the reason it is worth
+     * naming. This is an excuse list, so it is asserted in BOTH directions: the gate below
+     * skips these, and the one after it fails if any of them comes back. An excuse that
+     * outlives the thing it excuses is the same defect this file exists to catch, one
+     * level up.
+     */
+    const NAMED_AS_ABSENT: Record<string, string> = {
+        "public/llms.txt": "replaced by the generated endpoint src/pages/llms.txt.ts in PR #108; named in several places precisely to record that the hand-written file is gone",
+        "public/404.html": "the alternative src/pages/404.astro rejects in its own comment — a static copy of the shell outside the theme, the analytics tag and the build-date stamp",
+        "public/.well-known/": "ci.yml names it as the ordinary way a dot-prefixed path would come to exist under dist/, where upload-artifact would silently drop it. There is no such file today, which is the point",
+    };
+
+    it("names no file that is not there", () => {
+        const misses: string[] = [];
+        let checked = 0;
+        for (const file of liveDocs()) {
+            for (const {token, line} of backticked(file)) {
+                if (!TOP_LEVEL.some((t) => token.startsWith(t))) continue;
+                if (/[*${}]/.test(token)) continue; // globs and interpolations are not paths
+                const path = token.replace(/:\d+(-\d+)?$/, "").replace(/\/$/, "");
+                if (Object.hasOwn(NAMED_AS_ABSENT, token) || Object.hasOwn(NAMED_AS_ABSENT, `${path}/`)) continue;
+                checked++;
+                if (!existsSync(resolve(path))) misses.push(`${file}:${line} names \`${token}\``);
+            }
+        }
+        expect(checked, "no document named a repository path — this gate is vacuous").toBeGreaterThan(50);
+        expect(misses, "these documents name paths that do not exist. Fix the reference, or add it to NAMED_AS_ABSENT with the reason it is named at all").toEqual([]);
+    });
+
+    it("keeps no excuse for a file that has come back", () => {
+        for (const [path, why] of Object.entries(NAMED_AS_ABSENT)) {
+            expect(existsSync(resolve(path.replace(/\/$/, ""))),
+                `${path} exists again, so its NAMED_AS_ABSENT entry is now false: "${why}"`).toBe(false);
+        }
+    });
+
+    /**
+     * EVERY `pnpm <thing>` A DOCUMENT NAMES IS A SCRIPT THAT EXISTS. CLAUDE.md warns in
+     * prose that the scripts are `eslint` and `check` — "not `lint`, not `typecheck`;
+     * neither of those script names exists" — which is a rule stated where nothing can
+     * enforce it. This enforces it, for every document at once.
+     *
+     * pnpm's own subcommands are not scripts and are named legitimately throughout
+     * (`pnpm install`, `pnpm audit`, `pnpm dlx`). They are listed rather than pattern
+     * matched, so a mistyped script name cannot hide behind looking like a subcommand.
+     *
+     * ONLY A COMMAND COUNTS — backticked, or a line of a fenced block. In prose "pnpm"
+     * is an English noun and the next word is not an invocation: "package management is
+     * pnpm only" and "the two pnpm spellings" both read as commands to a bare pattern,
+     * and both did on the first run of this gate.
+     */
+    const PNPM_SUBCOMMANDS = new Set(["install", "add", "remove", "update", "audit", "dlx",
+        "exec", "why", "list", "run", "import", "link", "outdated", "store", "rebuild"]);
+
+    it("names no pnpm script that is not in package.json", () => {
+        const scripts = new Set(Object.keys(JSON.parse(read("package.json")).scripts));
+        const misses: string[] = [];
+        let checked = 0;
+        for (const file of liveDocs()) {
+            let fenced = false;
+            read(file).split("\n").forEach((text, i) => {
+                if (/^\s*```/.test(text)) {
+                    fenced = !fenced;
+                    return;
+                }
+                const commands = [...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]);
+                if (fenced) commands.push(text);
+                for (const command of commands) {
+                    const m = /^\s*(?:SKIP_BUILD=1 )?pnpm (?:run )?([a-z][a-z:.-]*)/.exec(command);
+                    if (!m || PNPM_SUBCOMMANDS.has(m[1])) continue;
+                    checked++;
+                    if (!scripts.has(m[1])) misses.push(`${file}:${i + 1} names \`pnpm ${m[1]}\``);
+                }
+            });
+        }
+        expect(checked, "no document named a pnpm script — this gate is vacuous").toBeGreaterThan(20);
+        expect(misses, `these are not scripts in package.json (${[...scripts].sort().join(", ")})`).toEqual([]);
+    });
+
+    /**
+     * EVERY CONFIGURED NAME A DOCUMENT NAMES IS DECLARED SOMEWHERE. Upper-case-with-
+     * underscores is this repository's spelling for exactly two things — a module-level
+     * constant and a GitHub secret, variable or environment input — and the CLAUDE.md rule
+     * that every configurable value lives in one of three places is what makes that
+     * reliable enough to gate. A token of that shape naming nothing is a constant that was
+     * renamed or deleted with its prose left behind.
+     *
+     * The declared set is DERIVED, not listed: constants come from the source, inputs
+     * from `.env.example`, the workflows' `env:` keys, and every `secrets.X` / `vars.X`
+     * / `env/X` reference. Only the names owned by somebody else need an entry.
+     */
+    const OWNED_ELSEWHERE: Record<string, string> = {
+        GITHUB_TOKEN: "GitHub Actions injects it; strava-progress.yml names it to explain why a push made with it triggers no workflow run",
+        WRANGLER_OUTPUT_FILE_DIRECTORY: "wrangler's own env var, named in ci.yml as the one NOT used — it addresses a directory holding a randomly-named file, which a later step cannot read",
+        STATUS_CODE_PAGES: "@astrojs/sitemap's own constant, named in build-output.test.ts to record that the sitemap integration already excludes the 404 without this repository asking it to",
+    };
+
+    it("names no configured value that is declared nowhere", () => {
+        const declared = new Set<string>(Object.keys(OWNED_ELSEWHERE));
+        for (const file of walk(".").map((p) => p.replace(/^\.\//, ""))) {
+            if (!/\.(ts|astro|mjs|js|yml|yaml|example)$/.test(file) || file === "pnpm-lock.yaml") continue;
+            const text = read(file);
+            for (const m of text.matchAll(/\b(?:const|let|var|function)\s+([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b/g)) declared.add(m[1]);
+            for (const m of text.matchAll(/\b(?:secrets|vars|env)\.([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b/g)) declared.add(m[1]);
+            for (const m of text.matchAll(/\benv\/([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b/g)) declared.add(m[1]);
+            for (const m of text.matchAll(/^\s*([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\s*[:=]/gm)) declared.add(m[1]);
+        }
+
+        const misses: string[] = [];
+        let checked = 0;
+        for (const file of liveDocs()) {
+            for (const {token, line} of backticked(file)) {
+                if (!/^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(token)) continue;
+                checked++;
+                if (!declared.has(token)) misses.push(`${file}:${line} names \`${token}\``);
+            }
+        }
+        expect(checked, "no document named a configured value — this gate is vacuous").toBeGreaterThan(20);
+        expect(misses, "these names are declared nowhere in the repository. Rename the reference, or add the name to OWNED_ELSEWHERE if it belongs to GitHub or to a dependency").toEqual([]);
+    });
+
+    /**
+     * THE SHORTCUTS ARE THE SITE'S KINDS OF CONTROL, and CLAUDE.md enumerates them by
+     * name and by count. It is a current-state document written for a coding agent about
+     * to touch this code, so a fact is exactly what belongs in it — and a stale one sends
+     * that agent to the wrong member of the set. The vocabulary has gone from one entry to
+     * several, and the plate moved from a variant to the base while prose went on placing
+     * it in the variant.
+     *
+     * The count works by CANONICAL PHRASE: the document must contain the spelled-out
+     * number in the phrase it belongs to. Reword around it freely; the number is the part
+     * that may not drift. `.devin/wiki.json` is deliberately NOT held to this — it is a
+     * standing instruction and states no counts at all, which the durability gate below
+     * enforces from the other side.
+     */
+    it("keeps CLAUDE.md's shortcut vocabulary in step with uno.config.ts", () => {
+        const names = Object.keys(unoConfig.shortcuts as Record<string, string>);
+        expect(names.length, "uno.config.ts declares no shortcuts — this gate is vacuous").toBeGreaterThan(1);
+
+        const text = read("CLAUDE.md");
+        expect(names.filter((n) => !text.includes(n)),
+            "CLAUDE.md does not name every shortcut in uno.config.ts").toEqual([]);
+        expect(text.toLowerCase(), `CLAUDE.md must contain the phrase "${NUMBER_WORDS[names.length]} shortcuts"`)
+            .toContain(`${NUMBER_WORDS[names.length]} shortcuts`);
+    });
+
+    /**
+     * README.md'S TESTING SECTION LISTS THE SUITES, so a suite it does not list is a suite
+     * that does not exist as far as a reader is concerned. That is how this repository
+     * accumulated more than a dozen suites under a section that describes three of them at
+     * length and gestures at the rest — the gesture is fine, and it has to be complete.
+     *
+     * The section is authoritative rather than decorative for a specific reason: it is the
+     * only place that says what each suite is FOR, and `pnpm test` prints filenames without
+     * saying which question any of them answers.
+     */
+    it("lists every test suite in the README", () => {
+        const suites = readdirSync("tests")
+            .filter((f) => f.endsWith(".test.ts"))
+            .map((f) => f.replace(/\.test\.ts$/, ""))
+            .sort();
+        expect(suites.length, "there are no suites — this gate is vacuous").toBeGreaterThan(5);
+
+        const readme = read("README.md");
+        expect(suites.filter((s) => !readme.includes(s)),
+            "README.md's Testing section does not mention these suites").toEqual([]);
+    });
+
+    /**
+     * THE DURABILITY GATE, AND THE ONLY ONE HERE POINTED AT A DOCUMENT'S KIND RATHER THAN
+     * ITS CONTENT. `.devin/wiki.json` configures a generated wiki: it is read on every
+     * future generation, against a codebase that has moved, and nothing prompts anyone to
+     * revisit it. So the property worth holding is not that its facts are current — it is
+     * that it states no fact that can stop being current.
+     *
+     * WHAT IT MAY NOT CONTAIN, all three measured on the revision this replaced:
+     *
+     *   A COUNT of anything the repository can be asked. There were eighteen — two inline
+     *   scripts, two CSS chunks, two shortcuts, four pages, six social links. Every one was
+     *   derivable at generation time, and several were already wrong.
+     *
+     *   A COMPONENT FILENAME. Components get renamed, split and deleted; the file that
+     *   ships a script today is not necessarily the one that ships it next year, and an
+     *   instruction naming one is an instruction to look in the wrong place. Directories
+     *   and documents are fine and are how the instruction should point.
+     *
+     *   AN IMPLEMENTATION IDENTIFIER — an exported constant's name, a CSS custom property.
+     *   These are the spellings most likely to change without anything about the site
+     *   changing, and a generator reading the repository will find whatever they are called
+     *   at the time.
+     *
+     * The replacement for each is a derivation directive, which the next gate requires.
+     * NOTHING HERE FORBIDS SPECIFICITY: the wiki is at its most valuable when it is
+     * specific about WHY something is the way it is, about the traps that make a careful
+     * reading come out wrong, and about where the non-derivable knowledge is written down.
+     * Those do not rot, and they are the whole reason the file exists.
+     *
+     * ONE EXEMPTION, and it is narrow: a count is allowed inside a sentence that is
+     * explicitly recording a past error, because "this file once said two when there were
+     * three" is a warning rather than a claim, and deleting it would delete the evidence
+     * for the rule. The sentence has to say so — the allowance is keyed to the words that
+     * mark it as history.
+     */
+    const HISTORICAL_MARKERS = /\b(?:earlier revision|earlier draft|used to|once said|previous revision|had lost|was wrong)\b/i;
+
+    it("states no fact in the wiki that generation time would answer", () => {
+        const wiki = JSON.parse(read(WIKI));
+        const blocks: {where: string, text: string}[] = [
+            ...wiki.repo_notes.map((n: {content: string}, i: number) => ({where: `repo_notes[${i}]`, text: n.content})),
+            ...wiki.pages.flatMap((p: {title: string, purpose: string, page_notes?: {content: string}[]}) => [
+                {where: `page "${p.title}"`, text: p.purpose},
+                ...(p.page_notes ?? []).map((n) => ({where: `page_notes of "${p.title}"`, text: n.content})),
+            ]),
+        ];
+        expect(blocks.length, "the wiki config carries no prose — this gate is vacuous").toBeGreaterThan(5);
+
+        const NOUNS = "shortcuts|scripts|pages|routes|components|suites|files|dependencies|chunks"
+            + "|records|breakpoints|stylesheets|icons|elements|links|cards|children|entries"
+            + "|assertions|controls|variants|columns|rows|integrations|tokens|props|slots|workflows|jobs|goals";
+        const COUNT = new RegExp(`\\b(?:${NUMBER_WORDS.join("|")}|\\d{1,3})\\s+(?:[A-Za-z][A-Za-z-]*\\s+){0,2}(?:${NOUNS})\\b`, "gi");
+
+        const findings: string[] = [];
+        for (const {where, text} of blocks) {
+            // Sentence-wise, so the historical exemption applies to the sentence making the
+            // claim rather than to a whole note that happens to mention an old mistake.
+            for (const sentence of text.split(/(?<=[.;])\s+/)) {
+                if (HISTORICAL_MARKERS.test(sentence)) continue;
+                for (const m of sentence.matchAll(COUNT)) {
+                    findings.push(`${where}: counts "${m[0].replace(/\s+/g, " ")}" — derive it at generation time instead`);
+                }
+            }
+            for (const m of text.matchAll(/\b[A-Z]\w*\.astro\b/g)) {
+                findings.push(`${where}: names the component file ${m[0]} — point at a directory and let the generator find it`);
+            }
+            for (const m of text.matchAll(/--[a-z][a-z-]{2,}\b/g)) {
+                findings.push(`${where}: names the CSS custom property ${m[0]} — read the token block at generation time`);
+            }
+            for (const m of text.matchAll(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g)) {
+                findings.push(`${where}: names the exported constant ${m[0]} — read the module's exports at generation time`);
+            }
+        }
+        expect(findings, `${WIKI} is a standing instruction read against a codebase that moves, so it may not state a fact that will go stale. Replace each of these with an instruction for deriving it`).toEqual([]);
+    });
+
+    /**
+     * AND THE OTHER HALF OF THE SAME RULE: taking the facts out only helps if something
+     * tells the generator where to get them. A page spec with no derivation directive is
+     * one that either states facts or leaves the generator to invent them, and inventing
+     * is this repository's documented failure mode — it is a fork whose earlier generated
+     * docs described upstream features as present because they sounded plausible.
+     *
+     * Deliberately a weak check: it asks whether each page tells the generator to go and
+     * look, not whether it does so well. A strong version would be a gate on writing.
+     */
+    it("tells the generator where to look, on every wiki page", () => {
+        const pages: {title: string, purpose: string}[] = JSON.parse(read(WIKI)).pages;
+        expect(pages.length, "the wiki config specifies no pages — this gate is vacuous").toBeGreaterThan(3);
+
+        const DIRECTIVE = /\b(?:derive[sd]?|at generation time|read (?:it |them |each )?(?:out of|from)|enumerate)\b/i;
+        expect(pages.filter((p) => !DIRECTIVE.test(p.purpose)).map((p) => p.title),
+            "these wiki pages state what to write without saying where to read it — a page spec that names no source is one the generator will fill from plausibility").toEqual([]);
+    });
+});

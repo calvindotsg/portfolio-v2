@@ -73,8 +73,9 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 ## Configuration
 
 1. Update your personal details in `src/lib/constants.ts` — every piece of site
-   content (links, career, about, cycling goal, footer, SEO metadata) lives
-   there.
+   content lives there: links, career, projects, about, both goals (cycling and
+   running), the races in `EVENTS`, the next-race countdown, the patch wall's and
+   the 404 page's copy, footer and SEO metadata.
 2. Modify the `site` and other relevant properties in `astro.config.mjs`.
 3. The goals' `current_progress` figures are the one exception: they are
    bot-owned. A daily GitHub Actions run
@@ -132,12 +133,13 @@ that carry most of the weight:
 - `tests/rendered-html.test.ts` — renders `src/pages/index.astro` in-process with
   Astro's Container API and asserts on the result: page title, meta description,
   canonical link, the JSON-LD block, and that every entry in
-  `src/lib/constants.ts` (welcome lines, about bullets, career entries, links,
-  goal figures, footer) reaches the page.
+  `src/lib/constants.ts` (welcome lines, about bullets, career entries and dates,
+  links, goal figures, the Now card, footer) reaches the page.
 - `tests/constants.test.ts` — data invariants for `src/lib/constants.ts`: link
   URLs are absolute or root-relative, icon names come from an installed Iconify
-  collection, the cycling figures are finite and within range, and the SEO title
-  and description stay within useful lengths.
+  collection, each goal's figures are finite and within range, and the SEO title
+  and description stay within useful lengths — the description has to name every
+  goal's target, which is the gate a 3000km-vs-5000km drift bought.
 - `tests/build-output.test.ts` — asserts on what `pnpm build` actually emits into
   `dist/`: `robots.txt` pointing at the sitemap, the sitemap index, zero external
   JavaScript, no serverless function, and the public assets the page links to.
@@ -149,6 +151,38 @@ read `.github/workflows/` rather than the site and execute those workflows' `if:
 guards in GitHub's own expression evaluator: the deploy gate and the DNS apply
 gate respectively. Deliberately no counts in prose, of suites or of assertions:
 read them from `pnpm test`.
+
+One suite has the repository itself as its subject rather than the site:
+
+- `tests/docs-drift.test.ts` — asserts this README, `CLAUDE.md`, `.devin/wiki.json`
+  and the comments under `src/` against the code they describe. Nothing else here
+  can: a comment naming a deleted file, a README naming a renamed script, or a wiki
+  counting two of something there are now three of all build, lint, type-check and
+  deploy green.
+
+  It treats two kinds of document differently, which is the whole design. A
+  **current-state document** — this README, `CLAUDE.md`, the baseline table in
+  `plans/README.md`, every comment under `src/` — describes the repository as it is
+  today, so it may state facts and is gated for **accuracy**: paths, `pnpm` scripts
+  and configured names in backticks must exist, this section must name every suite,
+  and `CLAUDE.md` must name every UnoCSS shortcut and how many there are.
+
+  A **standing-instruction document** is read on every future run against a codebase
+  that has moved, and nothing prompts anyone to revisit it. `.devin/wiki.json` is the
+  one here — it configures the generated [DeepWiki](https://deepwiki.com/calvindotsg/portfolio-v2).
+  A fact written there is a fact nobody will check again, so it is gated for
+  **durability** instead: it may state no count, no component filename and no exported
+  constant, and every page it specifies has to say where the generator should read
+  those things at generation time. What it carries instead is what a generator cannot
+  derive — the audience, the traps that make a careful reading come out wrong anyway,
+  and where the non-derivable knowledge is written down.
+
+  Measurement and rationale are deliberately left alone in both. `plans/done/` is
+  exempt entirely: it is an archive, and a plan that stopped naming what it deleted
+  would stop being a record of the deletion.
+
+  This is why the suite list above has to stay complete — that enumeration is one of
+  the things the suite checks, so a new suite is red until this section mentions it.
 
 `pnpm test` runs `pnpm build` once as a global setup so the build-output suite
 has real artifacts. Set `SKIP_BUILD=1` to reuse an existing `dist/` while
