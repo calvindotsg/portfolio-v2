@@ -1,0 +1,258 @@
+# DNS as code for calvin.sg.
+#
+# THE ORDERING PROPERTY THIS FILE EXISTS TO HOLD, in the same spirit as `ci.yml`'s `needs:
+# build`: NOTHING WRITES DNS EXCEPT `apply`, AND `apply` CANNOT RUN UNTIL `semantics` AND `plan`
+# ARE BOTH GREEN. Three separate things enforce that, deliberately, because the failure mode is
+# not a red build — it is a zone that resolves wrongly for as long as it takes someone to notice:
+#
+#   1. `needs: [semantics, plan]` — the edge. A careless refactor removes it silently, which is
+#      why `tests/workflow-guards.test.ts` EXECUTES the conditions below rather than reading them.
+#   2. Two different tokens. `plan` gets Zone:Read + DNS:Read and physically cannot write.
+#      `apply` gets DNS:Edit and lives behind the `dns` environment.
+#   3. The checksum. `apply` requires one as a dispatch input; octoDNS refuses to write unless it
+#      matches the plan it just computed. A stale checksum — because the zone moved since the
+#      plan was read — fails the run rather than applying something nobody reviewed.
+#
+# `--doit` IS NOT ON ANY LINE IN THIS FILE, AND ITS ABSENCE IS NOT AN OVERSIGHT. With
+# `enable_checksum: true` in `dns/config.yaml`, octoDNS documents `--doit` as "ignored", and the
+# thing that actually decides whether a run writes is whether it was given `--checksum`. See the
+# comment on the `manager:` block there. Adding `--doit` to the plan job would do nothing;
+# adding `--checksum` to it would turn the drift check into an unattended apply.
+#
+# WHAT THE SCHEDULE IS FOR. Applying from git is the smaller half of this. Calvin edits DNS in
+# the Cloudflare dashboard — that is how the www redirect and every record here came to exist —
+# so the realistic job of this workflow is to NOTICE when the zone and the repository disagree,
+# weekly, and say so. A drift run that finds changes fails on purpose.
+#
+# EVERY `permissions:` BLOCK BELOW REPLACES THE DEFAULTS WHOLESALE; an unlisted scope is `none`.
+
+name: DNS
+
+on:
+  pull_request:
+    paths:
+      - "dns/**"
+      - ".github/workflows/dns.yml"
+  schedule:
+    # 20:41 UTC Monday = 04:41 SGT Tuesday. Off the top of the hour because GitHub delays
+    # scheduled runs most at :00, and on a weekday so a drift alert is seen the same morning.
+    - cron: "41 20 * * 1"
+  workflow_dispatch:
+    inputs:
+      checksum:
+        description: >-
+          Leave EMPTY to plan only. To apply, paste the checksum printed by a plan run —
+          that is what names which plan you are approving, and octoDNS refuses to write if
+          the zone has changed since.
+        required: false
+        default: ""
+
+# Never cancel: a cancelled run between reading the zone and writing it is the one state that
+# leaves no record of what happened. `cancel-in-progress: false` buys that for a RUNNING job.
+#
+# IT DOES NOT BUY IT FOR A QUEUED ONE, which is why the group is keyed on the event. GitHub:
+# "By default, any existing pending job or workflow in the same concurrency group will be
+# canceled and the new queued job or workflow will take its place" — `cancel-in-progress: false`
+# governs in-progress runs only, and at most one run stays pending per group. Under a single
+# `group: dns`, the Monday drift run queued behind a busy afternoon of PR runs is silently
+# replaced by the next one, and a cancelled run renders grey rather than red. The weekly check
+# would go missing in precisely the weeks with the most changes, which is the worst possible
+# correlation for the thing that exists to notice drift.
+#
+# Keying on the event keeps the property that matters — two applies are both `workflow_dispatch`
+# and still serialise with each other — while a scheduled plan can no longer be evicted by pull
+# request traffic. PR runs still supersede each other, which is what you want.
+concurrency:
+  group: dns-${{ github.event_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # One home for all three jobs, so the interpreter that proves the filter semantics is the one
+  # that plans and the one that applies. `tests/dns-config.test.ts` asserts the three jobs agree
+  # — the version itself is a choice, but them differing never is.
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  # No credentials, no network, runs on every trigger including fork PRs. This is the job that
+  # proves the reject lists still do what `dns/config.yaml` claims they do — on the octoDNS
+  # version actually installed, not the one someone read the source of once.
+  semantics:
+    name: filter semantics
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - run: pip install -r dns/requirements.txt
+
+      - run: python dns/test_filters.py
+
+      # The other half of the offline proof, and it needs no octodns at all: the `plan` job reads
+      # whether the zone drifted out of octodns' TEXT, so that reading is parsing and can rot
+      # silently. This executes it against fixtures of every output shape, including the two that
+      # must fail rather than report "clean".
+      - run: bash dns/test_drift.sh
+
+      # Catches what the proof above cannot: a config that does not load at all, a record whose
+      # value is not a legal one for its type, a zone file octoDNS refuses to parse. It
+      # constructs the providers but makes no API call, so the token only has to EXIST — a real
+      # one here would buy nothing and would mean this job holding a credential.
+      # Calibrated rather than assumed: it exits 0 silently on a good config, and 1 on a CNAME
+      # whose value is not a hostname.
+      - name: octodns-validate
+        env:
+          CLOUDFLARE_DNS_TOKEN: unused-by-validate
+        run: octodns-validate --config-file dns/config.yaml
+
+  plan:
+    name: plan
+    needs: semantics
+    # AN ALLOW-LIST OF EVENTS, THEN THE FORK TEST. An earlier draft of this guard opened with
+    # `github.event_name != 'pull_request' || ...` and nothing else, on the reasoning that
+    # `schedule` and `workflow_dispatch` carry no PR so the fork test alone would cover it. That
+    # is a deny-list, and `tests/dns-config.test.ts` executed it against `pull_request_target`
+    # and showed it admitting the run: that event is not named `pull_request`, so the first
+    # clause was satisfied outright — and it is precisely the event that runs a PR's own ref with
+    # secrets available. Naming the three events that may read the zone means a trigger added to
+    # `on:` later is inert here until someone changes this line on purpose.
+    #
+    # Fork PRs and Dependabot get no secrets, so without the second half this job would fail
+    # opaquely rather than skip. Keyed on the ACTOR for the same reason `ci.yml` gives.
+    if: >-
+      (github.event_name == 'pull_request'
+      || github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch')
+      && github.actor != 'dependabot[bot]'
+      && (github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - run: pip install -r dns/requirements.txt
+
+      # NO `--checksum` ON THIS LINE, EVER. See the header. The read-only token is the second
+      # lock on the same door, not a substitute for this one.
+      - id: plan
+        name: octodns-sync (plan only)
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_READ_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_DNS_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_DNS_READ_TOKEN is unset, so this job cannot read the zone. It must be a repository secret scoped Zone:Read + DNS:Read on calvin.sg only."
+            exit 1
+          fi
+          set -o pipefail
+          octodns-sync --config-file dns/config.yaml 2>&1 | tee plan.txt
+
+      # octoDNS reports "no changes" by printing a plan with nothing in it, and exits 0 either
+      # way — so the exit code above cannot answer "did the zone drift?". The checksum can: it
+      # is emitted only when there is at least one change (`if plans and self.enable_checksum`,
+      # manager.py:1119), so its PRESENCE is the drift signal and its VALUE is what an apply
+      # needs. One string does both jobs.
+      - name: report, and fail a scheduled run that found drift
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          # `dns/drift.sh` reads BOTH of octodns' signals and requires them to agree, and exits 2
+          # if it cannot tell. That non-zero fails this step, which is the point: this line used
+          # to be a bare grep for the checksum, and a grep that stops matching reports a drifted
+          # zone as "No changes" and takes the Monday run green. `dns/test_drift.sh` executes
+          # that behaviour against fixtures in the `semantics` job.
+          RESULT=$(bash dns/drift.sh plan.txt)
+          if [ "$RESULT" = "CLEAN" ]; then
+            CHECKSUM=""
+          else
+            CHECKSUM=${RESULT#DRIFT }
+          fi
+          {
+            echo "### DNS plan"
+            echo ""
+            if [ -z "$CHECKSUM" ]; then
+              echo "No changes — \`dns/zones/calvin.sg.yaml\` matches the live zone."
+            else
+              echo "**The live zone and this branch disagree.** To apply this exact plan, run this"
+              echo "workflow from the Actions tab with:"
+              echo ""
+              echo '```'
+              echo "checksum = $CHECKSUM"
+              echo '```'
+              echo ""
+              echo "<details><summary>Full plan</summary>"
+              echo ""
+              echo '```'
+              cat plan.txt
+              echo '```'
+              echo ""
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$CHECKSUM" ] && [ "$EVENT" = "schedule" ]; then
+            echo "::error::the live zone no longer matches dns/zones/calvin.sg.yaml. Nothing has been changed. Either someone edited DNS in the dashboard — in which case update the zone file to match — or the file is ahead of the zone and wants applying."
+            exit 1
+          fi
+
+  apply:
+    name: apply
+    needs: [semantics, plan]
+    # An ALLOW-LIST of one event, a non-empty checksum, AND a ref test. Spelling the first as a
+    # deny-list would mean any trigger added to `on:` later could write DNS by default, which is
+    # the mistake `ci.yml` documents at `deploy-production`. A dispatch with the input left empty
+    # is a plan-only run and correctly skips this job.
+    #
+    # THE REF TEST IS NOT REDUNDANT, and it was missing from the first version of this file.
+    # `workflow_dispatch` runs against whatever ref you pick in the Actions tab, and this job
+    # applies the zone file from THAT ref — so without it, dispatching from a feature branch
+    # writes unreviewed DNS to the live zone, with a checksum that legitimately matches because
+    # the plan job computed it from the same branch. `deploy-production` carries the identical
+    # test for the identical reason; the `dns` environment's branch policy is the structural
+    # backstop behind it.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.ref == 'refs/heads/main'
+      && inputs.checksum != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # The write token lives ONLY here, as an environment secret behind whatever reviewers the
+    # `dns` environment requires. That is structural, and it fails differently from the `if:`
+    # above: a job without `environment: dns` cannot read the secret at all. The invariant that
+    # keeps it meaningful is the same one `ci.yml` states for CLOUDFLARE_API_TOKEN — there must
+    # be no repository-level secret of this name, or every job inherits it and the environment
+    # buys nothing.
+    environment:
+      name: dns
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - run: pip install -r dns/requirements.txt
+
+      - name: octodns-sync (apply the reviewed plan)
+        env:
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_WRITE_TOKEN }}
+          CHECKSUM: ${{ inputs.checksum }}
+        run: |
+          if [ -z "$CLOUDFLARE_DNS_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_DNS_WRITE_TOKEN is unset in the dns environment. It must be scoped Zone:Read + DNS:Edit on calvin.sg only."
+            exit 1
+          fi
+          octodns-sync --config-file dns/config.yaml --checksum="$CHECKSUM"

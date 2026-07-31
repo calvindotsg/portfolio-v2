@@ -1,0 +1,114 @@
+# The calvin.sg zone, as octoDNS sees it.
+#
+# THIS FILE IS NOT THE WHOLE ZONE, AND IT IS NOT MEANT TO BE. Three groups of records are
+# deliberately absent, each for a different reason; `../config.yaml` names them at the point it
+# excludes them. Adding a record here that is on one of those reject lists does nothing. Adding
+# one that is not, and applying, changes live DNS.
+#
+# `ttl: 300` IS NOT WHAT CLOUDFLARE STORES, AND IT IS ALSO NOT LOAD-BEARING. Cloudflare stores
+# 1, meaning automatic. The provider normalises that to 300 on read (`_ttl_data`,
+# octodns_cloudflare/__init__.py:272) and carries the real setting in `auto-ttl` instead — and
+# because every record here is auto-ttl, the provider copies the existing TTL over the desired
+# one before comparing them (`_include_change`, :693, "TTLs are ignored for these"). So the
+# number is inert: 300 and 1 both diff to nothing. It is written as 300 only because that is
+# what octoDNS emits when it dumps this zone, which keeps the file equal to a regeneration.
+#
+# That inertness is worth stating because it is the one field here the checks cannot see.
+# Editing it is harmless; expecting a test to stop you is not.
+#
+# KEYS ARE SORTED BECAUSE OCTODNS REFUSES TO PARSE THEM OTHERWISE — it raises
+# `keys out of order` rather than warning, so a hand-added record in a natural reading order
+# fails loudly rather than silently. Sorted names, then `octodns`, `ttl`, `type`, `value`.
+#
+# Bootstrapped from the live zone on 2026-07-31 via `cf dns records list --zone calvin.sg`,
+# then written by octoDNS itself so the ordering is canonical rather than guessed.
+
+# The apex. ALIAS, not CNAME, because a CNAME may not legally sit beside SOA and NS. Cloudflare
+# implements the same thing as a flattened root CNAME and the provider converts between the two
+# spellings in both directions (octodns_cloudflare/__init__.py:555 reading, :938 writing) — so
+# ALIAS here and CNAME in the dashboard are the same record, not a discrepancy.
+"":
+  - octodns:
+      cloudflare:
+        auto-ttl: true
+        proxied: true
+    ttl: 300
+    type: ALIAS
+    value: calvindotsg.pages.dev.
+
+  # Two Google Search Console verifications and SPF. SPF is managed here while the MX records
+  # beside it are not, and the asymmetry is Cloudflare's own: it marks the MX records
+  # `meta.email_routing` and leaves this record's `meta` empty.
+  - octodns:
+      cloudflare:
+        auto-ttl: true
+    ttl: 300
+    type: TXT
+    values:
+      - google-site-verification=jFiJ01OUV_Mmxa0ptV9HaXWeOqXO67456dAbTlgTcZk
+      - google-site-verification=l7o6u3vVat-T_oPwXJQjdAabpMlVVUZvfmRygupTsY0
+      - v=spf1 include:_spf.mx.cloudflare.net ~all
+
+# Four project sites on GitHub Pages. They share one target but not one repository; GitHub
+# routes them apart by Host header, the same way Cloudflare Pages does.
+battleship:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: calvindotsg.github.io.
+
+diving:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: calvindotsg.github.io.
+
+garden:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: calvindotsg.github.io.
+
+model:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: calvindotsg.github.io.
+
+# Points at the apex, and a redirect rule forwards it to Instagram — so it answers 302, not
+# 200, and `.scratchpad/verify-canonical.sh` check 9 asserts exactly that.
+slickshots:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: calvin.sg.
+
+# www DOES NOT SERVE THE SITE, and this record is not left over from when it did. It is proxied
+# so that requests reach Cloudflare's edge at all; a redirect rule then answers them with a 301
+# to the apex, before origin selection happens. www was detached from the Pages project on
+# 2026-07-30 precisely so that this record routes to the edge and nowhere else. Deleting it does
+# not tidy the redirect away — it strands it, because nothing would reach the edge to be
+# redirected.
+www:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: calvindotsg.pages.dev.

@@ -22,12 +22,19 @@
 # `@v5` stays a tag forever as far as Dependabot is concerned, and would fail the
 # pinning policy. New actions must be added pinned by hand.
 #
-# Monthly, not weekly: this repository has two workflows and a solo maintainer, so a
+# Monthly, not weekly: this repository has three workflows and a solo maintainer, so a
 # weekly cadence produces noise rather than signal. Cadence alone does not buy that,
-# though — the default is one pull request PER dependency, and after the CI workflow
-# lands there are five distinct actions across the two files, so an active month
-# would open five PRs, each spawning its own CI run. `groups` is what makes the
-# monthly claim true: one pull request, every action in it.
+# though — the default is one pull request PER dependency, and there are six distinct
+# actions across those three files, so an active month would open six PRs, each
+# spawning its own CI run. `groups` is what makes the monthly claim true: one pull
+# request, every action in it.
+#
+# THESE COUNTS ARE THE REASON FOR THE CADENCE, not decoration — a new workflow or a new
+# action moves them, and a stale count quietly turns a considered choice into an
+# arbitrary one. Re-derive rather than trust: `ls .github/workflows/` for the first, and for
+# the second — anchored to the list item, because an unanchored `uses:` also matches the word
+# inside a prose comment and silently returns one too many:
+#   grep -rhoP '^\s*-\s*uses:\s*\K[^@ ]+' .github/workflows/ | sort -u
 version: 2
 updates:
   - package-ecosystem: github-actions
