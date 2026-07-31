@@ -31,9 +31,10 @@
 #
 # THESE COUNTS ARE THE REASON FOR THE CADENCE, not decoration — a new workflow or a new
 # action moves them, and a stale count quietly turns a considered choice into an
-# arbitrary one. Re-derive rather than trust: `ls .github/workflows/` for the first,
-# `grep -rhoP '(?<=uses: )[^ ]+' .github/workflows/ | sed 's/@.*//' | sort -u` for the
-# second.
+# arbitrary one. Re-derive rather than trust: `ls .github/workflows/` for the first, and for
+# the second — anchored to the list item, because an unanchored `uses:` also matches the word
+# inside a prose comment and silently returns one too many:
+#   grep -rhoP '^\s*-\s*uses:\s*\K[^@ ]+' .github/workflows/ | sort -u
 version: 2
 updates:
   - package-ecosystem: github-actions

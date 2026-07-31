@@ -23,7 +23,7 @@ from yaml import safe_load
 
 from octodns.processor.filter import NameRejectlistFilter, TypeRejectlistFilter
 from octodns.provider.yaml import YamlProvider
-from octodns.record import Delete
+from octodns.record import Delete, Record
 from octodns.zone import Zone
 from octodns_cloudflare import CloudflareProvider
 
@@ -108,8 +108,54 @@ def deletions(processors, pagerules=False, pagerule_result=()):
     return sorted(f"{c.existing._type} {c.existing.name or '@'}" for c in changes if isinstance(c, Delete))
 
 
-def changes_of_any_kind(processors):
+def unmanaged():
+    """The names and types the SHIPPED config declines to manage, read off the filters themselves.
+
+    Derived rather than restated, for the same reason `configured()` reads the file: a hard-coded
+    list here would stay green while someone edited the rejectlist that actually runs.
+
+    THE LIMIT OF DERIVING IT, stated because it is not obvious and was measured: if someone
+    DELETES a rejectlist entry, this set shrinks with it, so the gate below goes looking for a
+    record it no longer considers unmanaged and stays green. That edit is caught by "MX survives
+    the type rejectlist" and "DKIM and DMARC survive the name rejectlist", which compare against
+    a literal expectation. Verified by mutation: emptying the MX rejectlist reddens 5 checks but
+    NOT the gate; setting `include_target: false` — where the filter still declares MX but stops
+    protecting it — reddens the gate itself. The two together cover both directions; neither
+    does alone.
+    """
+    types, names = set(), set()
+    for p in SAFE:
+        types |= getattr(p, "_list", set())
+        names |= getattr(p, "exact", set())
+    return types, names
+
+
+def changes_touching_unmanaged(processors):
+    """Any change at all — Create, Update or Delete — against a record this zone file excludes."""
+    types, names = unmanaged()
     plan = cloudflare(pagerules=False).plan(committed_zone(), processors=processors)
+    return sorted(
+        f"{type(c).__name__} {c.record._type} {c.record.name or '@'}"
+        for c in (plan.changes if plan else [])
+        if c.record._type in types or c.record.name in names
+    )
+
+
+# A name no real record will ever use, so this probe cannot collide with the zone file. The first
+# draft used `gallery`, and adding a `gallery` record to the zone made octoDNS raise a duplicate
+# rather than fail a check — a probe that breaks when someone happens to pick its name is a trap
+# for whoever picks it, not a test.
+PROBE = "octodns-selftest-probe"
+
+
+def plan_for_an_added_record(processors):
+    """What an operator following README.md's "Making a change" actually gets back."""
+    zone = committed_zone()
+    assert PROBE not in {r.name for r in zone.records}, f"{PROBE} is a test probe; rename the real record"
+    zone.add_record(
+        Record.new(zone, PROBE, {"type": "CNAME", "ttl": 300, "value": "calvindotsg.github.io."})
+    )
+    plan = cloudflare(pagerules=False).plan(zone, processors=processors)
     return [f"{type(c).__name__} {c.record._type} {c.record.name or '@'}" for c in (plan.changes if plan else [])]
 
 
@@ -153,12 +199,33 @@ def check(name, actual, expected):
 
 
 def main():
-    print("── the gate: the committed zone already matches the live one ──────────────────")
-    # This is the plan's own precondition for a first apply — "forbidden until a dry-run against
-    # the live zone reports an empty plan" — answered offline. It is the assertion that would
-    # catch the zone file being wrong in ANY direction, including the ttl normalisation that a
-    # reading of the docs gets backwards.
-    check("no changes at all against the live zone", changes_of_any_kind(SAFE), [])
+    print("── the gate: no plan may touch a record this file does not manage ─────────────")
+    # WHAT THIS DELIBERATELY NO LONGER ASSERTS: that the committed zone equals the live zone.
+    # It did, against the LIVE_RECORDS snapshot above, and that was a bootstrap precondition
+    # wired into a permanent gate. Every INTENDED edit made this job red — and `plan` and `apply`
+    # both sit behind `needs: semantics`, so the runbook in README.md ("edit, open a PR, read the
+    # plan, paste the checksum") could never reach step 2. Reproduced before removing it: adding
+    # one ordinary `gallery` CNAME took this file from 9 passed to `FAIL ... got
+    # ['Create CNAME gallery']`, exit 1.
+    #
+    # Drift is a real property and it is still checked — against the LIVE zone, by the `plan` job,
+    # on every PR touching `dns/` and again every Monday. That is where it belongs: frozen in a
+    # fixture it can only go stale or block. What stays here is the part a snapshot CAN answer
+    # offline, and the part that must never regress whatever the zone file says.
+    check("no change of any kind touches an unmanaged record", changes_touching_unmanaged(SAFE), [])
+    # The control: with the filters gone, those same records are exactly what a plan hits.
+    check("without the filters, the unmanaged records ARE touched",
+          changes_touching_unmanaged([]),
+          ["Delete MX @", "Delete TXT _dmarc", "Delete TXT cf2024-1._domainkey"])
+    # And the property the old gate destroyed, asserted so it cannot come back: an ordinary new
+    # subdomain must REACH a plan as a Create rather than failing the job that gates the plan.
+    # Asserted as "is present", not "is the only change" — and that distinction is the whole bug.
+    # The first draft compared the plan to exactly [Create <probe>], which is once again a claim
+    # that the committed zone matches the snapshot, and it failed the moment the zone file carried
+    # any real edit. The operator's own changes are not this check's business; that the added
+    # record REACHES a plan is.
+    check("an ordinary added record still plans as a Create",
+          f"Create CNAME {PROBE}" in plan_for_an_added_record(SAFE), True)
 
     print("\n── the claim: a reject list is not a delete list ──────────────────────────────")
     check("MX survives the type rejectlist", deletions(SAFE), [])

@@ -3,8 +3,15 @@
 # Run from the REPOSITORY ROOT, not from this directory — `directory:` below resolves against
 # the working directory, not against this file:
 #
-#   octodns-sync --config-file dns/config.yaml            # plan only; writes nothing
-#   octodns-sync --config-file dns/config.yaml --doit     # applies
+#   octodns-sync --config-file dns/config.yaml                      # plan only; writes nothing
+#   octodns-sync --config-file dns/config.yaml --checksum=<sha256>  # applies THAT plan
+#
+# NOT `--doit`. With `enable_checksum: true` below, octodns documents `--doit` as ignored, so a
+# run given it and nothing else still writes nothing — and, far more dangerously, a run given a
+# checksum writes WITHOUT it. This block said `--doit  # applies` until 2026-07-31 and was
+# contradicted fifteen lines further down by the comment that explains why. Believing the wrong
+# half of a file that disagrees with itself is how someone concludes a run is safe because they
+# left `--doit` off.
 #
 # Three settings in here are load-bearing in the sense that getting them wrong takes something
 # down rather than producing an error. Each is commented at the point it appears, and
@@ -73,7 +80,13 @@ processors:
       # DMARC, excluded for a reason that has nothing to do with DNS: its `rua=` is a personal
       # mailbox, and no email address appears anywhere else in this public repository. Putting
       # it here would be the first, and git history does not forget. The record is live and
-      # correct; it is simply not managed from git. Delete this line to adopt it.
+      # correct; it is simply not managed from git.
+      #
+      # TO ADOPT IT: add the record to `zones/calvin.sg.yaml` FIRST, then delete this line — in
+      # that order. This comment used to read "delete this line to adopt it", which is backwards
+      # and destructive: deleting the line alone makes the name visible to the diff, which then
+      # finds it in the live zone and absent from the zone file and plans a DELETE. Executed
+      # rather than reasoned — removing this line and planning yields exactly `Delete TXT _dmarc`.
       - _dmarc
 
 zones:
