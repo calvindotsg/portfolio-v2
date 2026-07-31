@@ -48,9 +48,22 @@ on:
         default: ""
 
 # Never cancel: a cancelled run between reading the zone and writing it is the one state that
-# leaves no record of what happened.
+# leaves no record of what happened. `cancel-in-progress: false` buys that for a RUNNING job.
+#
+# IT DOES NOT BUY IT FOR A QUEUED ONE, which is why the group is keyed on the event. GitHub:
+# "By default, any existing pending job or workflow in the same concurrency group will be
+# canceled and the new queued job or workflow will take its place" — `cancel-in-progress: false`
+# governs in-progress runs only, and at most one run stays pending per group. Under a single
+# `group: dns`, the Monday drift run queued behind a busy afternoon of PR runs is silently
+# replaced by the next one, and a cancelled run renders grey rather than red. The weekly check
+# would go missing in precisely the weeks with the most changes, which is the worst possible
+# correlation for the thing that exists to notice drift.
+#
+# Keying on the event keeps the property that matters — two applies are both `workflow_dispatch`
+# and still serialise with each other — while a scheduled plan can no longer be evicted by pull
+# request traffic. PR runs still supersede each other, which is what you want.
 concurrency:
-  group: dns
+  group: dns-${{ github.event_name }}
   cancel-in-progress: false
 
 permissions:

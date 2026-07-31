@@ -50,6 +50,7 @@ const DNS_WORKFLOW = ".github/workflows/dns.yml";
 const WF = parse(readFileSync(DNS_WORKFLOW, "utf8")) as {
     on: Record<string, unknown>;
     env?: Record<string, string>;
+    concurrency?: {group?: string; "cancel-in-progress"?: boolean};
     jobs: Record<string, Job>;
 };
 
@@ -165,6 +166,24 @@ describe("the checksum is what separates planning from applying", () => {
 
     it("enables the checksum in the octoDNS config, or none of the above means anything", () => {
         expect(CONFIG.manager?.enable_checksum).toBe(true);
+    });
+});
+
+describe("the weekly drift run cannot be evicted by pull request traffic", () => {
+    /**
+     * `cancel-in-progress: false` protects a RUNNING job and nothing else. GitHub's own words:
+     * "any existing pending job or workflow in the same concurrency group will be canceled and
+     * the new queued job or workflow will take its place", and at most one run stays pending per
+     * group. So under a single `group: dns` the Monday drift run, queued behind a busy afternoon,
+     * is dropped — as a grey cancelled run, not a red one — in exactly the weeks most likely to
+     * contain a change worth noticing.
+     */
+    it("keys the concurrency group on the event, so a schedule shares no queue with a PR", () => {
+        expect(WF.concurrency?.group).toMatch(/github\.event_name/);
+    });
+
+    it("still refuses to cancel a run already in progress", () => {
+        expect(WF.concurrency?.["cancel-in-progress"]).toBe(false);
     });
 });
 
