@@ -1718,6 +1718,25 @@ describe("dist/index.html is prerendered", () => {
         expect(html).toContain(METADATA.description);
     });
 
+    /*
+     * The assertion above compares the artifact to METADATA.title, which is a comparison of
+     * the pipeline against itself: it holds whatever the title says. This one holds the
+     * SHIPPED bytes against the two facts the title is derived from, which is the property
+     * the deploy actually needs — the tab and the JSON-LD in this same file must answer
+     * "what is his job" and "which Calvin" identically.
+     *
+     * It is deliberately duplicated from tests/rendered-html.test.ts rather than trusted
+     * from there: that file renders in-process through the Container API and never opens
+     * dist/. A reviewer proved the difference by rewriting this file's <title> by hand — the
+     * render test stayed green on an artifact serving the pre-promotion title.
+     */
+    it("agrees with CAREER and the full name in the bytes that ship", () => {
+        const title = parseHTML(read("dist/index.html")).document.querySelector("title")?.textContent;
+        expect(title, "dist/index.html must carry a <title>").toBeTruthy();
+        expect(title).toContain(CAREER[0].job_name);
+        expect(title).toContain(METADATA.full_name);
+    });
+
     it("self-canonicalises to the configured site URL, not a request URL", () => {
         const href = doc().querySelector('link[rel="canonical"]')?.getAttribute("href");
         expect(href).toBe(METADATA.site_url);
