@@ -99,6 +99,17 @@ describe("document head", () => {
         expect(doc.querySelector("title")?.textContent).toBe(METADATA.title);
     });
 
+    /*
+     * The title and the JSON-LD below answer "what is his job" in the same document, and
+     * they used to disagree: the schema read CAREER[0] while the title carried a typed
+     * copy that had missed a promotion. This reads the shipped `<title>` against CAREER
+     * itself, so re-typing the title as a literal — the exact way the two came apart —
+     * goes red rather than shipping a second, staler answer.
+     */
+    it("serves the same job title in <title> as CAREER does to the schema", () => {
+        expect(doc.querySelector("title")?.textContent).toContain(CAREER[0].job_name);
+    });
+
     it("renders the meta description", () => {
         expect(doc.querySelector('meta[name="description"]')?.getAttribute("content")).toBe(METADATA.description);
     });

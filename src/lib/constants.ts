@@ -987,6 +987,25 @@ export const FOOTER: {
 }
 
 export const METADATA: {
+    /**
+     * The page title — and THE JOB IN IT IS DERIVED, not typed.
+     *
+     * ONE PAGE USED TO GIVE TWO ANSWERS TO "WHAT IS HIS JOB". The JSON-LD in
+     * `BasicLayout.astro` reads {@link CAREER}[0] and served "Founding Business Systems
+     * Analyst"; this string was a hand-typed copy of the same fact and still served the
+     * pre-promotion "Business Systems Analyst". A reader saw one in the tab and a search
+     * engine parsed the other out of the same document.
+     *
+     * A copy of a fact drifts the moment the fact moves, and a title is the last place
+     * anyone thinks to edit — so the copy is gone rather than corrected. `CAREER[0]` is
+     * where a job title changes, once. `tests/rendered-html.test.ts` reads the BUILT
+     * page's `<title>` back against `CAREER[0].job_name`, so the gate is on the shipped
+     * document rather than on this expression.
+     *
+     * The h1 on the intro card ({@link WELCOME}) still says the short form. That is copy,
+     * not a second record of the job: it is four lines of self-introduction sized to the
+     * card, and it is not what a machine reads.
+     */
     title: string
     description: string
     site_url: string
@@ -1023,7 +1042,7 @@ export const METADATA: {
     address_country: string
     email_obfuscated: string
 } = {
-    title: "Calvin - Business Systems Analyst | Road Cyclist | Enthusiastic Learner",
+    title: `Calvin - ${CAREER[0].job_name} | Road Cyclist | Enthusiastic Learner`,
     description: "Building things at a startup, probably cycling when you find me. Join my 5000km cycling and 600km running goals this year.",
     site_url: "https://calvin.sg/",
     name: "Calvin",
