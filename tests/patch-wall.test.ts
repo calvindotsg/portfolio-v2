@@ -5,7 +5,8 @@ import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
 import {
-    EVENTS, GOAL_YEAR, GOALS, NEW_TAB_NOTICE, PATCHES, type RaceEvent, type Sport, stravaActivityUrl,
+    EVENTS, GOAL_YEAR, GOALS, NEW_TAB_NOTICE, PATCHES, type RaceEvent, recordingsOf, type Sport,
+    stravaActivityUrl,
 } from "../src/lib/constants";
 import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
@@ -118,7 +119,8 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      * and a clock left two weeks stale.
      */
     it("earns a bib from the recording, on the day of the race and against a frozen clock", () => {
-        const run = ev({date: "2026-06-10", elapsed_time: "0:58:26", strava_activity_id: "19513789157"});
+        const run = ev({date: "2026-06-10", elapsed_time: "0:58:26",
+            recordings: [{id: "19513789157", km: 10, elapsed_time: "0:58:26"}]});
         expect(patchState(run, "2026-06-10"), "the day itself, hours after finishing").toBe("finished");
         expect(patchState(run, "2026-05-27"), "a clock that stopped a fortnight ago").toBe("finished");
     });
@@ -130,7 +132,8 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      */
     it("takes a half-recording as no recording, leaving the day to decide", () => {
         const timed = ev({date: "2026-06-10", elapsed_time: "0:58:26"});
-        const linked = ev({date: "2026-06-10", strava_activity_id: "19513789157"});
+        const linked = ev({date: "2026-06-10",
+            recordings: [{id: "19513789157", km: 10, elapsed_time: "0:58:26"}]});
         for (const half of [timed, linked]) {
             expect(patchState(half, "2026-06-10"), `${JSON.stringify(half)} on the day`).toBe("booked");
             expect(patchState(half, "2026-06-11"), "the day after, by the clock as before").toBe("finished");
@@ -144,11 +147,12 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      * still pass if BOTH sides forgot, and this one names which side did.
      */
     it("stops booking a recorded race's kilometres, on the day it is run", () => {
-        const run = ev({date: "2026-06-10", km: 10, sport: "running", elapsed_time: "0:58:26", strava_activity_id: "1"});
+        const run = ev({date: "2026-06-10", km: 10, sport: "running", elapsed_time: "0:58:26",
+            recordings: [{id: "1", km: 10, elapsed_time: "0:58:26"}]});
         expect(bookedAhead("running", "2026-06-01", [run]), "still ahead by the calendar").toBe(0);
         expect(bookedAhead("running", "2026-06-10", [run]), "the day of the race").toBe(0);
         // The comparison: the same race without its recording is booked exactly as before.
-        const {elapsed_time: _t, strava_activity_id: _i, ...plain} = run;
+        const {elapsed_time: _t, recordings: _r, ...plain} = run;
         expect(bookedAhead("running", "2026-06-01", [plain]), "no recording, so the clock still books it").toBe(10);
     });
 
@@ -522,12 +526,18 @@ describe("dist/patches", () => {
      * because the shape only exists there: the bib renders as an anchor inside its list
      * item, and the previous structure was one element.
      *
-     * CONDITIONAL ON THE ID, NOT ON THE STATE. `strava_activity_id` is optional, so a
-     * finished race without one must render as an ordinary finished bib — the two halves
-     * below are both real cases rather than a happy path and a guard. Driven from EVENTS, so
-     * a race added with or without an id joins whichever half it belongs to, and neither
-     * half is pinned to a named race: this note used to cite one that has since been
-     * recorded, and the halves resize as the data moves.
+     * CONDITIONAL ON THE RECORDINGS, NOT ON THE STATE. `recordings` is optional, so a
+     * finished race without one must render as an ordinary finished bib — the branches
+     * below are all real cases rather than a happy path and a guard. Driven from EVENTS, so
+     * a race added with or without a recording joins whichever branch it belongs to, and no
+     * branch is pinned to a named race: this note used to cite one that has since been
+     * recorded, and the branches resize as the data moves.
+     *
+     * AND CONDITIONAL ON HOW MANY, WHICH IS THE THIRD BRANCH. A race recorded in parts has
+     * no single honest destination, so the bib stops being the anchor and holds one link per
+     * recording instead. The equivalence asserted is therefore three-way and exhaustive:
+     * none, exactly one, more than one. Each branch asserts the OTHERS' markup is absent, so
+     * a bib cannot satisfy this by wearing both shapes at once.
      */
     it("makes the whole bib a link exactly where the race has a verified activity", () => {
         // NO NON-VACUITY FLOOR ON THE FILTERED SUBSET, and this is the repo's own hardest-won
@@ -549,23 +559,66 @@ describe("dist/patches", () => {
         expect(EVENTS.length, "EVENTS is empty, so every loop below is vacuous").toBeGreaterThan(0);
 
         for (const {bib, event} of wallBibs(PAGES.all)) {
-            const url = stravaActivityUrl(event);
+            const parts = recordingsOf(event);
 
-            if (url === null) {
-                expect(bib.tagName.toLowerCase(), `${event.name} has no activity id, so its bib must not be a link`)
+            if (parts.length === 0) {
+                expect(bib.tagName.toLowerCase(), `${event.name} has no recording, so its bib must not be a link`)
                     .not.toBe("a");
                 expect(bib.querySelector(".bib-strava"), `${event.name} must wear no Strava mark`).toBeNull();
+                expect(bib.querySelector(".bib-splits"), `${event.name} has no recording, so it lists none`).toBeNull();
                 continue;
             }
 
-            expect(bib.tagName.toLowerCase(), `${event.name} has an activity id, so the whole bib is the link`).toBe("a");
+            if (parts.length > 1) {
+                // THE SPLIT RACE. Anchors do not nest, so the bib cannot both be a link and
+                // contain them — and there is no URL that is the whole race, because Strava
+                // cannot merge two activities. The bib holds the links instead.
+                expect(bib.tagName.toLowerCase(),
+                    `${event.name} has ${parts.length} recordings, so the bib holds the links rather than being one`)
+                    .not.toBe("a");
+                expect(bib.querySelector(".bib-go"),
+                    `${event.name} lists its recordings, so it carries no single action row`).toBeNull();
+
+                const lines = [...bib.querySelectorAll(".bib-split")];
+                expect(lines.length, `${event.name} must draw one line per recording`).toBe(parts.length);
+
+                for (const [i, part] of parts.entries()) {
+                    const line = lines[i];
+                    expect(line.tagName.toLowerCase(), "each split line is its own link").toBe("a");
+                    expect(line.getAttribute("href"), `recording ${part.id} must point at its own activity`)
+                        .toBe(`https://www.strava.com/activities/${part.id}`);
+                    expect(line.getAttribute("href")).toBe(stravaActivityUrl(part));
+                    expect(line.getAttribute("target"), "matching the single-recording bib").toBe("_blank");
+                    expect(line.getAttribute("rel"), "a bare target, as everywhere else on this site").toBeNull();
+                    expect(line.getAttribute("aria-label"),
+                        "an aria-label would REPLACE the name; the sr-only spans EXTEND it").toBeNull();
+
+                    // THE LINE MUST PROMISE WHAT IT DELIVERS. The bib's hero is the SUMMED
+                    // distance and its time row the whole span, so a link that named neither
+                    // would send a reader to smaller figures than the bib showed them — the
+                    // mismatch this whole change exists to close. And the race must be in the
+                    // name, or a reader listing every link on the page cannot tell which wall
+                    // entry it belongs to.
+                    const name = (line.textContent ?? "").replace(/\s+/g, " ").trim();
+                    for (const said of [part.km.toFixed(2), part.elapsed_time, event.name, NEW_TAB_NOTICE]) {
+                        expect(name, `split line ${i + 1} of ${event.name} must announce "${said}"`).toContain(said);
+                    }
+                }
+                continue;
+            }
+
+            const only = parts[0];
+            const url = stravaActivityUrl(only);
+            expect(bib.tagName.toLowerCase(), `${event.name} has one recording, so the whole bib is the link`).toBe("a");
+            expect(bib.querySelector(".bib-splits"),
+                `${event.name} has one recording, so there is nothing to list`).toBeNull();
             // THE BASE URL IS WRITTEN OUT HERE, and the duplication is the point. Comparing the
             // built href against `stravaActivityUrl(event)` alone compares the page to the very
             // function that produced it: mistype the constant and every bib ships a 404 with the
             // suite green and `pnpm check` silent — verified by mutating the base and watching
             // 256/256 pass. The literal is the only thing in the build that can disagree with it.
             expect(url, `${event.name} must point at strava.com/activities/<id>`)
-                .toBe(`https://www.strava.com/activities/${event.strava_activity_id}`);
+                .toBe(`https://www.strava.com/activities/${only.id}`);
             expect(bib.getAttribute("href")).toBe(url);
             expect(bib.getAttribute("target"), "matching Now.astro and IntroCard.astro").toBe("_blank");
             expect(bib.getAttribute("rel"), "this site uses a bare target and lets the browser imply noopener; "
@@ -686,8 +739,12 @@ describe("dist/patches", () => {
         for (const {bib, event} of wallBibs(PAGES.all)) {
             const row = bib.querySelector(".bib-go");
 
-            if (stravaActivityUrl(event) === null) {
-                expect(row, `${event.name} has no activity id, so its bib must offer no action row`).toBeNull();
+            // THE ROW BELONGS TO A BIB WITH EXACTLY ONE PLACE TO GO. With none there is nothing
+            // to say; with several the bib lists them instead, and each line carries its own
+            // words — held by the split branch of the anchor test above.
+            if (recordingsOf(event).length !== 1) {
+                expect(row, `${event.name} does not have exactly one recording, so it offers no action row`)
+                    .toBeNull();
                 continue;
             }
 
@@ -1508,7 +1565,8 @@ describe("nothing inside the wall's card is pinned to a device pixel", () => {
 describe("a bib that opens a new tab says so, last", () => {
     const linked: RaceEvent = {
         date: `${GOAL_YEAR}-07-10`, name: "A Race With A Recording", km: 100, sport: "cycling",
-        country: "Thailand", elapsed_time: "5:00:00", strava_activity_id: "1234567890123",
+        country: "Thailand", elapsed_time: "5:00:00",
+        recordings: [{id: "1234567890123", km: 100, elapsed_time: "5:00:00"}],
     };
     const unlinked: RaceEvent = {
         date: `${GOAL_YEAR}-07-10`, name: "A Race With No Recording", km: 100, sport: "cycling",

@@ -173,7 +173,7 @@ block above it before giving either consumer the other's list.
   stamping today silently switched them off — reverting the whole split was green at 314
   before that file existed. Mutate one default at a time when you touch this; flipping all
   four at once only proves the union is covered, which is how `patchWall` stayed uncovered
-- **A race with BOTH `elapsed_time` and `strava_activity_id` is finished because it
+- **A race with BOTH `elapsed_time` and a `recordings` entry is finished because it
   was run**, whatever the clock says — that pair is the only way a race can be
   recorded on the day it happened, and `bookedAhead` must skip the same races or the
   wall and the goal cards contradict each other. Recording a race you have just run is a
@@ -184,6 +184,20 @@ block above it before giving either consumer the other's list.
   against an honest 71. There is no order that is right at both moments; read the note
   above `EVENTS` in `constants.ts` before doing either, and `hasRecording` in
   `projection.ts` for why the pair means "run"
+- **A race can be recorded as MORE THAN ONE Strava activity, and the bib's shape follows
+  the count.** `recordings` is a list — a mechanical, a lost signal or a watch that died
+  splits one race across several files, and two of the round-island rides are in that
+  state. The race's `km` is the summed METRES converted once (not the sum of the parts'
+  printed figures, which rounds twice) and its `elapsed_time` is first start to last stop,
+  never the sum of the parts: elapsed already contains stops, so it must not depend on
+  where the rider pressed the button. **The rule the bib is drawn by: a bib is the link
+  when there is one place to go; when there is more than one, the bib HOLDS the links.**
+  Strava cannot merge activities, so no single URL is the whole race, and anchors do not
+  nest — a split bib is therefore a `div` whose stub carries one link per recording, each
+  printing that part's own distance and clock so no link promises the bib's summed hero.
+  A one-recording bib is untouched by any of this, which is deliberate: delegating on every
+  bib would give all of them the same accessible name. See `Patch.astro` for the whole
+  argument and `Recording` in `constants.ts` for why the parts' figures are stored
 
 ## Content Management
 
@@ -194,7 +208,7 @@ the file:
   and the label is also the heading of the page it opens; see the note there
 - `EVENTS`: every race entered, in any year — read by both the projection and the patch
   wall, at two different scopes (see the rule above). Adding a past race is a data edit:
-  `elapsed_time` and `strava_activity_id` are optional, so a race remembered without a
+  `elapsed_time` and `recordings` are optional, so a race remembered without a
   recording is still a complete bib
 - `PATCHES`: the wall's own prose, now one lede rather than a scope sentence plus a key.
   Its heading is `My events`; "patch wall" survives in the URL and the metaphor, not as a

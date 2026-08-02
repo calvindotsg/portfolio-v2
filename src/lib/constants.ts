@@ -27,12 +27,12 @@ import stravaProgress from "../data/strava-progress.json"
  * there; the distance, the date and the time are not. Checked on two of the owner's rides
  * (19279762093 and 19254155835) on 2026-07-28; the finding is about Strava rather than
  * about those two, and a `followers_only` activity is walled harder still — see
- * {@link RaceEvent.strava_activity_id}'s note.
+ * {@link RaceEvent.recordings}'s note.
  *
  * So a status code is not an answer to "can a reader see this" — READ THE PAGE.
  *
  * THE FINISHED BIBS LINK ANYWAY, and that is a decision taken with this paragraph in
- * front of it rather than in ignorance of it. See {@link RaceEvent.strava_activity_id},
+ * front of it rather than in ignorance of it. See {@link RaceEvent.recordings},
  * which carries the reasoning and the accepted cost; do not delete those links as an
  * oversight, and do not delete this evidence as obsolete. What it still rules out is a
  * second link to the PROFILE — that one adds a wall and reaches nothing the intro card's
@@ -48,7 +48,7 @@ import stravaProgress from "../data/strava-progress.json"
 const STRAVA_PROFILE_URL = "https://www.strava.com/athletes/37641259/";
 
 /**
- * Where a finished bib's link points, with {@link RaceEvent.strava_activity_id} appended.
+ * Where a finished bib's link points, with {@link Recording.id} appended.
  *
  * It is a base rather than a full URL per event so the domain lives in one place: two
  * spellings of the same host is how one of them ends up on `strava.app.link` or a stale
@@ -57,9 +57,18 @@ const STRAVA_PROFILE_URL = "https://www.strava.com/athletes/37641259/";
  */
 const STRAVA_ACTIVITY_URL = "https://www.strava.com/activities/";
 
-/** A finished bib's link, or null where the race has no verified activity. */
-export const stravaActivityUrl = (event: RaceEvent): string | null =>
-    event.strava_activity_id === undefined ? null : STRAVA_ACTIVITY_URL + event.strava_activity_id;
+/** Where one recording lives. Takes the RECORDING, not the race — a race can hold several. */
+export const stravaActivityUrl = (recording: Recording): string =>
+    STRAVA_ACTIVITY_URL + recording.id;
+
+/**
+ * A race's recordings, always an array — empty where the race has none.
+ *
+ * Every consumer wants the list rather than the optional, and normalising here is what
+ * keeps `?? []` from being written at each of them. `hasRecording` in projection.ts asks
+ * the length; `Patch.astro` asks the length AND iterates.
+ */
+export const recordingsOf = (event: RaceEvent): readonly Recording[] => event.recordings ?? [];
 
 /**
  * `name` is the control's whole accessible name, announced verbatim — the icon
@@ -329,7 +338,7 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * must not pay off this year's deficit.
  *
  * SO A PAST RACE NEEDS NOTHING BUT ITS FACTS. `elapsed_time` and
- * `strava_activity_id` are both optional, so a race remembered without a recording is
+ * `recordings` are both optional, so a race remembered without a recording is
  * a complete bib rather than a broken one — which is what makes filling in a back
  * catalogue a data edit and not a code change.
  *
@@ -385,7 +394,7 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * are absent rather than left for a future editor to fill in expecting them to do
  * something.
  *
- * `strava_activity_id` SHIPS WITH A KNOWN COST, AND THE COST IS NOT A MISTAKE. Keep both
+ * `recordings` SHIPS WITH A KNOWN COST, AND THE COST IS NOT A MISTAKE. Keep both
  * halves of this paragraph: the evidence, so nobody re-proposes the link as an oversight,
  * and the decision, so nobody removes it as one.
  *
@@ -462,15 +471,17 @@ export type RaceEvent = {
      *   whole arithmetic.
      *
      *   THE RACE ITSELF WAS RECORDED IN PARTS — the rider stopped and restarted, so no single
-     *   activity holds the ride, and **`EVENTS` HOLDS ONE OF THESE AND CANNOT SAY SO.** The 2024
-     *   round-island ride broke a bike, was repaired at a shop and finished, and the row below
-     *   carries only the recording made after the repair: it under-reports that race. One id per
-     *   race is why. Summing the parts is the arithmetic, but it is not the whole fix — the bib
-     *   would print an aggregate while still linking to ONE part, so a reader following the link
-     *   would meet a smaller number, which is the mismatch {@link elapsed_time} exists to
-     *   prevent, one layer up. The model is `strava_activity_ids: readonly string[]` plus a
-     *   decision about what the bib SAYS. Handed over deliberately rather than half-built:
-     *   `.scratchpad/handover-split-race-recordings.md` carries both races fully measured.
+     *   activity holds the ride. Then this is the SUMMED METRES CONVERTED ONCE, not the sum of
+     *   the parts' printed figures: two roundings can compound where one cannot. The 2024
+     *   round-island ride is the case — it broke a bike, was repaired at a shop and finished,
+     *   and 17908.4 + 117411.0 gives 135.32 where truncation would give 135.31.
+     *
+     *   THE ARITHMETIC WAS NEVER THE HARD PART. A bib printing an aggregate while linking to
+     *   ONE part sends a reader to a smaller number, which is the mismatch {@link elapsed_time}
+     *   exists to prevent, one layer up — so this row could not be corrected until the bib could
+     *   SAY it was recorded in parts. It can: {@link Recording} carries each part's own distance
+     *   and clock, and the bib lists them, so every link promises what it delivers. That is why
+     *   the parts' figures are stored rather than derived.
      *
      * SO "NO EXCEPTION FOR A SPLIT DAY" IS THE RULE, AND IT IS NOT A RULE ABOUT SPLIT RACES —
      * the first case needs no exception and the second needs a model. Which shape a day is, is
@@ -566,8 +577,8 @@ export type RaceEvent = {
      * held. Keep the two figures on a bib coming from the same activity and that whole class
      * of error is gone.
      *
-     * WHICH ACTIVITY, WHERE A DAY HOLDS MORE THAN ONE: the one in `strava_activity_id`, the
-     * one this time came off, the one the bib links to. 10 July is the case that names the
+     * WHICH ACTIVITY, WHERE A DAY HOLDS MORE THAN ONE: the ones in `recordings`, the
+     * ones these times came off, the ones the bib links to. 10 July is the case that names the
      * rule — the day holds a 22.56 km escort out of Phuket AND the 140.50 km ride, 163.06
      * together against the event's advertised 160.59, and whole-day elapsed would be 9:55
      * rather than 8:32:05. The row prints 140.50, because that is the ride a reader who
@@ -581,36 +592,102 @@ export type RaceEvent = {
      */
     elapsed_time?: string
     /**
-     * The Strava activity this race was recorded as. Present only where the mapping has
-     * been VERIFIED against the activity itself: `tests/strava-verify.test.ts` holds every
-     * one of these against the API, on distance, on elapsed time and on the day it was
-     * recorded. See the note above the type for the login wall a reader following the link
-     * knowingly accepts, and for why reading that logged-out page cannot do this job for
-     * every id.
+     * Every Strava activity this race was recorded as, in the order they were ridden.
      *
-     * IT IS ALSO HALF OF THE PROOF THAT THE RACE WAS RUN, so it is no longer only a link.
+     * ONE ELEMENT FOR ALMOST EVERY RACE. More where the rider stopped and restarted — a
+     * mechanical, a lost signal, a watch that died. This replaced a single
+     * `strava_activity_id?: string`, which asserted that a race has at most ONE recording;
+     * that was false for two of the owner's round-island rides, and the wall printed one
+     * part of a race as though it were the whole thing. A `string | readonly string[]`
+     * union was considered and rejected — it pushes normalisation onto every consumer —
+     * as was keeping the singular field and adding a second one beside it, which is the
+     * positional-multiplicity smell.
+     *
+     * PRESENT ONLY WHERE THE MAPPING HAS BEEN VERIFIED against the activity itself:
+     * `tests/strava-verify.test.ts` holds every element against the API, on its own
+     * distance, its own elapsed time and the day it was recorded, and holds the RACE's
+     * {@link km} against the summed metres. See the note above the type for the login
+     * wall a reader following the link knowingly accepts.
+     *
+     * IT IS ALSO HALF OF THE PROOF THAT THE RACE WAS RUN, so it is not only a link.
      * Beside an `elapsed_time` it earns the bib outright, whatever day it is — see
      * `hasRecording` in projection.ts. Do not paste one in ahead of a race because the
      * mapping happens to exist: with a time already present that draws a solid patch for
      * a race nobody has run, which is the one failure this file works hardest to avoid.
      * The build refuses it (tests/projection.test.ts), so the cost is a red deploy.
+     */
+    recordings?: readonly Recording[]
+}
+
+/**
+ * ONE STRAVA ACTIVITY A RACE WAS RECORDED AS, carrying its own figures and not only its id.
+ *
+ * THE FIGURES ARE HERE BECAUSE THE BIB PRINTS THEM, and that is the whole reason this is a
+ * record rather than a bare id. A race recorded in parts prints the SUMMED {@link km} and a
+ * first-start-to-last-stop {@link elapsed_time}, while each link opens ONE part — so a
+ * reader who follows one meets a smaller distance and a shorter clock than the bib showed
+ * them. That mismatch is exactly what `elapsed_time`'s note exists to prevent, one layer up.
+ * The answer is that the bib lists the parts and each line prints what is at the other end
+ * of it, which it can only do if the parts' own figures are here.
+ *
+ * HAND-ENTERED, for the reason {@link RaceEvent.elapsed_time} is: these stopped changing
+ * when the race ended, and the bot exists to track a total that MOVES. Nothing fetches them
+ * at build.
+ *
+ * A SINGLE-RECORDING RACE STILL CARRIES THEM, and they will equal the race's own two
+ * figures. That redundancy is deliberate: the alternative is a shape where the fields
+ * appear only above some threshold, which is a rule every reader and every test has to
+ * learn. `tests/projection.test.ts` asserts the agreement rather than trusting it.
+ */
+export type Recording = {
+    /**
+     * The Strava activity id.
      *
      * A string rather than a number: it is an opaque identifier that only ever goes into
      * a URL, and 19-digit ids are close enough to `Number.MAX_SAFE_INTEGER` that treating
      * them as arithmetic is a category error waiting to round one.
      */
-    strava_activity_id?: string
+    id: string
+    /**
+     * THIS ACTIVITY's distance in km, the API's metres rounded half-up to two places —
+     * the same conversion {@link RaceEvent.km} takes, and for the same reason.
+     *
+     * NOTE THE RACE'S `km` IS NOT THE SUM OF THESE. It is the summed METRES converted
+     * once, because two roundings can compound where one cannot. The two agree on both
+     * races currently in `EVENTS` and are not guaranteed to in general, so do not derive
+     * one from the other — `tests/strava-verify.test.ts` holds each against the API
+     * separately, which is the only check that can tell them apart.
+     */
+    km: number
+    /** THIS ACTIVITY's elapsed time, `H:MM:SS`. Not the race's — see the type note. */
+    elapsed_time: string
 }
 
 export const EVENTS: readonly RaceEvent[] = [
-    {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 22.45, sport: "running", country: "Singapore", elapsed_time: "3:44:25", strava_activity_id: "8204481233"},
-    {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 117.41, sport: "cycling", country: "Singapore", elapsed_time: "5:53:34", strava_activity_id: "12058885236"},
-    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.60, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25", strava_activity_id: "16736512210"},
-    {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 130.03, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15", strava_activity_id: "18433212592"},
-    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 140.50, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
-    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.10, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31", strava_activity_id: "19279762093"},
-    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.17, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
-    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 160.57, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17", strava_activity_id: "19566067972"},
+    {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 22.45, sport: "running", country: "Singapore", elapsed_time: "3:44:25",
+     recordings: [{id: "8204481233", km: 22.45, elapsed_time: "3:44:25"}]},
+    // THE SPLIT RACE. The bike broke down at Lim Chu Kang, was repaired at a shop, and the
+    // ride finished — two recordings with 2:43:19 of workshop between them. `km` is the
+    // summed metres (17908.4 + 117411.0 = 135319.4) converted ONCE, and `elapsed_time` is
+    // first start to last stop, NOT the sum of the two elapsed times (7:22:15): elapsed
+    // already contains stops, so it must not depend on where the rider pressed the button.
+    // This row carried only the post-repair recording until the wall could draw a split,
+    // and under-reported the race by 17.91 km and four hours.
+    {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 135.32, sport: "cycling", country: "Singapore", elapsed_time: "10:05:34",
+     recordings: [{id: "12058884605", km: 17.91, elapsed_time: "1:28:41"},
+                  {id: "12058885236", km: 117.41, elapsed_time: "5:53:34"}]},
+    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.60, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25",
+     recordings: [{id: "16736512210", km: 78.60, elapsed_time: "7:40:25"}]},
+    {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 130.03, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15",
+     recordings: [{id: "18433212592", km: 130.03, elapsed_time: "8:14:15"}]},
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 140.50, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05",
+     recordings: [{id: "19254155835", km: 140.50, elapsed_time: "8:32:05"}]},
+    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.10, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31",
+     recordings: [{id: "19279762093", km: 158.10, elapsed_time: "9:41:31"}]},
+    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.17, sport: "running", country: "Singapore", elapsed_time: "0:58:26",
+     recordings: [{id: "19513789157", km: 10.17, elapsed_time: "0:58:26"}]},
+    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 160.57, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17",
+     recordings: [{id: "19566067972", km: 160.57, elapsed_time: "10:56:17"}]},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
     {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
     {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running", country: "Singapore"},
@@ -925,6 +1002,24 @@ export const PATCHES: {
      * distance. See Patch.astro, which records the whole accessible name.
      */
     strava_name: string
+    /**
+     * WHAT A SPLIT RACE'S LINK SAYS THAT THE READER CANNOT SEE. `{race}` is the event's name.
+     *
+     * A race recorded in parts lists them at the foot of the bib, one link per recording, and
+     * each line prints figures rather than words — a shared label repeated once per part is
+     * information at two and noise at four, which is the argument {@link booked_label} is
+     * already decided by. That leaves the accessible name short of two things a reader
+     * listing every link on the page needs: where it goes, and which race it belongs to.
+     *
+     * SO THE WORDS GO IN THE NAME RATHER THAN ON THE BIB. This is the device
+     * {@link NEW_TAB_NOTICE} already uses, and the reason no `aria-label` appears anywhere on
+     * a bib: an aria-label REPLACES the name with a summary, where this extends it. The name
+     * stays a true superset of what is on screen, which is this repo's rule.
+     *
+     * It opens with a leading separator in `Patch.astro` rather than here, so the string
+     * reads as a phrase rather than as punctuation with a fragment attached.
+     */
+    split_name: string
 } = {
     /**
      * "My events", not "Patch wall", and the sport pages take `My {sport} events` from the
@@ -958,6 +1053,7 @@ export const PATCHES: {
     elapsed_label: "Elapsed",
     strava_icon: "fa6-brands:strava",
     strava_name: "View on Strava",
+    split_name: "on Strava, {race}",
 }
 
 /**

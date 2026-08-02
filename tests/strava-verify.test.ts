@@ -1,6 +1,6 @@
 import {beforeAll, describe, expect, it} from "vitest";
 
-import {EVENTS, type RaceEvent} from "../src/lib/constants";
+import {EVENTS, type RaceEvent, type Recording, recordingsOf} from "../src/lib/constants";
 
 /**
  * EVERY RECORDED ROW IN `EVENTS`, HELD AGAINST THE ACTIVITY IT NAMES.
@@ -60,7 +60,15 @@ const ENABLED = process.env.STRAVA_VERIFY === "1";
 
 type Detail = {distance: number; elapsed_time: number; start_date_local: string; name: string; visibility?: string};
 
-const recorded: readonly RaceEvent[] = EVENTS.filter((e) => e.strava_activity_id !== undefined);
+const recorded: readonly RaceEvent[] = EVENTS.filter((e) => recordingsOf(e).length > 0);
+
+/**
+ * EVERY (race, recording) PAIR, flattened, because the per-activity assertions below are
+ * about a RECORDING and the race is only there to name it in the failure message. A race
+ * recorded in parts contributes one pair per part.
+ */
+const pairs: readonly {event: RaceEvent; part: Recording}[] =
+    recorded.flatMap((event) => recordingsOf(event).map((part) => ({event, part})));
 
 /** Whole seconds -> `H:MM:SS`, the shape `elapsed_time` is authored in. */
 const hms = (total: number): string => {
@@ -103,8 +111,8 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
         const {access_token} = await tokenRes.json() as {access_token?: string};
         if (!access_token) throw new Error("no access_token in the refresh response");
 
-        for (const e of recorded) {
-            const id = e.strava_activity_id!;
+        for (const {event: e, part} of pairs) {
+            const id = part.id;
             const res = await fetch(`https://www.strava.com/api/v3/activities/${id}`, {
                 headers: {authorization: `Bearer ${access_token}`},
             });
@@ -123,12 +131,13 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
 
     it("has rows to check, so the assertions below are not vacuous", () => {
         expect(recorded.length).toBeGreaterThan(0);
-        expect(details.size).toBe(recorded.length);
+        expect(pairs.length).toBeGreaterThanOrEqual(recorded.length);
+        expect(details.size).toBe(pairs.length);
     });
 
     it("agrees with each activity's own distance, to the two places a bib prints", () => {
-        for (const e of recorded) {
-            const d = details.get(e.strava_activity_id!)!;
+        for (const {event: e, part} of pairs) {
+            const d = details.get(part.id)!;
             // `toBe`, NOT `toBeCloseTo(…, 2)`, and the difference is the whole gate. `toBeCloseTo`
             // with 2 digits passes whenever the gap is under 0.005, which is EVERY value the wrong
             // authoring routes produce: |m/1000 − round(m/10)/100| ≤ 0.005 always, so a `km` pasted
@@ -138,8 +147,8 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
             // equality keeps that promise. Safe because `Math.round(m/10)/100` and a 2dp literal
             // parse to the same double — checked with `Object.is` on all eight rows.
             expect(
-                e.km,
-                `${e.date} ${e.name}: file says ${e.km} km, activity ${e.strava_activity_id} is `
+                part.km,
+                `${e.date} ${e.name}: file says ${part.km} km, activity ${part.id} is `
                 + `${d.distance} m, which ROUNDS to ${km2(d.distance)} km. A gap of exactly 0.01 `
                 + "means the figure was truncated rather than rounded — this file held that rule "
                 + "for four commits and it was wrong; see the note above `km` in constants.ts. "
@@ -149,14 +158,64 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
     });
 
     it("agrees with each activity's own elapsed time, to the second", () => {
-        for (const e of recorded) {
-            const d = details.get(e.strava_activity_id!)!;
+        for (const {event: e, part} of pairs) {
+            const d = details.get(part.id)!;
             expect(
-                e.elapsed_time,
-                `${e.date} ${e.name}: file says ${e.elapsed_time}, activity ${e.strava_activity_id} `
+                part.elapsed_time,
+                `${e.date} ${e.name}: file says ${part.elapsed_time}, activity ${part.id} `
                 + `says ${hms(d.elapsed_time)}. An activity that has been cropped or re-uploaded `
                 + "since the figure was typed in moves this.",
             ).toBe(hms(d.elapsed_time));
+        }
+    });
+
+    /**
+     * THE RACE'S OWN TWO FIGURES, WHICH ARE NOT ANY ONE ACTIVITY'S ONCE A RACE IS SPLIT.
+     * This is where the model earns its keep: before it, the suite could only ever check the
+     * single linked ride, so a race recorded in two files was verified against one of them
+     * and the other half went unseen.
+     *
+     * `km` IS THE SUMMED METRES CONVERTED ONCE, not the sum of the parts' converted figures.
+     * Two roundings can compound where one cannot. The two agree on both split races in
+     * `EVENTS` today and are not guaranteed to in general — which is exactly why this
+     * assertion reads the metres rather than adding up `part.km`, and why nothing else in the
+     * suite can stand in for it.
+     */
+    it("agrees with the summed metres of all a race's recordings, converted once", () => {
+        for (const e of recorded) {
+            const metres = recordingsOf(e).reduce((sum, part) => sum + details.get(part.id)!.distance, 0);
+            expect(
+                e.km,
+                `${e.date} ${e.name}: file says ${e.km} km, its ${recordingsOf(e).length} recording(s) `
+                + `sum to ${metres} m, which ROUNDS to ${km2(metres)} km. Sum the metres and convert `
+                + "ONCE — adding up the parts' printed figures is a second rounding.",
+            ).toBe(km2(metres));
+        }
+    });
+
+    /**
+     * `elapsed_time` IS FIRST START TO LAST STOP, AND THAT IS NOT THE SUM OF THE PARTS.
+     * Elapsed already contains stops, so it must not depend on where the rider happened to
+     * press the button — a stop that falls on an activity boundary is a recording artifact,
+     * not a fact about the race. On the 2024 round-island ride the span is 10:05:34 against
+     * 7:22:15 summed, and the 2h43m in the bike shop is exactly the kind of stop a single
+     * activity's elapsed would have contained anyway.
+     *
+     * Every `start_date_local` carries the same trailing `Z`, so parsing them as instants is
+     * safe for a DIFFERENCE even though they are local wall-clock times.
+     */
+    it("agrees with the span from the first recording's start to the last one's stop", () => {
+        for (const e of recorded) {
+            const parts = recordingsOf(e).map((part) => details.get(part.id)!);
+            const starts = parts.map((d) => Date.parse(d.start_date_local));
+            const stops = parts.map((d, i) => starts[i] + d.elapsed_time * 1000);
+            const span = Math.round((Math.max(...stops) - Math.min(...starts)) / 1000);
+            expect(
+                e.elapsed_time,
+                `${e.date} ${e.name}: file says ${e.elapsed_time}, first start to last stop is `
+                + `${hms(span)} across ${parts.length} recording(s). The SUM of the parts' elapsed `
+                + "times is not this figure and must not be used.",
+            ).toBe(hms(span));
         }
     });
 
@@ -168,11 +227,11 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
      * is the day it happened.
      */
     it("points each race at an activity recorded on that race's own day", () => {
-        for (const e of recorded) {
-            const d = details.get(e.strava_activity_id!)!;
+        for (const {event: e, part} of pairs) {
+            const d = details.get(part.id)!;
             expect(
                 d.start_date_local.slice(0, 10),
-                `${e.date} ${e.name} points at activity ${e.strava_activity_id} ("${d.name}"), which `
+                `${e.date} ${e.name} points at activity ${part.id} ("${d.name}"), which `
                 + `started on ${d.start_date_local.slice(0, 10)} — two ids transposed between races `
                 + "is the failure this catches",
             ).toBe(e.date);

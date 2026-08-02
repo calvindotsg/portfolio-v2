@@ -3,7 +3,7 @@ import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
-import {EVENTS, GOAL_YEAR, GOALS, type Goal} from "../src/lib/constants";
+import {EVENTS, GOAL_YEAR, GOALS, type Goal, recordingsOf} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {
     UPDATED_AT, bookedAhead, daysRemaining, eventsInYear, formatDateline, goalStatus,
@@ -523,7 +523,7 @@ describe("EVENTS", () => {
      * combined message would name the wrong field half the time.
      */
     it("never carries a recording for a race that has not started", () => {
-        const recorded = EVENTS.filter((e) => e.elapsed_time !== undefined && e.strava_activity_id !== undefined);
+        const recorded = EVENTS.filter((e) => e.elapsed_time !== undefined && recordingsOf(e).length > 0);
         for (const e of recorded) {
             // Against a clock pinned before every race on the calendar, so ONLY the
             // recording branch can answer. `patchState(e)` takes BUILD_DATE, under which
@@ -548,16 +548,59 @@ describe("EVENTS", () => {
      * failing anywhere a build could see.
      */
     it("carries activity ids as digit strings, so none can be rounded into a dead link", () => {
-        const linked = EVENTS.filter((e) => e.strava_activity_id !== undefined);
         const seen = new Set<string>();
-        for (const e of linked) {
-            expect(typeof e.strava_activity_id, `${e.name} activity id must be a string`).toBe("string");
-            expect(e.strava_activity_id, `${e.name} activity id must be digits only`).toMatch(/^\d+$/);
-            // Two races pointing at one ride is the transposition this cannot otherwise
-            // see — both ids are valid, both pages load, and only reading them tells.
-            expect(seen.has(e.strava_activity_id!), `${e.name} shares an activity id with another race`).toBe(false);
-            seen.add(e.strava_activity_id!);
+        let checked = 0;
+        for (const e of EVENTS) {
+            for (const r of recordingsOf(e)) {
+                expect(typeof r.id, `${e.name} activity id must be a string`).toBe("string");
+                expect(r.id, `${e.name} activity id must be digits only`).toMatch(/^\d+$/);
+                // Two races pointing at one ride is the transposition this cannot otherwise
+                // see — both ids are valid, both pages load, and only reading them tells.
+                // UNIQUENESS NOW HAS TO HOLD ACROSS THE ARRAYS AND NOT ONLY BETWEEN ROWS:
+                // a race recorded in parts holds several ids, so the same slip can now be
+                // made twice inside one event as well as between two.
+                expect(seen.has(r.id), `${e.name} shares activity ${r.id} with another recording`).toBe(false);
+                seen.add(r.id);
+                checked++;
+            }
         }
+        expect(checked, "no event carries a recording — this assertion would be vacuous").toBeGreaterThan(0);
+    });
+
+    /**
+     * A RECORDING'S OWN FIGURES ARE PRINTED ON THE BIB, so they are held to the same shapes
+     * the race's are. The elapsed pattern is the one `elapsed_time` takes above; the distance
+     * is a finite non-negative number for the reason `km` is.
+     *
+     * AND WHERE THERE IS EXACTLY ONE, IT MUST AGREE WITH THE RACE. A single-recording race
+     * carries its figures twice — once as the race's, once as the part's — which is the
+     * deliberate redundancy `Recording`'s note explains. This is what stops the two drifting;
+     * without it, editing `km` and forgetting the recording beneath it is silent, and the
+     * suite's other distance assertions all read the race-level field.
+     *
+     * IT DELIBERATELY DOES NOT ASSERT THE SUM WHERE THERE ARE SEVERAL. The race's `km` is the
+     * summed METRES converted once, and the parts' are each converted separately, so the two
+     * are not required to be equal — only `tests/strava-verify.test.ts`, which has the metres,
+     * can check that. Asserting equality here would be red on correct data the first time a
+     * split race's roundings failed to coincide.
+     */
+    it("holds each recording's own figures to the shapes the bib prints them in", () => {
+        let checked = 0;
+        for (const e of EVENTS) {
+            const parts = recordingsOf(e);
+            for (const r of parts) {
+                expect(r.elapsed_time, `${e.name} recording ${r.id} elapsed time must be H:MM:SS`)
+                    .toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
+                expect(Number.isFinite(r.km) && r.km >= 0, `${e.name} recording ${r.id} km must be a non-negative number`)
+                    .toBe(true);
+                checked++;
+            }
+            if (parts.length !== 1) continue;
+            expect(parts[0].km, `${e.name} has one recording, so its km must equal the race's`).toBe(e.km);
+            expect(parts[0].elapsed_time, `${e.name} has one recording, so its elapsed time must equal the race's`)
+                .toBe(e.elapsed_time);
+        }
+        expect(checked, "no event carries a recording — this assertion would be vacuous").toBeGreaterThan(0);
     });
 });
 
