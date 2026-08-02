@@ -220,6 +220,33 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
     });
 
     /**
+     * RECORDINGS ARE IN THE ORDER THEY WERE RIDDEN, and nothing offline can know that.
+     *
+     * The order is not cosmetic: the bib prints one line per recording in array order, so a
+     * transposed pair shows a reader the second half of a race above the first. It is also
+     * the assumption the span rule leans on — first start to last stop only reads as "the
+     * race" if the parts are the race in sequence.
+     *
+     * The file holds ids, distances and clocks; only the API holds a START TIME, so this is
+     * the one place the claim can be checked at all. Ascending and STRICT: two recordings
+     * cannot begin at the same instant.
+     */
+    it("lists each race's recordings in the order they were ridden", () => {
+        for (const e of recorded) {
+            const starts = recordingsOf(e).map((part) => Date.parse(details.get(part.id)!.start_date_local));
+            for (let i = 1; i < starts.length; i++) {
+                expect(
+                    starts[i] > starts[i - 1],
+                    `${e.date} ${e.name}: recording ${i + 1} starts at `
+                    + `${details.get(recordingsOf(e)[i].id)!.start_date_local}, which is not after recording ${i} at `
+                    + `${details.get(recordingsOf(e)[i - 1].id)!.start_date_local}. The bib prints them in array `
+                    + "order, so a transposed pair shows the second half of a race above the first.",
+                ).toBe(true);
+            }
+        }
+    });
+
+    /**
      * THE TRANSPOSITION GUARD, and it is the one thing here no amount of care with a
      * screenshot replaces: two valid ids swapped between two races produce a wall where every
      * link resolves and every bib looks right, each pointing at the other's ride. Comparing

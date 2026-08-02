@@ -849,8 +849,12 @@ export const WELCOME: {
  * the same silence for a DIFFERENT reason — its own name already says "View résumé
  * (PDF)", so the format is announced and a PDF opening in its own tab is the behaviour
  * a reader expects from that name. If the six are ever split, that is the seam.
- * The two that wear it are the ones where the destination is unexpected: a race bib
- * that reads as page content, and an information icon that reads as a disclosure.
+ * The ones that wear it are those where the destination is unexpected: a race bib that
+ * reads as page content, an information icon that reads as a disclosure, and — since a
+ * race can be recorded in parts — each split line on a bib that lists its recordings
+ * rather than being one link itself. That last is the same case as the first, arriving
+ * once per recording; deliberately NOT counted here, because the count moves with the
+ * data and this paragraph is about which KIND of destination earns the warning.
  *
  * IT IS A SEPARATE ELEMENT, NOT A SUFFIX ON AN EXISTING STRING, and that is measured
  * rather than stylistic. Appending it to {@link PATCHES.strava_name} would bury it

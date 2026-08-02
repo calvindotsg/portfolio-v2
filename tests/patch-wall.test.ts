@@ -1712,6 +1712,68 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
         expect(new Set(names).size, "every split line needs its own accessible name").toBe(n);
     });
 
+    /**
+     * THE SPLIT LINE'S VISIBLE AFFORDANCE, ASSERTED — the companion this shape was missing.
+     *
+     * `.bib--linked` has one ("gives a linked bib a visible label saying what using it does")
+     * and it exists because this component ONCE SHIPPED the defect it now guards: a control
+     * whose only visible cue was a 7.5x10px glyph, its words hidden behind `sr-only`, which
+     * two readers could not find. The split line is the same kind of control and had no such
+     * assertion, so the words could go back behind `sr-only` — or the glyph could be deleted
+     * outright — and every gate in the repo would stay green. The build-wide signifier gate
+     * cannot cover it: it exempts this line by class, so it is blind by construction.
+     *
+     * VISIBLE MEANS WITH THE `sr-only` SUBTREES REMOVED. Asserting on `textContent` is what
+     * makes this vacuous — the race name and the new-tab notice both live in hidden spans, so
+     * a `toContain` over the whole string is satisfied by text nobody can see. That is the
+     * exact substitution the reviewer caught, so the reading is done explicitly here.
+     */
+    it.each([2, 3])("says what a split line does in words a reader can SEE (%i parts)", async (n) => {
+        const doc = await render(split(n));
+        const lines = [...doc.querySelectorAll("a.bib-split")];
+        expect(lines.length, "one link per recording").toBe(n);
+
+        for (const [i, part] of parts(n).entries()) {
+            const line = lines[i];
+
+            // Strip what is hidden, and read what is left.
+            const shown = line.cloneNode(true) as Element;
+            for (const hidden of [...shown.querySelectorAll(".sr-only")]) hidden.remove();
+            const visible = (shown.textContent ?? "").replace(/\s+/g, " ").trim();
+
+            const label = PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} km`);
+            expect(visible, `line ${i + 1} must SHOW its label, not hide it`).toContain(label);
+            expect(visible.startsWith(PATCHES.split_line.split("{")[0].trim()),
+                "the imperative leads, so the line reads as a control rather than as a caption").toBe(true);
+            expect(visible, `line ${i + 1} must SHOW its own clock`).toContain(part.elapsed_time);
+
+            // And the mark, which names the destination. aria-hidden because the words carry
+            // it — the same arrangement `.bib-go` is held to.
+            const glyph = line.querySelector(`span[class~="${iconClass(PATCHES.strava_icon)}"]`);
+            expect(glyph, `line ${i + 1} must keep the configured brand mark`).toBeTruthy();
+            expect(glyph!.getAttribute("aria-hidden"), "the mark is decorative; the words carry the meaning")
+                .toBe("true");
+        }
+    });
+
+    /**
+     * AND IT MUST NOT BE DRAWN AS A WEB LINK. The counterpart to the rule already enforced on
+     * `.bib-go`: a bib is a printed artifact, every row on it is uppercase, letterspaced and
+     * undecorated, and a rule under 15px of ink would describe the wrong target anyway. The
+     * split line replaced that row on a split bib, so it inherits the rule.
+     */
+    it("draws the split line in the bib's own idiom, not as a ruled web link", () => {
+        const rules = parseRules(pageCss(PAGES.all))
+            .filter((r) => r.selectors.some((sel) => /\.bib-split\b/.test(sel)));
+        expect(rules.length, "the split line must have rules at all").toBeGreaterThan(0);
+        for (const rule of rules) {
+            for (const prop of ["text-decoration", "text-decoration-line"] as const) {
+                expect(decl(rule.body, prop) ?? "", `${rule.selectors.join(",")} { ${prop} }`)
+                    .not.toContain("underline");
+            }
+        }
+    });
+
     it("leaves a one-recording bib exactly as it was", async () => {
         const one: RaceEvent = {
             date: `${GOAL_YEAR}-07-10`, name: "A Race With One Recording", km: 100, sport: "cycling",
