@@ -16,17 +16,19 @@ import {EVENTS, type RaceEvent} from "../src/lib/constants";
  *   rule needs a case where the two candidates DISAGREE before it is settled at all, and a
  *   rule that arrives with a persuasive rationale is harder to re-open than a bare one.
  *
- *   A HAND-TYPED FIGURE CAN BELONG TO NO RECORDING AT ALL. A row authored from a screenshot
- *   carried a 13:36:10 elapsed time beside a distance taken from an activity reporting
- *   10:47:28. Its day held TWO rides, and 13:36:10 matched neither, nor their sum (13:07:06),
- *   nor the span from first start to last stop (13:14:12): the row paired one activity's
- *   distance with a time from somewhere else entirely. That row is no longer in `EVENTS` — it
- *   turned out to be a DNF and the wall has no way to draw one yet — but the failure it
- *   demonstrates is the reason this suite exists, and it is the shape no amount of care with a
- *   screenshot prevents.
+ *   AN ACTIVITY CAN BE EDITED AFTER YOU READ IT, so a screenshot is a reading of a MUTABLE
+ *   record. One row was authored from a screenshot showing 13:36:10 elapsed, 6:31:11 moving
+ *   and 433 m of elevation. An hour later the API answered 10:47:28, 5:54:53 and 468.5 m for
+ *   the same activity, with the distance unchanged to the centimetre — which is what says it
+ *   was re-processed rather than cropped, since a crop moves the distance. The file was
+ *   recording a result the activity no longer claimed and nothing in the repository could have
+ *   said so. That row has since left `EVENTS` for an unrelated reason (it was a DNF, and the
+ *   wall cannot draw one yet), but it is the failure this suite exists for.
  *
- *   The lesson is the CHECK, not the diagnosis. I spent a while reasoning about which reading
- *   the screenshot could have been of; the API answered it in one request. Read the activity.
+ *   DO NOT TRY TO EXPLAIN THE OLD FIGURE — one revision of this note argued the row must have
+ *   been quoting a whole-day total, because 13:36:10 matches nothing derivable from the
+ *   activity today. It does not have to: a pre-edit value has no obligation to be consistent
+ *   with anything that survived the edit. The check is the point, not the diagnosis.
  *
  * IT IS OPT-IN, AND THAT IS THE LOAD-BEARING PART. `pnpm test` is the change gate and both
  * deploy jobs sit behind it, so a network call in the default run hands Strava — or a
