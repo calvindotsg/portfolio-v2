@@ -186,8 +186,9 @@ block above it before giving either consumer the other's list.
   `projection.ts` for why the pair means "run"
 - **A race can be recorded as MORE THAN ONE Strava activity, and the bib's shape follows
   the count.** `recordings` is a list — a mechanical, a lost signal or a watch that died
-  splits one race across several files, and two of the round-island rides are in that
-  state. The race's `km` is the summed METRES converted once (not the sum of the parts'
+  splits one race across several files. TWO of the round-island rides were recorded that
+  way and only ONE is on the wall — the other is also a DNF, which the wall has no state
+  for, so it stays off until that exists. Count the rows rather than trusting this sentence. The race's `km` is the summed METRES converted once (not the sum of the parts'
   printed figures, which rounds twice) and its `elapsed_time` is first start to last stop,
   never the sum of the parts: elapsed already contains stops, so it must not depend on
   where the rider pressed the button. **The rule the bib is drawn by: a bib is the link

@@ -643,6 +643,44 @@ describe("EVENTS", () => {
         // trap the anchor test above records at length. The count is logged instead.
         expect(checked, "split races checked").toBeGreaterThanOrEqual(0);
     });
+
+    /**
+     * A SPLIT RACE'S CLOCK MUST AT LEAST CONTAIN ITS OWN PARTS.
+     *
+     * `elapsed_time` is first start to last stop, so it is NOT the sum of the parts — the gaps
+     * between recordings are inside it, which is exactly why summing is the wrong rule (2024's
+     * span is 10:05:34 against 7:22:15 summed, and the 2h43m in the bike shop is the
+     * difference). That makes the figure look unconstrained, and it is not: recordings do not
+     * overlap, so the span cannot be SHORTER than the time actually spent recording.
+     *
+     * `>=`, and the slack is the point rather than a weakness. An equality would be red on
+     * every real split race; this catches the failures that matter — a span accidentally set
+     * to one part's elapsed time, or to the sum-minus-a-gap, or a digit dropped from the
+     * hours. It is the only offline constraint on this field: `strava-verify` computes the
+     * true span from the activities' own timestamps, but it is opt-in, needs live credentials
+     * and does not run in CI.
+     */
+    it("never lets a split race's span be shorter than the time it spent recording", () => {
+        const seconds = (hms: string): number => {
+            const [h, m, s] = hms.split(":").map(Number);
+            return h * 3600 + m * 60 + s;
+        };
+        let checked = 0;
+        for (const e of EVENTS) {
+            const parts = recordingsOf(e);
+            if (parts.length < 2 || e.elapsed_time === undefined) continue;
+            const recording = parts.reduce((total, part) => total + seconds(part.elapsed_time), 0);
+            const span = seconds(e.elapsed_time);
+            expect(
+                span >= recording,
+                `${e.name} says its span is ${e.elapsed_time} (${span}s), but its ${parts.length} recordings `
+                + `hold ${recording}s of riding between them. First start to last stop CONTAINS every part plus `
+                + "the gaps between them, so it can never be shorter than their sum.",
+            ).toBe(true);
+            checked++;
+        }
+        expect(checked, "split races checked").toBeGreaterThanOrEqual(0);
+    });
 });
 
 /**

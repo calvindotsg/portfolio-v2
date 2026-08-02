@@ -567,15 +567,23 @@ export type RaceEvent = {
      * the recorded ride actually moved at 27.7 (140.50 km / 5:03:55). The label is not
      * decoration; it names which clock.
      *
-     * BOTH FIGURES NOW COME OFF ONE ACTIVITY, which is what {@link km} changed and it settled
+     * BOTH FIGURES COME OFF THE SAME SCOPE, which is what {@link km} changed and it settled
      * a long argument in this comment rather than continuing it. 16.5 is that activity's own
      * 140.50 km over its own 8:32:05, and 27.7 is the same distance over its own moving time:
      * a reader dividing the two numbers on the bib gets a real elapsed speed for a real ride.
      * They used to be different scopes — the EVENT's 160.59 km over the ACTIVITY's clock, which
      * is 18.8 and belonged to nothing — and three revisions of this paragraph went wrong
      * inside that mismatch, one of them quoting 160.59 / 5:03:55 = 31.7 as a speed no ride
-     * held. Keep the two figures on a bib coming from the same activity and that whole class
+     * held. Keep the two figures on a bib coming from the same scope and that whole class
      * of error is gone.
+     *
+     * WHERE A RACE WAS RECORDED IN PARTS THAT SCOPE IS THE RACE, NOT AN ACTIVITY, and the rule
+     * survives because both figures move together: the summed distance over the whole span is
+     * still a real elapsed speed for the race as ridden (135.32 km over 10:05:34 is 13.4 km/h,
+     * and the 2h43m in a bike shop is inside both terms). What would break it is mixing the
+     * scopes again — a summed distance over one part's clock. Each PART's own pair is printed
+     * on its own link for the same reason, so a reader who follows one is never dividing two
+     * numbers that belong to different rides. See {@link Recording}.
      *
      * WHICH ACTIVITY, WHERE A DAY HOLDS MORE THAN ONE: the ones in `recordings`, the
      * ones these times came off, the ones the bib links to. 10 July is the case that names the
@@ -597,8 +605,11 @@ export type RaceEvent = {
      * ONE ELEMENT FOR ALMOST EVERY RACE. More where the rider stopped and restarted — a
      * mechanical, a lost signal, a watch that died. This replaced a single
      * `strava_activity_id?: string`, which asserted that a race has at most ONE recording;
-     * that was false for two of the owner's round-island rides, and the wall printed one
-     * part of a race as though it were the whole thing. A `string | readonly string[]`
+     * that was false for the round-island rides, and the wall printed one part of a race as
+     * though it were the whole thing. TWO of those rides were recorded in parts and only ONE
+     * of them is on this list — the other is also a DNF, which the wall has no state for, so
+     * it stays off until that exists. Do not read "the split races" as a plural of what is
+     * here; count the rows. A `string | readonly string[]`
      * union was considered and rejected — it pushes normalisation onto every consumer —
      * as was keeping the singular field and adding a second one beside it, which is the
      * positional-multiplicity smell.
@@ -843,8 +854,8 @@ export const WELCOME: {
  *
  * IT IS A SEPARATE ELEMENT, NOT A SUFFIX ON AN EXISTING STRING, and that is measured
  * rather than stylistic. Appending it to {@link PATCHES.strava_name} would bury it
- * mid-name, because `.bib-strava` sits in the meta row and the accessible name is
- * assembled in DOM order:
+ * mid-name, because the accessible name is assembled in DOM order and the destination was
+ * announced from the meta row at the time this was measured:
  *
  *     "12 JUL 2026 RIDE ON STRAVA 158.10 KM MBG DCR 2026 - KRABI TO PHUKET
  *      THAILAND ELAPSED 9:41:31"
@@ -994,8 +1005,11 @@ export const PATCHES: {
      * this case is to "combine icons with text labels when icons aren't instantly
      * recognizable"; the phrasing is imperative because a control should say what happens
      * when it is used, not name a brand. It is also what answers the SECOND half of the
-     * report — only a bib with a recording carries this row, so the row is what tells a
-     * reader which bibs are clickable, in text rather than by inference from a treatment.
+     * report — only a bib with EXACTLY ONE recording carries this row, so the row is what
+     * tells a reader those bibs are clickable, in text rather than by inference from a
+     * treatment. A race recorded in parts cannot wear it: the bib is not the link there, and
+     * its stub carries {@link split_line} once per recording instead, which is the same
+     * argument applied to a control that has to repeat.
      *
      * Announced last now rather than third: it sits at the foot of the bib, where a call to
      * action belongs, instead of interrupting the meta row between the sport and the
@@ -1020,6 +1034,24 @@ export const PATCHES: {
      * reads as a phrase rather than as punctuation with a fragment attached.
      */
     split_name: string
+    /**
+     * THE VISIBLE LABEL ON A SPLIT RACE'S LINK. `{distance}` is that recording's own distance.
+     *
+     * IT OPENS WITH A VERB, AND THAT IS THE PART THAT IS LOAD-BEARING. Measured on the built
+     * sheet, a split line is typographically IDENTICAL to the elapsed row above it — same
+     * 0.625rem, same 0.14em tracking, same uppercase, same 800 weight — so without words the
+     * only thing separating a control from a caption is a 7.5x10px glyph and the perforation
+     * it sits under. This component has already measured that exact arrangement and rejected
+     * it: {@link strava_icon} records two readers who could not tell a bib was clickable when
+     * a mark that size was the whole cue. Repeating four characters per recording is a far
+     * smaller price than an under-signified control, and it is why {@link strava_name} is an
+     * imperative rather than a brand name.
+     *
+     * THE DISTANCE IS IN THE LABEL RATHER THAN BESIDE IT because it is what tells one link
+     * from another — for a reader and for a screen reader listing every link on the page. The
+     * elapsed time follows in its own element, dimmed, as context rather than as identity.
+     */
+    split_line: string
 } = {
     /**
      * "My events", not "Patch wall", and the sport pages take `My {sport} events` from the
@@ -1054,6 +1086,7 @@ export const PATCHES: {
     strava_icon: "fa6-brands:strava",
     strava_name: "View on Strava",
     split_name: "on Strava, {race}",
+    split_line: "View {distance}",
 }
 
 /**

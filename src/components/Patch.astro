@@ -73,11 +73,13 @@ const {event, state} = Astro.props;
  * construction.
  *
  * THE ALTERNATIVE WAS TO DELEGATE ON EVERY BIB, and it was drawn and rejected. It would give
- * all eight linked bibs the same accessible name — eight links reading "View on Strava" to
- * eight different races, the SC 2.4.4 failure this file otherwise works to avoid — while
- * shrinking a 260x188 target to a 24px row on races that have nothing wrong with them. Only
- * the exception pays, which is the rule `booked_label` is already decided by a few
- * paragraphs up: you mark the exception, not the norm.
+ * every linked bib the SAME accessible name — one string, "View on Strava", repeated across
+ * as many races as the wall holds, which is the SC 2.4.4 failure this file otherwise works to
+ * avoid — while shrinking a whole bib to a 24px row on races that have nothing wrong with
+ * them. (No count here on purpose: how many bibs link is a property of the data on the day
+ * you read this, and the argument does not depend on it.) Only the exception pays, which is
+ * the rule `booked_label` is already decided by a few paragraphs up: you mark the exception,
+ * not the norm.
  *
  * `target="_blank"` and NO `rel`, matching this site's existing convention — Now.astro and
  * IntroCard.astro both use a bare `target="_blank"` and browsers imply `noopener`.
@@ -174,10 +176,10 @@ const Tag = only === null ? "div" : "a";
                         <li>
                             <a class="bib-split" href={stravaActivityUrl(part)} target="_blank">
                                 <span class={`${iconClass(PATCHES.strava_icon)} bib-icon bib-go-mark`} aria-hidden="true"></span>
-                                <span class="bib-split-km">{part.km.toFixed(2)} {goal.measurable_unit}</span>
+                                <span class="bib-split-km">{PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} ${goal.measurable_unit}`)}</span>
                                 {" "}
                                 <span class="bib-split-time">{part.elapsed_time}</span>
-                                <span class="sr-only">{" " + PATCHES.split_name.replace("{race}", event.name)}</span>
+                                <span class="sr-only">{" " + PATCHES.split_name.replace("{race}", event.name) + " "}</span>
                                 <span class="sr-only">{NEW_TAB_NOTICE}</span>
                             </a>
                         </li>
@@ -817,6 +819,7 @@ const Tag = only === null ? "div" : "a";
         padding-inline: 0.35rem;
         min-height: 1.5rem;
         color: inherit;
+        opacity: 0.8;
         text-decoration: none;
         font-size: 0.625rem;
         font-weight: 800;
@@ -837,7 +840,6 @@ const Tag = only === null ? "div" : "a";
      */
     .bib-split-time {
         margin-left: auto;
-        opacity: 0.8;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
         letter-spacing: 0.08em;
