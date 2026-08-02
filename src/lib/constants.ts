@@ -24,8 +24,10 @@ import stravaProgress from "../data/strava-progress.json"
  * `strava.com/activities/<id>`, which reads as "public" and was recorded as such. It is
  * not: fetched and read, the page for a logged-out visitor is
  * *"Log in to see 'MBG DCR 2026 Krabi to Phuket'"* and a sign-up prompt. The title is
- * there; the distance, the date and the time are not. Checked on both of the owner's two
- * finished 2026 rides (19279762093 and 19254155835) on 2026-07-28.
+ * there; the distance, the date and the time are not. Checked on two of the owner's rides
+ * (19279762093 and 19254155835) on 2026-07-28; the finding is about Strava rather than
+ * about those two, and a `followers_only` activity is walled harder still — see
+ * {@link RaceEvent.strava_activity_id}'s note.
  *
  * So a status code is not an answer to "can a reader see this" — READ THE PAGE.
  *
@@ -352,10 +354,17 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  *   A RACE ALREADY ON THIS LIST — every planned race, which is the common case. ADD THE
  *   RECORDING FIRST, then let the 05:13 cron move the kilometres. Fetching first puts the
  *   distance in BOTH places while the race sits here without its recording: measured on
- *   the 2 August ride, 67 km/wk against an honest 73 — the deficit subtracted twice, in
+ *   the 2 August ride, 66 km/wk against an honest 71 — the deficit subtracted twice, in
  *   the FLATTERING direction this file guards against everywhere else. Recording-first
  *   errs the other way (79) until the next push, and the push is guaranteed here because
  *   the race itself moved the kilometres, so `git diff --quiet` cannot suppress it.
+ *
+ *   THOSE ARE THE FIGURES THE MISTAKE ACTUALLY PRODUCED, not a simulation of it. This note
+ *   first quoted 67 against 73, modelled before the ride from the event's ADVERTISED
+ *   distance; the ride came in longer than the route, so the real pair landed one and two
+ *   km/wk below the model. The hazard and its direction are unchanged — which is the point
+ *   worth keeping: a simulated measurement is worth less than the incident's own, so when
+ *   the hazard finally happens, replace the model with what it did.
  *
  * The rate erring HIGH is the safe direction rather than a harmless one — do not read it
  * as licence to skip the second step. And note this procedure quietly falsified a premise
@@ -383,9 +392,15 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * was recorded the other way first, on good-looking evidence: `curl` gets HTTP 200 with no
  * redirect from `strava.com/activities/<id>`, which reads as "public". Fetched and READ,
  * the page is *"Log in to see 'MBG DCR 2026 Krabi to Phuket'"* and a sign-up prompt — the
- * title is there, the distance and the time are not. Checked on every id in EVENTS the day
- * it was added, most recently 2026-07-29. A status code is not an answer to "can a reader
- * see this"; re-check by reading, not by curling.
+ * title is there, the distance and the time are not. A status code is not an answer to "can
+ * a reader see this"; re-check by reading, not by curling.
+ *
+ * AND THE 200 IS NOT UNIVERSAL EITHER, which the paragraph above used to imply. That code
+ * belongs to an activity whose visibility is `everyone`. A `followers_only` one answers 307
+ * with a 14-byte body: no page, no title, nothing to read. Both kinds are in {@link EVENTS},
+ * so the wall is partial for some of these links and total for others — and the ones a
+ * reader can learn least from are the ones the owner shared least widely, which is the
+ * expected direction rather than a defect.
  *
  * The decision. The owner read that and asked for the links anyway. A visitor who has
  * Strava — which is most of the audience for a wall of race bibs — gets the ride; one who
@@ -393,10 +408,15 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * because the bib already prints the distance, the date and the time, so the link adds to
  * a complete object rather than being the only way to learn anything.
  *
- * (The wall leaking the title is also the technique for VERIFYING an id without an
- * account, which is how every id below was checked rather than trusted: fetch the page and
- * read which race it names. Two valid ids transposed between events would otherwise
- * produce a wall nothing on this site could catch.)
+ * (THE TITLE LEAK VERIFIES A PUBLIC ID AND ONLY A PUBLIC ID, which is why it is no longer
+ * the technique here. Fetching the page logged out and reading which race the title names
+ * works wherever visibility is `everyone`; where it is `followers_only` there is nothing to
+ * read at all, so the ids needing an independent witness most are exactly the ones this
+ * cannot check. `tests/strava-verify.test.ts` is the technique now — it reads each activity
+ * over the API, which answers for both visibilities, and holds the row against its
+ * distance, its elapsed time and the DAY it was recorded. Two valid ids transposed between
+ * events would otherwise produce a wall where every link resolves and every bib looks
+ * right; comparing the day is what catches that.)
  *
  * `elapsed_time` IS HAND-ENTERED AND STAYS THAT WAY. A finishing time is immutable
  * history, so it belongs beside `km` and `name` here rather than in the bot's JSON: the
@@ -507,8 +527,11 @@ export type RaceEvent = {
     elapsed_time?: string
     /**
      * The Strava activity this race was recorded as. Present only where the mapping has
-     * been VERIFIED by reading the page — see the note above the type for how, and for
-     * the login wall this knowingly accepts.
+     * been VERIFIED against the activity itself: `tests/strava-verify.test.ts` holds every
+     * one of these against the API, on distance, on elapsed time and on the day it was
+     * recorded. See the note above the type for the login wall a reader following the link
+     * knowingly accepts, and for why reading that logged-out page cannot do this job for
+     * every id.
      *
      * IT IS ALSO HALF OF THE PROOF THAT THE RACE WAS RUN, so it is no longer only a link.
      * Beside an `elapsed_time` it earns the bib outright, whatever day it is — see
@@ -804,9 +827,12 @@ export const PATCHES: {
     filter_label: string
     /**
      * The word before a finished bib's time, and it is load-bearing rather than a caption.
-     * Elapsed and moving are far apart on a long ride — 8:32:05 against 5:03:55 — so a
-     * bare time invites a reader to divide it into the distance and get an average that
-     * is 9 km/h wrong. See {@link RaceEvent.elapsed_time}.
+     * Elapsed and moving are far apart on a long ride — 8:32:05 against 5:03:55 over the
+     * same 140.49 km — so a bare time invites a reader to divide it into the distance and
+     * get an average that is 11 km/h wrong (16.5 against 27.7). It read 9 while the bib
+     * printed the EVENT's distance over the activity's clock; both figures now come off one
+     * activity, which makes the pair honest and the gap wider. See
+     * {@link RaceEvent.elapsed_time}.
      */
     elapsed_label: string
     /**
@@ -850,8 +876,10 @@ export const PATCHES: {
      * "My events", not "Patch wall", and the sport pages take `My {sport} events` from the
      * same words. The rename came from the goal card's control — see {@link NEXT_RACE} —
      * and from the rule behind it: a patch is a race COMPLETED AND EARNED, so a page that
-     * shows four booked outlines beside two earned bibs was never wholly a wall of
-     * patches. The heading now names what is on the page; {@link lede} names the earned
+     * shows booked outlines beside earned bibs was never wholly a wall of patches. That
+     * holds whatever the mix is on the day, which is why this sentence no longer counts
+     * them — it used to, and the count went stale the first time the calendar grew.
+     * The heading now names what is on the page; {@link lede} names the earned
      * bib, and the bibs themselves carry the character the old heading was carrying.
      * "Patch wall" survives in the URL, in this prose and in the metaphor.
      */

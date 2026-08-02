@@ -430,7 +430,9 @@ describe("dist/patches", () => {
      * The rendered state is compared against `patchState` recomputed here rather than
      * against a list of races written into this file. A hard-coded expectation would
      * be correct today and would become a bot-triggered failed deploy the morning
-     * after any of these six races is run — a red suite blocks the deploy.
+     * after any race on the calendar is run — a red suite blocks the deploy. No count
+     * in that sentence either: the wall is the whole back catalogue now, so a number
+     * here would have gone stale on the commit that grew it.
      */
     it("renders one bib per race, in the wall's order, in the state the calendar says", () => {
         for (const [key, page] of Object.entries(PAGES)) {

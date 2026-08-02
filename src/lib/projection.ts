@@ -280,14 +280,23 @@ export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonl
     if (days < FINAL_STRETCH_DAYS) return {kind: "final", km: Math.ceil(km), days}
 
     // CEIL, not round or floor, and this is a correctness choice rather than taste.
-    // At the 2026-07-28 stamp the requirement is 70.2818 km/wk; floor and round both
-    // give 70, and a rider following 70 exactly delivers 1,570.00 km against the
-    // 1,576.32 needed — a rate that MISSES the goal. Round is wrong on any date whose
-    // requirement has a fractional part below .5, which is most of them: sweeping this
-    // function over the rest of the calendar gives 154 of the 288 remaining sport-days
-    // that land in this branch. Ceil never under-states what is required. One km/wk is
-    // 0.45% of the cycling goal but 3.74% of the running one, so the same rounding
-    // step is eight times as consequential on the smaller card.
+    // At the 2026-07-27 stamp the requirement is 75.2411 km/wk; round gives 75, and a
+    // rider following 75 exactly delivers 1,692.86 km against the 1,698.30 needed — a
+    // rate that MISSES the goal. Round is wrong on any date whose requirement has a
+    // fractional part below .5, which is most of them: sweeping this function over the
+    // rest of the calendar gives 150 of the 290 remaining sport-days that land in this
+    // branch. Ceil never under-states what is required. One km/wk is 22.57 km over the
+    // 158 days left at that stamp — 0.45% of the cycling goal but 3.76% of the running
+    // one, so the same rounding step is eight times as consequential on the smaller card.
+    //
+    // WHICH DATE DEMONSTRATES THIS MOVES WITH THE NUMERATOR, so re-derive it rather than
+    // quoting the one above. Every rate's fractional part shifts when the kilometres owed
+    // change, and these figures have already moved once: recording the round-island ride
+    // took the requirement at this stamp from 70.2818 to 75.2411 and SWAPPED which of two
+    // adjacent days can tell ceil from round — 2026-07-28 used to be the case that ruled
+    // round out, and now round and ceil agree there. A stale example here is worse than no
+    // example, because it invites a reader to re-derive it and conclude that round is fine.
+    // tests/projection.test.ts pins the current pair and says how to move the roles.
     const kmPerWeek = Math.ceil(km / (days / DAYS_PER_WEEK))
     return {kind: "rate", kmPerWeek, km, days}
 }
