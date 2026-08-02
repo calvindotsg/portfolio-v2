@@ -27,13 +27,14 @@ const {event, state} = Astro.props;
  * text content is unbroken either way, so a screen reader still hears "140.49".
  *
  * `toFixed(2)` IS WHAT MAKES THAT A COLUMN OF ONE KIND OF NUMBER, and the races on the
- * wall print in THREE different shapes without it: 140.49, 158.13 and 160.56
- * already carry two places, 21.10 and 42.20 lose their trailing zero to `21.1` and
- * `42.2`, and 1022.00 loses the point entirely to `1022`. (An earlier revision of this
- * comment said five of six were already two-place and only the tour was bare — worth
- * the correction because it is the two SINGLE-place ones that make the case: a lone
- * bare integer reads as an approximation, and a mix of one and two places reads as
- * inconsistent precision.) The bibs do not form a column — each sits in its own grid
+ * wall print in THREE different shapes without it: 140.49, 160.56 and 22.45
+ * already carry two places, 21.10, 42.20 and 158.10 lose their trailing zero to `21.1`,
+ * `42.2` and `158.1`, and 1022.00 loses the point entirely to `1022`. (An earlier revision
+ * of this comment claimed all but the tour were already two-place — worth the correction
+ * because it is the SINGLE-place ones that make the case: a lone bare integer reads as an
+ * approximation, and a mix of one and two places reads as inconsistent precision. Which
+ * races fall in which group moves with the data, so re-read the array rather than this
+ * list.) The bibs do not form a column — each sits in its own grid
  * cell at its own width — so this is not about digit alignment; it is that every bib
  * should claim the same precision about its distance.
  *
@@ -75,12 +76,12 @@ const {event, state} = Astro.props;
  *
  * THE ACTION ROW MOVED THE CALL TO ACTION FROM THIRD PLACE TO LAST, which is the position it
  * should always have had. It used to sit in the meta row as an `sr-only` transcription of the
- * glyph, so a listener heard "12 JUL 2026 RIDE ON STRAVA 158.13 KM …" — the destination
+ * glyph, so a listener heard "12 JUL 2026 RIDE ON STRAVA 158.10 KM …" — the destination
  * announced between the sport and the distance, before the race had even been named. Now the
  * words are visible, they are the last thing on the bib, and the announcement follows the
  * reading order:
  *
- *     "12 JUL 2026 RIDE 158.13 KM MBG DCR 2026 - KRABI TO PHUKET THAILAND
+ *     "12 JUL 2026 RIDE 158.10 KM MBG DCR 2026 - KRABI TO PHUKET THAILAND
  *      ELAPSED 9:41:31 VIEW ON STRAVA"
  *
  * That is a side effect of a change made for sighted readers, and it is the better ordering on
