@@ -22,14 +22,14 @@ const {event, state} = Astro.props;
  * nothing red.
  *
  * THE FRACTION IS SPLIT OUT so it can be set small. A race distance is measured to
- * two decimals and the hundredths are real — 140.49 is not 140 — but at the size
+ * two decimals and the hundredths are real — 140.50 is not 140 — but at the size
  * this number is drawn they would dominate the digits that carry the meaning. The
- * text content is unbroken either way, so a screen reader still hears "140.49".
+ * text content is unbroken either way, so a screen reader still hears "140.50".
  *
  * `toFixed(2)` IS WHAT MAKES THAT A COLUMN OF ONE KIND OF NUMBER, and the races on the
- * wall print in THREE different shapes without it: 140.49, 160.56 and 22.45
- * already carry two places, 21.10, 42.20 and 158.10 lose their trailing zero to `21.1`,
- * `42.2` and `158.1`, and 1022.00 loses the point entirely to `1022`. (An earlier revision
+ * wall print in THREE different shapes without it: 22.45, 130.03 and 160.57
+ * already carry two places, 78.60, 140.50 and 21.10 lose their trailing zero to `78.6`,
+ * `140.5` and `21.1`, and 1022.00 loses the point entirely to `1022`. (An earlier revision
  * of this comment claimed all but the tour were already two-place — worth the correction
  * because it is the SINGLE-place ones that make the case: a lone bare integer reads as an
  * approximation, and a mix of one and two places reads as inconsistent precision. Which
@@ -704,7 +704,7 @@ const Tag = activity === null ? "div" : "a";
      * moving are far apart on a long ride — 8:32:05 against 5:03:55 on the 10 July bib —
      * so a bare time invites a reader to divide it into the distance printed above it and
      * conclude 16.5 km/h, where that ride moved at 27.7. Both figures on the bib now come
-     * off one activity (140.49 km), so 16.5 is at least a real elapsed speed for a real
+     * off one activity (140.50 km), so 16.5 is at least a real elapsed speed for a real
      * ride rather than the 18.8 the old event-scope distance produced — which is why the
      * label has to name which clock rather than trust the reader to. See `km` and
      * `elapsed_time` in constants.ts for that whole day's arithmetic.

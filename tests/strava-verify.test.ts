@@ -8,17 +8,25 @@ import {EVENTS, type RaceEvent} from "../src/lib/constants";
  * WHY THIS EXISTS. A finishing time and a distance are typed in by hand, and the source
  * used to be a screenshot of Strava's web page. Both ways that goes wrong were real:
  *
- *   THE API AND THE WEB PAGE DISAGREE IN THE LAST DIGIT, and the file follows the PAGE. Strava
- *   truncates: 78595.0 m renders as `78.59`, where rounding gives 78.60. `km` is truncated for
- *   that reason — a reader following a bib's link must see the digits the bib showed them — so
- *   this suite truncates too. Rounding four API figures "correctly" is a change that reads as a
- *   fix and silently breaks the field's whole rationale; that nearly shipped.
+ *   THE LAST DIGIT IS A CONVERSION CHOICE, and this file and `km` have to make the SAME one or
+ *   every row is off by 0.01. It is metres rounded half-up to two places. It was TRUNCATION for
+ *   four commits, on the argument that Strava's page truncates — which turned out to be wrong,
+ *   measured on the one rendered figure that could be compared against its own raw metres
+ *   (22619.7 m renders as `22.62`, not `22.61`). Two things to carry from that: a conversion
+ *   rule needs a case where the two candidates DISAGREE before it is settled at all, and a
+ *   rule that arrives with a persuasive rationale is harder to re-open than a bare one.
  *
- *   AN ACTIVITY CAN BE EDITED AFTER YOU READ IT. One row carried a 13:36:10 elapsed time
- *   from a screenshot taken hours earlier; by the time this ran, the activity reported
- *   10:47:28 — and its moving time, elevation and NAME had all moved too. The file was
- *   recording a result the activity no longer claimed, and nothing in the repository could
- *   have told anyone.
+ *   A HAND-TYPED FIGURE CAN BELONG TO NO RECORDING AT ALL. A row authored from a screenshot
+ *   carried a 13:36:10 elapsed time beside a distance taken from an activity reporting
+ *   10:47:28. Its day held TWO rides, and 13:36:10 matched neither, nor their sum (13:07:06),
+ *   nor the span from first start to last stop (13:14:12): the row paired one activity's
+ *   distance with a time from somewhere else entirely. That row is no longer in `EVENTS` — it
+ *   turned out to be a DNF and the wall has no way to draw one yet — but the failure it
+ *   demonstrates is the reason this suite exists, and it is the shape no amount of care with a
+ *   screenshot prevents.
+ *
+ *   The lesson is the CHECK, not the diagnosis. I spent a while reasoning about which reading
+ *   the screenshot could have been of; the API answered it in one request. Read the activity.
  *
  * IT IS OPT-IN, AND THAT IS THE LOAD-BEARING PART. `pnpm test` is the change gate and both
  * deploy jobs sit behind it, so a network call in the default run hands Strava — or a
@@ -60,10 +68,11 @@ const hms = (total: number): string => {
 };
 
 /**
- * Metres -> km at two places, TRUNCATED, because that is what Strava's page does and what
- * `km` therefore holds. `Math.trunc` on the scaled value rather than `toFixed`, which rounds.
+ * Metres -> km at two places, rounded half-up, which is what `km` holds. Scale first and
+ * `Math.round` the integer hundredths rather than `toFixed`, which returns a string and would
+ * make every failure message read as a type mismatch instead of a distance one.
  */
-const km2 = (metres: number): number => Math.trunc(metres / 10) / 100;
+const km2 = (metres: number): number => Math.round(metres / 10) / 100;
 
 const details = new Map<string, Detail>();
 
@@ -116,8 +125,9 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
             expect(
                 e.km,
                 `${e.date} ${e.name}: file says ${e.km} km, activity ${e.strava_activity_id} is `
-                + `${d.distance} m, which TRUNCATES to ${km2(d.distance)} km. A 0.01 gap usually `
-                + "means the figure was rounded — Strava's page truncates, and the file matches the page.",
+                + `${d.distance} m, which ROUNDS to ${km2(d.distance)} km. A gap of exactly 0.01 `
+                + "means the figure was truncated rather than rounded — this file held that rule "
+                + "for four commits and it was wrong; see the note above `km` in constants.ts.",
             ).toBeCloseTo(km2(d.distance), 2);
         }
     });

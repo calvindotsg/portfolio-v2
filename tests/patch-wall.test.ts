@@ -62,7 +62,7 @@ const buildDateOf = (page: string): string => {
  * every assertion downstream compares one year's bib against the other year's facts.
  *
  * Measured rather than feared, and NO LONGER HYPOTHETICAL: the back catalogue landed and
- * `EVENTS` now holds three editions of the same annual round-island ride. When this was
+ * `EVENTS` now holds more than one edition of the same annual round-island ride. When this was
  * written the collision had to be simulated — a 2025 edition beside the 2026 one reddened
  * two of these tests on data that is entirely correct (`expected 'Booked' to be null` and
  * `expected '121.98' to be '118.50'`), with the messages naming the race twice and unable
@@ -73,7 +73,7 @@ const buildDateOf = (page: string): string => {
  *
  * FIXING IT HERE DID NOT FIX IT EVERYWHERE, which is the part worth carrying forward. The
  * same `.find()`-on-a-name lookup survived in tests/build-output.test.ts's llms.txt row
- * check and went unnoticed until a third edition arrived — a name-keyed lookup is silently
+ * check and went unnoticed until a second edition arrived — a name-keyed lookup is silently
  * wrong rather than absent, so it cannot be found by watching for failures. Grep for the
  * pattern when a display string stops being unique, do not wait for red.
  *

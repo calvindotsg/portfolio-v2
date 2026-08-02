@@ -445,7 +445,7 @@ export type RaceEvent = {
      * THAT REVERSED AN EARLIER RULE, and the reversal is his — do not "restore" the old one
      * from the reasoning still recorded under {@link elapsed_time}. This used to be the
      * EVENT's distance always, on the argument that a bib should print the race rather than
-     * the ride, and the gap is not small: the round-island ride's own 160.56 km against the
+     * the ride, and the gap is not small: the round-island ride's own 160.57 km against the
      * 121.98 km route, a 21 km half marathon recorded as 22.45. Both readings are defensible
      * and he chose the recorded one, because it is the figure the linked activity will show a
      * reader who follows the bib.
@@ -456,22 +456,43 @@ export type RaceEvent = {
      * There is no exception for a split recording — the field beside it decides which ride is
      * the race. See {@link elapsed_time} for the whole of that day's arithmetic.
      *
-     * A SPLIT DAY IS NOT UNUSUAL, so do not read a short-looking row as a defect. More than one
-     * race here was recorded in two halves — the rider stopped the watch and started it again —
-     * and each row carries only the half it links to, which is the rule above rather than an
-     * oversight in the data. A row can therefore sit well under its event's advertised distance
-     * and be exactly right. Before "fixing" one, ask the athlete's activity list what else it
-     * recorded that day: `GET /api/v3/athlete/activities?after=&before=` answers it in one call,
-     * and a second activity named as a continuation of the first is the tell.
+     * TWO DIFFERENT THINGS LOOK LIKE A SPLIT DAY AND ONLY ONE OF THEM IS ONE, so ask what the
+     * day's other activities ARE before touching a row that looks short.
      *
-     * TWO PLACES, TRUNCATED — NOT ROUNDED, and that is not a style choice either. Strava's own
-     * page truncates: activity 16736512210 measures 78595.0 m and the browser shows `78.59 km`,
-     * where rounding gives 78.60. Measured on the four rows where the two disagree, including
-     * 10166.6 m -> `10.16` and 160566.0 m -> `160.56`, which rules out round-half-down as well.
-     * So truncation is what keeps this field's whole reason intact: a reader who follows the
-     * link must see the SAME digits the bib showed them. `tests/strava-verify.test.ts` asserts
-     * exactly this conversion — an API-sourced figure that has been rounded is off by 0.01 and
-     * turns it red.
+     *   THE DAY HOLDS THE RACE PLUS SOMETHING ELSE, which is 10 July: one activity is the
+     *   whole race, and the 22.56 km escort out of Phuket is a separate ride that happens to
+     *   share the date. 140.50 is right, the day's 163.06 was never a candidate, and there is
+     *   no exception to make. This is the only shape `EVENTS` currently holds.
+     *
+     *   THE RACE ITSELF WAS RECORDED IN PARTS — the rider stopped and restarted, so no single
+     *   activity holds the ride. **A race like that cannot be entered here correctly yet**, and
+     *   one id per race is why. Summing the parts would make the bib print an aggregate while
+     *   still linking to ONE of them, so a reader following the link would meet different
+     *   numbers: exactly the mismatch {@link elapsed_time} exists to prevent, reintroduced one
+     *   layer up. The fix is `strava_activity_ids: readonly string[]` PLUS a bib that says it
+     *   was recorded in more than one ride — a change to Patch.astro under its own geometry and
+     *   contrast gates. Do it as its own change; a half-model is worse than the gap.
+     *
+     * `GET /api/v3/athlete/activities?after=&before=` lists a day and is how you tell the two
+     * apart. The rider's own titles are the evidence — a continuation usually says so — but
+     * whether one counts as part of the race is the rider's call and not a reading of the data.
+     *
+     * TWO PLACES, ROUNDED FROM THE API'S METRES. The activity reports whole metres and a
+     * fraction — 78595.0, 140498.0, 10166.6 — and this field is that value in kilometres to
+     * two places, rounded half-up. `tests/strava-verify.test.ts` asserts exactly that
+     * conversion, so a figure typed in by any other route turns it red.
+     *
+     * THIS FILE SAID *TRUNCATED* FOR A WHILE AND IT WAS WRONG, which is worth recording
+     * because the wrong version had a better story. The argument was that Strava's own page
+     * truncates, so truncating kept a promise: a reader who follows a bib's link sees the same
+     * digits the bib showed them. Four rows were written that way. The page does NOT truncate
+     * — measured on the one case where a rendered figure and its raw metres could be compared
+     * directly, 22619.7 m renders as `22.62`, where truncation gives 22.61 — and the earlier
+     * readings that said otherwise could not be reproduced. So rounding is both the honest
+     * conversion of the source and the one that keeps the promise; truncation kept neither.
+     * The lesson generalises past this field: a rule with a persuasive rationale attached is
+     * harder to re-examine than a bare one, and this one survived a review because the
+     * rationale was doing the arguing.
      */
     km: number
     sport: Sport
@@ -506,12 +527,12 @@ export type RaceEvent = {
      * IT IS ELAPSED, NOT MOVING, AND THE BIB SAYS SO. The two are far apart on these
      * rides — 8:32:05 elapsed against 5:03:55 moving — so an unlabelled time invites a
      * reader to divide it into the distance printed beside it and get 16.5 km/h, where
-     * the recorded ride actually moved at 27.7 (140.49 km / 5:03:55). The label is not
+     * the recorded ride actually moved at 27.7 (140.50 km / 5:03:55). The label is not
      * decoration; it names which clock.
      *
      * BOTH FIGURES NOW COME OFF ONE ACTIVITY, which is what {@link km} changed and it settled
      * a long argument in this comment rather than continuing it. 16.5 is that activity's own
-     * 140.49 km over its own 8:32:05, and 27.7 is the same distance over its own moving time:
+     * 140.50 km over its own 8:32:05, and 27.7 is the same distance over its own moving time:
      * a reader dividing the two numbers on the bib gets a real elapsed speed for a real ride.
      * They used to be different scopes — the EVENT's 160.59 km over the ACTIVITY's clock, which
      * is 18.8 and belonged to nothing — and three revisions of this paragraph went wrong
@@ -521,9 +542,9 @@ export type RaceEvent = {
      *
      * WHICH ACTIVITY, WHERE A DAY HOLDS MORE THAN ONE: the one in `strava_activity_id`, the
      * one this time came off, the one the bib links to. 10 July is the case that names the
-     * rule — the day holds a 22.55 km escort out of Phuket AND the 140.49 km ride, 163.04
+     * rule — the day holds a 22.56 km escort out of Phuket AND the 140.50 km ride, 163.06
      * together against the event's advertised 160.59, and whole-day elapsed would be 9:55
-     * rather than 8:32:05. The row prints 140.49, because that is the ride a reader who
+     * rather than 8:32:05. The row prints 140.50, because that is the ride a reader who
      * follows the link will see. Neither the day's total nor the event's figure is a number
      * any single recording holds.
      *
@@ -557,14 +578,13 @@ export type RaceEvent = {
 
 export const EVENTS: readonly RaceEvent[] = [
     {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 22.45, sport: "running", country: "Singapore", elapsed_time: "3:44:25", strava_activity_id: "8204481233"},
-    {date: "2023-08-06", name: "Pesta Sukan Round Island Bike Adventure", km: 87.42, sport: "cycling", country: "Singapore", elapsed_time: "10:47:28", strava_activity_id: "9593519661"},
     {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 117.41, sport: "cycling", country: "Singapore", elapsed_time: "5:53:34", strava_activity_id: "12058885236"},
-    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.59, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25", strava_activity_id: "16736512210"},
+    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.60, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25", strava_activity_id: "16736512210"},
     {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 130.03, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15", strava_activity_id: "18433212592"},
-    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 140.49, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 140.50, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
     {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.10, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31", strava_activity_id: "19279762093"},
-    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.16, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
-    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 160.56, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17", strava_activity_id: "19566067972"},
+    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.17, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
+    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 160.57, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17", strava_activity_id: "19566067972"},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
     {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
     {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running", country: "Singapore"},
@@ -836,7 +856,7 @@ export const PATCHES: {
     /**
      * The word before a finished bib's time, and it is load-bearing rather than a caption.
      * Elapsed and moving are far apart on a long ride — 8:32:05 against 5:03:55 over the
-     * same 140.49 km — so a bare time invites a reader to divide it into the distance and
+     * same 140.50 km — so a bare time invites a reader to divide it into the distance and
      * get an average that is 11 km/h wrong (16.5 against 27.7). It read 9 while the bib
      * printed the EVENT's distance over the activity's clock; both figures now come off one
      * activity, which makes the pair honest and the gap wider. See

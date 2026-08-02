@@ -136,7 +136,7 @@ describe("dist/", () => {
         // against another year's facts — green when the endpoint is wrong, red when it is
         // right. This is the same defect tests/patch-wall.test.ts records fixing in its own
         // `.find()`; it survived here because THIS file keyed on the name too, and nothing
-        // caught it until a third edition of one race landed. Key on whatever combination
+        // caught it until one race appeared twice. Key on whatever combination
         // is unique for the row, never on a display string alone.
         const rowFor = (what: string, ...keys: string[]) => {
             const row = lines.find((line) => keys.every((key) => line.includes(key)));
