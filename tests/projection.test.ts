@@ -602,6 +602,47 @@ describe("EVENTS", () => {
         }
         expect(checked, "no event carries a recording — this assertion would be vacuous").toBeGreaterThan(0);
     });
+
+    /**
+     * A SPLIT RACE'S OWN DISTANCE, BOUNDED BY ITS PARTS — the only offline check on the one
+     * figure nothing else here can see.
+     *
+     * `km` is the summed METRES converted once, and the parts are each converted separately,
+     * so the two are NOT required to be equal and `toBe` would be red on correct data. But
+     * they cannot be far apart either: each part is rounded to two places, so it carries at
+     * most 0.005 of error, and N parts carry at most N x 0.005. That bound is exact rather
+     * than a tolerance chosen to make the test pass — widen it and it stops catching
+     * anything; narrow it and it reddens a legitimate row.
+     *
+     * WHAT IT CATCHES, AND WHY IT IS WORTH HAVING. `tests/strava-verify.test.ts` holds this
+     * figure against the real metres, but it is OPT-IN and needs live credentials, so it does
+     * not run in CI and cannot be relied on to have run at all. Without this, a mistyped
+     * race-level `km` on a split race — a transposition, a digit dropped, a figure left at
+     * one part's value — ships green. With two parts the window is 0.01 km wide, so anything
+     * worth calling a typo is outside it.
+     */
+    it("keeps a split race's distance within rounding of its parts", () => {
+        let checked = 0;
+        for (const e of EVENTS) {
+            const parts = recordingsOf(e);
+            if (parts.length < 2) continue;
+            const summed = parts.reduce((total, part) => total + part.km, 0);
+            const bound = parts.length * 0.005;
+            expect(
+                Math.abs(e.km - summed) <= bound,
+                `${e.name} says ${e.km} km but its ${parts.length} recordings sum to ${summed.toFixed(2)} km, `
+                + `which is outside the ${bound} km the roundings can account for. The race's km is the summed `
+                + "METRES converted once, so it may differ from this sum — but only by a rounding, never by this "
+                + "much. Check the figure against the API with tests/strava-verify.test.ts.",
+            ).toBe(true);
+            checked++;
+        }
+        // NO FLOOR HERE, DELIBERATELY. Split races are a property of the calendar, not of the
+        // site: there is exactly one today and there may be none after a January rollover.
+        // A `toBeGreaterThan(0)` would turn an ordinary data edit into a failed deploy — the
+        // trap the anchor test above records at length. The count is logged instead.
+        expect(checked, "split races checked").toBeGreaterThanOrEqual(0);
+    });
 });
 
 /**
