@@ -29,20 +29,31 @@ import {BUILD_DATE} from "./today"
  * remaining` extrapolates nothing. It contains no pace term, so the composition of
  * what is already banked cannot corrupt it, and it claims nothing about what the
  * owner will do. It still carries the point the owner cared about — counting his
- * booked races takes cycling from 122 km/wk to 71 km/wk, a 42% reduction — without
+ * booked races takes cycling from 118 km/wk to 71 km/wk, a 40% reduction — without
  * a forecast.
  *
  * THE COMPARATOR RULE, if a pace is ever displayed beside this. It must be the
  * DE-RACED pace, never the observed one. The required rate already has future race
  * km subtracted; setting it next to an observed pace that still contains past race
  * km reimports the double count by juxtaposition, and the reader does the wrong
- * subtraction themselves. The three figures are 65.99 (de-raced) < 70.28 (required)
- * < 76.72 (observed) — the requirement sits BETWEEN the two paces, which is exactly
- * why picking the wrong one flips the story.
+ * subtraction themselves. The three figures are 60.55 (de-raced) < 70.82 (required)
+ * < 79.82 (observed) — the requirement sits BETWEEN the two paces, which is exactly
+ * why picking the wrong one flips the story. The ORDERING is the rule; the gaps move.
  *
- * EVERY NUMBER IN THIS COMMENT IS AS OF THE 2026-07-28 STAMP, and is stated that way
- * because they drift with the bot. They are here to carry a rule that does not
- * drift; re-derive them before quoting one as current.
+ * THE TWO PARAGRAPHS ABOVE ARE PINNED TO THE STAMP THE TREE ITSELF CARRIES — the
+ * 2026-08-02 / 2440.3 km in `src/data/strava-progress.json` — so a reader can re-derive
+ * all six figures from the checked-out repository and nothing else. That is the point of
+ * choosing the current stamp over any other. They exist to carry rules that do not drift;
+ * re-derive before quoting one as current. (The DOUBLE COUNT paragraph at the top is
+ * different: it says "when this was written" and its 318.72 / 1,143.98 / +144 / −96 are
+ * that moment's, kept as the measurement that settled the design.)
+ *
+ * THEY DRIFT WITH `EVENTS`, NOT ONLY WITH THE BOT, and an earlier revision of this warning
+ * said only "the bot". That is exactly how they went stale in silence: adding races moved
+ * four of them while the stamp they were pinned to stayed put, so the disclaimer went on
+ * reading as though it still covered them, and a reader following its own re-derive
+ * instruction would have got different numbers. **If you change a race, re-derive this
+ * block** — and note that it is ungated, like every measurement in this repo.
  *
  * ---
  *

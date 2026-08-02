@@ -227,10 +227,13 @@ describe("the site's clock", () => {
 
 describe("booked race distance", () => {
     it("counts only future events, per sport", () => {
-        // At 2026-07-27 every cycling race on the calendar has been ridden except the
-        // November tour, so 1022.00 is the whole of what is still to ride — the past
-        // editions of the annual round-island ride and the two July DCR rides all carry
-        // recordings, and a recording is what takes a race out of this figure.
+        // At 2026-07-27 the November tour is the only cycling race this figure can still
+        // count, so 1022.00 is the whole of it. TWO DIFFERENT MECHANISMS get everything else
+        // out, and conflating them is easy: this year's ridden races (both July DCR legs, the
+        // May virtual ride, the August round-island) are excluded because they carry a
+        // RECORDING, while the earlier editions of the annual round-island ride never reach
+        // the arithmetic at all — `bookedAhead` defaults to `GOAL_YEAR_EVENTS`, so a 2024 race
+        // is out by YEAR and would be out even with no recording at all.
         expect(bookedAhead("cycling", "2026-07-27")).toBeCloseTo(1022.00, 2);
         expect(bookedAhead("running", "2026-07-27")).toBeCloseTo(63.30, 2);
     });

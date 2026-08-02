@@ -338,7 +338,8 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * both moments — the page is out by the length of the race until the second step lands,
  * and the only choice is which way it is out. An earlier draft of this note gave one
  * unconditional order and claimed "no figure on the page is ever wrong"; that was false,
- * and measured wrong by 6 km/wk in the case it got backwards.
+ * and measured wrong by 5 km/wk in the case it got backwards — 66 against the honest 71
+ * below, which is where that figure comes from and why it moves when they do.
  *
  * The two fields together are what tells the site the race has been RUN (see
  * `hasRecording` in projection.ts), and a run race stops being counted as booked ahead.
@@ -450,54 +451,79 @@ export type RaceEvent = {
      * and he chose the recorded one, because it is the figure the linked activity will show a
      * reader who follows the bib.
      *
-     * IT IS THE LINKED ACTIVITY'S DISTANCE, NOT THE DAY'S, and 10 July is where that bites: a
-     * 22.55 km escort and the 140.49 km ride were recorded separately, so the day totals
-     * 163.04 against an advertised 160.59, and this row prints the 140.49 the link goes to.
-     * There is no exception for a split recording — the field beside it decides which ride is
-     * the race. See {@link elapsed_time} for the whole of that day's arithmetic.
+     * IT IS THE LINKED ACTIVITY'S DISTANCE, NOT THE DAY'S. A race day very often holds more
+     * than the race, so ask what a day's other activities ARE before touching a row that looks
+     * short — TWO DIFFERENT THINGS LOOK LIKE A SPLIT DAY and they take opposite answers.
      *
-     * TWO DIFFERENT THINGS LOOK LIKE A SPLIT DAY AND ONLY ONE OF THEM IS ONE, so ask what the
-     * day's other activities ARE before touching a row that looks short.
-     *
-     *   THE DAY HOLDS THE RACE PLUS SOMETHING ELSE, which is 10 July: one activity is the
-     *   whole race, and the 22.56 km escort out of Phuket is a separate ride that happens to
-     *   share the date. 140.50 is right, the day's 163.06 was never a candidate, and there is
-     *   no exception to make. This is the only shape `EVENTS` currently holds.
+     *   THE DAY HOLDS THE RACE PLUS SOMETHING ELSE, which is 10 July: one activity is the whole
+     *   race, and the 22.56 km escort out of Phuket is a separate ride that happens to share the
+     *   date. This row prints the 140.50 the link goes to; the day's 163.06 was never a
+     *   candidate, and there is no exception to make. See {@link elapsed_time} for that day's
+     *   whole arithmetic.
      *
      *   THE RACE ITSELF WAS RECORDED IN PARTS — the rider stopped and restarted, so no single
-     *   activity holds the ride. **A race like that cannot be entered here correctly yet**, and
-     *   one id per race is why. Summing the parts would make the bib print an aggregate while
-     *   still linking to ONE of them, so a reader following the link would meet different
-     *   numbers: exactly the mismatch {@link elapsed_time} exists to prevent, reintroduced one
-     *   layer up. The fix is `strava_activity_ids: readonly string[]` PLUS a bib that says it
-     *   was recorded in more than one ride — a change to Patch.astro under its own geometry and
-     *   contrast gates. Do it as its own change; a half-model is worse than the gap.
+     *   activity holds the ride, and **`EVENTS` HOLDS ONE OF THESE AND CANNOT SAY SO.** The 2024
+     *   round-island ride broke a bike, was repaired at a shop and finished, and the row below
+     *   carries only the recording made after the repair: it under-reports that race. One id per
+     *   race is why. Summing the parts is the arithmetic, but it is not the whole fix — the bib
+     *   would print an aggregate while still linking to ONE part, so a reader following the link
+     *   would meet a smaller number, which is the mismatch {@link elapsed_time} exists to
+     *   prevent, one layer up. The model is `strava_activity_ids: readonly string[]` plus a
+     *   decision about what the bib SAYS. Handed over deliberately rather than half-built:
+     *   `.scratchpad/handover-split-race-recordings.md` carries both races fully measured.
      *
-     * `GET /api/v3/athlete/activities?after=&before=` lists a day and is how you tell the two
-     * apart. The rider's own titles are the evidence — a continuation usually says so — but
-     * whether one counts as part of the race is the rider's call and not a reading of the data.
+     * SO "NO EXCEPTION FOR A SPLIT DAY" IS THE RULE, AND IT IS NOT A RULE ABOUT SPLIT RACES —
+     * the first case needs no exception and the second needs a model. Which shape a day is, is
+     * the rider's call and not a reading of the data: `GET /api/v3/athlete/activities?after=&before=`
+     * lists a day, but the titles do not settle it. 2023's parts are named `1/2` and `2/2`, while
+     * 2024's second recording is named for the mechanical — and both are one race.
      *
      * TWO PLACES, ROUNDED FROM THE API'S METRES. The activity reports whole metres and a
      * fraction — 78595.0, 140498.0, 10166.6 — and this field is that value in kilometres to
      * two places, rounded half-up. `tests/strava-verify.test.ts` asserts exactly that
      * conversion, so a figure typed in by any other route turns it red.
      *
-     * THIS FILE SAID *TRUNCATED* FOR A WHILE AND IT WAS WRONG, which is worth recording
-     * because the wrong version had a better story. The argument was that Strava's own page
-     * truncates, so truncating kept a promise: a reader who follows a bib's link sees the same
-     * digits the bib showed them. Four rows were written that way. The page does NOT truncate
-     * — measured on the one case where a rendered figure and its raw metres could be compared
-     * directly, 22619.7 m renders as `22.62`, where truncation gives 22.61 — and the earlier
-     * readings that said otherwise could not be reproduced. So rounding is both the honest
-     * conversion of the source and the one that keeps the promise; truncation kept neither.
+     * THE RULE IS THE MAINTAINER'S, AND IT DELIBERATELY DOES NOT DEPEND ON WHAT STRAVA RENDERS.
+     * That independence is the point, because the rendering question is genuinely unsettled and
+     * this field was already reversed once over it.
+     *
+     * The field held TRUNCATION for four commits, on the argument that Strava's page truncates
+     * and so truncating kept a promise: a reader following a bib's link sees the same digits the
+     * bib showed them. Four rows were written that way, then rewritten. What is actually
+     * measurable:
+     *
+     *   Strava's EMBED renderer truncates, on 5 of 5 discriminating activities in this account
+     *   — 78595.0 m renders `78.5 km`, 140498.0 `140.4`, 10166.6 `10.1`, 160566.0 `160.5`,
+     *   22558.8 `22.5`, where rounding would give `.6`, `.5`, `.2`, `.6`, `.6`. Three imperial
+     *   readings truncate too, and they derive from the metres rather than from the km, so the
+     *   widget is formatting the same quantity the API reports.
+     *
+     *   The ACTIVITY PAGE — the surface a bib actually links to — could not be read at all
+     *   without the owner's session, and the one 2dp figure ever compared against its own raw
+     *   metres went the other way: 22619.7 m shown as `22.62`, where truncation gives 22.61.
+     *   One sample, on a `followers_only` activity, not reproducible by a reviewer.
+     *
+     * So the honest position is that the embed truncates, the page is unread, and the two need
+     * not agree. **Do not restore truncation on the strength of the embed** — and equally, do
+     * not write into this comment that the page rounds. The rule stands on the API being the
+     * source of record, which needs no reading of any renderer.
+     *
      * The lesson generalises past this field: a rule with a persuasive rationale attached is
-     * harder to re-examine than a bare one, and this one survived a review because the
-     * rationale was doing the arguing.
+     * harder to re-examine than a bare one. The truncation rule survived a review because its
+     * story was doing the arguing — and then the sentence replacing it made a renderer claim on
+     * one unreproducible sample, which a review panel promptly took apart. Twice in one change.
      */
     km: number
     sport: Sport
     /**
      * Where the race is, as a country name a reader would say out loud.
+     *
+     * FOR A VIRTUAL EVENT THIS IS WHERE IT WAS RIDDEN, NOT WHERE THE EVENT IS BRANDED, which is
+     * why a row can read "OCBC Cycle Singapore Virtual Ride" beside `Malaysia` and be correct:
+     * that one was ridden in Johor Bahru. The word "Virtual" is in the name and ships uncut on
+     * the bib and in llms.txt, which is what tells a reader the Singapore is the brand. Written
+     * down because the pairing looks like a typo, and a reviewer proposed "fixing" it to
+     * Singapore — which would have shipped a false fact about a real ride.
      *
      * REQUIRED RATHER THAN OPTIONAL, deliberately. Every bib prints it, so an event
      * without one is a bib with a blank line — and `pnpm check` gates the deploy, so

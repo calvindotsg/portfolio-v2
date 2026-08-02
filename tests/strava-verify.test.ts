@@ -9,18 +9,17 @@ import {EVENTS, type RaceEvent} from "../src/lib/constants";
  * used to be a screenshot of Strava's web page. Both ways that goes wrong were real:
  *
  *   THE LAST DIGIT IS A CONVERSION CHOICE, and this file and `km` have to make the SAME one or
- *   every row is off by 0.01. It is metres rounded half-up to two places. It was TRUNCATION for
- *   four commits, on the argument that Strava's page truncates — which turned out to be wrong,
- *   measured on the one rendered figure that could be compared against its own raw metres
- *   (22619.7 m renders as `22.62`, not `22.61`). Two things to carry from that: a conversion
- *   rule needs a case where the two candidates DISAGREE before it is settled at all, and a
- *   rule that arrives with a persuasive rationale is harder to re-open than a bare one.
+ *   every row is off by 0.01. It is metres rounded half-up to two places, because the API's
+ *   metres are the source of record and that is the maintainer's instruction. See `km` in
+ *   constants.ts for why the rule does NOT rest on what Strava's own surfaces render, and for
+ *   the evidence that they truncate.
  *
  *   AN ACTIVITY CAN BE EDITED AFTER YOU READ IT, so a screenshot is a reading of a MUTABLE
  *   record. One row was authored from a screenshot showing 13:36:10 elapsed, 6:31:11 moving
  *   and 433 m of elevation. An hour later the API answered 10:47:28, 5:54:53 and 468.5 m for
- *   the same activity, with the distance unchanged to the centimetre — which is what says it
- *   was re-processed rather than cropped, since a crop moves the distance. The file was
+ *   the same activity, with the distance unchanged at 87.42 km — the most a screenshot can
+ *   witness, and enough to say it was re-processed rather than cropped, since a crop of that
+ *   size would move a 2dp distance. The file was
  *   recording a result the activity no longer claimed and nothing in the repository could have
  *   said so. That row has since left `EVENTS` for an unrelated reason (it was a DNF, and the
  *   wall cannot draw one yet), but it is the failure this suite exists for.
@@ -47,9 +46,11 @@ import {EVENTS, type RaceEvent} from "../src/lib/constants";
  *
  * IT NEEDS `activity:read_all`, NOT `activity:read`. A detailed activity read answers 404
  * — not 403 — when the token lacks the scope, so an under-scoped token looks exactly like
- * a wrong id. And a `followers_only` activity needs the `_all` half: two of these rows are
- * that, and they are also the two that cannot be checked any other way, since a logged-out
- * page leaks a title only for `everyone` visibility.
+ * a wrong id. And a `followers_only` activity needs the `_all` half: one of these rows is that,
+ * and it is also the one that cannot be checked any other way, since a logged-out page leaks a
+ * title only for `everyone` visibility. (It was two until the DNF row came out — a count in a
+ * comment about the data is exactly the thing that rots, so treat this one as an example of the
+ * class rather than a census.)
  *
  * WHAT IT DELIBERATELY DOES NOT ASSERT is `km` against a route's advertised distance. The
  * rule is that `km` is the LINKED activity's distance — see the field's own note — so the
@@ -70,9 +71,13 @@ const hms = (total: number): string => {
 };
 
 /**
- * Metres -> km at two places, rounded half-up, which is what `km` holds. Scale first and
- * `Math.round` the integer hundredths rather than `toFixed`, which returns a string and would
- * make every failure message read as a type mismatch instead of a distance one.
+ * Metres -> km at two places, rounded half-up, which is what `km` holds.
+ *
+ * SCALE TO INTEGER HUNDREDTHS FIRST. The obvious `Number((metres / 1000).toFixed(2))` gives a
+ * DIFFERENT answer on a row that ships: 78595.0 m is 78.60 here and 78.59 through `toFixed`,
+ * because 78.595 lands just below the decimal midpoint once it is a binary double. Dividing by
+ * ten and rounding integer hundredths is the true half-up. Swapping this for `toFixed` reddens
+ * correct data — or, worse, invites someone to edit the row to match the helper.
  */
 const km2 = (metres: number): number => Math.round(metres / 10) / 100;
 
@@ -124,13 +129,22 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
     it("agrees with each activity's own distance, to the two places a bib prints", () => {
         for (const e of recorded) {
             const d = details.get(e.strava_activity_id!)!;
+            // `toBe`, NOT `toBeCloseTo(…, 2)`, and the difference is the whole gate. `toBeCloseTo`
+            // with 2 digits passes whenever the gap is under 0.005, which is EVERY value the wrong
+            // authoring routes produce: |m/1000 − round(m/10)/100| ≤ 0.005 always, so a `km` pasted
+            // as the API's raw metres over 1000 — `160.566` — was green here AND green in the whole
+            // suite, while shipping `160.566 km` to llms.txt and `160.57` to the bib. The comment on
+            // `km` promises this suite reddens "a figure typed in by any other route"; only exact
+            // equality keeps that promise. Safe because `Math.round(m/10)/100` and a 2dp literal
+            // parse to the same double — checked with `Object.is` on all eight rows.
             expect(
                 e.km,
                 `${e.date} ${e.name}: file says ${e.km} km, activity ${e.strava_activity_id} is `
                 + `${d.distance} m, which ROUNDS to ${km2(d.distance)} km. A gap of exactly 0.01 `
                 + "means the figure was truncated rather than rounded — this file held that rule "
-                + "for four commits and it was wrong; see the note above `km` in constants.ts.",
-            ).toBeCloseTo(km2(d.distance), 2);
+                + "for four commits and it was wrong; see the note above `km` in constants.ts. "
+                + "More decimal places than two means it was pasted from the API unconverted.",
+            ).toBe(km2(d.distance));
         }
     });
 
