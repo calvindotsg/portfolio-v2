@@ -430,12 +430,11 @@ export type RaceEvent = {
      * and he chose the recorded one, because it is the figure the linked activity will show a
      * reader who follows the bib.
      *
-     * THE JULY DCR ROWS STILL CARRY EVENT DISTANCES, and that is a limit of the evidence, not
-     * a second convention. The 10 July race was recorded as TWO activities — a 22.55 km
-     * escort and the 140.49 km ride, 163.04 km together against the event's 160.59 — so
-     * "the recorded distance" has no single answer there; see the split-recording note under
-     * {@link elapsed_time}. 12 July has not been checked for the same split. Convert either
-     * one only with its activity page in front of you.
+     * IT IS THE LINKED ACTIVITY'S DISTANCE, NOT THE DAY'S, and 10 July is where that bites: a
+     * 22.55 km escort and the 140.49 km ride were recorded separately, so the day totals
+     * 163.04 against an advertised 160.59, and this row prints the 140.49 the link goes to.
+     * There is no exception for a split recording — the field beside it decides which ride is
+     * the race. See {@link elapsed_time} for the whole of that day's arithmetic.
      */
     km: number
     sport: Sport
@@ -469,34 +468,27 @@ export type RaceEvent = {
      *
      * IT IS ELAPSED, NOT MOVING, AND THE BIB SAYS SO. The two are far apart on these
      * rides — 8:32:05 elapsed against 5:03:55 moving — so an unlabelled time invites a
-     * reader to divide it into the distance printed beside it and get 18.8 km/h, where
+     * reader to divide it into the distance printed beside it and get 16.5 km/h, where
      * the recorded ride actually moved at 27.7 (140.49 km / 5:03:55). The label is not
      * decoration; it names which clock.
      *
-     * THOSE TWO FIGURES DELIBERATELY DO NOT SHARE A SCOPE, and that is the point rather
-     * than a defect in the comparison. 18.8 is the EVENT's 160.59 km over the ACTIVITY's
-     * 8:32:05 — precisely the two numbers this bib prints side by side, which is why a
-     * reader computes it. 27.7 is that activity's own 140.49 km over its own 5:03:55,
-     * and it is the only moving speed anything here recorded.
+     * BOTH FIGURES NOW COME OFF ONE ACTIVITY, which is what {@link km} changed and it settled
+     * a long argument in this comment rather than continuing it. 16.5 is that activity's own
+     * 140.49 km over its own 8:32:05, and 27.7 is the same distance over its own moving time:
+     * a reader dividing the two numbers on the bib gets a real elapsed speed for a real ride.
+     * They used to be different scopes — the EVENT's 160.59 km over the ACTIVITY's clock, which
+     * is 18.8 and belonged to nothing — and three revisions of this paragraph went wrong
+     * inside that mismatch, one of them quoting 160.59 / 5:03:55 = 31.7 as a speed no ride
+     * held. Keep the two figures on a bib coming from the same activity and that whole class
+     * of error is gone.
      *
-     * DO NOT "FIX" THE MISMATCH BY DIVIDING THE EVENT DISTANCE INTO THE MOVING CLOCK.
-     * A revision of this comment did exactly that and quoted 160.59 / 5:03:55 = 31.7 as
-     * the event-scope moving speed. No ride held 31.7: both clocks belong to the 140.49
-     * km activity, and the paragraph below says so — the day holds a second activity, so
-     * the event over the day's whole moving time lands somewhere near 26–28.5 km/h.
-     * The one genuinely same-scope pair is 16.5 against 27.7, and neither of those
-     * appears on a bib.
-     *
-     * NOTE WHICH SCOPE THIS IS. It is the race's own time, from the activity the race was
-     * recorded as, and {@link km} now comes off that same activity — so for most races the
-     * two figures on a bib share one scope, which is the point of the rule recorded there.
-     *
-     * 10 JULY IS THE EXCEPTION, AND IT IS WHY THAT RULE HAS A LIMIT. The day holds two Strava
-     * activities — a 22.55km escort out of Phuket and the 140.49km ride — totalling 163.04
-     * against the event's 160.59, and whole-day elapsed would be 9:55 rather than 8:32:05.
-     * There is no single recorded distance to print, so this row keeps the event's 160.59 and
-     * the +2.45km residual is left alone deliberately; engineering it away would mean the bib
-     * printing a number no ride held.
+     * WHICH ACTIVITY, WHERE A DAY HOLDS MORE THAN ONE: the one in `strava_activity_id`, the
+     * one this time came off, the one the bib links to. 10 July is the case that names the
+     * rule — the day holds a 22.55 km escort out of Phuket AND the 140.49 km ride, 163.04
+     * together against the event's advertised 160.59, and whole-day elapsed would be 9:55
+     * rather than 8:32:05. The row prints 140.49, because that is the ride a reader who
+     * follows the link will see. Neither the day's total nor the event's figure is a number
+     * any single recording holds.
      *
      * (That day is also why a 20km "silent disagreement" was once reported here and was
      * not one. A single Strava activity is not a day. Before concluding that a
@@ -529,7 +521,7 @@ export const EVENTS: readonly RaceEvent[] = [
     {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 117.41, sport: "cycling", country: "Singapore", elapsed_time: "5:53:34", strava_activity_id: "12058885236"},
     {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.59, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25", strava_activity_id: "16736512210"},
     {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 130.03, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15", strava_activity_id: "18433212592"},
-    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 140.49, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
     {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31", strava_activity_id: "19279762093"},
     {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.16, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
     {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 160.56, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17", strava_activity_id: "19566067972"},
