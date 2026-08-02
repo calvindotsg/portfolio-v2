@@ -456,6 +456,14 @@ export type RaceEvent = {
      * There is no exception for a split recording — the field beside it decides which ride is
      * the race. See {@link elapsed_time} for the whole of that day's arithmetic.
      *
+     * A SPLIT DAY IS NOT UNUSUAL, so do not read a short-looking row as a defect. More than one
+     * race here was recorded in two halves — the rider stopped the watch and started it again —
+     * and each row carries only the half it links to, which is the rule above rather than an
+     * oversight in the data. A row can therefore sit well under its event's advertised distance
+     * and be exactly right. Before "fixing" one, ask the athlete's activity list what else it
+     * recorded that day: `GET /api/v3/athlete/activities?after=&before=` answers it in one call,
+     * and a second activity named as a continuation of the first is the tell.
+     *
      * TWO PLACES, TRUNCATED — NOT ROUNDED, and that is not a style choice either. Strava's own
      * page truncates: activity 16736512210 measures 78595.0 m and the browser shows `78.59 km`,
      * where rounding gives 78.60. Measured on the four rows where the two disagree, including
