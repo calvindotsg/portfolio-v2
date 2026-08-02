@@ -159,9 +159,15 @@ const GOAL_YEAR_EVENTS: readonly RaceEvent[] = eventsInYear(GOAL_YEAR)
  * that has not happened is caught at build by the gate in tests/projection.test.ts,
  * which refuses a finishing time on a race that has not started.
  *
- * THE CLOCK STILL RULES EVERY RACE WITHOUT ONE. Round the Island is ridden with
- * nothing recorded, and it becomes a finished bib the day after it is ridden, exactly
- * as before. This is a second, sufficient way to be finished — not a replacement.
+ * THE CLOCK STILL RULES EVERY RACE WITHOUT ONE. A race with no recording — one ridden
+ * with nothing on a device, or a back-catalogue entry typed from memory — becomes a
+ * finished bib the day after it is ridden, exactly as before. This is a second,
+ * sufficient way to be finished, not a replacement.
+ *
+ * IT DELIBERATELY NAMES NO EXAMPLE. This paragraph used to point at one race in `EVENTS`,
+ * which stopped being true the day that race was recorded; which races currently lack a
+ * recording is a property of the data on the day you read this, and the rule holds even on
+ * a calendar where every finished race happens to have one.
  */
 const hasRecording = (event: RaceEvent): boolean =>
     event.elapsed_time !== undefined && event.strava_activity_id !== undefined
@@ -392,15 +398,17 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * WHAT THE SWEEP THEREFORE CANNOT SEE, since the two consumers stopped sharing a day.
  * `patchState` takes `BUILD_DATE` and `goalStatus` takes `UPDATED_AT`, so on any build
  * later than the stamp, a race that ended in between is `finished` on the wall while
- * `bookedAhead` still books its kilometres. Ride Round the Island on 2 August, deploy
- * anything on the 3rd before the bot pushes, and the wall draws an earned patch while the
- * cycling card is still counting its 121.98 km ahead.
+ * `bookedAhead` still books its kilometres. Ride a race on the Sunday, deploy anything on
+ * the Monday before the bot pushes, and the wall draws an earned patch while the goal card
+ * is still counting that race's kilometres ahead.
  *
  * THAT IS THE DELIBERATE CONSEQUENCE OF THE SPLIT, NOT A BUG TO CLOSE, and the arithmetic
  * is why: the stamp's kilometres do not include that ride yet, so booking it keeps the
  * numerator and the denominator the same age and the distance counted exactly ONCE.
- * Measured across the push — 71 km/wk before, 74 after, and the difference is five days
- * of denominator, not a double count. Dropping the race from `booked` the moment the WALL
+ * Measured across one such push — 71 km/wk before, 74 after, and the difference is five days
+ * of denominator, not a double count. Those three figures are that push's, kept as the
+ * measurement that settled the question; the live rate has moved many times since and is not
+ * what this paragraph is claiming. Dropping the race from `booked` the moment the WALL
  * calls it finished, without banking its kilometres, reads 77: further from the settled
  * figure than leaving it alone, and it would be inventing a distance nobody has measured,
  * which is the one thing the header of this file refuses to do. So do NOT "fix" this by

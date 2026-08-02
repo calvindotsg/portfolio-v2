@@ -26,8 +26,8 @@ const {event, state} = Astro.props;
  * this number is drawn they would dominate the digits that carry the meaning. The
  * text content is unbroken either way, so a screen reader still hears "160.59".
  *
- * `toFixed(2)` IS WHAT MAKES THAT A COLUMN OF ONE KIND OF NUMBER, and the six races on
- * the wall today print in THREE different shapes without it: 160.59, 158.13 and 121.98
+ * `toFixed(2)` IS WHAT MAKES THAT A COLUMN OF ONE KIND OF NUMBER, and the races on the
+ * wall print in THREE different shapes without it: 160.59, 158.13 and 121.98
  * already carry two places, 21.10 and 42.20 lose their trailing zero to `21.1` and
  * `42.2`, and 1022.00 loses the point entirely to `1022`. (An earlier revision of this
  * comment said five of six were already two-place and only the tour was bare — worth
@@ -56,9 +56,12 @@ const {event, state} = Astro.props;
  * an element-name selector here would have made this a rewrite. `container-type` stays on
  * whichever element wears `.bib`, or the hero's `22cqi` loses its container.
  *
- * IT IS CONDITIONAL ON THE ID, NOT ON THE STATE, and the difference is a real case rather
- * than a hypothetical: Round the Island finishes on 3 August with no activity recorded,
- * and must render as an ordinary finished bib. A bot-push simulation covers that date.
+ * IT IS CONDITIONAL ON THE ID, NOT ON THE STATE, because `strava_activity_id` is optional
+ * and a finished race without one must still render as an ordinary finished bib — the rule
+ * above `EVENTS` in constants.ts, and what makes filling in a back catalogue a data edit.
+ * Whether any race on the wall is in that state right now is not the point and changes with
+ * the data; this used to name one that has since been recorded. The fixtures in
+ * patch-wall.test.ts hold the case either way.
  *
  * `target="_blank"` and NO `rel`, matching this site's existing convention — Now.astro and
  * IntroCard.astro both use a bare `target="_blank"` and browsers imply `noopener`.

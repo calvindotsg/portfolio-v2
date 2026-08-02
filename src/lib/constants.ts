@@ -497,10 +497,15 @@ export type RaceEvent = {
 }
 
 export const EVENTS: readonly RaceEvent[] = [
+    {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 21.10, sport: "running", country: "Singapore", elapsed_time: "3:44:25", strava_activity_id: "8204481233"},
+    {date: "2023-08-06", name: "Pesta Sukan Round Island Bike Adventure", km: 87.42, sport: "cycling", country: "Singapore", elapsed_time: "13:36:10", strava_activity_id: "9593519661"},
+    {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 117.41, sport: "cycling", country: "Singapore", elapsed_time: "5:53:34", strava_activity_id: "12058885236"},
+    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.59, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25", strava_activity_id: "16736512210"},
+    {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 100.00, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15", strava_activity_id: "18433212592"},
     {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
     {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31", strava_activity_id: "19279762093"},
     {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.00, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
-    {date: "2026-08-02", name: "Round the Island Bike Adventure", km: 121.98, sport: "cycling", country: "Singapore"},
+    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 121.98, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17", strava_activity_id: "19566067972"},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
     {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
     {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running", country: "Singapore"},

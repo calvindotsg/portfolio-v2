@@ -61,13 +61,21 @@ const buildDateOf = (page: string): string => {
  * events the same `name`, so `.find()` on it returns the FIRST edition for both bibs and
  * every assertion downstream compares one year's bib against the other year's facts.
  *
- * Measured rather than feared. A 2025 "Round the Island Bike Adventure" beside the 2026
- * one reddens two of these tests on data that is entirely correct — `expected 'Booked' to
- * be null` and `expected '121.98' to be '118.50'` — and the messages name the race twice
- * without being able to say which edition they mean. A red suite BLOCKS THE DEPLOY, so
- * that is a failed production deploy caused by an ordinary data edit:
- * precisely the edit {@link GOAL_YEAR}'s January checklist now asks for, having stopped
- * telling the maintainer to delete last year's races.
+ * Measured rather than feared, and NO LONGER HYPOTHETICAL: the back catalogue landed and
+ * `EVENTS` now holds three editions of the same annual round-island ride. When this was
+ * written the collision had to be simulated — a 2025 edition beside the 2026 one reddened
+ * two of these tests on data that is entirely correct (`expected 'Booked' to be null` and
+ * `expected '121.98' to be '118.50'`), with the messages naming the race twice and unable
+ * to say which edition they meant. A red suite BLOCKS THE DEPLOY, so that is a failed
+ * production deploy caused by an ordinary data edit: precisely the edit {@link GOAL_YEAR}'s
+ * January checklist now asks for, having stopped telling the maintainer to delete last
+ * year's races.
+ *
+ * FIXING IT HERE DID NOT FIX IT EVERYWHERE, which is the part worth carrying forward. The
+ * same `.find()`-on-a-name lookup survived in tests/build-output.test.ts's llms.txt row
+ * check and went unnoticed until a third edition arrived — a name-keyed lookup is silently
+ * wrong rather than absent, so it cannot be found by watching for failures. Grep for the
+ * pattern when a display string stops being unique, do not wait for red.
  *
  * POSITION IS NOT A NEW ASSUMPTION. The wall's DOM order IS `patchWall`'s order, bib by
  * bib, and "renders one bib per race, in the wall's order" is the test that says so. This
@@ -512,10 +520,12 @@ describe("dist/patches", () => {
      * because the shape only exists there: the bib renders as an anchor inside its list
      * item, and the previous structure was one element.
      *
-     * CONDITIONAL ON THE ID, NOT ON THE STATE. Round the Island finishes on 3 August with
-     * no activity recorded and must render as an ordinary finished bib, so the two halves
-     * below are both real cases rather than a happy path and a guard. Driven from EVENTS,
-     * so a race added with or without an id joins whichever half it belongs to.
+     * CONDITIONAL ON THE ID, NOT ON THE STATE. `strava_activity_id` is optional, so a
+     * finished race without one must render as an ordinary finished bib — the two halves
+     * below are both real cases rather than a happy path and a guard. Driven from EVENTS, so
+     * a race added with or without an id joins whichever half it belongs to, and neither
+     * half is pinned to a named race: this note used to cite one that has since been
+     * recorded, and the halves resize as the data moves.
      */
     it("makes the whole bib a link exactly where the race has a verified activity", () => {
         // NO NON-VACUITY FLOOR ON THE FILTERED SUBSET, and this is the repo's own hardest-won
@@ -1556,8 +1566,10 @@ describe("a bib that opens a new tab says so, last", () => {
     });
 
     it("is conditional on the LINK, not on the state", async () => {
-        // An earned bib with no id is a real case, not a hypothetical: Round the Island
-        // finishes with no recording. A booked bib with an id would be one too.
+        // An earned bib with no id is a real case rather than a hypothetical: the type makes
+        // the id optional so a race can be remembered without a recording. A booked bib with
+        // an id would be one too. Both are rendered from fixtures, so neither depends on live
+        // EVENTS happening to contain an instance.
         const finishedNoLink = await render(unlinked, "finished");
         const bookedNoLink = await render(unlinked, "booked");
         for (const doc of [finishedNoLink, bookedNoLink]) {
