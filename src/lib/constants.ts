@@ -435,6 +435,15 @@ export type RaceEvent = {
      * 163.04 against an advertised 160.59, and this row prints the 140.49 the link goes to.
      * There is no exception for a split recording — the field beside it decides which ride is
      * the race. See {@link elapsed_time} for the whole of that day's arithmetic.
+     *
+     * TWO PLACES, TRUNCATED — NOT ROUNDED, and that is not a style choice either. Strava's own
+     * page truncates: activity 16736512210 measures 78595.0 m and the browser shows `78.59 km`,
+     * where rounding gives 78.60. Measured on the four rows where the two disagree, including
+     * 10166.6 m -> `10.16` and 160566.0 m -> `160.56`, which rules out round-half-down as well.
+     * So truncation is what keeps this field's whole reason intact: a reader who follows the
+     * link must see the SAME digits the bib showed them. `tests/strava-verify.test.ts` asserts
+     * exactly this conversion — an API-sourced figure that has been rounded is off by 0.01 and
+     * turns it red.
      */
     km: number
     sport: Sport
@@ -517,7 +526,7 @@ export type RaceEvent = {
 
 export const EVENTS: readonly RaceEvent[] = [
     {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 22.45, sport: "running", country: "Singapore", elapsed_time: "3:44:25", strava_activity_id: "8204481233"},
-    {date: "2023-08-06", name: "Pesta Sukan Round Island Bike Adventure", km: 87.42, sport: "cycling", country: "Singapore", elapsed_time: "13:36:10", strava_activity_id: "9593519661"},
+    {date: "2023-08-06", name: "Pesta Sukan Round Island Bike Adventure", km: 87.42, sport: "cycling", country: "Singapore", elapsed_time: "10:47:28", strava_activity_id: "9593519661"},
     {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 117.41, sport: "cycling", country: "Singapore", elapsed_time: "5:53:34", strava_activity_id: "12058885236"},
     {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.59, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25", strava_activity_id: "16736512210"},
     {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 130.03, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15", strava_activity_id: "18433212592"},
