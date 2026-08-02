@@ -5,7 +5,8 @@ import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
 import {
-    EVENTS, GOAL_YEAR, GOALS, NEW_TAB_NOTICE, PATCHES, type RaceEvent, type Sport, stravaActivityUrl,
+    EVENTS, GOAL_YEAR, GOALS, NEW_TAB_NOTICE, PATCHES, type RaceEvent, recordingsOf, type Sport,
+    stravaActivityUrl,
 } from "../src/lib/constants";
 import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
@@ -118,7 +119,8 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      * and a clock left two weeks stale.
      */
     it("earns a bib from the recording, on the day of the race and against a frozen clock", () => {
-        const run = ev({date: "2026-06-10", elapsed_time: "0:58:26", strava_activity_id: "19513789157"});
+        const run = ev({date: "2026-06-10", elapsed_time: "0:58:26",
+            recordings: [{id: "19513789157", km: 10, elapsed_time: "0:58:26"}]});
         expect(patchState(run, "2026-06-10"), "the day itself, hours after finishing").toBe("finished");
         expect(patchState(run, "2026-05-27"), "a clock that stopped a fortnight ago").toBe("finished");
     });
@@ -130,7 +132,8 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      */
     it("takes a half-recording as no recording, leaving the day to decide", () => {
         const timed = ev({date: "2026-06-10", elapsed_time: "0:58:26"});
-        const linked = ev({date: "2026-06-10", strava_activity_id: "19513789157"});
+        const linked = ev({date: "2026-06-10",
+            recordings: [{id: "19513789157", km: 10, elapsed_time: "0:58:26"}]});
         for (const half of [timed, linked]) {
             expect(patchState(half, "2026-06-10"), `${JSON.stringify(half)} on the day`).toBe("booked");
             expect(patchState(half, "2026-06-11"), "the day after, by the clock as before").toBe("finished");
@@ -144,11 +147,12 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      * still pass if BOTH sides forgot, and this one names which side did.
      */
     it("stops booking a recorded race's kilometres, on the day it is run", () => {
-        const run = ev({date: "2026-06-10", km: 10, sport: "running", elapsed_time: "0:58:26", strava_activity_id: "1"});
+        const run = ev({date: "2026-06-10", km: 10, sport: "running", elapsed_time: "0:58:26",
+            recordings: [{id: "1", km: 10, elapsed_time: "0:58:26"}]});
         expect(bookedAhead("running", "2026-06-01", [run]), "still ahead by the calendar").toBe(0);
         expect(bookedAhead("running", "2026-06-10", [run]), "the day of the race").toBe(0);
         // The comparison: the same race without its recording is booked exactly as before.
-        const {elapsed_time: _t, strava_activity_id: _i, ...plain} = run;
+        const {elapsed_time: _t, recordings: _r, ...plain} = run;
         expect(bookedAhead("running", "2026-06-01", [plain]), "no recording, so the clock still books it").toBe(10);
     });
 
@@ -522,12 +526,18 @@ describe("dist/patches", () => {
      * because the shape only exists there: the bib renders as an anchor inside its list
      * item, and the previous structure was one element.
      *
-     * CONDITIONAL ON THE ID, NOT ON THE STATE. `strava_activity_id` is optional, so a
-     * finished race without one must render as an ordinary finished bib — the two halves
-     * below are both real cases rather than a happy path and a guard. Driven from EVENTS, so
-     * a race added with or without an id joins whichever half it belongs to, and neither
-     * half is pinned to a named race: this note used to cite one that has since been
-     * recorded, and the halves resize as the data moves.
+     * CONDITIONAL ON THE RECORDINGS, NOT ON THE STATE. `recordings` is optional, so a
+     * finished race without one must render as an ordinary finished bib — the branches
+     * below are all real cases rather than a happy path and a guard. Driven from EVENTS, so
+     * a race added with or without a recording joins whichever branch it belongs to, and no
+     * branch is pinned to a named race: this note used to cite one that has since been
+     * recorded, and the branches resize as the data moves.
+     *
+     * AND CONDITIONAL ON HOW MANY, WHICH IS THE THIRD BRANCH. A race recorded in parts has
+     * no single honest destination, so the bib stops being the anchor and holds one link per
+     * recording instead. The equivalence asserted is therefore three-way and exhaustive:
+     * none, exactly one, more than one. Each branch asserts the OTHERS' markup is absent, so
+     * a bib cannot satisfy this by wearing both shapes at once.
      */
     it("makes the whole bib a link exactly where the race has a verified activity", () => {
         // NO NON-VACUITY FLOOR ON THE FILTERED SUBSET, and this is the repo's own hardest-won
@@ -549,23 +559,66 @@ describe("dist/patches", () => {
         expect(EVENTS.length, "EVENTS is empty, so every loop below is vacuous").toBeGreaterThan(0);
 
         for (const {bib, event} of wallBibs(PAGES.all)) {
-            const url = stravaActivityUrl(event);
+            const parts = recordingsOf(event);
 
-            if (url === null) {
-                expect(bib.tagName.toLowerCase(), `${event.name} has no activity id, so its bib must not be a link`)
+            if (parts.length === 0) {
+                expect(bib.tagName.toLowerCase(), `${event.name} has no recording, so its bib must not be a link`)
                     .not.toBe("a");
                 expect(bib.querySelector(".bib-strava"), `${event.name} must wear no Strava mark`).toBeNull();
+                expect(bib.querySelector(".bib-splits"), `${event.name} has no recording, so it lists none`).toBeNull();
                 continue;
             }
 
-            expect(bib.tagName.toLowerCase(), `${event.name} has an activity id, so the whole bib is the link`).toBe("a");
+            if (parts.length > 1) {
+                // THE SPLIT RACE. Anchors do not nest, so the bib cannot both be a link and
+                // contain them — and there is no URL that is the whole race, because Strava
+                // cannot merge two activities. The bib holds the links instead.
+                expect(bib.tagName.toLowerCase(),
+                    `${event.name} has ${parts.length} recordings, so the bib holds the links rather than being one`)
+                    .not.toBe("a");
+                expect(bib.querySelector(".bib-go"),
+                    `${event.name} lists its recordings, so it carries no single action row`).toBeNull();
+
+                const lines = [...bib.querySelectorAll(".bib-split")];
+                expect(lines.length, `${event.name} must draw one line per recording`).toBe(parts.length);
+
+                for (const [i, part] of parts.entries()) {
+                    const line = lines[i];
+                    expect(line.tagName.toLowerCase(), "each split line is its own link").toBe("a");
+                    expect(line.getAttribute("href"), `recording ${part.id} must point at its own activity`)
+                        .toBe(`https://www.strava.com/activities/${part.id}`);
+                    expect(line.getAttribute("href")).toBe(stravaActivityUrl(part));
+                    expect(line.getAttribute("target"), "matching the single-recording bib").toBe("_blank");
+                    expect(line.getAttribute("rel"), "a bare target, as everywhere else on this site").toBeNull();
+                    expect(line.getAttribute("aria-label"),
+                        "an aria-label would REPLACE the name; the sr-only spans EXTEND it").toBeNull();
+
+                    // THE LINE MUST PROMISE WHAT IT DELIVERS. The bib's hero is the SUMMED
+                    // distance and its time row the whole span, so a link that named neither
+                    // would send a reader to smaller figures than the bib showed them — the
+                    // mismatch this whole change exists to close. And the race must be in the
+                    // name, or a reader listing every link on the page cannot tell which wall
+                    // entry it belongs to.
+                    const name = (line.textContent ?? "").replace(/\s+/g, " ").trim();
+                    for (const said of [part.km.toFixed(2), part.elapsed_time, event.name, NEW_TAB_NOTICE]) {
+                        expect(name, `split line ${i + 1} of ${event.name} must announce "${said}"`).toContain(said);
+                    }
+                }
+                continue;
+            }
+
+            const only = parts[0];
+            const url = stravaActivityUrl(only);
+            expect(bib.tagName.toLowerCase(), `${event.name} has one recording, so the whole bib is the link`).toBe("a");
+            expect(bib.querySelector(".bib-splits"),
+                `${event.name} has one recording, so there is nothing to list`).toBeNull();
             // THE BASE URL IS WRITTEN OUT HERE, and the duplication is the point. Comparing the
             // built href against `stravaActivityUrl(event)` alone compares the page to the very
             // function that produced it: mistype the constant and every bib ships a 404 with the
             // suite green and `pnpm check` silent — verified by mutating the base and watching
             // 256/256 pass. The literal is the only thing in the build that can disagree with it.
             expect(url, `${event.name} must point at strava.com/activities/<id>`)
-                .toBe(`https://www.strava.com/activities/${event.strava_activity_id}`);
+                .toBe(`https://www.strava.com/activities/${only.id}`);
             expect(bib.getAttribute("href")).toBe(url);
             expect(bib.getAttribute("target"), "matching Now.astro and IntroCard.astro").toBe("_blank");
             expect(bib.getAttribute("rel"), "this site uses a bare target and lets the browser imply noopener; "
@@ -622,7 +675,9 @@ describe("dist/patches", () => {
         // remedy is not free the way it is for the four above: `anywhere` on a three-letter sport
         // word breaks it mid-word ("Ri/de"), which is a legibility trade rather than a fix, and
         // that is the owner's call. Recorded, not smuggled in.
-        for (const cls of ["bib-time", "bib-place", "bib-tag", "bib-go"]) {
+        // `bib-split` joins them: its tokens are a distance and a clock, the same unbreakable
+        // shape as the elapsed row that was measured escaping from a 42px root.
+        for (const cls of ["bib-time", "bib-place", "bib-tag", "bib-go", "bib-split"]) {
             const owned = rules.filter((r) => r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel)));
             expect(owned.length, `no rule for .${cls} — this assertion would be vacuous`).toBeGreaterThan(0);
             const wrap = owned.map((r) => decl(r.body, "overflow-wrap") ?? decl(r.body, "word-wrap")).find((v) => v !== undefined);
@@ -686,8 +741,12 @@ describe("dist/patches", () => {
         for (const {bib, event} of wallBibs(PAGES.all)) {
             const row = bib.querySelector(".bib-go");
 
-            if (stravaActivityUrl(event) === null) {
-                expect(row, `${event.name} has no activity id, so its bib must offer no action row`).toBeNull();
+            // THE ROW BELONGS TO A BIB WITH EXACTLY ONE PLACE TO GO. With none there is nothing
+            // to say; with several the bib lists them instead, and each line carries its own
+            // words — held by the split branch of the anchor test above.
+            if (recordingsOf(event).length !== 1) {
+                expect(row, `${event.name} does not have exactly one recording, so it offers no action row`)
+                    .toBeNull();
                 continue;
             }
 
@@ -1508,7 +1567,8 @@ describe("nothing inside the wall's card is pinned to a device pixel", () => {
 describe("a bib that opens a new tab says so, last", () => {
     const linked: RaceEvent = {
         date: `${GOAL_YEAR}-07-10`, name: "A Race With A Recording", km: 100, sport: "cycling",
-        country: "Thailand", elapsed_time: "5:00:00", strava_activity_id: "1234567890123",
+        country: "Thailand", elapsed_time: "5:00:00",
+        recordings: [{id: "1234567890123", km: 100, elapsed_time: "5:00:00"}],
     };
     const unlinked: RaceEvent = {
         date: `${GOAL_YEAR}-07-10`, name: "A Race With No Recording", km: 100, sport: "cycling",
@@ -1580,5 +1640,169 @@ describe("a bib that opens a new tab says so, last", () => {
             expect(doc.querySelector("a.bib")).toBeNull();
             expect(allText(doc).includes(NEW_TAB_NOTICE)).toBe(false);
         }
+    });
+});
+
+/**
+ * A RACE RECORDED IN PARTS, RENDERED DIRECTLY, and the direct render is the point.
+ *
+ * Every other assertion about this shape reads the built wall, so all of them are hostage
+ * to the calendar holding a split race on the day the suite runs. There is exactly ONE
+ * today; the moment that row gains or loses a recording — an ordinary data edit — every
+ * data-driven split assertion in this file goes vacuous WITHOUT going red, which is the
+ * failure mode this repo has recorded more than any other. A fixture cannot be edited away
+ * by touching `EVENTS`.
+ *
+ * IT ALSO COVERS THE COUNTS THE DATA CANNOT REACH. The live row has two recordings; three
+ * and four exist only here, and they are what prove the shape is a list rather than a pair.
+ */
+describe("a race recorded in parts lists them, and the bib stops being the link", () => {
+    const parts = (n: number) => Array.from({length: n}, (_, i) => ({
+        id: `${1000000000 + i}`,
+        km: 10 + i,
+        elapsed_time: `${i + 1}:0${i}:00`,
+    }));
+
+    const split = (n: number): RaceEvent => ({
+        date: `${GOAL_YEAR}-07-10`, name: "A Race Recorded In Parts", km: 100, sport: "cycling",
+        country: "Thailand", elapsed_time: "9:00:00", recordings: parts(n),
+    });
+
+    const render = async (event: RaceEvent, state: PatchState = "finished") =>
+        parseHTML(await (await AstroContainer.create()).renderToString(Patch, {props: {event, state}})).document;
+
+    it.each([2, 3, 4])("draws one link per recording and none for the bib (%i parts)", async (n) => {
+        const doc = await render(split(n));
+
+        expect(doc.querySelector("a.bib"), "the bib itself must not be an anchor").toBeNull();
+        expect(doc.querySelector(".bib-go"), "a split bib has no single action row").toBeNull();
+
+        const lines = [...doc.querySelectorAll("a.bib-split")];
+        expect(lines.length, "one link per recording").toBe(n);
+
+        for (const [i, part] of parts(n).entries()) {
+            const line = lines[i];
+            expect(line.getAttribute("href")).toBe(`https://www.strava.com/activities/${part.id}`);
+            expect(line.getAttribute("target"), "the same new tab the single-recording bib opens").toBe("_blank");
+            expect(line.getAttribute("rel"), "a bare target, as everywhere else on this site").toBeNull();
+            expect(line.getAttribute("aria-label"), "an aria-label REPLACES the name; sr-only EXTENDS it").toBeNull();
+
+            // THE WARNING LANDS LAST ON EVERY LINE, not only on the bib. Same argument as the
+            // block above: accname is assembled in DOM order, so a notice that is not last is
+            // announced in the middle of the figures it is meant to qualify.
+            const last = line.lastElementChild;
+            expect(last?.classList.contains("sr-only"), `line ${i + 1} must end with a hidden span`).toBe(true);
+            expect(last?.textContent, `line ${i + 1} must end with the new-tab warning`).toBe(NEW_TAB_NOTICE);
+
+            // AND THE LINE MUST PROMISE WHAT IT DELIVERS. The bib's hero is the summed distance
+            // and its time row the whole span, so a link naming neither would send a reader to
+            // smaller figures than the bib showed. The verb is asserted because without it the
+            // line is typographically identical to the elapsed caption above it.
+            const name = (line.textContent ?? "").replace(/\s+/g, " ").trim();
+            const said = PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} km`);
+            for (const token of [said, part.elapsed_time, "A Race Recorded In Parts", NEW_TAB_NOTICE]) {
+                expect(name, `line ${i + 1} must announce "${token}"`).toContain(token);
+            }
+            expect(name.startsWith(said), "the verb leads, so the line reads as a control before a figure").toBe(true);
+        }
+
+        // NO TWO LINES MAY ANNOUNCE THE SAME THING while going to different places — the
+        // practice failure this whole shape was drawn to avoid rather than introduce.
+        const names = lines.map((a) => (a.textContent ?? "").replace(/\s+/g, " ").trim());
+        expect(new Set(names).size, "every split line needs its own accessible name").toBe(n);
+    });
+
+    /**
+     * THE SPLIT LINE'S VISIBLE AFFORDANCE, ASSERTED — the companion this shape was missing.
+     *
+     * `.bib--linked` has one ("gives a linked bib a visible label saying what using it does")
+     * and it exists because this component ONCE SHIPPED the defect it now guards: a control
+     * whose only visible cue was a 7.5x10px glyph, its words hidden behind `sr-only`, which
+     * two readers could not find. The split line is the same kind of control and had no such
+     * assertion, so the words could go back behind `sr-only` — or the glyph could be deleted
+     * outright — and every gate in the repo would stay green. The build-wide signifier gate
+     * cannot cover it: it exempts this line by class, so it is blind by construction.
+     *
+     * VISIBLE MEANS WITH THE `sr-only` SUBTREES REMOVED. Asserting on `textContent` is what
+     * makes this vacuous — the race name and the new-tab notice both live in hidden spans, so
+     * a `toContain` over the whole string is satisfied by text nobody can see. That is the
+     * exact substitution the reviewer caught, so the reading is done explicitly here.
+     */
+    it.each([2, 3])("says what a split line does in words a reader can SEE (%i parts)", async (n) => {
+        const doc = await render(split(n));
+        const lines = [...doc.querySelectorAll("a.bib-split")];
+        expect(lines.length, "one link per recording").toBe(n);
+
+        for (const [i, part] of parts(n).entries()) {
+            const line = lines[i];
+
+            // Strip what is hidden, and read what is left.
+            const shown = line.cloneNode(true) as Element;
+            for (const hidden of [...shown.querySelectorAll(".sr-only")]) hidden.remove();
+            const visible = (shown.textContent ?? "").replace(/\s+/g, " ").trim();
+
+            const label = PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} km`);
+            expect(visible, `line ${i + 1} must SHOW its label, not hide it`).toContain(label);
+            expect(visible.startsWith(PATCHES.split_line.split("{")[0].trim()),
+                "the imperative leads, so the line reads as a control rather than as a caption").toBe(true);
+            expect(visible, `line ${i + 1} must SHOW its own clock`).toContain(part.elapsed_time);
+
+            // And the mark, which names the destination. aria-hidden because the words carry
+            // it — the same arrangement `.bib-go` is held to.
+            const glyph = line.querySelector(`span[class~="${iconClass(PATCHES.strava_icon)}"]`);
+            expect(glyph, `line ${i + 1} must keep the configured brand mark`).toBeTruthy();
+            expect(glyph!.getAttribute("aria-hidden"), "the mark is decorative; the words carry the meaning")
+                .toBe("true");
+        }
+    });
+
+    /**
+     * AND IT MUST NOT BE DRAWN AS A WEB LINK. The counterpart to the rule already enforced on
+     * `.bib-go`: a bib is a printed artifact, every row on it is uppercase, letterspaced and
+     * undecorated, and a rule under 15px of ink would describe the wrong target anyway. The
+     * split line replaced that row on a split bib, so it inherits the rule.
+     */
+    it("draws the split line in the bib's own idiom, not as a ruled web link", () => {
+        const rules = parseRules(pageCss(PAGES.all))
+            .filter((r) => r.selectors.some((sel) => /\.bib-split\b/.test(sel)));
+        expect(rules.length, "the split line must have rules at all").toBeGreaterThan(0);
+        for (const rule of rules) {
+            for (const prop of ["text-decoration", "text-decoration-line"] as const) {
+                expect(decl(rule.body, prop) ?? "", `${rule.selectors.join(",")} { ${prop} }`)
+                    .not.toContain("underline");
+            }
+        }
+    });
+
+    it("leaves a one-recording bib exactly as it was", async () => {
+        const one: RaceEvent = {
+            date: `${GOAL_YEAR}-07-10`, name: "A Race With One Recording", km: 100, sport: "cycling",
+            country: "Thailand", elapsed_time: "5:00:00",
+            recordings: [{id: "1234567890123", km: 100, elapsed_time: "5:00:00"}],
+        };
+        const doc = await render(one);
+
+        expect(doc.querySelector("a.bib"), "one destination, so the whole bib is still the link").toBeTruthy();
+        expect(doc.querySelector(".bib-splits"), "nothing to list").toBeNull();
+        expect(doc.querySelector(".bib-go")?.textContent?.trim(), "and it keeps the shipped action row")
+            .toBe(PATCHES.strava_name);
+    });
+
+    /**
+     * AN EMPTY ARRAY IS NOT A RECORDING. `recordings: []` is reachable through the type, and
+     * it must mean the same as the field being absent — otherwise the wall could draw a bib
+     * that claims a recording it cannot link to.
+     */
+    it("treats an empty recordings array as no recording at all", async () => {
+        const empty: RaceEvent = {
+            date: `${GOAL_YEAR}-07-10`, name: "A Race With An Empty List", km: 100, sport: "cycling",
+            country: "Thailand", elapsed_time: "5:00:00", recordings: [],
+        };
+        const doc = await render(empty);
+
+        expect(doc.querySelector("a.bib"), "nothing to link to").toBeNull();
+        expect(doc.querySelector(".bib-splits"), "nothing to list").toBeNull();
+        expect(doc.querySelector(".bib-go"), "and nothing to say").toBeNull();
+        expect((doc.documentElement?.textContent ?? "").includes(NEW_TAB_NOTICE), "no tab is opened").toBe(false);
     });
 });

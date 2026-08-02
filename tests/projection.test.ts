@@ -3,7 +3,7 @@ import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
-import {EVENTS, GOAL_YEAR, GOALS, type Goal} from "../src/lib/constants";
+import {EVENTS, GOAL_YEAR, GOALS, type Goal, recordingsOf} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {
     UPDATED_AT, bookedAhead, daysRemaining, eventsInYear, formatDateline, goalStatus,
@@ -523,7 +523,7 @@ describe("EVENTS", () => {
      * combined message would name the wrong field half the time.
      */
     it("never carries a recording for a race that has not started", () => {
-        const recorded = EVENTS.filter((e) => e.elapsed_time !== undefined && e.strava_activity_id !== undefined);
+        const recorded = EVENTS.filter((e) => e.elapsed_time !== undefined && recordingsOf(e).length > 0);
         for (const e of recorded) {
             // Against a clock pinned before every race on the calendar, so ONLY the
             // recording branch can answer. `patchState(e)` takes BUILD_DATE, under which
@@ -548,16 +548,138 @@ describe("EVENTS", () => {
      * failing anywhere a build could see.
      */
     it("carries activity ids as digit strings, so none can be rounded into a dead link", () => {
-        const linked = EVENTS.filter((e) => e.strava_activity_id !== undefined);
         const seen = new Set<string>();
-        for (const e of linked) {
-            expect(typeof e.strava_activity_id, `${e.name} activity id must be a string`).toBe("string");
-            expect(e.strava_activity_id, `${e.name} activity id must be digits only`).toMatch(/^\d+$/);
-            // Two races pointing at one ride is the transposition this cannot otherwise
-            // see — both ids are valid, both pages load, and only reading them tells.
-            expect(seen.has(e.strava_activity_id!), `${e.name} shares an activity id with another race`).toBe(false);
-            seen.add(e.strava_activity_id!);
+        let checked = 0;
+        for (const e of EVENTS) {
+            for (const r of recordingsOf(e)) {
+                expect(typeof r.id, `${e.name} activity id must be a string`).toBe("string");
+                expect(r.id, `${e.name} activity id must be digits only`).toMatch(/^\d+$/);
+                // Two races pointing at one ride is the transposition this cannot otherwise
+                // see — both ids are valid, both pages load, and only reading them tells.
+                // UNIQUENESS NOW HAS TO HOLD ACROSS THE ARRAYS AND NOT ONLY BETWEEN ROWS:
+                // a race recorded in parts holds several ids, so the same slip can now be
+                // made twice inside one event as well as between two.
+                expect(seen.has(r.id), `${e.name} shares activity ${r.id} with another recording`).toBe(false);
+                seen.add(r.id);
+                checked++;
+            }
         }
+        expect(checked, "no event carries a recording — this assertion would be vacuous").toBeGreaterThan(0);
+    });
+
+    /**
+     * A RECORDING'S OWN FIGURES ARE PRINTED ON THE BIB, so they are held to the same shapes
+     * the race's are. The elapsed pattern is the one `elapsed_time` takes above; the distance
+     * is a finite non-negative number for the reason `km` is.
+     *
+     * AND WHERE THERE IS EXACTLY ONE, IT MUST AGREE WITH THE RACE. A single-recording race
+     * carries its figures twice — once as the race's, once as the part's — which is the
+     * deliberate redundancy `Recording`'s note explains. This is what stops the two drifting;
+     * without it, editing `km` and forgetting the recording beneath it is silent, and the
+     * suite's other distance assertions all read the race-level field.
+     *
+     * IT DELIBERATELY DOES NOT ASSERT THE SUM WHERE THERE ARE SEVERAL. The race's `km` is the
+     * summed METRES converted once, and the parts' are each converted separately, so the two
+     * are not required to be equal — only `tests/strava-verify.test.ts`, which has the metres,
+     * can check that. Asserting equality here would be red on correct data the first time a
+     * split race's roundings failed to coincide.
+     */
+    it("holds each recording's own figures to the shapes the bib prints them in", () => {
+        let checked = 0;
+        for (const e of EVENTS) {
+            const parts = recordingsOf(e);
+            for (const r of parts) {
+                expect(r.elapsed_time, `${e.name} recording ${r.id} elapsed time must be H:MM:SS`)
+                    .toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
+                expect(Number.isFinite(r.km) && r.km >= 0, `${e.name} recording ${r.id} km must be a non-negative number`)
+                    .toBe(true);
+                checked++;
+            }
+            if (parts.length !== 1) continue;
+            expect(parts[0].km, `${e.name} has one recording, so its km must equal the race's`).toBe(e.km);
+            expect(parts[0].elapsed_time, `${e.name} has one recording, so its elapsed time must equal the race's`)
+                .toBe(e.elapsed_time);
+        }
+        expect(checked, "no event carries a recording — this assertion would be vacuous").toBeGreaterThan(0);
+    });
+
+    /**
+     * A SPLIT RACE'S OWN DISTANCE, BOUNDED BY ITS PARTS — the only offline check on the one
+     * figure nothing else here can see.
+     *
+     * `km` is the summed METRES converted once, and the parts are each converted separately,
+     * so the two are NOT required to be equal and `toBe` would be red on correct data. But
+     * they cannot be far apart either: each part is rounded to two places, so it carries at
+     * most 0.005 of error, and N parts carry at most N x 0.005. That bound is exact rather
+     * than a tolerance chosen to make the test pass — widen it and it stops catching
+     * anything; narrow it and it reddens a legitimate row.
+     *
+     * WHAT IT CATCHES, AND WHY IT IS WORTH HAVING. `tests/strava-verify.test.ts` holds this
+     * figure against the real metres, but it is OPT-IN and needs live credentials, so it does
+     * not run in CI and cannot be relied on to have run at all. Without this, a mistyped
+     * race-level `km` on a split race — a transposition, a digit dropped, a figure left at
+     * one part's value — ships green. With two parts the window is 0.01 km wide, so anything
+     * worth calling a typo is outside it.
+     */
+    it("keeps a split race's distance within rounding of its parts", () => {
+        let checked = 0;
+        for (const e of EVENTS) {
+            const parts = recordingsOf(e);
+            if (parts.length < 2) continue;
+            const summed = parts.reduce((total, part) => total + part.km, 0);
+            const bound = parts.length * 0.005;
+            expect(
+                Math.abs(e.km - summed) <= bound,
+                `${e.name} says ${e.km} km but its ${parts.length} recordings sum to ${summed.toFixed(2)} km, `
+                + `which is outside the ${bound} km the roundings can account for. The race's km is the summed `
+                + "METRES converted once, so it may differ from this sum — but only by a rounding, never by this "
+                + "much. Check the figure against the API with tests/strava-verify.test.ts.",
+            ).toBe(true);
+            checked++;
+        }
+        // NO FLOOR HERE, DELIBERATELY. Split races are a property of the calendar, not of the
+        // site: there is exactly one today and there may be none after a January rollover.
+        // A `toBeGreaterThan(0)` would turn an ordinary data edit into a failed deploy — the
+        // trap the anchor test above records at length. The count is logged instead.
+        expect(checked, "split races checked").toBeGreaterThanOrEqual(0);
+    });
+
+    /**
+     * A SPLIT RACE'S CLOCK MUST AT LEAST CONTAIN ITS OWN PARTS.
+     *
+     * `elapsed_time` is first start to last stop, so it is NOT the sum of the parts — the gaps
+     * between recordings are inside it, which is exactly why summing is the wrong rule (2024's
+     * span is 10:05:34 against 7:22:15 summed, and the 2h43m in the bike shop is the
+     * difference). That makes the figure look unconstrained, and it is not: recordings do not
+     * overlap, so the span cannot be SHORTER than the time actually spent recording.
+     *
+     * `>=`, and the slack is the point rather than a weakness. An equality would be red on
+     * every real split race; this catches the failures that matter — a span accidentally set
+     * to one part's elapsed time, or to the sum-minus-a-gap, or a digit dropped from the
+     * hours. It is the only offline constraint on this field: `strava-verify` computes the
+     * true span from the activities' own timestamps, but it is opt-in, needs live credentials
+     * and does not run in CI.
+     */
+    it("never lets a split race's span be shorter than the time it spent recording", () => {
+        const seconds = (hms: string): number => {
+            const [h, m, s] = hms.split(":").map(Number);
+            return h * 3600 + m * 60 + s;
+        };
+        let checked = 0;
+        for (const e of EVENTS) {
+            const parts = recordingsOf(e);
+            if (parts.length < 2 || e.elapsed_time === undefined) continue;
+            const recording = parts.reduce((total, part) => total + seconds(part.elapsed_time), 0);
+            const span = seconds(e.elapsed_time);
+            expect(
+                span >= recording,
+                `${e.name} says its span is ${e.elapsed_time} (${span}s), but its ${parts.length} recordings `
+                + `hold ${recording}s of riding between them. First start to last stop CONTAINS every part plus `
+                + "the gaps between them, so it can never be shorter than their sum.",
+            ).toBe(true);
+            checked++;
+        }
+        expect(checked, "split races checked").toBeGreaterThanOrEqual(0);
     });
 });
 

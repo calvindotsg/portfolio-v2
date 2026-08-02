@@ -1,5 +1,5 @@
 ---
-import {goalForSport, NEW_TAB_NOTICE, PATCHES, type RaceEvent, stravaActivityUrl} from "../lib/constants";
+import {goalForSport, NEW_TAB_NOTICE, PATCHES, type RaceEvent, recordingsOf, stravaActivityUrl} from "../lib/constants";
 import {patchDateSegments, type PatchState} from "../lib/projection";
 import {iconClass} from "../lib/icons";
 
@@ -57,12 +57,29 @@ const {event, state} = Astro.props;
  * an element-name selector here would have made this a rewrite. `container-type` stays on
  * whichever element wears `.bib`, or the hero's `22cqi` loses its container.
  *
- * IT IS CONDITIONAL ON THE ID, NOT ON THE STATE, because `strava_activity_id` is optional
+ * IT IS CONDITIONAL ON THE RECORDINGS, NOT ON THE STATE, because `recordings` is optional
  * and a finished race without one must still render as an ordinary finished bib — the rule
  * above `EVENTS` in constants.ts, and what makes filling in a back catalogue a data edit.
  * Whether any race on the wall is in that state right now is not the point and changes with
  * the data; this used to name one that has since been recorded. The fixtures in
  * patch-wall.test.ts hold the case either way.
+ *
+ * AND IT IS CONDITIONAL ON HOW MANY. **A bib is the link when there is one place to go;
+ * when there is more than one, the bib HOLDS the links instead.** A race recorded in parts
+ * has no single honest destination — Strava cannot merge two activities, so there is no URL
+ * that is the whole race — and anchors do not nest, so the bib cannot both be a link and
+ * contain them. The usual escape, a stretched `::before` over the card, is unavailable here:
+ * patch-wall.test.ts refuses any rule reaching a bib through a pseudo-element, by
+ * construction.
+ *
+ * THE ALTERNATIVE WAS TO DELEGATE ON EVERY BIB, and it was drawn and rejected. It would give
+ * every linked bib the SAME accessible name — one string, "View on Strava", repeated across
+ * as many races as the wall holds, which is the SC 2.4.4 failure this file otherwise works to
+ * avoid — while shrinking a whole bib to a 24px row on races that have nothing wrong with
+ * them. (No count here on purpose: how many bibs link is a property of the data on the day
+ * you read this, and the argument does not depend on it.) Only the exception pays, which is
+ * the rule `booked_label` is already decided by a few paragraphs up: you mark the exception,
+ * not the norm.
  *
  * `target="_blank"` and NO `rel`, matching this site's existing convention — Now.astro and
  * IntroCard.astro both use a bare `target="_blank"` and browsers imply `noopener`.
@@ -91,19 +108,24 @@ const {event, state} = Astro.props;
 const date = patchDateSegments(event);
 const goal = goalForSport(event.sport);
 const [whole, fraction] = event.km.toFixed(2).split(".");
-const activity = stravaActivityUrl(event);
+const recordings = recordingsOf(event);
+// The ONE recording a bib can be the anchor for, or null where there is none or several.
+// Everything downstream keys on this rather than counting again, so the three cases cannot
+// drift apart: no recordings (a plain bib), one (today's bib, unchanged), many (the stub).
+const only = recordings.length === 1 ? recordings[0] : null;
+const parts = recordings.length > 1 ? recordings : null;
 // `div` rather than `li`: the LIST ITEM is the cell wrapper now, and a second one nested
 // inside it is invalid HTML that no test in this repo reads markup strictly enough to see.
 // Caught by looking at the built page, which is the only place it showed.
-const Tag = activity === null ? "div" : "a";
+const Tag = only === null ? "div" : "a";
 ---
 
 <li class="bib-cell">
 <Tag
         class:list={["bib", `bib--${event.sport}`, state === "booked" && "bib--booked",
-                     activity !== null && "bib--linked"]}
-        href={activity ?? undefined}
-        target={activity === null ? undefined : "_blank"}
+                     only !== null && "bib--linked", parts !== null && "bib--split"]}
+        href={only === null ? undefined : stravaActivityUrl(only)}
+        target={only === null ? undefined : "_blank"}
 >
     <p class="bib-meta">
         {/* One <time> per endpoint, never one around the whole range: `datetime` names a
@@ -130,11 +152,39 @@ const Tag = activity === null ? "div" : "a";
                 <span class="bib-time-value">{event.elapsed_time}</span>
             </p>
     )}
-    {activity !== null && (
+    {only !== null && (
             <p class="bib-go">
                 <span class={`${iconClass(PATCHES.strava_icon)} bib-icon bib-go-mark`} aria-hidden="true"></span>
                 {PATCHES.strava_name}
             </p>
+    )}
+    {/* THE STUB, WHERE A RACE WAS RECORDED IN PARTS. One line per recording, each its own
+        link, each printing the distance and the clock waiting at the other end of it — so
+        the bib's summed hero is never what any link promises.
+
+        THE LINES CARRY FIGURES AND NO WORDS, which is what lets this scale. A shared label
+        repeated once per recording is information at two parts and noise at four, the same
+        argument `booked_label` is decided by. Figures do not go stale that way, and a run of
+        them is a splits table, which is what a results sheet prints anyway.
+
+        The destination and the race are said in the accessible name instead — this bib's
+        rule is that the name is a true superset of what is on screen, never an aria-label
+        replacing it, and a reader listing every link on the page needs both. */}
+    {parts !== null && (
+            <ul class="bib-splits">
+                {parts.map((part) => (
+                        <li>
+                            <a class="bib-split" href={stravaActivityUrl(part)} target="_blank">
+                                <span class={`${iconClass(PATCHES.strava_icon)} bib-icon bib-go-mark`} aria-hidden="true"></span>
+                                <span class="bib-split-km">{PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} ${goal.measurable_unit}`)}</span>
+                                {" "}
+                                <span class="bib-split-time">{part.elapsed_time}</span>
+                                <span class="sr-only">{" " + PATCHES.split_name.replace("{race}", event.name) + " "}</span>
+                                <span class="sr-only">{NEW_TAB_NOTICE}</span>
+                            </a>
+                        </li>
+                ))}
+            </ul>
     )}
     {/* THE NOTICE FOLLOWS THE ACTION ROW, and the order is the point: the announced name now ends
         with the call to action and then the warning, so the warning qualifies the control it
@@ -149,7 +199,7 @@ const Tag = activity === null ? "div" : "a";
         destination was announced THIRD, inside the meta row. The action row moved that to last and
         the name is now 97 characters plus this notice; re-read it off the AX tree rather than
         trusting either figure. */}
-    {activity !== null && <span class="sr-only">{NEW_TAB_NOTICE}</span>}
+    {only !== null && <span class="sr-only">{NEW_TAB_NOTICE}</span>}
 </Tag>
 </li>
 
@@ -695,8 +745,149 @@ const Tag = activity === null ? "div" : "a";
      * them render — and `.bib-cell { display: grid }` stretches a bib to its row's height, so
      * the cost would propagate to each linked bib's row-mates as well.
      */
-    .bib--linked {
+    .bib--linked,
+    .bib--split {
         grid-template-areas: "date date" "value unit" "name name" "place place" "time time" "go go";
+    }
+
+    /*
+     * THE STUB IS PERFORATED ONCE, NOT ONCE PER LINE, and that is the difference between
+     * material vocabulary and decoration. A race bib has A stub — it does not sprout a second
+     * one because a watch stopped — so the perforation stays on the LIST and the recordings
+     * are printed on it. A device that scales with the length of an array has stopped
+     * describing the object and started describing the data.
+     *
+     * Same construction as `.bib-go`, which is the row this replaces on a split bib: 1px dots
+     * on a 6px tile, in the row's own ink at 45%, painted on the element's own padding rather
+     * than by a pseudo-element. The four gates that forbid the pseudo are written out above
+     * `.bib-go`; they apply here identically.
+     */
+    .bib-splits {
+        grid-area: go;
+        display: grid;
+        gap: 0;
+        margin: 0.25rem 0 0;
+        padding-top: 0.5rem;
+        padding-inline: 0;
+        padding-bottom: 0;
+        list-style: none;
+        background-image: radial-gradient(circle at 1.5px 0.5px,
+            color-mix(in srgb, currentColor 45%, transparent) 0 1px, transparent 1.2px);
+        background-size: 6px 1px;
+        background-repeat: repeat-x;
+        background-position: top left;
+    }
+
+    /*
+     * ONE RECORDING, AS A SPLIT LINE. Its own distance and its own clock, which are exactly
+     * the two figures a reader would otherwise be ambushed by at the other end of the link.
+     *
+     * `min-height` IS THE TARGET FLOOR AND IT IS NOT DECORATIVE. This row is a target where
+     * the whole bib used to be one. Without the declaration it renders 24.59px against
+     * SC 2.5.8's 24px — a 0.6px pass resting on UnoCSS preflight's `line-height: 1.5`, which
+     * nothing here declares or asserts; at 1.4 it fails. And two split lines are vertically
+     * adjacent with no gap, so the spacing exception is arithmetically identical to the size
+     * rule (centre-to-centre distance IS the row height) and can never rescue one. 1.5rem is
+     * the floor this repo already sets for a small control, and being font-relative it scales
+     * with the reader's text instead of staying put.
+     *
+     * THE INLINE PADDING IS FOR THE FOCUS OUTLINE, and the negative margin undoes it for the
+     * ink. An inset outline with no padding paints exactly on the leading edge of the
+     * content — through the Strava mark — and on the trailing edge through the clock. The
+     * padding gives the outline somewhere to land; the margin pulls the BOX back out so the
+     * figures still line up with the name, the place and the elapsed row above them. The
+     * perforation is on the list rather than this row, so it keeps the content width and
+     * does not widen with the padding.
+     *
+     * `flex-wrap` and `overflow-wrap` for the reason `.bib-time` and `.bib-go` have them,
+     * and the same trap: a bib does NOT clip, so ink that escapes paints onto the card at
+     * 1.045:1 — unreadable rather than absent, and unseen by any sweep that walks only
+     * clipping ancestors. `17.91` and `1:28:41` are unbreakable tokens of the same shape as
+     * the elapsed row's, which was measured escaping from a 42px root.
+     */
+    .bib-split {
+        display: flex;
+        flex-wrap: wrap;
+        overflow-wrap: anywhere;
+        align-items: center;
+        gap: 0.4em;
+        margin-top: 0;
+        margin-bottom: 0;
+        margin-inline: -0.35rem;
+        padding-top: 0.15rem;
+        padding-bottom: 0.15rem;
+        padding-inline: 0.35rem;
+        min-height: 1.5rem;
+        color: inherit;
+        opacity: 0.8;
+        text-decoration: none;
+        font-size: 0.625rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .bib-split-km {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /*
+     * The clock is dimmed and the distance is not, which is the same split `.bib-time` makes
+     * one row up: the distance is what tells one link from another, the clock is context for
+     * it. That puts this under the composited-contrast sweep with the date, the tag and the
+     * place, where the floor is actually checkable — the authored ink is `--background` on
+     * `--text`, 18.86:1, and tells you nothing.
+     */
+    .bib-split-time {
+        margin-left: auto;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.08em;
+    }
+
+    /*
+     * THE STATE IS AN OUTLINE BECAUSE NOTHING ELSE IS ALLOWED TO BE ONE HERE, and it is drawn
+     * in the bib's own ink rather than in `--accent`. Both halves are measured.
+     *
+     * The bib's own outline paints OUTSIDE the bib, so the surface it must clear is the card
+     * — the pair `--accent` is already held to 3:1 against, at 6.52:1 light and 12.55:1 dark.
+     * A split line sits INSIDE the inverted face, where that same token lands at 2.77:1 and
+     * 1.37:1, both under SC 1.4.11. (2.77 is the number the booked-bib note above already
+     * flags for the sport mark: the palette has one accent and it was chosen against the
+     * card.) `currentColor` is `--ink` on `--face`, 18.86:1 by construction, and it follows
+     * the treatment per state and per theme instead of needing four pairs re-derived.
+     *
+     * The bib-native move — inverting the line the way the sport chips draw the current page
+     * — is not available: patch-wall.test.ts refuses any selector carrying a pseudo-class on
+     * a rule declaring colour, background colour, opacity or a custom property, so that would
+     * be a red build on correct code. `outline` is not a modelled property, which is what
+     * makes it the one channel a state has inside a bib.
+     *
+     * OFFSET INWARDS, because two split lines are adjacent with no gap and an outset outline
+     * would paint into the next target.
+     *
+     * The hover half is split from the others for the reason `.bib--linked`'s is: a touch
+     * browser applies `:hover` on tap and holds it, while `:focus-visible` is a keyboard
+     * indicator every device needs. `:active` is not gated either, and is the only affordance
+     * a touch reader can produce deliberately — it matters more here than on the bib, because
+     * the platform's own tap flash is `--accent` at 18% and composites to 1.09:1 on an
+     * inverted face, which is nothing at all.
+     */
+    .bib-split:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: -1px;
+    }
+
+    .bib-split:active {
+        outline: 2px solid currentColor;
+        outline-offset: -1px;
+    }
+
+    @media (hover: hover) {
+        .bib-split:hover {
+            outline: 2px solid currentColor;
+            outline-offset: -1px;
+        }
     }
 
     /*
@@ -864,6 +1055,31 @@ const Tag = activity === null ? "div" : "a";
             background-image: none;
             border-top: 1px dashed CanvasText;
         }
+
+        /* The split lines take the same three treatments the action row does, for the same
+           three reasons: `LinkText` so they read as controls in a mode that discards the
+           text decoration they never had, and the perforation redrawn as a dashed border
+           because a background image is exactly what this mode throws away. */
+        .bib-split {
+            color: LinkText;
+        }
+
+        .bib-splits {
+            background-image: none;
+            border-top: 1px dashed CanvasText;
+        }
+    }
+
+    @media (forced-colors: active) and (hover: hover) {
+        .bib-split:hover {
+            outline-color: LinkText;
+        }
+    }
+
+    @media (forced-colors: active) {
+        .bib-split:focus-visible {
+            outline-color: LinkText;
+        }
     }
 
     @media print and (hover: hover) {
@@ -891,6 +1107,28 @@ const Tag = activity === null ? "div" : "a";
         .bib-go {
             background-image: none;
             border-top: 1px dashed #000;
+        }
+
+        /* Literal black for the reason every other print rule here takes it: paper is white
+           whichever theme the reader had on screen. The split lines keep their perforation
+           on paper for the same reason the action row does — the link is dead there, but the
+           perforation still says this bib has a stub, and what is printed on it is the race
+           broken into the parts it was recorded in. */
+        .bib-splits {
+            background-image: none;
+            border-top: 1px dashed #000;
+        }
+    }
+
+    @media print and (hover: hover) {
+        .bib-split:hover {
+            outline: none;
+        }
+    }
+
+    @media print {
+        .bib-split:focus-visible {
+            outline: none;
         }
     }
 </style>

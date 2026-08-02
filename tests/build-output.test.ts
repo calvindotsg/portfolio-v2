@@ -1248,12 +1248,31 @@ describe("every link on every page says that it is one", () => {
             // An icon-only control: no visible words at all, and its name comes from an sr-only
             // span. If it ever grows visible text it stops qualifying here and must wear an
             // idiom like everything else.
+            //
+            // "VISIBLE" MEANS WHAT A READER CAN SEE, NOT WHAT IS A DIRECT TEXT NODE, and the
+            // difference is not academic — it was measured. This read `a.childNodes` filtered to
+            // `nodeType === 3`, so a link whose words sit inside SPANS scored as having none and
+            // took this branch as though it were a bare glyph. The patch wall's split lines are
+            // exactly that shape (`<span class="bib-split-km">17.91 km</span>`): they carry two
+            // visible figures and were being exempted here as icon-only, so the affordance this
+            // gate exists to check was never checked for them. Excluding `.sr-only` subtrees and
+            // reading the rest of `textContent` is what the branch always meant. The genuinely
+            // icon-only controls are unaffected — they have no visible text under either reading,
+            // and they are caught by `.control` a few lines above in any case.
             const srOnly = a.querySelector(".sr-only");
-            const visibleText = [...a.childNodes]
-                .filter((n) => n.nodeType === 3).map((n) => n.textContent ?? "").join("").trim();
+            const seen = a.cloneNode(true) as Element;
+            for (const hidden of [...seen.querySelectorAll(".sr-only")]) hidden.remove();
+            const visibleText = (seen.textContent ?? "").trim();
             if (srOnly && !visibleText) return false;
             // The whole bib is the anchor; its signifier is the row inside it, not the class.
             if (a.classList.contains("bib--linked") && a.querySelector(".bib-go")) return false;
+            // AND WHERE A RACE HAS MORE THAN ONE DESTINATION THE BIB CANNOT BE THE ANCHOR, so the
+            // stub's split lines are. This is the same exemption one line up rather than a new
+            // kind: the line IS the bib's action row for a split race, drawn in the same idiom as
+            // the `.bib-go` row it replaces — the brand mark, the bib's emphatic weight, and the
+            // perforated stub it sits on — rather than as prose. It is keyed on the line being
+            // inside a split bib, so a `.bib-split` that ever escaped one would still be caught.
+            if (a.classList.contains("bib-split") && a.closest(".bib--split")) return false;
             return true;
         });
 

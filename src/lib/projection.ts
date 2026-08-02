@@ -1,5 +1,5 @@
 import stravaProgress from "../data/strava-progress.json"
-import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, type Sport} from "./constants"
+import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, recordingsOf, type Sport} from "./constants"
 import {BUILD_DATE} from "./today"
 
 /**
@@ -181,7 +181,7 @@ const GOAL_YEAR_EVENTS: readonly RaceEvent[] = eventsInYear(GOAL_YEAR)
  * a calendar where every finished race happens to have one.
  */
 const hasRecording = (event: RaceEvent): boolean =>
-    event.elapsed_time !== undefined && event.strava_activity_id !== undefined
+    event.elapsed_time !== undefined && recordingsOf(event).length > 0
 
 /**
  * Riding days from `iso` to 31 December of `GOAL_YEAR`, counting BOTH ends, never

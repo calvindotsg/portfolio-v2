@@ -154,9 +154,12 @@ read them from `pnpm test`.
 
 One suite is OPT-IN and reaches the network, which is why it is listed apart:
 
-- `tests/strava-verify.test.ts` — holds every `EVENTS` row that names a Strava activity
-  against that activity, over the API: its distance, its elapsed time, and that it was
-  recorded on the race's own day. It skips unless `STRAVA_VERIFY=1`, and needs
+- `tests/strava-verify.test.ts` — holds every Strava activity named in `EVENTS` against
+  that activity, over the API: its distance, its elapsed time, and that it was recorded on
+  the race's own day. A race recorded in parts names several, so it also holds the RACE's
+  own two figures — its distance against the summed metres, and its elapsed time against
+  the span from the first recording's start to the last one's stop, which is not any single
+  activity's figure and cannot be checked anywhere else. It skips unless `STRAVA_VERIFY=1`, and needs
   `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN` in the environment —
   the same names `scripts/fetch-strava-progress.mjs` reads. Deliberately not part of the
   default run: `pnpm test` gates both deploys, so a rate limit or an expired token would read
