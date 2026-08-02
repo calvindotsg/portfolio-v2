@@ -413,6 +413,30 @@ export type RaceEvent = {
     /** ISO `YYYY-MM-DD`, the last day — multi-day events only. */
     end_date?: string
     name: string
+    /**
+     * How far the race was, and WHICH distance that means is the maintainer's decision
+     * rather than an obvious reading — so it is written down here.
+     *
+     * WHERE THERE IS A RECORDING, THIS IS THE RECORDED DISTANCE, not the event's advertised
+     * one. The bib then prints one ride's own figures: this beside the `elapsed_time` off the
+     * same activity. Where a race has no recording it can only be the event's distance, which
+     * is what every booked race carries.
+     *
+     * THAT REVERSED AN EARLIER RULE, and the reversal is his — do not "restore" the old one
+     * from the reasoning still recorded under {@link elapsed_time}. This used to be the
+     * EVENT's distance always, on the argument that a bib should print the race rather than
+     * the ride, and the gap is not small: the round-island ride's own 160.56 km against the
+     * 121.98 km route, a 21 km half marathon recorded as 22.45. Both readings are defensible
+     * and he chose the recorded one, because it is the figure the linked activity will show a
+     * reader who follows the bib.
+     *
+     * THE JULY DCR ROWS STILL CARRY EVENT DISTANCES, and that is a limit of the evidence, not
+     * a second convention. The 10 July race was recorded as TWO activities — a 22.55 km
+     * escort and the 140.49 km ride, 163.04 km together against the event's 160.59 — so
+     * "the recorded distance" has no single answer there; see the split-recording note under
+     * {@link elapsed_time}. 12 July has not been checked for the same split. Convert either
+     * one only with its activity page in front of you.
+     */
     km: number
     sport: Sport
     /**
@@ -464,12 +488,15 @@ export type RaceEvent = {
      * appears on a bib.
      *
      * NOTE WHICH SCOPE THIS IS. It is the race's own time, from the activity the race was
-     * recorded as. The bib prints it beside the EVENT's distance, and on 10 July those
-     * come from slightly different scopes: the day holds two Strava activities — a 22.55km
-     * escort out of Phuket and the 140.49km ride — totalling 163.04 against the event's
-     * 160.59, and whole-day elapsed would be 9:55 rather than 8:32:05. The residual is
-     * +2.45km and it is left alone deliberately; engineering it away would mean the bib
-     * printing a number that is not the race.
+     * recorded as, and {@link km} now comes off that same activity — so for most races the
+     * two figures on a bib share one scope, which is the point of the rule recorded there.
+     *
+     * 10 JULY IS THE EXCEPTION, AND IT IS WHY THAT RULE HAS A LIMIT. The day holds two Strava
+     * activities — a 22.55km escort out of Phuket and the 140.49km ride — totalling 163.04
+     * against the event's 160.59, and whole-day elapsed would be 9:55 rather than 8:32:05.
+     * There is no single recorded distance to print, so this row keeps the event's 160.59 and
+     * the +2.45km residual is left alone deliberately; engineering it away would mean the bib
+     * printing a number no ride held.
      *
      * (That day is also why a 20km "silent disagreement" was once reported here and was
      * not one. A single Strava activity is not a day. Before concluding that a
@@ -497,15 +524,15 @@ export type RaceEvent = {
 }
 
 export const EVENTS: readonly RaceEvent[] = [
-    {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 21.10, sport: "running", country: "Singapore", elapsed_time: "3:44:25", strava_activity_id: "8204481233"},
+    {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 22.45, sport: "running", country: "Singapore", elapsed_time: "3:44:25", strava_activity_id: "8204481233"},
     {date: "2023-08-06", name: "Pesta Sukan Round Island Bike Adventure", km: 87.42, sport: "cycling", country: "Singapore", elapsed_time: "13:36:10", strava_activity_id: "9593519661"},
     {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 117.41, sport: "cycling", country: "Singapore", elapsed_time: "5:53:34", strava_activity_id: "12058885236"},
     {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.59, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25", strava_activity_id: "16736512210"},
-    {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 100.00, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15", strava_activity_id: "18433212592"},
+    {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 130.03, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15", strava_activity_id: "18433212592"},
     {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
     {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31", strava_activity_id: "19279762093"},
-    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.00, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
-    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 121.98, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17", strava_activity_id: "19566067972"},
+    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.16, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
+    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 160.56, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17", strava_activity_id: "19566067972"},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
     {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
     {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running", country: "Singapore"},
