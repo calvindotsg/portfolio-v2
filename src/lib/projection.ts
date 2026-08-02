@@ -29,20 +29,31 @@ import {BUILD_DATE} from "./today"
  * remaining` extrapolates nothing. It contains no pace term, so the composition of
  * what is already banked cannot corrupt it, and it claims nothing about what the
  * owner will do. It still carries the point the owner cared about — counting his
- * booked races takes cycling from 122 km/wk to 71 km/wk, a 42% reduction — without
+ * booked races takes cycling from 118 km/wk to 71 km/wk, a 40% reduction — without
  * a forecast.
  *
  * THE COMPARATOR RULE, if a pace is ever displayed beside this. It must be the
  * DE-RACED pace, never the observed one. The required rate already has future race
  * km subtracted; setting it next to an observed pace that still contains past race
  * km reimports the double count by juxtaposition, and the reader does the wrong
- * subtraction themselves. The three figures are 65.99 (de-raced) < 70.28 (required)
- * < 76.72 (observed) — the requirement sits BETWEEN the two paces, which is exactly
- * why picking the wrong one flips the story.
+ * subtraction themselves. The three figures are 60.55 (de-raced) < 70.82 (required)
+ * < 79.82 (observed) — the requirement sits BETWEEN the two paces, which is exactly
+ * why picking the wrong one flips the story. The ORDERING is the rule; the gaps move.
  *
- * EVERY NUMBER IN THIS COMMENT IS AS OF THE 2026-07-28 STAMP, and is stated that way
- * because they drift with the bot. They are here to carry a rule that does not
- * drift; re-derive them before quoting one as current.
+ * THE TWO PARAGRAPHS ABOVE ARE PINNED TO THE STAMP THE TREE ITSELF CARRIES — the
+ * 2026-08-02 / 2440.3 km in `src/data/strava-progress.json` — so a reader can re-derive
+ * all six figures from the checked-out repository and nothing else. That is the point of
+ * choosing the current stamp over any other. They exist to carry rules that do not drift;
+ * re-derive before quoting one as current. (The DOUBLE COUNT paragraph at the top is
+ * different: it says "when this was written" and its 318.72 / 1,143.98 / +144 / −96 are
+ * that moment's, kept as the measurement that settled the design.)
+ *
+ * THEY DRIFT WITH `EVENTS`, NOT ONLY WITH THE BOT, and an earlier revision of this warning
+ * said only "the bot". That is exactly how they went stale in silence: adding races moved
+ * four of them while the stamp they were pinned to stayed put, so the disclaimer went on
+ * reading as though it still covered them, and a reader following its own re-derive
+ * instruction would have got different numbers. **If you change a race, re-derive this
+ * block** — and note that it is ungated, like every measurement in this repo.
  *
  * ---
  *
@@ -159,9 +170,15 @@ const GOAL_YEAR_EVENTS: readonly RaceEvent[] = eventsInYear(GOAL_YEAR)
  * that has not happened is caught at build by the gate in tests/projection.test.ts,
  * which refuses a finishing time on a race that has not started.
  *
- * THE CLOCK STILL RULES EVERY RACE WITHOUT ONE. Round the Island is ridden with
- * nothing recorded, and it becomes a finished bib the day after it is ridden, exactly
- * as before. This is a second, sufficient way to be finished — not a replacement.
+ * THE CLOCK STILL RULES EVERY RACE WITHOUT ONE. A race with no recording — one ridden
+ * with nothing on a device, or a back-catalogue entry typed from memory — becomes a
+ * finished bib the day after it is ridden, exactly as before. This is a second,
+ * sufficient way to be finished, not a replacement.
+ *
+ * IT DELIBERATELY NAMES NO EXAMPLE. This paragraph used to point at one race in `EVENTS`,
+ * which stopped being true the day that race was recorded; which races currently lack a
+ * recording is a property of the data on the day you read this, and the rule holds even on
+ * a calendar where every finished race happens to have one.
  */
 const hasRecording = (event: RaceEvent): boolean =>
     event.elapsed_time !== undefined && event.strava_activity_id !== undefined
@@ -274,14 +291,23 @@ export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonl
     if (days < FINAL_STRETCH_DAYS) return {kind: "final", km: Math.ceil(km), days}
 
     // CEIL, not round or floor, and this is a correctness choice rather than taste.
-    // At the 2026-07-28 stamp the requirement is 70.2818 km/wk; floor and round both
-    // give 70, and a rider following 70 exactly delivers 1,570.00 km against the
-    // 1,576.32 needed — a rate that MISSES the goal. Round is wrong on any date whose
-    // requirement has a fractional part below .5, which is most of them: sweeping this
-    // function over the rest of the calendar gives 154 of the 288 remaining sport-days
-    // that land in this branch. Ceil never under-states what is required. One km/wk is
-    // 0.45% of the cycling goal but 3.74% of the running one, so the same rounding
-    // step is eight times as consequential on the smaller card.
+    // At the 2026-07-27 stamp the requirement is 75.2411 km/wk; round gives 75, and a
+    // rider following 75 exactly delivers 1,692.86 km against the 1,698.30 needed — a
+    // rate that MISSES the goal. Round is wrong on any date whose requirement has a
+    // fractional part below .5, which is most of them: sweeping this function over the
+    // rest of the calendar gives 150 of the 290 remaining sport-days that land in this
+    // branch. Ceil never under-states what is required. One km/wk is 22.57 km over the
+    // 158 days left at that stamp — 0.45% of the cycling goal but 3.76% of the running
+    // one, so the same rounding step is eight times as consequential on the smaller card.
+    //
+    // WHICH DATE DEMONSTRATES THIS MOVES WITH THE NUMERATOR, so re-derive it rather than
+    // quoting the one above. Every rate's fractional part shifts when the kilometres owed
+    // change, and these figures have already moved once: recording the round-island ride
+    // took the requirement at this stamp from 70.2818 to 75.2411 and SWAPPED which of two
+    // adjacent days can tell ceil from round — 2026-07-28 used to be the case that ruled
+    // round out, and now round and ceil agree there. A stale example here is worse than no
+    // example, because it invites a reader to re-derive it and conclude that round is fine.
+    // tests/projection.test.ts pins the current pair and says how to move the roles.
     const kmPerWeek = Math.ceil(km / (days / DAYS_PER_WEEK))
     return {kind: "rate", kmPerWeek, km, days}
 }
@@ -392,15 +418,17 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * WHAT THE SWEEP THEREFORE CANNOT SEE, since the two consumers stopped sharing a day.
  * `patchState` takes `BUILD_DATE` and `goalStatus` takes `UPDATED_AT`, so on any build
  * later than the stamp, a race that ended in between is `finished` on the wall while
- * `bookedAhead` still books its kilometres. Ride Round the Island on 2 August, deploy
- * anything on the 3rd before the bot pushes, and the wall draws an earned patch while the
- * cycling card is still counting its 121.98 km ahead.
+ * `bookedAhead` still books its kilometres. Ride a race on the Sunday, deploy anything on
+ * the Monday before the bot pushes, and the wall draws an earned patch while the goal card
+ * is still counting that race's kilometres ahead.
  *
  * THAT IS THE DELIBERATE CONSEQUENCE OF THE SPLIT, NOT A BUG TO CLOSE, and the arithmetic
  * is why: the stamp's kilometres do not include that ride yet, so booking it keeps the
  * numerator and the denominator the same age and the distance counted exactly ONCE.
- * Measured across the push — 71 km/wk before, 74 after, and the difference is five days
- * of denominator, not a double count. Dropping the race from `booked` the moment the WALL
+ * Measured across one such push — 71 km/wk before, 74 after, and the difference is five days
+ * of denominator, not a double count. Those three figures are that push's, kept as the
+ * measurement that settled the question; the live rate has moved many times since and is not
+ * what this paragraph is claiming. Dropping the race from `booked` the moment the WALL
  * calls it finished, without banking its kilometres, reads 77: further from the settled
  * figure than leaving it alone, and it would be inventing a distance nobody has measured,
  * which is the one thing the header of this file refuses to do. So do NOT "fix" this by

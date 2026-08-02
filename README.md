@@ -152,6 +152,20 @@ guards in GitHub's own expression evaluator: the deploy gate and the DNS apply
 gate respectively. Deliberately no counts in prose, of suites or of assertions:
 read them from `pnpm test`.
 
+One suite is OPT-IN and reaches the network, which is why it is listed apart:
+
+- `tests/strava-verify.test.ts` — holds every `EVENTS` row that names a Strava activity
+  against that activity, over the API: its distance, its elapsed time, and that it was
+  recorded on the race's own day. It skips unless `STRAVA_VERIFY=1`, and needs
+  `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN` in the environment —
+  the same names `scripts/fetch-strava-progress.mjs` reads. Deliberately not part of the
+  default run: `pnpm test` gates both deploys, so a rate limit or an expired token would read
+  as a broken site. It catches the two things a hand-typed figure gets wrong — a figure read
+  off a screenshot before the activity was edited, and a distance converted the other way from
+  the rule, since `km` is metres rounded half-up to two places and truncating instead puts four
+  of these rows out by 0.01. The token needs `activity:read_all`; a detailed read answers 404,
+  not 403, when the scope is missing, so an under-scoped token looks exactly like a wrong id.
+
 One suite has the repository itself as its subject rather than the site:
 
 - `tests/docs-drift.test.ts` — asserts this README, `CLAUDE.md`, `.devin/wiki.json`

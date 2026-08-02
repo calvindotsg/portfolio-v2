@@ -24,8 +24,10 @@ import stravaProgress from "../data/strava-progress.json"
  * `strava.com/activities/<id>`, which reads as "public" and was recorded as such. It is
  * not: fetched and read, the page for a logged-out visitor is
  * *"Log in to see 'MBG DCR 2026 Krabi to Phuket'"* and a sign-up prompt. The title is
- * there; the distance, the date and the time are not. Checked on both of the owner's two
- * finished 2026 rides (19279762093 and 19254155835) on 2026-07-28.
+ * there; the distance, the date and the time are not. Checked on two of the owner's rides
+ * (19279762093 and 19254155835) on 2026-07-28; the finding is about Strava rather than
+ * about those two, and a `followers_only` activity is walled harder still — see
+ * {@link RaceEvent.strava_activity_id}'s note.
  *
  * So a status code is not an answer to "can a reader see this" — READ THE PAGE.
  *
@@ -336,7 +338,8 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * both moments — the page is out by the length of the race until the second step lands,
  * and the only choice is which way it is out. An earlier draft of this note gave one
  * unconditional order and claimed "no figure on the page is ever wrong"; that was false,
- * and measured wrong by 6 km/wk in the case it got backwards.
+ * and measured wrong by 5 km/wk in the case it got backwards — 66 against the honest 71
+ * below, which is where that figure comes from and why it moves when they do.
  *
  * The two fields together are what tells the site the race has been RUN (see
  * `hasRecording` in projection.ts), and a run race stops being counted as booked ahead.
@@ -352,10 +355,17 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  *   A RACE ALREADY ON THIS LIST — every planned race, which is the common case. ADD THE
  *   RECORDING FIRST, then let the 05:13 cron move the kilometres. Fetching first puts the
  *   distance in BOTH places while the race sits here without its recording: measured on
- *   the 2 August ride, 67 km/wk against an honest 73 — the deficit subtracted twice, in
+ *   the 2 August ride, 66 km/wk against an honest 71 — the deficit subtracted twice, in
  *   the FLATTERING direction this file guards against everywhere else. Recording-first
  *   errs the other way (79) until the next push, and the push is guaranteed here because
  *   the race itself moved the kilometres, so `git diff --quiet` cannot suppress it.
+ *
+ *   THOSE ARE THE FIGURES THE MISTAKE ACTUALLY PRODUCED, not a simulation of it. This note
+ *   first quoted 67 against 73, modelled before the ride from the event's ADVERTISED
+ *   distance; the ride came in longer than the route, so the real pair landed one and two
+ *   km/wk below the model. The hazard and its direction are unchanged — which is the point
+ *   worth keeping: a simulated measurement is worth less than the incident's own, so when
+ *   the hazard finally happens, replace the model with what it did.
  *
  * The rate erring HIGH is the safe direction rather than a harmless one — do not read it
  * as licence to skip the second step. And note this procedure quietly falsified a premise
@@ -383,9 +393,15 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * was recorded the other way first, on good-looking evidence: `curl` gets HTTP 200 with no
  * redirect from `strava.com/activities/<id>`, which reads as "public". Fetched and READ,
  * the page is *"Log in to see 'MBG DCR 2026 Krabi to Phuket'"* and a sign-up prompt — the
- * title is there, the distance and the time are not. Checked on every id in EVENTS the day
- * it was added, most recently 2026-07-29. A status code is not an answer to "can a reader
- * see this"; re-check by reading, not by curling.
+ * title is there, the distance and the time are not. A status code is not an answer to "can
+ * a reader see this"; re-check by reading, not by curling.
+ *
+ * AND THE 200 IS NOT UNIVERSAL EITHER, which the paragraph above used to imply. That code
+ * belongs to an activity whose visibility is `everyone`. A `followers_only` one answers 307
+ * with a 14-byte body: no page, no title, nothing to read. Both kinds are in {@link EVENTS},
+ * so the wall is partial for some of these links and total for others — and the ones a
+ * reader can learn least from are the ones the owner shared least widely, which is the
+ * expected direction rather than a defect.
  *
  * The decision. The owner read that and asked for the links anyway. A visitor who has
  * Strava — which is most of the audience for a wall of race bibs — gets the ride; one who
@@ -393,10 +409,15 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * because the bib already prints the distance, the date and the time, so the link adds to
  * a complete object rather than being the only way to learn anything.
  *
- * (The wall leaking the title is also the technique for VERIFYING an id without an
- * account, which is how every id below was checked rather than trusted: fetch the page and
- * read which race it names. Two valid ids transposed between events would otherwise
- * produce a wall nothing on this site could catch.)
+ * (THE TITLE LEAK VERIFIES A PUBLIC ID AND ONLY A PUBLIC ID, which is why it is no longer
+ * the technique here. Fetching the page logged out and reading which race the title names
+ * works wherever visibility is `everyone`; where it is `followers_only` there is nothing to
+ * read at all, so the ids needing an independent witness most are exactly the ones this
+ * cannot check. `tests/strava-verify.test.ts` is the technique now — it reads each activity
+ * over the API, which answers for both visibilities, and holds the row against its
+ * distance, its elapsed time and the DAY it was recorded. Two valid ids transposed between
+ * events would otherwise produce a wall where every link resolves and every bib looks
+ * right; comparing the day is what catches that.)
  *
  * `elapsed_time` IS HAND-ENTERED AND STAYS THAT WAY. A finishing time is immutable
  * history, so it belongs beside `km` and `name` here rather than in the bot's JSON: the
@@ -413,10 +434,96 @@ export type RaceEvent = {
     /** ISO `YYYY-MM-DD`, the last day — multi-day events only. */
     end_date?: string
     name: string
+    /**
+     * How far the race was, and WHICH distance that means is the maintainer's decision
+     * rather than an obvious reading — so it is written down here.
+     *
+     * WHERE THERE IS A RECORDING, THIS IS THE RECORDED DISTANCE, not the event's advertised
+     * one. The bib then prints one ride's own figures: this beside the `elapsed_time` off the
+     * same activity. Where a race has no recording it can only be the event's distance, which
+     * is what every booked race carries.
+     *
+     * THAT REVERSED AN EARLIER RULE, and the reversal is his — do not "restore" the old one
+     * from the reasoning still recorded under {@link elapsed_time}. This used to be the
+     * EVENT's distance always, on the argument that a bib should print the race rather than
+     * the ride, and the gap is not small: the round-island ride's own 160.57 km against the
+     * 121.98 km route, a 21 km half marathon recorded as 22.45. Both readings are defensible
+     * and he chose the recorded one, because it is the figure the linked activity will show a
+     * reader who follows the bib.
+     *
+     * IT IS THE LINKED ACTIVITY'S DISTANCE, NOT THE DAY'S. A race day very often holds more
+     * than the race, so ask what a day's other activities ARE before touching a row that looks
+     * short — TWO DIFFERENT THINGS LOOK LIKE A SPLIT DAY and they take opposite answers.
+     *
+     *   THE DAY HOLDS THE RACE PLUS SOMETHING ELSE, which is 10 July: one activity is the whole
+     *   race, and the 22.56 km escort out of Phuket is a separate ride that happens to share the
+     *   date. This row prints the 140.50 the link goes to; the day's 163.06 was never a
+     *   candidate, and there is no exception to make. See {@link elapsed_time} for that day's
+     *   whole arithmetic.
+     *
+     *   THE RACE ITSELF WAS RECORDED IN PARTS — the rider stopped and restarted, so no single
+     *   activity holds the ride, and **`EVENTS` HOLDS ONE OF THESE AND CANNOT SAY SO.** The 2024
+     *   round-island ride broke a bike, was repaired at a shop and finished, and the row below
+     *   carries only the recording made after the repair: it under-reports that race. One id per
+     *   race is why. Summing the parts is the arithmetic, but it is not the whole fix — the bib
+     *   would print an aggregate while still linking to ONE part, so a reader following the link
+     *   would meet a smaller number, which is the mismatch {@link elapsed_time} exists to
+     *   prevent, one layer up. The model is `strava_activity_ids: readonly string[]` plus a
+     *   decision about what the bib SAYS. Handed over deliberately rather than half-built:
+     *   `.scratchpad/handover-split-race-recordings.md` carries both races fully measured.
+     *
+     * SO "NO EXCEPTION FOR A SPLIT DAY" IS THE RULE, AND IT IS NOT A RULE ABOUT SPLIT RACES —
+     * the first case needs no exception and the second needs a model. Which shape a day is, is
+     * the rider's call and not a reading of the data: `GET /api/v3/athlete/activities?after=&before=`
+     * lists a day, but the titles do not settle it. 2023's parts are named `1/2` and `2/2`, while
+     * 2024's second recording is named for the mechanical — and both are one race.
+     *
+     * TWO PLACES, ROUNDED FROM THE API'S METRES. The activity reports whole metres and a
+     * fraction — 78595.0, 140498.0, 10166.6 — and this field is that value in kilometres to
+     * two places, rounded half-up. `tests/strava-verify.test.ts` asserts exactly that
+     * conversion, so a figure typed in by any other route turns it red.
+     *
+     * THE RULE IS THE MAINTAINER'S, AND IT DELIBERATELY DOES NOT DEPEND ON WHAT STRAVA RENDERS.
+     * That independence is the point, because the rendering question is genuinely unsettled and
+     * this field was already reversed once over it.
+     *
+     * The field held TRUNCATION for four commits, on the argument that Strava's page truncates
+     * and so truncating kept a promise: a reader following a bib's link sees the same digits the
+     * bib showed them. Four rows were written that way, then rewritten. What is actually
+     * measurable:
+     *
+     *   Strava's EMBED renderer truncates, on 5 of 5 discriminating activities in this account
+     *   — 78595.0 m renders `78.5 km`, 140498.0 `140.4`, 10166.6 `10.1`, 160566.0 `160.5`,
+     *   22558.8 `22.5`, where rounding would give `.6`, `.5`, `.2`, `.6`, `.6`. Three imperial
+     *   readings truncate too, and they derive from the metres rather than from the km, so the
+     *   widget is formatting the same quantity the API reports.
+     *
+     *   The ACTIVITY PAGE — the surface a bib actually links to — could not be read at all
+     *   without the owner's session, and the one 2dp figure ever compared against its own raw
+     *   metres went the other way: 22619.7 m shown as `22.62`, where truncation gives 22.61.
+     *   One sample, on a `followers_only` activity, not reproducible by a reviewer.
+     *
+     * So the honest position is that the embed truncates, the page is unread, and the two need
+     * not agree. **Do not restore truncation on the strength of the embed** — and equally, do
+     * not write into this comment that the page rounds. The rule stands on the API being the
+     * source of record, which needs no reading of any renderer.
+     *
+     * The lesson generalises past this field: a rule with a persuasive rationale attached is
+     * harder to re-examine than a bare one. The truncation rule survived a review because its
+     * story was doing the arguing — and then the sentence replacing it made a renderer claim on
+     * one unreproducible sample, which a review panel promptly took apart. Twice in one change.
+     */
     km: number
     sport: Sport
     /**
      * Where the race is, as a country name a reader would say out loud.
+     *
+     * FOR A VIRTUAL EVENT THIS IS WHERE IT WAS RIDDEN, NOT WHERE THE EVENT IS BRANDED, which is
+     * why a row can read "OCBC Cycle Singapore Virtual Ride" beside `Malaysia` and be correct:
+     * that one was ridden in Johor Bahru. The word "Virtual" is in the name and ships uncut on
+     * the bib and in llms.txt, which is what tells a reader the Singapore is the brand. Written
+     * down because the pairing looks like a typo, and a reviewer proposed "fixing" it to
+     * Singapore — which would have shipped a false fact about a real ride.
      *
      * REQUIRED RATHER THAN OPTIONAL, deliberately. Every bib prints it, so an event
      * without one is a bib with a blank line — and `pnpm check` gates the deploy, so
@@ -445,31 +552,27 @@ export type RaceEvent = {
      *
      * IT IS ELAPSED, NOT MOVING, AND THE BIB SAYS SO. The two are far apart on these
      * rides — 8:32:05 elapsed against 5:03:55 moving — so an unlabelled time invites a
-     * reader to divide it into the distance printed beside it and get 18.8 km/h, where
-     * the recorded ride actually moved at 27.7 (140.49 km / 5:03:55). The label is not
+     * reader to divide it into the distance printed beside it and get 16.5 km/h, where
+     * the recorded ride actually moved at 27.7 (140.50 km / 5:03:55). The label is not
      * decoration; it names which clock.
      *
-     * THOSE TWO FIGURES DELIBERATELY DO NOT SHARE A SCOPE, and that is the point rather
-     * than a defect in the comparison. 18.8 is the EVENT's 160.59 km over the ACTIVITY's
-     * 8:32:05 — precisely the two numbers this bib prints side by side, which is why a
-     * reader computes it. 27.7 is that activity's own 140.49 km over its own 5:03:55,
-     * and it is the only moving speed anything here recorded.
+     * BOTH FIGURES NOW COME OFF ONE ACTIVITY, which is what {@link km} changed and it settled
+     * a long argument in this comment rather than continuing it. 16.5 is that activity's own
+     * 140.50 km over its own 8:32:05, and 27.7 is the same distance over its own moving time:
+     * a reader dividing the two numbers on the bib gets a real elapsed speed for a real ride.
+     * They used to be different scopes — the EVENT's 160.59 km over the ACTIVITY's clock, which
+     * is 18.8 and belonged to nothing — and three revisions of this paragraph went wrong
+     * inside that mismatch, one of them quoting 160.59 / 5:03:55 = 31.7 as a speed no ride
+     * held. Keep the two figures on a bib coming from the same activity and that whole class
+     * of error is gone.
      *
-     * DO NOT "FIX" THE MISMATCH BY DIVIDING THE EVENT DISTANCE INTO THE MOVING CLOCK.
-     * A revision of this comment did exactly that and quoted 160.59 / 5:03:55 = 31.7 as
-     * the event-scope moving speed. No ride held 31.7: both clocks belong to the 140.49
-     * km activity, and the paragraph below says so — the day holds a second activity, so
-     * the event over the day's whole moving time lands somewhere near 26–28.5 km/h.
-     * The one genuinely same-scope pair is 16.5 against 27.7, and neither of those
-     * appears on a bib.
-     *
-     * NOTE WHICH SCOPE THIS IS. It is the race's own time, from the activity the race was
-     * recorded as. The bib prints it beside the EVENT's distance, and on 10 July those
-     * come from slightly different scopes: the day holds two Strava activities — a 22.55km
-     * escort out of Phuket and the 140.49km ride — totalling 163.04 against the event's
-     * 160.59, and whole-day elapsed would be 9:55 rather than 8:32:05. The residual is
-     * +2.45km and it is left alone deliberately; engineering it away would mean the bib
-     * printing a number that is not the race.
+     * WHICH ACTIVITY, WHERE A DAY HOLDS MORE THAN ONE: the one in `strava_activity_id`, the
+     * one this time came off, the one the bib links to. 10 July is the case that names the
+     * rule — the day holds a 22.56 km escort out of Phuket AND the 140.50 km ride, 163.06
+     * together against the event's advertised 160.59, and whole-day elapsed would be 9:55
+     * rather than 8:32:05. The row prints 140.50, because that is the ride a reader who
+     * follows the link will see. Neither the day's total nor the event's figure is a number
+     * any single recording holds.
      *
      * (That day is also why a 20km "silent disagreement" was once reported here and was
      * not one. A single Strava activity is not a day. Before concluding that a
@@ -479,8 +582,11 @@ export type RaceEvent = {
     elapsed_time?: string
     /**
      * The Strava activity this race was recorded as. Present only where the mapping has
-     * been VERIFIED by reading the page — see the note above the type for how, and for
-     * the login wall this knowingly accepts.
+     * been VERIFIED against the activity itself: `tests/strava-verify.test.ts` holds every
+     * one of these against the API, on distance, on elapsed time and on the day it was
+     * recorded. See the note above the type for the login wall a reader following the link
+     * knowingly accepts, and for why reading that logged-out page cannot do this job for
+     * every id.
      *
      * IT IS ALSO HALF OF THE PROOF THAT THE RACE WAS RUN, so it is no longer only a link.
      * Beside an `elapsed_time` it earns the bib outright, whatever day it is — see
@@ -497,10 +603,14 @@ export type RaceEvent = {
 }
 
 export const EVENTS: readonly RaceEvent[] = [
-    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 160.59, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
-    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.13, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31", strava_activity_id: "19279762093"},
-    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.00, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
-    {date: "2026-08-02", name: "Round the Island Bike Adventure", km: 121.98, sport: "cycling", country: "Singapore"},
+    {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 22.45, sport: "running", country: "Singapore", elapsed_time: "3:44:25", strava_activity_id: "8204481233"},
+    {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 117.41, sport: "cycling", country: "Singapore", elapsed_time: "5:53:34", strava_activity_id: "12058885236"},
+    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.60, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25", strava_activity_id: "16736512210"},
+    {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 130.03, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15", strava_activity_id: "18433212592"},
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 140.50, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05", strava_activity_id: "19254155835"},
+    {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.10, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31", strava_activity_id: "19279762093"},
+    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.17, sport: "running", country: "Singapore", elapsed_time: "0:58:26", strava_activity_id: "19513789157"},
+    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 160.57, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17", strava_activity_id: "19566067972"},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
     {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
     {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running", country: "Singapore"},
@@ -659,7 +769,7 @@ export const WELCOME: {
  * mid-name, because `.bib-strava` sits in the meta row and the accessible name is
  * assembled in DOM order:
  *
- *     "12 JUL 2026 RIDE ON STRAVA 158.13 KM MBG DCR 2026 - KRABI TO PHUKET
+ *     "12 JUL 2026 RIDE ON STRAVA 158.10 KM MBG DCR 2026 - KRABI TO PHUKET
  *      THAILAND ELAPSED 9:41:31"
  *
  * As the anchor's LAST child it lands where a warning is useful — at the end, after
@@ -771,9 +881,12 @@ export const PATCHES: {
     filter_label: string
     /**
      * The word before a finished bib's time, and it is load-bearing rather than a caption.
-     * Elapsed and moving are far apart on a long ride — 8:32:05 against 5:03:55 — so a
-     * bare time invites a reader to divide it into the distance and get an average that
-     * is 9 km/h wrong. See {@link RaceEvent.elapsed_time}.
+     * Elapsed and moving are far apart on a long ride — 8:32:05 against 5:03:55 over the
+     * same 140.50 km — so a bare time invites a reader to divide it into the distance and
+     * get an average that is 11 km/h wrong (16.5 against 27.7). It read 9 while the bib
+     * printed the EVENT's distance over the activity's clock; both figures now come off one
+     * activity, which makes the pair honest and the gap wider. See
+     * {@link RaceEvent.elapsed_time}.
      */
     elapsed_label: string
     /**
@@ -817,8 +930,10 @@ export const PATCHES: {
      * "My events", not "Patch wall", and the sport pages take `My {sport} events` from the
      * same words. The rename came from the goal card's control — see {@link NEXT_RACE} —
      * and from the rule behind it: a patch is a race COMPLETED AND EARNED, so a page that
-     * shows four booked outlines beside two earned bibs was never wholly a wall of
-     * patches. The heading now names what is on the page; {@link lede} names the earned
+     * shows booked outlines beside earned bibs was never wholly a wall of patches. That
+     * holds whatever the mix is on the day, which is why this sentence no longer counts
+     * them — it used to, and the count went stale the first time the calendar grew.
+     * The heading now names what is on the page; {@link lede} names the earned
      * bib, and the bibs themselves carry the character the old heading was carrying.
      * "Patch wall" survives in the URL, in this prose and in the metaphor.
      */

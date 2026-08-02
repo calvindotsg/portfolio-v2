@@ -72,18 +72,26 @@ describe("date handling", () => {
         expect(daysRemaining("2027-01-01")).toBe(0);     // and the year is over the day after
         expect(daysRemaining("2027-03-01")).toBe(0);
 
-        // The pairing, pinned to values rather than to an inequality. Round the Island
-        // is a single-day cycling event on 2 August. On that date its whole 121.98 km
-        // is still owed, and the day count must still contain the day it is ridden on;
-        // the day after, both drop by exactly that event and exactly that day.
+        // The pairing, pinned to values rather than to an inequality. The Kiprun is a
+        // single-day RUNNING event on 27 September. On that date its whole 21.10 km is
+        // still owed, and the day count must still contain the day it is run on; the day
+        // after, both drop by exactly that event and exactly that day.
         //
         // An inequality here is not enough: `>` and `-1` are satisfied by a version
         // that books the event on the WRONG side of its own start date, so long as it
         // does so consistently.
-        expect(bookedAhead("cycling", "2026-08-02")).toBeCloseTo(1143.98, 2);
-        expect(bookedAhead("cycling", "2026-08-03")).toBeCloseTo(1022.00, 2);
-        expect(daysRemaining("2026-08-02")).toBe(152);
-        expect(daysRemaining("2026-08-03")).toBe(151);
+        //
+        // IT NEEDS A SINGLE-DAY EVENT WITH NO RECORDING, which is why it is a running race
+        // rather than the cycling one it was written against. `bookedAhead` skips a race
+        // with a recording, and a multi-day event moves pro rata by one day's share instead
+        // of dropping whole — so a sport whose only un-booked race is a tour cannot state
+        // this property at all. Whichever sport can changes as races are run: if this goes
+        // red, find a sport with a single-day race still ahead rather than loosening it to
+        // an inequality.
+        expect(bookedAhead("running", "2026-09-27")).toBeCloseTo(63.30, 2);
+        expect(bookedAhead("running", "2026-09-28")).toBeCloseTo(42.20, 2);
+        expect(daysRemaining("2026-09-27")).toBe(96);
+        expect(daysRemaining("2026-09-28")).toBe(95);
     });
 
     /**
@@ -219,9 +227,14 @@ describe("the site's clock", () => {
 
 describe("booked race distance", () => {
     it("counts only future events, per sport", () => {
-        // At 2026-07-27 both July DCR rides are done; three cycling races remain
-        // ahead only in the sense that 121.98 + 1022.00 are still to ride.
-        expect(bookedAhead("cycling", "2026-07-27")).toBeCloseTo(1143.98, 2);
+        // At 2026-07-27 the November tour is the only cycling race this figure can still
+        // count, so 1022.00 is the whole of it. TWO DIFFERENT MECHANISMS get everything else
+        // out, and conflating them is easy: this year's ridden races (both July DCR legs, the
+        // May virtual ride, the August round-island) are excluded because they carry a
+        // RECORDING, while the earlier editions of the annual round-island ride never reach
+        // the arithmetic at all — `bookedAhead` defaults to `GOAL_YEAR_EVENTS`, so a 2024 race
+        // is out by YEAR and would be out even with no recording at all.
+        expect(bookedAhead("cycling", "2026-07-27")).toBeCloseTo(1022.00, 2);
         expect(bookedAhead("running", "2026-07-27")).toBeCloseTo(63.30, 2);
     });
 
@@ -268,9 +281,11 @@ describe("booked race distance", () => {
  * in it. The honest expectancy for a test coupled to bot-written data is ONE BOT
  * CYCLE, not whatever change size the arithmetic makes look distant.
  *
- * The same holds for the cycling card: `cycling_km: 2309.7` — one 30 km ride — is
- * already enough, and the Round the Island booking drains out of `bookedAhead` on
- * 3 August, taking the required rate 70 → 73 → 79.
+ * The same holds for the cycling card: `cycling_km: 2309.7` — one 30 km ride — is already
+ * enough, taking the required rate 76 → 74. A race being RECORDED moves it as surely as a
+ * ride does, and in the opposite direction: adding the round-island ride's recording took
+ * this same figure 70 → 76, because its kilometres left `bookedAhead` for the bot's total
+ * in the same edit. Neither input is one this file may pin live.
  *
  * `EVENTS` is deliberately left live: it is human-edited, so a red test there is
  * wanted feedback rather than noise.
@@ -283,18 +298,24 @@ const at = (sport: string, raw: number): Goal => ({...goalBySport(sport), raw_pr
 describe("required rate", () => {
     it("produces the figures the page rendered when this was written", () => {
         expect(goalStatus(at("cycling", CYCLING_KM), AS_OF)).toEqual(
-            expect.objectContaining({kind: "rate", kmPerWeek: 70, days: 158}));
+            expect.objectContaining({kind: "rate", kmPerWeek: 76, days: 158}));
         expect(goalStatus(at("running", RUNNING_KM), AS_OF)).toEqual(
             expect.objectContaining({kind: "rate", kmPerWeek: 18, days: 158}));
     });
 
     it("rounds UP, because a rounded-down rate followed exactly MISSES the goal", () => {
-        // TWO DATES, because one of them does not discriminate. At AS_OF the
-        // requirement is 69.8370 km/wk: floor gives 69 and misses, but round gives 70
-        // and clears, so this date alone cannot tell ceil from round. One day later
-        // the requirement is 70.2818 and round gives 70, delivering 1570.00 km against
-        // 1576.32 needed — the case that rules round out. Measured over the rest of
-        // the calendar, round under-states on 154 of the 288 remaining sport-days.
+        // TWO DATES, because one of them does not discriminate. At AS_OF the requirement is
+        // 75.2411 km/wk: round gives 75, delivering 1692.86 km against 1698.30 needed — the
+        // case that rules round out. One day later it is 75.7204 and round gives 76, the same
+        // answer as ceil, so that date alone cannot tell the two apart. Measured over the rest
+        // of the calendar, round under-states on 150 of the 290 remaining sport-days.
+        //
+        // WHICH DATE PLAYS WHICH ROLE FLIPS WITH THE NUMERATOR, and these two have already
+        // swapped once: the round-island ride's recording moved the kilometres owed, and with
+        // them the fractional part of every rate on the calendar — AS_OF used to be the date
+        // that could not discriminate and 28 July the one that could. So if the assertion
+        // below goes red, re-measure the fraction and move the roles; do not relax it to an
+        // inequality, which is what the pair exists to rule out.
         for (const iso of [AS_OF, "2026-07-28"]) {
             const cycling = goalStatus(at("cycling", CYCLING_KM), iso);
             if (cycling.kind !== "rate") throw new Error(`expected a rate at ${iso}`);
@@ -302,11 +323,12 @@ describe("required rate", () => {
             expect(cycling.kmPerWeek * weeks, iso).toBeGreaterThanOrEqual(cycling.km);
             expect((cycling.kmPerWeek - 1) * weeks, iso).toBeLessThan(cycling.km);
         }
-        // The discriminating assertion, stated outright: on 28 July, round is wrong.
-        const day2 = goalStatus(at("cycling", CYCLING_KM), "2026-07-28");
-        if (day2.kind !== "rate") throw new Error("expected a rate");
-        expect(Math.round(day2.km / (day2.days / 7))).toBeLessThan(day2.km / (day2.days / 7));
-        expect(day2.kmPerWeek).toBe(71);
+        // The discriminating assertion, stated outright: at AS_OF, round is wrong.
+        const discriminating = goalStatus(at("cycling", CYCLING_KM), AS_OF);
+        if (discriminating.kind !== "rate") throw new Error("expected a rate");
+        const exact = discriminating.km / (discriminating.days / 7);
+        expect(Math.round(exact)).toBeLessThan(exact);
+        expect(discriminating.kmPerWeek).toBe(76);
     });
 
     it("reads raw_progress and IGNORES the display-clamped field", () => {
@@ -465,8 +487,9 @@ describe("EVENTS", () => {
      * started, whatever the kilometres say. Compared with `<=`, so a time entered on the
      * day of the race passes — that is the case the wall could not previously record.
      *
-     * Round the Island is ridden with nothing recorded and stays a legitimate timeless
-     * bib, so nothing here may require a time.
+     * A race remembered without a recording stays a legitimate timeless bib, so nothing
+     * here may require a time. This sentence used to name the race that was in that state;
+     * which races are is a property of the data, and the rule is not.
      */
     it("never carries a finishing time for a race that has not started", () => {
         // No `toBeGreaterThan(0)` on the subset — see the note in tests/patch-wall.test.ts.

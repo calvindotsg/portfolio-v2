@@ -128,9 +128,19 @@ describe("dist/", () => {
         // the endpoint may pair any name with another row's url, description or distance
         // and stay green. Each row is therefore found by its own key and the rest of the
         // row asserted ON THAT LINE.
-        const rowFor = (key: string, what: string) => {
-            const row = lines.find((line) => line.includes(key));
-            expect(row, `${what} must appear in llms.txt`).toBeDefined();
+        //
+        // THE KEY IS A CONJUNCTION, because a race's NAME IS NOT UNIQUE and a single-key
+        // lookup silently resolves to the wrong row. An annual race entered in more than
+        // one year gives several events the same `name`, so `.find()` on it returns the
+        // FIRST edition for all of them and every assertion below compares one year's row
+        // against another year's facts — green when the endpoint is wrong, red when it is
+        // right. This is the same defect tests/patch-wall.test.ts records fixing in its own
+        // `.find()`; it survived here because THIS file keyed on the name too, and nothing
+        // caught it until one race appeared twice. Key on whatever combination
+        // is unique for the row, never on a display string alone.
+        const rowFor = (what: string, ...keys: string[]) => {
+            const row = lines.find((line) => keys.every((key) => line.includes(key)));
+            expect(row, `${what} must appear in llms.txt, keyed by ${keys.join(" + ")}`).toBeDefined();
             return row as string;
         };
 
@@ -150,18 +160,22 @@ describe("dist/", () => {
         expect(EVENTS.length, "there must be events to list").toBeGreaterThan(0);
 
         for (const goal of GOALS) {
-            const row = rowFor(`- ${goal.goal_name}:`, `${goal.goal_name}'s progress`);
+            const row = rowFor(`${goal.goal_name}'s progress`, `- ${goal.goal_name}:`);
             expect(row, `${goal.goal_name}'s own numbers must be on its own line`)
                 .toContain(`${goal.raw_progress} of ${goal.total_goal} ${goal.measurable_unit}`);
         }
         for (const event of EVENTS) {
-            const row = rowFor(event.name, event.name);
+            // Name AND date, which is what makes the row unique — see the note on `rowFor`.
+            // FINDING the row is therefore also the date assertion that used to sit below
+            // this loop: no line carrying both means the endpoint has separated a race from
+            // its own date, and `rowFor` fails naming both keys. Re-adding a
+            // `toContain(event.date)` here would only restate the key.
+            const row = rowFor(`${event.name} (${event.date})`, event.name, event.date);
             expect(row, `${event.name}'s distance must be on its own line`).toContain(`${event.km} km`);
             expect(row, `${event.name}'s country must be on its own line`).toContain(event.country);
-            expect(row, `${event.name}'s date must be on its own line`).toContain(event.date);
         }
         for (const project of PROJECTS) {
-            const row = rowFor(`](${project.repo_url})`, `${project.name}'s repo link`);
+            const row = rowFor(`${project.name}'s repo link`, `](${project.repo_url})`);
             expect(row, `${project.name} must be the label on its own repo link`)
                 .toContain(`[${project.name}](`);
             expect(row, `${project.name} must quote its description`).toContain(project.description);

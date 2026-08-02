@@ -180,8 +180,8 @@ block above it before giving either consumer the other's list.
   two-step edit, and **which step goes first depends on whether the race is already in
   `EVENTS`**: a race not yet listed — fetch first (`gh workflow run strava-progress.yml`),
   then add it; a race already listed — add the recording first and let the cron follow.
-  Fetching first on an already-listed race counts its distance twice, measured at 67 km/wk
-  against an honest 73. There is no order that is right at both moments; read the note
+  Fetching first on an already-listed race counts its distance twice, measured at 66 km/wk
+  against an honest 71. There is no order that is right at both moments; read the note
   above `EVENTS` in `constants.ts` before doing either, and `hasRecording` in
   `projection.ts` for why the pair means "run"
 
