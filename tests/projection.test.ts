@@ -3,7 +3,7 @@ import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
-import {EVENTS, GOAL_YEAR, GOALS, type Goal, recordingsOf} from "../src/lib/constants";
+import {EVENTS, GOAL_YEAR, GOALS, type Goal, raceKm, recordingsOf} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {
     UPDATED_AT, bookedAhead, daysRemaining, eventsInYear, formatDateline, goalStatus,
@@ -448,7 +448,11 @@ describe("EVENTS", () => {
                 expect(parseIsoDate(e.end_date), `${e.name} ends before it starts`)
                     .toBeGreaterThanOrEqual(parseIsoDate(e.date));
             }
-            expect(Number.isFinite(e.km) && e.km >= 0, `${e.name} km`).toBe(true);
+            // THE DISTANCE, WHICHEVER SHAPE THE ROW IS. A booked race must carry `km`; a
+            // recorded one must derive a real figure from its metres. `raceKm` answers NaN
+            // for the hole the type cannot close — an empty `recordings` list beside no `km`
+            // — so this reads through the accessor rather than at either field.
+            expect(Number.isFinite(raceKm(e)) && raceKm(e) >= 0, `${e.name} distance`).toBe(true);
             expect(e.name.trim().length, "an unnamed event renders as a blank patch").toBeGreaterThan(0);
             // Required by the type, so this cannot be a missing key — it can be an empty
             // one, which renders as a blank line on the bib rather than as no line.
@@ -568,23 +572,24 @@ describe("EVENTS", () => {
     });
 
     /**
-     * A RECORDING'S OWN FIGURES ARE PRINTED ON THE BIB, so they are held to the same shapes
-     * the race's are. The elapsed pattern is the one `elapsed_time` takes above; the distance
-     * is a finite non-negative number for the reason `km` is.
+     * A RECORDING'S OWN FIGURES ARE PRINTED ON THE BIB, so they are held to the shapes a bib
+     * can print. `metres` is what the API said and everything else about a distance is derived
+     * from it, so the only offline claim worth making is that it IS a distance: finite, and
+     * greater than zero, because a race recorded as 0 m would draw a bib reading `0.00`.
      *
-     * AND WHERE THERE IS EXACTLY ONE, IT MUST AGREE WITH THE RACE. A single-recording race
-     * carries its figures twice — once as the race's, once as the part's — which is the
-     * deliberate redundancy `Recording`'s note explains. This is what stops the two drifting;
-     * without it, editing `km` and forgetting the recording beneath it is silent, and the
-     * suite's other distance assertions all read the race-level field.
+     * WHAT THIS DELIBERATELY NO LONGER ASSERTS is any agreement between a race's distance and
+     * its parts'. It used to compare a single-recording race's `km` against the part's, which
+     * caught a real drift while both were hand-typed. Neither is typed now — `raceKm` converts
+     * the same metres either way — so that assertion would be a test of arithmetic this file
+     * does not own. Its subject moved to `tests/constants.test.ts`, which exercises the
+     * conversion itself, including the summing rule a split race depends on.
      *
-     * IT DELIBERATELY DOES NOT ASSERT THE SUM WHERE THERE ARE SEVERAL. The race's `km` is the
-     * summed METRES converted once, and the parts' are each converted separately, so the two
-     * are not required to be equal — only `tests/strava-verify.test.ts`, which has the metres,
-     * can check that. Asserting equality here would be red on correct data, and no longer
-     * hypothetically: under the rounded-down rule one split race in `EVENTS` prints a distance
-     * a hundredth above the sum of its own two parts. The assertion below this one bounds that
-     * gap instead.
+     * THE ELAPSED PAIR IS STILL WORTH HOLDING, and the asymmetry is the point: that figure is
+     * hand-entered in two places, so a single-recording race really can carry two different
+     * clocks. The distance cannot any more.
+     *
+     * A MISTYPED `metres` REMAINS INVISIBLE HERE, and nothing offline can see it — that is what
+     * `tests/strava-verify.test.ts` is for, holding every recording against the API exactly.
      */
     it("holds each recording's own figures to the shapes the bib prints them in", () => {
         let checked = 0;
@@ -593,68 +598,31 @@ describe("EVENTS", () => {
             for (const r of parts) {
                 expect(r.elapsed_time, `${e.name} recording ${r.id} elapsed time must be H:MM:SS`)
                     .toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
-                expect(Number.isFinite(r.km) && r.km >= 0, `${e.name} recording ${r.id} km must be a non-negative number`)
-                    .toBe(true);
+                expect(Number.isFinite(r.metres) && r.metres > 0,
+                    `${e.name} recording ${r.id} metres must be a positive number`).toBe(true);
                 checked++;
             }
             if (parts.length !== 1) continue;
-            expect(parts[0].km, `${e.name} has one recording, so its km must equal the race's`).toBe(e.km);
             expect(parts[0].elapsed_time, `${e.name} has one recording, so its elapsed time must equal the race's`)
                 .toBe(e.elapsed_time);
         }
         expect(checked, "no event carries a recording — this assertion would be vacuous").toBeGreaterThan(0);
     });
 
-    /**
-     * A SPLIT RACE'S OWN DISTANCE, BOUNDED BY ITS PARTS — the only offline check on the one
-     * figure nothing else here can see.
+    /*
+     * THE SPLIT-RACE DISTANCE GATE THAT USED TO SIT HERE IS GONE, AND ITS SUBJECT WITH IT.
      *
-     * `km` is the summed METRES converted once, and the parts are each converted separately,
-     * so the two are NOT required to be equal and `toBe` would be red on correct data. The
-     * gap between them is not a tolerance, though — under the rounded-down rule it is an exact
-     * integer window, and a one-sided one. Every conversion DROPS the third decimal, so the
-     * race loses one of them and the sum of N parts loses N: the race figure is never below
-     * the sum, and never more than N-1 hundredths above it. With two parts that is a window
-     * two values wide, and both split races in `EVENTS` use it — one lands on 0, the other on
-     * 1 hundredth. Half-up gave a symmetric +/-0.005-per-part bound instead; do not restore it
-     * without re-deriving from the rule in `km`, which has now been set three times.
+     * It bounded a hand-typed race-level `km` against the sum of its hand-typed parts, because
+     * both were data and could disagree. Neither is data now: a race's distance is `raceKm`
+     * over the parts' metres, so the bound it enforced holds by construction and asserting it
+     * here would be a test of the code's own arithmetic run against the code's own output —
+     * green whatever the rule, which is the shape of assertion this file exists to avoid.
      *
-     * WHAT IT CATCHES, AND WHY IT IS WORTH HAVING. `tests/strava-verify.test.ts` holds this
-     * figure against the real metres, but it is OPT-IN and needs live credentials, so it does
-     * not run in CI and cannot be relied on to have run at all. Without this, a mistyped
-     * race-level `km` on a split race — a transposition, a digit dropped, a figure left at
-     * one part's value — ships green. With two parts the window is 0.01 km wide, so anything
-     * worth calling a typo is outside it.
-     *
-     * COUNTED IN HUNDREDTHS, not compared as decimals. Every figure here is a whole number of
-     * hundredths by construction, so scaling to integers makes the bound exact instead of a
-     * float comparison landing on 0.00999999999999801 and passing on luck — which is what the
-     * decimal form of this assertion did on the row that discriminates the rule.
+     * WHERE THE COVERAGE WENT, so this is a move rather than a deletion: the conversion and
+     * the summing rule are exercised directly in `tests/constants.test.ts`, on inputs chosen
+     * to discriminate rounding down from half-up. What NEITHER can see is a mistyped `metres`
+     * — only `tests/strava-verify.test.ts` reads the API, and it is opt-in.
      */
-    it("keeps a split race's distance within rounding of its parts", () => {
-        let checked = 0;
-        const hundredths = (km: number): number => Math.round(km * 100);
-        for (const e of EVENTS) {
-            const parts = recordingsOf(e);
-            if (parts.length < 2) continue;
-            const gap = hundredths(e.km) - parts.reduce((total, part) => total + hundredths(part.km), 0);
-            expect(
-                gap >= 0 && gap <= parts.length - 1,
-                `${e.name} says ${e.km} km but its ${parts.length} recordings sum to `
-                + `${(parts.reduce((t, p) => t + hundredths(p.km), 0) / 100).toFixed(2)} km — a gap of ${gap} `
-                + `hundredth(s), outside the 0 to ${parts.length - 1} that rounding each part down can account `
-                + "for. The race's km is the summed METRES converted once, so it may sit ABOVE this sum by a "
-                + "hundredth per extra part, but never below it and never further. Check the figure against the "
-                + "API with tests/strava-verify.test.ts.",
-            ).toBe(true);
-            checked++;
-        }
-        // NO FLOOR HERE, DELIBERATELY. Split races are a property of the calendar, not of the
-        // site: there is exactly one today and there may be none after a January rollover.
-        // A `toBeGreaterThan(0)` would turn an ordinary data edit into a failed deploy — the
-        // trap the anchor test above records at length. The count is logged instead.
-        expect(checked, "split races checked").toBeGreaterThanOrEqual(0);
-    });
 
     /**
      * A SPLIT RACE'S CLOCK MUST AT LEAST CONTAIN ITS OWN PARTS.
@@ -701,7 +669,7 @@ describe("EVENTS", () => {
  */
 describe("the next race for a sport", () => {
     const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
-        ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over});
+        ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over}) as RaceEvent;
 
     const CALENDAR: readonly RaceEvent[] = [
         ev({name: "ride-past", date: "2026-01-10"}),
@@ -840,7 +808,7 @@ describe("the next race for a sport", () => {
 describe("the scope split: a lifetime wall, a goal card that is one year", () => {
     const race = (over: Partial<RaceEvent> & {date: string, name: string}): RaceEvent => ({
         km: 100, sport: "cycling", country: "Singapore", ...over,
-    });
+    }) as RaceEvent;
 
     /** This year's races, owned by this block — not the maintainer's. */
     const THIS_YEAR: readonly RaceEvent[] = [

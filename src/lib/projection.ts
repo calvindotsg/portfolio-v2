@@ -1,5 +1,5 @@
 import stravaProgress from "../data/strava-progress.json"
-import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, recordingsOf, type Sport} from "./constants"
+import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, raceKm, recordingsOf, type Sport} from "./constants"
 import {BUILD_DATE} from "./today"
 
 /**
@@ -234,17 +234,22 @@ export function bookedAhead(sport: Sport, iso: string, events: readonly RaceEven
         // tests/patch-wall.test.ts forces this line — without it the wall calls a race
         // finished while the card is still counting its kilometres as ahead.
         if (hasRecording(e)) continue
-        if (!Number.isFinite(e.km) || e.km < 0) continue
+        // Every race reaching this line is unrecorded, so `raceKm` is its ADVERTISED distance —
+        // the only figure it has. Going through the accessor anyway keeps one reader of the
+        // distance in the codebase rather than two, and it is what makes the line above the
+        // sole thing deciding which races count.
+        const booked = raceKm(e)
+        if (!Number.isFinite(booked) || booked < 0) continue
         const start = parseIsoDate(e.date)
         if (Number.isNaN(start)) continue
         const end = e.end_date ? parseIsoDate(e.end_date) : start
         if (Number.isNaN(end) || end < start) continue
-        if (today <= start) { km += e.km; continue }        // wholly ahead
+        if (today <= start) { km += booked; continue }       // wholly ahead
         if (today > end) continue                            // wholly done
         // Mid-event: the days not yet ridden, inclusive of today.
         const totalDays = Math.round((end - start) / MS_PER_DAY) + 1
         const doneDays = Math.round((today - start) / MS_PER_DAY)
-        km += e.km * ((totalDays - doneDays) / totalDays)
+        km += booked * ((totalDays - doneDays) / totalDays)
     }
     return km
 }

@@ -1,5 +1,5 @@
 ---
-import {goalForSport, NEW_TAB_NOTICE, PATCHES, type RaceEvent, recordingsOf, stravaActivityUrl} from "../lib/constants";
+import {goalForSport, NEW_TAB_NOTICE, PATCHES, type RaceEvent, raceKm, recordingKm, recordingsOf, stravaActivityUrl} from "../lib/constants";
 import {patchDateSegments, type PatchState} from "../lib/projection";
 import {iconClass} from "../lib/icons";
 
@@ -107,7 +107,7 @@ const {event, state} = Astro.props;
  */
 const date = patchDateSegments(event);
 const goal = goalForSport(event.sport);
-const [whole, fraction] = event.km.toFixed(2).split(".");
+const [whole, fraction] = raceKm(event).toFixed(2).split(".");
 const recordings = recordingsOf(event);
 // The ONE recording a bib can be the anchor for, or null where there is none or several.
 // Everything downstream keys on this rather than counting again, so the three cases cannot
@@ -176,7 +176,7 @@ const Tag = only === null ? "div" : "a";
                         <li>
                             <a class="bib-split" href={stravaActivityUrl(part)} target="_blank">
                                 <span class={`${iconClass(PATCHES.strava_icon)} bib-icon bib-go-mark`} aria-hidden="true"></span>
-                                <span class="bib-split-km">{PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} ${goal.measurable_unit}`)}</span>
+                                <span class="bib-split-km">{PATCHES.split_line.replace("{distance}", `${recordingKm(part).toFixed(2)} ${goal.measurable_unit}`)}</span>
                                 {" "}
                                 <span class="bib-split-time">{part.elapsed_time}</span>
                                 <span class="sr-only">{" " + PATCHES.split_name.replace("{race}", event.name) + " "}</span>
@@ -899,8 +899,8 @@ const Tag = only === null ? "div" : "a";
      * activity, and on a split bib it is the race, summed distance over the whole span. What
      * it must never be is a mixture — a summed distance over one part's clock, which is the
      * 18.8 the old event-scope distance produced and belonged to nothing. The label names
-     * which clock so the reader does not have to guess which. See `km` and `elapsed_time` in
-     * constants.ts, and `Recording` for why each split line prints its own pair.
+     * which clock so the reader does not have to guess which. See `raceKm` and `elapsed_time`
+     * in constants.ts, and `Recording` for why each split line prints its own pair.
      *
      * The label is dimmed with the date, the tag and the place, which puts it under the
      * same composited-contrast assertion as those three: the authored ink is `--background`

@@ -1,6 +1,6 @@
 import {beforeAll, describe, expect, it} from "vitest";
 
-import {EVENTS, type RaceEvent, type Recording, recordingsOf} from "../src/lib/constants";
+import {EVENTS, raceKm, type RaceEvent, type Recording, recordingsOf} from "../src/lib/constants";
 
 /**
  * EVERY RECORDED ROW IN `EVENTS`, HELD AGAINST THE ACTIVITY IT NAMES.
@@ -148,28 +148,29 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
         expect(details.size).toBe(pairs.length);
     });
 
-    it("agrees with each activity's own distance, to the two places a bib prints", () => {
+    /**
+     * THE STORED METRES ARE THE API'S METRES, EXACTLY — no conversion on either side of the
+     * comparison, which is what storing the raw figure bought.
+     *
+     * This assertion used to compare a hand-typed `km` against a converted `d.distance`, so it
+     * could only ever be as right as whichever rounding rule the suite happened to implement,
+     * and it went red on correct data twice while that rule was being argued. Now the file
+     * holds what the API said and the rounding lives in `kmFromMetres`, unit-tested offline.
+     * A conversion rule can change again without touching a row or this line.
+     *
+     * `toBe`, NOT `toBeCloseTo`: the two numbers have the same provenance, so anything but
+     * equality means the activity moved (a crop, a re-upload) or the row was typed wrong.
+     */
+    it("stores each activity's own distance in metres, exactly as the API reports it", () => {
         for (const {event: e, part} of pairs) {
             const d = details.get(part.id)!;
-            // `toBe`, NOT `toBeCloseTo(…, 2)`, and the difference is the whole gate. `toBeCloseTo`
-            // with 2 digits passes whenever the gap is under 0.005, and a `km` pasted as the API's
-            // raw metres over 1000 — `160.566` — sits 0.006 from this rule and 0.004 from the row
-            // beside it in the same array. So that matcher would redden or green a raw paste
-            // depending on the third decimal of the ride, which is a gate whose behaviour is a
-            // property of the DATA. It was green on 160.566 here and in the whole suite once,
-            // while shipping `160.566 km` to llms.txt and a rounded figure to the bib. The comment
-            // on `km` promises this suite reddens "a figure typed in by any other route"; only
-            // exact equality keeps that promise. Safe because `Math.floor(m/10)/100` and a 2dp
-            // literal parse to the same double — checked with `Object.is` on every row here.
             expect(
-                part.km,
-                `${e.date} ${e.name}: file says ${part.km} km, activity ${part.id} is `
-                + `${d.distance} m, which ROUNDS DOWN to ${km2(d.distance)} km. A file figure exactly `
-                + "0.01 ABOVE that is the half-up conversion, which this repository has held twice "
-                + "and does not hold now — read the note above `km` in constants.ts before changing "
-                + "either side. More decimal places than two means it was pasted from the API "
-                + "unconverted.",
-            ).toBe(km2(d.distance));
+                part.metres,
+                `${e.date} ${e.name}: file says ${part.metres} m for activity ${part.id}, the API `
+                + `says ${d.distance} m — a bib built from this would print ${km2(part.metres)} km `
+                + `where the ride was ${km2(d.distance)}. Copy the API's number; do not convert it, `
+                + "and do not read it off a Strava page.",
+            ).toBe(d.distance);
         }
     });
 
@@ -191,22 +192,27 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
      * single linked ride, so a race recorded in two files was verified against one of them
      * and the other half went unseen.
      *
-     * `km` IS THE SUMMED METRES CONVERTED ONCE, not the sum of the parts' converted figures.
-     * Converting once drops one third decimal; adding the parts drops one PER PART, so the sum
-     * of the printed figures runs low — and under the rounded-down rule that is not a corner
-     * case a future ride might hit, it is happening in `EVENTS` now (a race printing 163.05
-     * whose two bib lines add to 163.04). That is exactly why this assertion reads the metres
-     * rather than adding up `part.km`, and why nothing else in the suite can stand in for it.
+     * THE FIGURE THE BIB PRINTS, HELD AGAINST THE API END TO END. It is `raceKm` — stored
+     * metres, summed and converted by the shipped code — against the same arithmetic done over
+     * the metres the API just returned. The two sides share no input, so this is not the
+     * conversion checking itself: it is the whole path from Strava to the number a reader sees.
+     *
+     * IT IS IMPLIED BY THE PER-ACTIVITY ASSERTION ABOVE, and kept anyway. That one proves the
+     * inputs; this proves what is done with them, which is where the summing rule lives —
+     * convert the summed metres ONCE. Adding up the parts' printed figures drops a third
+     * decimal per part instead, and under the rounded-down rule that is not a corner case a
+     * future ride might hit: a race in `EVENTS` prints 163.05 where its two bib lines add to
+     * 163.04.
      */
-    it("agrees with the summed metres of all a race's recordings, converted once", () => {
+    it("prints the summed metres of all a race's recordings, converted once", () => {
         for (const e of recorded) {
             const metres = recordingsOf(e).reduce((sum, part) => sum + details.get(part.id)!.distance, 0);
             expect(
-                e.km,
-                `${e.date} ${e.name}: file says ${e.km} km, its ${recordingsOf(e).length} recording(s) `
-                + `sum to ${metres} m, which ROUNDS DOWN to ${km2(metres)} km. Sum the metres and `
-                + "convert ONCE — adding up the parts' printed figures drops a third decimal per "
-                + "part and lands under this figure.",
+                raceKm(e),
+                `${e.date} ${e.name}: the bib prints ${raceKm(e)} km, its ${recordingsOf(e).length} `
+                + `recording(s) sum to ${metres} m at the API, which is ${km2(metres)} km. Sum the `
+                + "metres and convert ONCE — adding up the parts' printed figures drops a third "
+                + "decimal per part and lands under this figure.",
             ).toBe(km2(metres));
         }
     });

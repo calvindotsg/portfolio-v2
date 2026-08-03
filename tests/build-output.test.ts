@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PROJECTS, WELCOME} from "../src/lib/constants";
+import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PROJECTS, raceKm, WELCOME} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
@@ -171,7 +171,7 @@ describe("dist/", () => {
             // its own date, and `rowFor` fails naming both keys. Re-adding a
             // `toContain(event.date)` here would only restate the key.
             const row = rowFor(`${event.name} (${event.date})`, event.name, event.date);
-            expect(row, `${event.name}'s distance must be on its own line`).toContain(`${event.km} km`);
+            expect(row, `${event.name}'s distance must be on its own line`).toContain(`${raceKm(event)} km`);
             expect(row, `${event.name}'s country must be on its own line`).toContain(event.country);
         }
         for (const project of PROJECTS) {

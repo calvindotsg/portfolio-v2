@@ -1,6 +1,7 @@
 import type {APIRoute} from "astro"
 import {
     ABOUT_ME, CAREER, EVENTS, GOAL_YEAR, GOALS, LINKS, METADATA, NEXT_RACE, PATCHES, PROJECTS,
+    raceKm,
 } from "../lib/constants"
 import stravaProgress from "../data/strava-progress.json"
 import {patchState} from "../lib/projection"
@@ -57,7 +58,7 @@ export const GET: APIRoute = ({site}) => {
     const run = (event: typeof EVENTS[number]) => {
         const when = event.end_date ? `${event.date} to ${event.end_date}` : event.date
         const time = event.elapsed_time ? `, ${event.elapsed_time}` : ""
-        return `- ${when} — ${event.name}, ${event.km} km, ${event.country}${time}`
+        return `- ${when} — ${event.name}, ${raceKm(event)} km, ${event.country}${time}`
     }
     // "Has it happened" is `patchState`, NOT a date comparison — asking the site's own
     // predicate rather than restating it, which is the whole point of this endpoint.

@@ -1,8 +1,8 @@
 import {describe, expect, it} from "vitest";
 
 import {
-    ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, goalForSport, LINKS, METADATA, NOW,
-    type Sport, THEME_TOGGLE, WELCOME,
+    ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, goalForSport, kmFromMetres, LINKS, METADATA,
+    NOW, type RaceEvent, raceKm, type Recording, recordingKm, type Sport, THEME_TOGGLE, WELCOME,
 } from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {kmFromMeters} from "../scripts/fetch-strava-progress.mjs";
@@ -387,5 +387,115 @@ describe("strava progress wiring", () => {
         for (const bad of [undefined, null, NaN, Infinity, -1, "138"]) {
             expect(() => kmFromMeters(bad, "ride"), String(bad)).toThrow();
         }
+    });
+});
+
+/**
+ * THE SITE'S ONE DISTANCE CONVERSION, TESTED WHERE IT NOW LIVES.
+ *
+ * These assertions are the ones `EVENTS` used to make by carrying converted figures: the rows
+ * hold the API's metres and every kilometre a reader sees is computed, so the rule is code and
+ * belongs in a unit test rather than in the data. Every input below is a real activity's
+ * `distance` off the API — a rule can only be said to be tested on inputs that DISCRIMINATE it,
+ * and half of these do nothing of the kind, which is why they are labelled.
+ */
+describe("kmFromMetres", () => {
+    /** [metres, rounded down (the rule), half-up (the rule this repository does not hold)] */
+    const CASES: readonly [number, number, number][] = [
+        [22454.7, 22.45, 22.45],    // agrees either way
+        [117411.0, 117.41, 117.41], // agrees either way
+        [130033.0, 130.03, 130.03], // agrees either way
+        [158100.0, 158.10, 158.10], // agrees either way, and lands exactly on a hundredth
+        [22115.1, 22.11, 22.12],    // DISCRIMINATES
+        [17908.4, 17.90, 17.91],    // DISCRIMINATES
+        [78595.0, 78.59, 78.60],    // DISCRIMINATES, and sits exactly on the half-up midpoint
+        [22558.8, 22.55, 22.56],    // DISCRIMINATES
+        [140498.0, 140.49, 140.50], // DISCRIMINATES
+        [10166.6, 10.16, 10.17],    // DISCRIMINATES
+        [160566.0, 160.56, 160.57], // DISCRIMINATES
+    ];
+
+    it("drops the third decimal rather than rounding it", () => {
+        let discriminating = 0;
+        for (const [metres, down, halfUp] of CASES) {
+            expect(kmFromMetres(metres), `${metres} m`).toBe(down);
+            if (down !== halfUp) discriminating++;
+        }
+        // Without this the table could drift to inputs that agree under both rules and the
+        // suite would go on passing whichever one shipped — which is exactly how the earlier
+        // "measured on four cases" claim about this rule turned out to be self-confirmation.
+        expect(discriminating, "no case here tells the two rounding rules apart").toBeGreaterThan(0);
+    });
+
+    /**
+     * A WHOLE MULTIPLE OF 10 m MUST NOT FALL TO THE HUNDREDTH BENEATH IT. `Math.floor` over a
+     * division is the one place this conversion could lose a value to binary representation,
+     * and `158100.0 -> 158.10` is the case in the data. Asserted by execution rather than by
+     * the argument in the comment on `kmFromMetres`, because that argument is only as good as
+     * the reader who checks it.
+     */
+    it("is exact where the quotient is a whole number of hundredths", () => {
+        for (const metres of [0, 10, 1000, 158100, 22450, 999990]) {
+            expect(kmFromMetres(metres) * 100, `${metres} m`).toBe(Math.round(metres / 10));
+        }
+    });
+
+    /**
+     * `toFixed` IS THE TRAP, and it is not the trap you expect: it agrees with this rule on one
+     * of the rows that ships. 78595.0 m gives `78.59` through both, because 78.595 lands just
+     * below the decimal midpoint once it is a binary double — so a reviewer sampling that row
+     * to check "does toFixed do the same thing" gets a yes. It differs on others.
+     */
+    it("is not Number((metres / 1000).toFixed(2)), on the rows where that matters", () => {
+        const viaToFixed = (metres: number) => Number((metres / 1000).toFixed(2));
+        expect(viaToFixed(78595.0), "the row that hides the difference").toBe(kmFromMetres(78595.0));
+        for (const metres of [22115.1, 140498.0, 10166.6, 160566.0]) {
+            expect(viaToFixed(metres), `${metres} m must expose it`).not.toBe(kmFromMetres(metres));
+        }
+    });
+});
+
+/**
+ * A RACE'S DISTANCE, WHICHEVER SHAPE THE RACE IS. The accessor every consumer reads — the bib,
+ * llms.txt and the projection all go through it — so the two shapes are pinned here rather than
+ * left to whichever page happens to render one.
+ */
+describe("raceKm", () => {
+    const part = (metres: number, id = "1"): Recording => ({id, metres, elapsed_time: "1:00:00"});
+    const base = {date: "2026-06-01", name: "Fixture", sport: "cycling" as const, country: "Nowhere"};
+    // Spelled as a rest parameter so the array reaches `RaceEvent` as the non-empty TUPLE the
+    // recorded shape asks for; a plain `Recording[]` satisfies neither half of the union.
+    const recorded = (...parts: [Recording, ...Recording[]]): RaceEvent => ({...base, recordings: parts});
+
+    it("takes a booked race's advertised distance as it is written", () => {
+        expect(raceKm({...base, km: 21.10})).toBe(21.10);
+        expect(raceKm({...base, km: 1022.00})).toBe(1022.00);
+    });
+
+    it("derives a recorded race's distance from its metres", () => {
+        expect(raceKm(recorded(part(22115.1)))).toBe(22.11);
+    });
+
+    /**
+     * THE SUMMING RULE, AND THE ROW IN `EVENTS` THAT DEPENDS ON IT. Convert the summed metres
+     * ONCE: each conversion drops a third decimal, so adding the parts' printed figures drops
+     * one per part and lands under the race. This pair is the live 10 July row's arithmetic.
+     */
+    it("sums a split race's metres BEFORE converting, which its parts' figures do not", () => {
+        const parts: [Recording, Recording] = [part(22558.8, "a"), part(140498.0, "b")];
+        expect(raceKm(recorded(...parts)), "the summed metres, converted once").toBe(163.05);
+        const addedUp = parts.reduce((total, r) => total + recordingKm(r), 0);
+        expect(Number(addedUp.toFixed(2)), "the parts' own printed figures, added up").toBe(163.04);
+    });
+
+    /**
+     * THE ONE HOLE THE TYPE CANNOT CLOSE. `recordings: []` is a legal booked race, so a row
+     * could carry an empty list and no `km`; NaN is the honest answer, and it is what
+     * `tests/projection.test.ts` sweeps `EVENTS` for.
+     */
+    it("answers NaN for a race with neither a recording nor an advertised distance", () => {
+        // Through `unknown`: the union deliberately does not admit this shape, which is the
+        // point — the cast is how the test reaches a row the type is trying to prevent.
+        expect(Number.isNaN(raceKm({...base, recordings: []} as unknown as RaceEvent))).toBe(true);
     });
 });
