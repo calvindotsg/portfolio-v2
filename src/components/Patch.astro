@@ -183,6 +183,15 @@ const officialClock = official?.net_time === undefined ? PATCHES.gun_clock : PAT
  * the advertised distance, and a one-row ledger saying `OFFICIAL 21.10` under it would be the
  * same fact twice.
  *
+ * THE NEIGHBOURING CASE IS REACHABLE AND IS DELIBERATELY LEFT ALONE. A race whose date has
+ * passed is `finished` whether or not it was recorded, so a past race carrying an official
+ * result and no recording would print its advertised distance in the hero AND again in the
+ * ledger's official row. That is not the duplication the paragraph above refuses: the booked
+ * case repeats a distance and adds NOTHING, while this one attributes the figure to a named
+ * source and carries that source's clock beside it, which is the entire ledger. The calendar
+ * holds no such race today (checked: zero), and if one is added the row is wanted — read this
+ * before "fixing" the repeat away.
+ *
  * A CELL CAN BE EMPTY AND THE ROW STILL EARNS ITS PLACE, which is the case the type reaches
  * and the calendar does not currently hold. A race remembered with a finishing time and no
  * recording has a clock and no honest distance: `raceKm` would fall back to the ADVERTISED
