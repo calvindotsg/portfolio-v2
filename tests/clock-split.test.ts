@@ -54,7 +54,7 @@ const {BUILD_DATE} = await import("../src/lib/today");
 // Booked by default; an override carrying `recordings` makes it recorded. See the same
 // builder in patch-wall.test.ts for why the cast is here.
 const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
-    ({date: BUILD, name: "Fixture", km: 10, sport: "running", country: "Nowhere", ...over}) as RaceEvent;
+    ({date: BUILD, name: "Fixture", advertised_km: 10, sport: "running", country: "Nowhere", ...over}) as RaceEvent;
 
 describe("the two clocks are wired to the questions they answer", () => {
     it("mocks a stamp that lags the build day, or none of this discriminates", () => {

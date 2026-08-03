@@ -180,7 +180,7 @@ describe("the site's clock", () => {
 
     it("counts the days to the next race from the build day, not from the stamp", () => {
         const fixture: RaceEvent[] = [
-            {date: shift(BUILD_DATE, 10), name: "Ten Days Out", km: 10, sport: "running", country: "Nowhere"},
+            {date: shift(BUILD_DATE, 10), name: "Ten Days Out", advertised_km: 10, sport: "running", country: "Nowhere"},
         ];
         expect(
             nextRace("running", undefined, fixture)?.daysAway,
@@ -191,7 +191,7 @@ describe("the site's clock", () => {
 
     it("calls yesterday's race finished, however long the kilometres have sat still", () => {
         const yesterday: RaceEvent =
-            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", km: 10, sport: "running", country: "Nowhere"};
+            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", advertised_km: 10, sport: "running", country: "Nowhere"};
         const today: RaceEvent = {...yesterday, date: BUILD_DATE, name: "Running Now"};
         // No `iso` argument anywhere here: the default IS the subject.
         expect(patchState(yesterday), `${yesterday.date} is behind ${BUILD_DATE}`).toBe("finished");
@@ -201,7 +201,7 @@ describe("the site's clock", () => {
 
     it("counts the year's patches from the build day, so the card cannot lag the wall", () => {
         const yesterday: RaceEvent =
-            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", km: 10, sport: "running", country: "Nowhere"};
+            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", advertised_km: 10, sport: "running", country: "Nowhere"};
         // Pinned separately from the test above because a GROUP mutation cannot tell
         // "all four defaults are gated" from "one is": reverting `patchesEarned` alone
         // was green until this existed. The card's count and the wall's bibs come out of
@@ -285,7 +285,7 @@ describe("booked race distance", () => {
         // union cannot be verified, and this fixture is deliberately used both ways.
         const tour = (over: Partial<RaceEvent> = {}): RaceEvent => ({
             date: "2026-11-07", end_date: "2026-11-15", name: "A Nine Day Tour",
-            km: 900.00, sport: "cycling", country: "Taiwan", ...over,
+            advertised_km: 900.00, sport: "cycling", country: "Taiwan", ...over,
         }) as RaceEvent;
         // The control: still booked, so the fixture is capable of producing a number.
         expect(bookedAhead("cycling", "2026-11-01", [tour()])).toBeCloseTo(900.00, 2);
@@ -742,7 +742,7 @@ describe("EVENTS", () => {
  */
 describe("the next race for a sport", () => {
     const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
-        ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over}) as RaceEvent;
+        ({date: "2026-06-01", name: "Fixture", advertised_km: 10, sport: "cycling", country: "Nowhere", ...over}) as RaceEvent;
 
     const CALENDAR: readonly RaceEvent[] = [
         ev({name: "ride-past", date: "2026-01-10"}),
@@ -906,20 +906,20 @@ describe("the next race for a sport", () => {
  */
 describe("the scope split: a lifetime wall, a goal card that is one year", () => {
     const race = (over: Partial<RaceEvent> & {date: string, name: string}): RaceEvent => ({
-        km: 100, sport: "cycling", country: "Singapore", ...over,
+        advertised_km: 100, sport: "cycling", country: "Singapore", ...over,
     }) as RaceEvent;
 
     /** This year's races, owned by this block — not the maintainer's. */
     const THIS_YEAR: readonly RaceEvent[] = [
-        race({date: `${GOAL_YEAR}-03-01`, name: "in-year run", km: 21.1, sport: "running"}),
-        race({date: `${GOAL_YEAR}-04-01`, name: "in-year done", km: 60}),
-        race({date: `${GOAL_YEAR}-09-01`, name: "in-year ahead", km: 40}),
+        race({date: `${GOAL_YEAR}-03-01`, name: "in-year run", advertised_km: 21.1, sport: "running"}),
+        race({date: `${GOAL_YEAR}-04-01`, name: "in-year done", advertised_km: 60}),
+        race({date: `${GOAL_YEAR}-09-01`, name: "in-year ahead", advertised_km: 40}),
     ];
     /** Everything the goal cards must not see. 1,022 km of it, one tour, next November. */
     const OFF_YEAR: readonly RaceEvent[] = [
-        race({date: `${GOAL_YEAR - 2}-09-15`, name: "two years ago", km: 21.1, sport: "running"}),
-        race({date: `${GOAL_YEAR - 1}-05-05`, name: "last year", km: 100}),
-        race({date: `${GOAL_YEAR + 1}-11-07`, end_date: `${GOAL_YEAR + 1}-11-15`, name: "next year tour", km: 1022}),
+        race({date: `${GOAL_YEAR - 2}-09-15`, name: "two years ago", advertised_km: 21.1, sport: "running"}),
+        race({date: `${GOAL_YEAR - 1}-05-05`, name: "last year", advertised_km: 100}),
+        race({date: `${GOAL_YEAR + 1}-11-07`, end_date: `${GOAL_YEAR + 1}-11-15`, name: "next year tour", advertised_km: 1022}),
     ];
     /** Interleaved, so nothing here can pass by taking a prefix or a suffix. */
     const CALENDAR: readonly RaceEvent[] = [

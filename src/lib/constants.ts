@@ -112,6 +112,15 @@ export const recordingKm = (recording: Recording): number => kmFromMetres(record
  * there are recordings, the advertised one where there are none. Every consumer goes through
  * here — `Patch.astro`, `llms.txt`, the projection — so none of them has to know the shape.
  *
+ * THE RECORDED FIGURE WINS WHEREVER BOTH EXIST, AND THAT PRECEDENCE IS NOW THE WHOLE
+ * INVARIANT. {@link RaceEventCommon.advertised_km} used to be spelled `km?: never` on a
+ * recorded race, so a stored distance beside stored metres was a COMPILE error; the ledger
+ * needs the organiser's own division printed beside the ride, so the two facts legitimately
+ * coexist on one row and the type can no longer forbid the pair. What it forbade is enforced
+ * here instead — this function reaches for the advertised figure only when there is nothing
+ * recorded to convert — and `tests/constants.test.ts` holds that by handing a recorded race
+ * an advertised distance and asserting the metres still decide.
+ *
  * A SPLIT RACE SUMS THE METRES AND CONVERTS ONCE. Adding up what the parts print would convert
  * once per part and drop a third decimal each time: 22558.8 + 140498.0 is 163.05 as a race,
  * where its own two bib lines read 22.55 and 140.49 and add to 163.04. That is the rule working,
@@ -119,7 +128,7 @@ export const recordingKm = (recording: Recording): number => kmFromMetres(record
  */
 export const raceKm = (event: RaceEvent): number => {
     const parts = recordingsOf(event);
-    if (parts.length === 0) return event.km ?? NaN;
+    if (parts.length === 0) return event.advertised_km ?? NaN;
     /*
      * THE SUM IS SNAPPED TO A MICRON BEFORE THE RULE IS APPLIED, and that is not a rounding of
      * the distance. Adding doubles is not exact: 86432.4 + 47793.2 + 24244.4 is
@@ -512,6 +521,104 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  *
  * Named `RaceEvent` because `Event` is a live DOM global in this module.
  */
+
+/**
+ * WHAT THE ORGANISER'S OWN RESULTS SHEET SAYS. It is a SECOND ACCOUNT of a race the rider
+ * also recorded, and the bib prints the two side by side rather than reconciling them.
+ *
+ * THE TWO ACCOUNTS DISAGREE, AND THAT IS THE FACT BEING PUBLISHED. A certified course is
+ * measured with a Jones counter along the shortest legal line; a watch samples GPS around
+ * whatever line was actually run, so it reads long — 22.45 against a 21.10 half. The clocks
+ * disagree for a different reason again (see {@link net_time}). Nothing here is a correction
+ * of {@link raceKm} and nothing here may be averaged with it: they are two instruments
+ * answering the same question, and a reader is owed both readings, not a synthesis of them.
+ *
+ * IT IS THE ONE LINK ON A BIB A STRANGER CAN ACTUALLY FOLLOW, which is why the stub puts it
+ * ABOVE the Strava links rather than after them. Both sheets this site cites render fully for
+ * a logged-out visitor; every Strava activity link on the wall is a login wall. (Verified by
+ * loading both pages in a real browser. `curl` gets 403 from both WAFs and proves nothing
+ * either way — do not conclude a sheet is private from a command line.)
+ *
+ * HAND-ENTERED, and for the reason {@link RaceEventCommon.elapsed_time} is: a finishing time
+ * on a results sheet stopped changing the day the race ended. There is no API here to fetch
+ * it from in any case — each timing provider publishes its own page and nothing else.
+ */
+export type OfficialResult = {
+    /**
+     * CHIP TIME: the mat at the start to the mat at the finish, as `H:MM:SS`. It is the
+     * rider's own race and is the figure a runner quotes.
+     *
+     * ABSENT WHERE THE SHEET DOES NOT PUBLISH ONE. checkpointspot prints a single time
+     * against a start split, so what it gives is a gun time and this stays away rather
+     * than being derived by subtraction — a derived figure would print as though the
+     * organiser had stated it.
+     */
+    net_time?: string
+    /**
+     * GUN TIME: the starting gun to the finish mat, as `H:MM:SS`. It includes however long
+     * the rider spent in the pen, so it is the LONGER of the two and belongs to the event
+     * rather than to the athlete — 3:48:04 against a 3:30:59 net on the same half.
+     */
+    gun_time?: string
+    /**
+     * The public results page, where one exists.
+     *
+     * OPTIONAL BECAUSE A RESULT CAN BE PUBLISHED WITH NOWHERE TO POINT AT — a certificate
+     * mailed as an image, a sheet taken down. The ledger row still earns its place then:
+     * the figures are the organiser's account whether or not a reader can go and look.
+     */
+    url?: string
+}
+
+/**
+ * A RACE WITH A SECOND ACCOUNT OF IT. The two fields travel together and the pairing is the
+ * point: an official result is a row in the bib's ledger, and a ledger row needs the
+ * distance the organiser says the race WAS, not the distance a watch recorded.
+ *
+ * SO {@link RaceEventCommon.advertised_km} IS REQUIRED HERE rather than optional-and-checked.
+ * Without it the official row would have a time and a blank where its distance goes, on a bib
+ * whose whole argument is that each row carries one source's distance beside that same
+ * source's clock. `pnpm check` gates the deploy, so the type is the cheapest place to say it.
+ */
+type Documented = {
+    /**
+     * The event's ADVERTISED distance in km, as the organiser publishes it — 21.10 for a half
+     * marathon, 1022.00 for a nine-day tour. It is the same fact a results sheet calls the
+     * DIVISION entered, which is why one field serves both the booked bib's hero and the
+     * ledger's official row rather than the two being stored separately and drifting.
+     *
+     * IT IS NOT A RECORDED FIGURE AND MUST NOT BE ROUNDED LIKE ONE. {@link kmFromMetres} is
+     * about a ride that happened; this is a number off a race entry, and the two only look
+     * alike.
+     *
+     * THE GAP BETWEEN THE TWO IS NOT SMALL, so do not treat one as a stand-in for the other:
+     * the 2026 round-island ride recorded 160.56 km against a 121.98 km advertised route, and a
+     * 21.10 km half marathon recorded 22.45. That gap is exactly what the ledger publishes.
+     *
+     * IT WAS CALLED `km`, AND THE RENAME IS WHAT MAKES THE PAIR SAFE TO STORE. Under the old
+     * name a recorded race carrying one was a compile error ({@link raceKm} records why that
+     * guard existed and where its coverage went); under this one the field says which account
+     * it belongs to, so a reader adding a row cannot mistake it for the distance ridden.
+     */
+    advertised_km: number
+    official: OfficialResult
+}
+
+/**
+ * A RACE NOBODY ELSE HAS PUBLISHED A RESULT FOR. Its advertised distance is still allowed —
+ * a booked race needs one, and a race can be entered without the organiser ever posting a
+ * sheet — but there is no official account to pair it with.
+ *
+ * `official?: never` RATHER THAN OMITTING THE KEY, so the two members of the union are
+ * DISCRIMINATED. Without it a row could carry `official` while omitting the distance its
+ * ledger row needs, and TypeScript would accept it by matching this member.
+ */
+type Undocumented = {
+    /** See {@link Documented.advertised_km}. Optional here; {@link BookedRace} requires it. */
+    advertised_km?: number
+    official?: never
+}
+
 type RaceEventCommon = {
     /** ISO `YYYY-MM-DD`, the day the event starts. */
     date: string
@@ -624,23 +731,31 @@ type RaceEventCommon = {
      * split.)
      */
     elapsed_time?: string
-}
+} & (Documented | Undocumented)
 
 /**
  * A RACE THAT WAS RECORDED. Its distance is not stored anywhere: it is DERIVED from the metres
  * in {@link Recording}, by {@link raceKm}.
  *
- * `km?: never` IS THE POINT OF THIS SHAPE, not a formality. A recorded race carrying a
- * hand-typed distance beside its metres is two copies of one fact, and this repository has
- * shipped the drift twice — the conversion rule was reset three times and every row had to be
- * rewritten by hand each time, from figures only a live API call could recover. Making the
- * second copy a type error is what stops a fourth round of that: `pnpm check` gates the deploy,
- * so the invariant costs nothing to remember.
+ * IT USED TO CARRY `km?: never`, AND LOSING THAT GUARD IS THE ONE THING THIS SHAPE PAID FOR
+ * THE LEDGER. A recorded race carrying a hand-typed distance beside its metres was two copies
+ * of one fact, and this repository shipped that drift twice — the conversion rule was reset
+ * three times and every row had to be rewritten by hand each time, from figures only a live
+ * API call could recover. The compiler used to refuse the second copy outright.
+ *
+ * It can no longer, because the second figure stopped being a copy. A ledger prints the
+ * ORGANISER's distance beside the RIDER's, and on a recorded race those are two different
+ * facts that must both be storable — see {@link Documented.advertised_km}. What the old
+ * spelling actually protected is the PRECEDENCE, and that moved into {@link raceKm}, which
+ * reaches for an advertised figure only where there is nothing recorded to convert, with a
+ * test that hands a recorded race both and asserts the metres decide. The rename is the other
+ * half: `advertised_km` cannot be misread as the distance ridden the way a bare `km` could.
  *
  * AT LEAST ONE RECORDING, spelled as a non-empty tuple. `recordings: []` cannot satisfy this
- * shape, so an empty list falls to {@link BookedRace} where a `km` is required — which is the
- * type saying what `recordingsOf` has always said at runtime: an empty array is not a
- * recording, and a race with nothing to link to still has to have a distance from somewhere.
+ * shape, so an empty list falls to {@link BookedRace} where an advertised distance is
+ * required — which is the type saying what `recordingsOf` has always said at runtime: an
+ * empty array is not a recording, and a race with nothing to link to still has to have a
+ * distance from somewhere.
  */
 type RecordedRace = RaceEventCommon & {
     /**
@@ -669,8 +784,6 @@ type RecordedRace = RaceEventCommon & {
      * The build refuses it (tests/projection.test.ts), so the cost is a red deploy.
      */
     recordings: readonly [Recording, ...Recording[]]
-    /** Never. A recorded race's distance is {@link raceKm}, off the metres. */
-    km?: never
 }
 
 /**
@@ -678,34 +791,37 @@ type RecordedRace = RaceEventCommon & {
  *
  * Its distance can only be the EVENT's advertised one, because nothing else exists: no
  * activity, no metres. That is the honest floor of this shape rather than a compromise, and it
- * is why `km` here is required.
+ * is why {@link Documented.advertised_km} is required here where the common shape leaves it
+ * optional.
+ *
+ * WHEN THIS RACE IS RIDDEN IT KEEPS THE FIELD RATHER THAN LOSING IT, which is the one thing
+ * the ledger changed about this edit. The row gains `recordings` and from then on
+ * {@link raceKm} answers off the metres; the advertised figure stays because it is the
+ * organiser's own account of the same race and the bib prints both.
  */
 type BookedRace = RaceEventCommon & {
-    /**
-     * The event's ADVERTISED distance in km, as the organiser publishes it — 21.10 for a half
-     * marathon, 1022.00 for a nine-day tour.
-     *
-     * IT IS NOT A RECORDED FIGURE AND MUST NOT BE ROUNDED LIKE ONE. {@link kmFromMetres} is
-     * about a ride that happened; this is a number off a race entry, and the two only look
-     * alike. When this race is ridden, the row does not get a corrected `km` — it loses this
-     * field and gains `recordings`, which is the whole edit.
-     *
-     * THE GAP BETWEEN THE TWO IS NOT SMALL, so do not treat one as a stand-in for the other:
-     * the 2026 round-island ride recorded 160.56 km against a 121.98 km advertised route, and a
-     * 21 km half marathon recorded 22.45.
-     */
-    km: number
+    /** Required here. See {@link Documented.advertised_km} for what it is and is not. */
+    advertised_km: number
     /** Allowed only as an empty list, which means the same as absent. See {@link RecordedRace}. */
     recordings?: readonly []
 }
 
 /**
- * A RACE, IN EXACTLY ONE OF TWO SHAPES: recorded, or booked. The union is the distance rule —
- * a race has a recorded distance or an advertised one, never both and never neither.
+ * A RACE, IN EXACTLY ONE OF TWO SHAPES: recorded, or booked. The union is the EVIDENCE rule —
+ * a race either has activities to link to or it does not, and one of those two things is
+ * always true.
+ *
+ * IT IS NO LONGER THE DISTANCE RULE, and that sentence is retired rather than reworded because
+ * it was load-bearing for three revisions. It read "a race has a recorded distance or an
+ * advertised one, never both and never neither", which the ledger makes false in the "both"
+ * direction on purpose: a race that was ridden AND published still has the organiser's own
+ * division beside the metres. What survives of it is "never neither" — see {@link BookedRace}.
  *
  * READ IT THROUGH {@link raceKm} rather than reaching for a field. That accessor is the only
- * place that knows which shape it has, and it is what every consumer — the bib, llms.txt, the
- * projection — actually wants.
+ * place that knows which shape it has AND which figure wins where a row carries both, and it
+ * is what every consumer — the bib's hero, llms.txt, the projection — actually wants. The
+ * ledger is the ONE consumer that legitimately reads both fields, because printing the
+ * disagreement is its entire job.
  *
  * WHICH ACTIVITIES BELONG TO A RACE IS THE RIDER'S CALL, and the type cannot help there. A race
  * day very often holds more than the race, and TWO DIFFERENT THINGS LOOK LIKE A SPLIT DAY:
@@ -787,7 +903,19 @@ export type Recording = {
 }
 
 export const EVENTS: readonly RaceEvent[] = [
+    // THE ROW THE LEDGER WAS DESIGNED AROUND: two accounts of one race that disagree about
+    // everything and are both correct. The course is certified at 21.10 km and the watch
+    // recorded 22.45; the chip says 3:30:59, the watch 3:44:25 and the gun 3:48:04. Nothing
+    // here is a correction of anything else — see `OfficialResult`.
+    //
+    // THE DATE IS RIGHT AND THE PAGE IT LINKS TO IS ALSO RIGHT. sportsplits heads that result
+    // "3rd December 2022"; the 3rd was the FULL marathon and the half was the 4th. This is the
+    // same shape as the `OCBC Cycle Singapore Virtual Ride` / `Malaysia` pairing below, which
+    // a reviewer once proposed "fixing" — do not change the date to match the heading.
     {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", sport: "running", country: "Singapore", elapsed_time: "3:44:25",
+     advertised_km: 21.10,
+     official: {net_time: "3:30:59", gun_time: "3:48:04",
+                url: "https://www.sportsplits.com/races/singapore-marathon-2022/events/3/results/individuals/23925"},
      recordings: [{id: "8204481233", metres: 22454.7, elapsed_time: "3:44:25"}]},
     // 22.11 km IS NOT A TYPO FOR A 40 km SPORTIVE. The activity's own description reads
     // "Rainy rainy morning! Our 40km sportive ride turns out to be a 20km scenic ride!" —
@@ -829,9 +957,26 @@ export const EVENTS: readonly RaceEvent[] = [
     // this row could be checked against; it is a third device that cannot see the fact either,
     // alongside Strava and the calendar. Do not "correct" this to `finished` on the strength of
     // that page. The recording is the rider's own 78.59 km of the day, which is why the bib's
-    // covered row reads further than the race advertised while the hero still says DNF —
-    // `covered_label` names ground, not a result.
+    // RECORDED row reads further than the race advertised while the hero still says DNF — that
+    // row names an account, not a result.
+    //
+    // THE SHEET IS CITED HERE ANYWAY, AND THAT IS THE LEDGER EARNING ITS KEEP RATHER THAN
+    // CONTRADICTING THE PARAGRAPH ABOVE. Printing `OFFICIAL 42.00 2:19:11` beside
+    // `RECORDED 78.59 7:40:25` under a hero reading DNF says exactly what happened: the
+    // organiser recorded a finish over the advertised course, the rider rode nearly twice that
+    // and did not complete it. A design that had to pick ONE of those figures would have to
+    // suppress the other; this one does not, which is why `outcome` stays hand-entered and the
+    // sheet stays quotable. What is NOT taken from the page is its `Status` field — the bib
+    // already answers that question and the sheet answers it wrongly.
+    //
+    // A GUN TIME, NOT A NET ONE. checkpointspot prints one time and a `Start 00:01:18` split,
+    // so the mat crossing is 1:18 into the clock it publishes. Deriving a net time by
+    // subtraction would print a figure as though the organiser had stated it, so `net_time`
+    // stays absent and the ledger prints the gun time it actually has.
     {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", sport: "cycling", country: "Malaysia", outcome: "dnf", elapsed_time: "7:40:25",
+     advertised_km: 42.00,
+     official: {gun_time: "2:19:11",
+                url: "https://results.checkpointspot.asia/myresults.aspx?CId=17036&RId=10723&EId=1&AId=2308571"},
      recordings: [{id: "16736512210", metres: 78595.0, elapsed_time: "7:40:25"}]},
     {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15",
      recordings: [{id: "18433212592", metres: 130033.0, elapsed_time: "8:14:15"}]},
@@ -848,13 +993,20 @@ export const EVENTS: readonly RaceEvent[] = [
                   {id: "19254155835", metres: 140498.0, elapsed_time: "8:32:05"}]},
     {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", sport: "cycling", country: "Thailand", elapsed_time: "9:41:31",
      recordings: [{id: "19279762093", metres: 158100.0, elapsed_time: "9:41:31"}]},
+    // THE ROW THAT DELIBERATELY GAINS NOTHING FROM THE LEDGER, and it is not an omission to be
+    // filled in later. A VIRTUAL RACE CERTIFIES THE FILE YOU UPLOADED. Its certificate reads
+    // 00:58:26, which is this recording's own elapsed time to the second, and its "10 km
+    // division" is a rounding of what the same file said — so there is no second instrument
+    // and nothing to disagree with. Giving it an `official` block would print one account
+    // twice under two names, which is precisely the thing the ledger exists to avoid. No
+    // `advertised_km` either, for the same reason: 10 km here is the file, not a course.
     {date: "2026-07-29", name: "Garmin Run Virtual Challenge", sport: "running", country: "Singapore", elapsed_time: "0:58:26",
      recordings: [{id: "19513789157", metres: 10166.6, elapsed_time: "0:58:26"}]},
     {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", sport: "cycling", country: "Singapore", elapsed_time: "10:56:17",
      recordings: [{id: "19566067972", metres: 160566.0, elapsed_time: "10:56:17"}]},
-    {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
-    {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
-    {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running", country: "Singapore"},
+    {date: "2026-09-27", name: "The Kiprun Singapore 2026", advertised_km: 21.10, sport: "running", country: "Singapore"},
+    {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", advertised_km: 1022.00, sport: "cycling", country: "Taiwan"},
+    {date: "2026-12-06", name: "BYD Singapore International Marathon", advertised_km: 42.20, sport: "running", country: "Singapore"},
 ]
 
 /**
@@ -1173,44 +1325,59 @@ export const PATCHES: {
     home_icon: string
     filter_label: string
     /**
-     * The word before a finished bib's time, and it is load-bearing rather than a caption.
-     * Elapsed and moving are far apart on a long ride — 8:32:05 against 5:03:55 over the
-     * same 140.49 km — so a bare time invites a reader to divide it into the distance and
-     * get an average that is 11 km/h wrong (16.5 against 27.7). It read 9 while the bib
-     * printed the EVENT's distance over the activity's clock; both figures now come off one
-     * activity, which makes the pair honest and the gap wider. See
-     * {@link RaceEvent.elapsed_time}.
+     * WHOSE ACCOUNT A LEDGER ROW IS. These two words are the whole reason the ledger works,
+     * and they were chosen over the obvious alternative with both drawn.
+     *
+     * THE ALTERNATIVE WAS CLOCK NAMES — `NET` / `GUN` / `ELAPSED` — and it fails on the
+     * DISTANCE column. A row reading `GUN 42.00 2:19:11` says a gun measured 42 kilometres.
+     * Naming the SOURCE instead makes every cell in the row true of the same thing: the
+     * organiser says 42.00 km in 2:19:11, the watch says 78.59 km in 7:40:25. A reader
+     * dividing either row gets a speed that source would recognise, which is the invariant
+     * {@link RaceEventCommon.elapsed_time} spends four paragraphs protecting on a bib that
+     * only had one account to protect.
+     *
+     * WHAT THAT COSTS IS THE CLOCK KIND, AND IT IS PAID BACK IN THE LINK'S NAME. Which of
+     * the two clocks an official row prints is said in {@link official_name}, where it costs
+     * no ink and a listener still gets it — see {@link OfficialResult.net_time}.
+     *
+     * `Recorded` REPLACES BOTH `Elapsed` AND `Covered`, which is one word doing the work of
+     * two captions because the row now carries both figures. `Covered` had to exist when a
+     * DNF's distance was a lone labelled line arguing it was not a result; inside a ledger
+     * the row name already says it is one account among two, so the participle has nothing
+     * left to do. Note what is NOT lost with it: `Covered` was deliberately sport-neutral,
+     * because {@link RaceEventCommon.outcome} is on the shared event shape and a cycling verb
+     * would have shipped `RIDDEN 21.10 KM` on the first abandoned run. `Recorded` is neutral
+     * for the same reason and by the same rule — do not replace either of these with a
+     * per-sport lookup, however available {@link goalForSport} makes one.
      */
-    elapsed_label: string
+    official_row: string
+    /** See {@link official_row}. The rider's own account: the metres and the watch. */
+    recorded_row: string
     /**
-     * THE WORD BEFORE THE DISTANCE ON A BIB WHOSE HERO IS {@link dnf_result}. It is the
-     * second half of that design and does not stand on its own.
+     * THE LEDGER'S CLOCK COLUMN HEADING. It is a heading rather than a unit repeated on
+     * every figure, and the difference is measured rather than stylistic.
      *
-     * THE KILOMETRES DO NOT DISAPPEAR, THEY STOP CLAIMING A RESULT. He rode 110.04 of them
-     * and the bot's total counts every one; what a DNF bib must not do is print that figure
-     * in the slot every other bib uses to say how long the race WAS. So the distance moves
-     * down to a labelled row drawn like the elapsed one — dimmed caption, full-ink value —
-     * where it reads as what was covered rather than as what was completed.
+     * THE FIRST ANSWER WAS A UNIT ON EVERY FIGURE AND IT DOES NOT FIT. At the wall's
+     * narrowest bib the ledger row has 180.4px; `RECORDED 163.05 KM 10:09:34` needs 189.6px
+     * and the Formosa tour's 1022.00 needs 197.1px, so on three of the calendar's races the
+     * unit orphans onto a line of its own. Even the ordinary case cleared by 2.7px, which one
+     * notch of text zoom removes. A heading states the unit ONCE, in the column it governs.
      *
-     * IT IS A PAST PARTICIPLE, NOT A NOUN, and that is what makes the row say the thing:
-     * "Distance" would name a quantity, where this names something that happened and
-     * stopped. The pairing with {@link elapsed_label} is deliberate — two captions, same
-     * grammar, one naming the clock and one the ground covered.
+     * IT ALSO SURVIVES A DNF, WHICH BARE FIGURES DO NOT. The hero on that branch is a word,
+     * so `.bib-unit` is deliberately not rendered — with no heading and no per-figure unit,
+     * an abandoned race's bib would print no unit anywhere at all.
      *
-     * AND IT IS SPORT-NEUTRAL, WHICH IS THE HALF THAT WAS WRONG FIRST. It read "Ridden",
-     * a cycling verb, on a field the type lets any sport reach — {@link RaceEvent.outcome}
-     * is on the shared event shape, so the first abandoned RUN would have shipped a bib
-     * reading "RIDDEN 21.10 KM" with nothing red anywhere. The per-sport fix is available
-     * ({@link goalForSport} is the join for exactly this) and is the wrong one here: the
-     * participle for running is "Run", which {@link Goal.short_name} already prints in the
-     * meta row two lines above, so the bib would read RUN … RUN 21.10 KM. One neutral word
-     * says what the paragraph above already argues for — the ground covered — for both.
-     * The gate is in tests/patch-wall.test.ts: it renders a DNF bib for each sport and
-     * holds the two labels EQUAL, which a per-sport lookup would fail.
+     * THERE IS NO MATCHING FIELD FOR THE DISTANCE COLUMN. That heading is
+     * {@link Goal.measurable_unit}, the same string the hero sets on its side, so the two
+     * cannot word the unit differently.
+     *
+     * AND IT IS THE DEVICE BOTH CITED SHEETS ALREADY USE: sportsplits heads its splits
+     * `Location / Race Time / Pos`, checkpointspot heads its `Name / Time / Split Time`. A
+     * ledger under a heading is a results table, which is what this is.
      */
-    covered_label: string
+    time_head: string
     /**
-     * The glyph on the bib's action row. It names the destination — it no longer has to
+     * The glyph on a bib's Strava stub line. It names the destination — it no longer has to
      * carry the affordance by itself, which is the correction below.
      *
      * A hover state is not an option — there is no hover on a phone, and this site has
@@ -1248,6 +1415,71 @@ export const PATCHES: {
      * distance. See Patch.astro, which records the whole accessible name.
      */
     strava_name: string
+    /**
+     * WHICH RACE A STUB LINK BELONGS TO, said in the accessible name and nowhere on screen.
+     * `{race}` is the event's name and `{date}` its {@link formatPatchDate} form.
+     *
+     * IT IS OWED BY EVERY LINK WHOSE VISIBLE WORDS ARE THE SAME ON EVERY BIB, which is most
+     * of them: {@link strava_name} and {@link official_link} are fixed strings, so a reader
+     * listing every link on the page (NVDA Insert+F7, the VoiceOver rotor) would otherwise
+     * get one phrase repeated once per race with no surrounding bib to tell them apart. That
+     * is the SC 2.4.4 failure this bib works hardest to avoid, and it arrived the moment the
+     * whole bib stopped being the anchor — the old whole-bib link self-disambiguated, because
+     * its name was the bib's entire text starting with the date.
+     *
+     * `{date}` IS NOT DECORATION HERE. The round-island ride is an ANNUAL event, so its name
+     * repeats down the wall; the name alone would not say which running.
+     *
+     * A SUPERSET, NOT A REPLACEMENT. It is appended to the visible words rather than being an
+     * `aria-label` over them — the device {@link split_name} and {@link NEW_TAB_NOTICE}
+     * already use, and this repo's rule for every name on a bib.
+     */
+    race_name: string
+    /**
+     * THE GLYPH ON THE OFFICIAL RESULT LINK. A ruled sheet, which is what a results page is.
+     *
+     * SAFELISTED IN uno.config.ts, AND THAT IS NOT OPTIONAL. Icon classes are built from
+     * these constants at render time, so UnoCSS never sees the token in source; one it has no
+     * rule for renders as a mask box at zero size — correct markup, no icon, nothing red.
+     * This one is the first icon on the site that no other constant already emits, so it has
+     * no coincidence to lean on even briefly.
+     */
+    official_icon: string
+    /**
+     * THE OFFICIAL RESULT LINK'S VISIBLE LABEL, and it sits ABOVE the Strava link on the stub.
+     *
+     * THAT ORDER IS THE ONE THING THIS FEATURE CHANGED ABOUT WHAT A STRANGER CAN DO. Both
+     * cited results pages render fully for a logged-out visitor; every Strava activity link on
+     * this wall is a login wall. So the results link is the first piece of evidence on the bib
+     * a reader can actually follow, and burying it under the one they cannot would be exactly
+     * backwards. See {@link OfficialResult}.
+     *
+     * IMPERATIVE, MATCHING {@link strava_name}, for the reason recorded there: a control says
+     * what happens when it is used rather than naming a brand. "Official result" alone was
+     * measured too and reads as a caption sitting under a perforation — which is what the row
+     * beside it would then look like as well.
+     *
+     * IT FITS, MEASURED: 150.1px of ink in the 170.6px a stub row has at the wall's narrowest
+     * bib. Do not lengthen it without re-measuring — this is the widest string on the stub.
+     */
+    official_link: string
+    /**
+     * WHAT AN OFFICIAL RESULT LINK SAYS THAT THE LEDGER BESIDE IT CANNOT. `{clock}` is
+     * {@link net_clock} or {@link gun_clock}, `{time}` the figure the ledger row prints,
+     * `{race}` and `{date}` as in {@link race_name}.
+     *
+     * THIS IS WHERE THE CLOCK KIND LIVES, AND IT IS THE COMPENSATION FOR NAMING THE LEDGER'S
+     * ROWS BY SOURCE. {@link official_row} explains why a row cannot be headed `NET` or `GUN`:
+     * the same word would then be claiming a distance. The distinction is real all the same —
+     * a chip time and a gun time are 17 minutes apart on the one race that has both — so it
+     * goes here, where it costs no ink on a 208px bib and a listener still gets it. It is the
+     * only place on the page the two clocks are told apart.
+     */
+    official_name: string
+    /** The word for a chip time in {@link official_name}. See {@link OfficialResult.net_time}. */
+    net_clock: string
+    /** The word for a gun time in {@link official_name}. See {@link OfficialResult.gun_time}. */
+    gun_clock: string
     /**
      * WHAT A SPLIT RACE'S LINK SAYS THAT THE READER CANNOT SEE. `{race}` is the event's name.
      *
@@ -1344,10 +1576,17 @@ export const PATCHES: {
     home_label: "Home",
     home_icon: "ri:arrow-left-line",
     filter_label: "Filter by sport",
-    elapsed_label: "Elapsed",
-    covered_label: "Covered",
+    official_row: "Official",
+    recorded_row: "Recorded",
+    time_head: "Time",
     strava_icon: "fa6-brands:strava",
     strava_name: "View on Strava",
+    race_name: "{race}, {date}",
+    official_icon: "ri:file-list-3-line",
+    official_link: "View official result",
+    official_name: "{clock} time {time}, {race}, {date}",
+    net_clock: "net",
+    gun_clock: "gun",
     split_name: "on Strava, {race}, {date}",
     split_line: "View {distance}",
 }

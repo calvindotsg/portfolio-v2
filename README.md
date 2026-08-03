@@ -24,6 +24,13 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
   by the events and only the earned bibs are patches; "patch wall" survives as the URL
   and the metaphor, not as anything the site calls itself. The goal cards stay scoped
   to the goal year while the wall keeps everything
+- **Two accounts of a race, side by side.** Where an organiser has published a result,
+  the bib carries a ledger: the official distance and time on one row, the recorded ride
+  on the next, each source's figures kept together so nothing invites a reader to divide
+  one source's distance into another's clock. A certified course and a GPS trace disagree
+  by design; the bib publishes the disagreement rather than picking a winner. The
+  results page is linked above the Strava activity, because it is the one a reader who
+  is not logged in can actually open
 - Fully responsive layout
 - Dark/Light mode support
 - Optimized for performance, accessibility, and SEO
