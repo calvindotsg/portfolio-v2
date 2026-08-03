@@ -8,11 +8,13 @@ import {EVENTS, raceKm, type RaceEvent, type Recording, recordingsOf} from "../s
  * WHY THIS EXISTS. A finishing time and a distance are typed in by hand, and the source
  * used to be a screenshot of Strava's web page. Both ways that goes wrong were real:
  *
- *   THE LAST DIGIT IS A CONVERSION CHOICE, and this file and `km` have to make the SAME one or
- *   a row is off by 0.01. It is the API's metres rounded DOWN to two places — the maintainer's
- *   rule, and the input to it is `distance` off this endpoint, never a figure read off a Strava
- *   page. That rule has been set three times, so check `km` in constants.ts before concluding a
- *   row is wrong.
+ *   THE LAST DIGIT IS A CONVERSION CHOICE, and this file and `kmFromMetres` have to make the
+ *   SAME one or a race's figure is off by 0.01. It is the API's metres rounded DOWN to two
+ *   places — the maintainer's rule, and the input to it is `distance` off this endpoint, never
+ *   a figure read off a Strava page. That rule has been set three times, so read the note above
+ *   `kmFromMetres` in constants.ts before concluding a row is wrong. NOTE WHAT `km` MEANS NOW:
+ *   it is the ADVERTISED distance of a race with no recording, and a recorded race does not
+ *   carry one at all — so a sentence here about "the `km` rule" would point at the wrong field.
  *
  *   AN ACTIVITY CAN BE EDITED AFTER YOU READ IT, so a screenshot is a reading of a MUTABLE
  *   record. One row was authored from a screenshot showing 13:36:10 elapsed, 6:31:11 moving
@@ -53,9 +55,10 @@ import {EVENTS, raceKm, type RaceEvent, type Recording, recordingsOf} from "../s
  * the day you read this, and this note has already been wrong about it once. Treat it as an
  * example of the class rather than a census.)
  *
- * WHAT IT DELIBERATELY DOES NOT ASSERT is `km` against a route's advertised distance. The
- * rule is that `km` is the LINKED activity's distance — see the field's own note — so the
- * activity is the authority here, not the event.
+ * WHAT IT DELIBERATELY DOES NOT ASSERT is a recorded race against its route's advertised
+ * distance. A recorded race's figure is `raceKm` over the metres below — see that accessor's
+ * note — so the activity is the authority here, not the event. The advertised figure lives on
+ * `km`, which only an unrecorded race carries, and nothing in this file reads it.
  */
 const ENABLED = process.env.STRAVA_VERIFY === "1";
 
@@ -80,7 +83,9 @@ const hms = (total: number): string => {
 };
 
 /**
- * Metres -> km at two places, ROUNDED DOWN, which is what `km` holds.
+ * Metres -> km at two places, ROUNDED DOWN — the same conversion `kmFromMetres` performs, kept
+ * as a local copy so this file compares against an INDEPENDENT implementation of the rule
+ * rather than importing the one under test.
  *
  * SCALE TO INTEGER HUNDREDTHS FIRST, and `Math.floor` rather than `Math.trunc` is only a
  * spelling here: a distance is never negative, so the two agree — but the rule this stands for

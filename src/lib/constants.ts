@@ -120,7 +120,22 @@ export const recordingKm = (recording: Recording): number => kmFromMetres(record
 export const raceKm = (event: RaceEvent): number => {
     const parts = recordingsOf(event);
     if (parts.length === 0) return event.km ?? NaN;
-    return kmFromMetres(parts.reduce((metres, part) => metres + part.metres, 0));
+    /*
+     * THE SUM IS SNAPPED TO A MICRON BEFORE THE RULE IS APPLIED, and that is not a rounding of
+     * the distance. Adding doubles is not exact: 86432.4 + 47793.2 + 24244.4 is
+     * 158469.99999999997, so flooring it prints 158.46 for a race that rode 158.47 — and the
+     * same three parts summed in a different order print 158.47, which makes a bib's figure
+     * depend on the order the rider happened to ride them in. Two parts cannot reach it; three
+     * can, at a measured 413 of 14973 boundary cases.
+     *
+     * 1e-6 m is six orders of magnitude below anything Strava expresses, so this can only move
+     * float noise and never an honest figure — a genuine 12349.96 m is still 12.34 km. DO NOT
+     * replace it with a scale to integer tenths: that assumes every `metres` carries one
+     * decimal, which nothing here guarantees, and it ROUNDS UP a two-decimal value into a
+     * hundredth nobody rode — the one direction this file's rule forbids.
+     */
+    const metres = parts.reduce((sum, part) => sum + part.metres, 0);
+    return kmFromMetres(Math.round(metres * 1e6) / 1e6);
 };
 
 /**

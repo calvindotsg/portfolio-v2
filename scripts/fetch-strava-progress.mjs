@@ -24,8 +24,12 @@ import { pathToFileURL } from "node:url";
  * difference between the two functions, and it is why this is not shared code — the other side
  * is TypeScript that this zero-dependency script cannot import.
  *
- * SCALE TO INTEGER TENTHS FIRST. `Number((meters / 1000).toFixed(1))` ROUNDS, so it is the other
- * convention: 2246450 m gives 2246.5 through it and 2246.4 here.
+ * SCALE TO INTEGER TENTHS FIRST, and do not reach for `Number((meters / 1000).toFixed(1))`:
+ * it rounds the double it is handed, so it agrees with this rule on some totals and not others.
+ * 2246480 m is 2246.5 through it and 2246.4 here; 2246450 m is 2246.4 through BOTH, because
+ * 2246.45 is 2246.4499999999998 once it is binary. An earlier revision of this comment used
+ * that second figure as the example and was wrong — the test beside it was green under the very
+ * implementation it was added to exclude.
  */
 export function kmFromMeters(meters, label) {
     if (typeof meters !== "number" || !Number.isFinite(meters) || meters < 0) {
