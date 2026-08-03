@@ -1170,6 +1170,90 @@ if (recordings.length === 1) {
         padding-left: 1.4em;
     }
 
+    /*
+     * WHEN THE BIB IS TOO NARROW FOR THREE COLUMNS, THE ROW'S NAME TAKES A LINE OF ITS OWN.
+     *
+     * WHAT GOES WRONG WITHOUT THIS, AND WHY NOTHING CAUGHT IT. `overflow-wrap: anywhere` above
+     * lets a cell's min-content fall to ONE CHARACTER, which is what stops the clock painting
+     * on the card — and it is also a licence for the leader track to be squeezed to nothing
+     * long before anything overflows. Measured on the shipped wall at a 32px root, WCAG SC
+     * 1.4.4's required 200%: a 390px phone gives the bib 260px, and `RECORDED` rendered as
+     * eight stacked single letters beside a two-line `10:56:17`. The escape sweep that passed
+     * this design read ink against the bib's edge and found none — correctly, because the text
+     * was not escaping, it was SHATTERING. A containment measurement cannot see a legibility
+     * failure, and this pair of properties converts the second into the first by design.
+     *
+     * THE CONDITION IS THE BIB'S OWN WIDTH IN `em`, NOT A VIEWPORT BREAKPOINT. A wall column is
+     * `min(13rem, 100%)`, so the same bib width arrives from a phone at a large text size and
+     * from a tablet showing more columns; measured, the two are indistinguishable to the
+     * ledger and a viewport query would catch one and miss the other. `.bib` already declares
+     * `container-type: inline-size`, and its font-size tracks the root exactly, so `em` here is
+     * the reader's own text size — which is the whole point, since the failure is what happens
+     * when they enlarge it. Swept 16→32px root across ten viewports: every band that wrapped
+     * was at or under 13.08em and every clean band at or over 13.63em, so 14em sits in the gap
+     * and takes the 13.63em band with it — that one is the 218px bib whose own margin is under
+     * a pixel (see the clock-column note above, which had it as the binding case and was
+     * measuring a floor 10px too high).
+     *
+     * THE FIGURES KEEP THEIR SHARED COLUMNS, which is the reason the name moves rather than
+     * the ledger collapsing to one column per cell. `21.10` still sits over `22.45` and
+     * `3:30:59` over `3:44:25`; a source's distance still sits beside that same source's
+     * clock, so the rule that nothing divisible crosses two sources survives the reflow
+     * untouched. Only the leader rail is spent, and it is the one thing here a reader can do
+     * without: the name is already the first thing on its row.
+     */
+    @container (max-width: 14em) {
+        .bib-ledger-who {
+            grid-column: 1 / -1;
+            justify-self: start;
+        }
+
+        /* The name now occupies a whole row, so auto-placement would put the distance back
+           under it in the leader column. Both figures are pinned to the tracks their own
+           headings are in. */
+        .bib-ledger-km {
+            grid-column: 2;
+        }
+
+        .bib-ledger-time {
+            grid-column: 3;
+        }
+    }
+
+    /*
+     * NARROWER STILL, AND THE CLOCK TAKES THE LINE. Two figures stop fitting on one line well
+     * before the reader stops enlarging, and what breaks then is the worse failure of the two:
+     * a distance wraps into two readable halves, but `10:56:17` wrapping after `10:5` reads as
+     * a DIFFERENT TIME, not as a damaged one. A figure that lies is worse than a figure that is
+     * hard to read, so the clock gets a whole line before it is allowed to break.
+     *
+     * MEASURED, NOT CHOSEN. At a 390px viewport and a 32px root the ledger has 206.8px, while
+     * `160.56` (79.2px), the gap (11px) and `10:56:17` (130.4px) want 220.6px between them even
+     * with the clock's air given back — so no amount of tuning fits them on one line. At 320px
+     * the ledger has 136.8px against a clock needing 130.4px, and one figure per line is the
+     * only arrangement that exists. 9em is the widest band that still fails; every band above
+     * it is clean under the rule above, so the two arms hand over without overlapping.
+     *
+     * THE CLOCK'S AIR IS RETURNED HERE because the thing it was bought to prevent cannot happen
+     * on a line the distance is not on — see the clock-column note, which is about two figures
+     * reading as one run of digits.
+     *
+     * THE UNIT HEADING STAYS AND THE CLOCK'S DOES NOT, which is not symmetry but a judgement
+     * about what each figure can say for itself: `H:MM:SS` announces what it is to anyone who
+     * reads it, and `78.59` does not. The ledger's whole reason for a heading row was to state
+     * the unit ONCE rather than on every figure, so the unit is the one that has to survive.
+     */
+    @container (max-width: 9em) {
+        .bib-ledger-time {
+            grid-column: 1 / -1;
+            padding-left: 0;
+        }
+
+        .bib-ledger-time-head {
+            display: none;
+        }
+    }
+
     .bib-name {
         grid-area: name;
         margin: 0;
