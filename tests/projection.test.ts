@@ -578,6 +578,64 @@ describe("EVENTS", () => {
     });
 
     /**
+     * THE SAME GUARD FOR THE OTHER ACCOUNT. An official result is a finishing time too, and it
+     * arrived without either half of the protection its sibling above has had for months.
+     *
+     * A RACE THAT HAS NOT HAPPENED HAS NO RESULT. The ledger already refuses to draw for a
+     * booked bib, but the stub does not: an `official` block on a race still ahead publishes a
+     * link announcing a finishing time for a day that has not come. The type cannot say this —
+     * `booked` is derived from the CALENDAR, not from the row's shape — so it is said here,
+     * where the two other date-versus-result rules already live.
+     *
+     * AND THE CLOCKS MUST READ LIKE CLOCKS. `net_time` and `gun_time` are hand-typed and are
+     * printed verbatim into the ledger's Time column and into the link a reader is told the
+     * clock's name in. Every other clock in this file is held to `H:MM:SS`; these two escaped
+     * it purely because they were new.
+     *
+     * BOTH ARE OPTIONAL AND THE LOOP MUST SAY SO. A sheet can publish a gun time alone — one on
+     * this calendar does, and constants.ts refuses to derive its net time by subtraction — so
+     * asserting either field unconditionally would fail on correct data.
+     */
+    it("never carries an official result for a race that has not happened, and reads its clocks", () => {
+        // No `toBeGreaterThan(0)` on the subset, for the reason the sibling above gives: a
+        // calendar with no published sheet on it is a true state, not a broken test.
+        for (const e of EVENTS.filter((x) => x.official !== undefined)) {
+            const official = e.official!;
+            expect(
+                parseIsoDate(e.end_date ?? e.date) <= parseIsoDate(BUILD_DATE),
+                `${e.name} is not over until ${e.end_date ?? e.date}, which is after ${BUILD_DATE}, but it `
+                + "carries an official result — the stub would link a finishing time for a day that has "
+                + "not happened",
+            ).toBe(true);
+
+            // AT LEAST ONE CLOCK, or the row is a distance beside a blank on a bib whose whole
+            // argument is that a source's figures travel together.
+            expect(official.net_time ?? official.gun_time,
+                `${e.name} has an official result with no time on it at all`).toBeTruthy();
+
+            for (const [field, value] of [["net_time", official.net_time], ["gun_time", official.gun_time]] as const) {
+                if (value === undefined) continue;
+                expect(value, `${e.name} official ${field} must read H:MM:SS`)
+                    .toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
+            }
+
+            // A GUN TIME IS THE LONGER OF THE TWO, always — it starts at the gun and the net
+            // clock starts when the rider crosses the mat, which is never earlier. Reversed,
+            // the pair would be mislabelled rather than merely odd.
+            if (official.net_time !== undefined && official.gun_time !== undefined) {
+                const secs = (t: string) => t.split(":").reduce((a, n) => a * 60 + Number(n), 0);
+                expect(secs(official.gun_time), `${e.name}: a gun time cannot be shorter than its own net `
+                    + `time (${official.gun_time} against ${official.net_time}) — the pen is never negative`)
+                    .toBeGreaterThan(secs(official.net_time));
+            }
+
+            if (official.url !== undefined) {
+                expect(official.url, `${e.name} official url must be absolute`).toMatch(/^https:\/\//);
+            }
+        }
+    });
+
+    /**
      * THE OTHER HALF OF THE SAME GUARD. A recording is a finishing time AND an activity
      * id, and the id is the half the test above cannot see: an id alone earns no bib, so
      * a stray one is harmless — but an id beside a time is what makes `patchState` draw a
