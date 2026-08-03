@@ -591,9 +591,13 @@ const Tag = only === null ? "div" : "a";
      * and "a four-column wall on a desktop" printing at the same proportion; neither
      * half survives measurement.
      *
-     *   at a 16px root   the 3rem cap binds at every width from 320 to 3840 except one
-     *                    (768, where 22cqi resolves to 47.96 against a 48px cap), so
-     *                    the hero is a constant 48px across the whole desktop range
+     *   at a 16px root   the 3rem cap binds at EVERY width from 320 to 3840, so the hero
+     *                    is a constant 48px across the whole range. (It used to carve out
+     *                    768, where the old 22cqi resolved to 47.96 against the 48px cap
+     *                    and just undercut it. Widening the term to 30cqi closed that gap
+     *                    rather than opening a new one: a larger percentage reaches the
+     *                    cap sooner, so raising it can only ever bind at MORE widths.
+     *                    Re-measured across ten widths after the change.)
      *   at a 42px root   the container term binds on a narrow bib, and the number
      *                    shrinks with its box instead of overflowing it. MEASURE THE
      *                    CONTENT BOX, NOT THE BIB: this line read "33px on the
