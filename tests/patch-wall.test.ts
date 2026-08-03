@@ -831,7 +831,7 @@ describe("dist/patches", () => {
     /**
      * THE TIME IS LABELLED, and the label is the assertion rather than a nicety. Elapsed
      * and moving are far apart on these rides — 8:32:05 against 5:03:55 over the same
-     * 140.50 km — so a bare time invites a reader to divide it into the distance above it
+     * 140.49 km — so a bare time invites a reader to divide it into the distance above it
      * and be 11 km/h wrong (16.5 against 27.7). See `elapsed_label` in constants.ts, which
      * carries the same figure; it read 9 while the bib printed the EVENT's distance.
      */

@@ -189,7 +189,8 @@ block above it before giving either consumer the other's list.
   splits one race across several files. TWO of the round-island rides were recorded that
   way and only ONE is on the wall — the other is also a DNF, which the wall has no state
   for, so it stays off until that exists. Count the rows rather than trusting this sentence. The race's `km` is the summed METRES converted once (not the sum of the parts'
-  printed figures, which rounds twice) and its `elapsed_time` is first start to last stop,
+  printed figures: each conversion rounds DOWN, so the parts drop a hundredth apiece and one
+  split race on the wall prints a distance above its own two lines) and its `elapsed_time` is first start to last stop,
   never the sum of the parts: elapsed already contains stops, so it must not depend on
   where the rider pressed the button. **The rule the bib is drawn by: a bib is the link
   when there is one place to go; when there is more than one, the bib HOLDS the links.**
@@ -210,7 +211,11 @@ the file:
 - `EVENTS`: every race entered, in any year — read by both the projection and the patch
   wall, at two different scopes (see the rule above). Adding a past race is a data edit:
   `elapsed_time` and `recordings` are optional, so a race remembered without a
-  recording is still a complete bib
+  recording is still a complete bib. **A recorded race's `km` is the API's metres rounded
+  DOWN to two places**, and the input is that `distance` field rather than anything Strava
+  renders — so half-up looks like a typo of it and vice versa. That rule has been reversed
+  twice; read the note above `km` in `constants.ts` before touching a figure that looks a
+  hundredth wrong
 - `PATCHES`: the wall's own prose, now one lede rather than a scope sentence plus a key.
   Its heading is `My events`; "patch wall" survives in the URL and the metaphor, not as a
   visible title

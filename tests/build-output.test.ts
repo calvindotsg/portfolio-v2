@@ -1253,7 +1253,7 @@ describe("every link on every page says that it is one", () => {
             // difference is not academic — it was measured. This read `a.childNodes` filtered to
             // `nodeType === 3`, so a link whose words sit inside SPANS scored as having none and
             // took this branch as though it were a bare glyph. The patch wall's split lines are
-            // exactly that shape (`<span class="bib-split-km">17.91 km</span>`): they carry two
+            // exactly that shape (`<span class="bib-split-km">17.90 km</span>`): they carry two
             // visible figures and were being exempted here as icon-only, so the affordance this
             // gate exists to check was never checked for them. Excluding `.sr-only` subtrees and
             // reading the rest of `textContent` is what the branch always meant. The genuinely

@@ -9,10 +9,10 @@ import {EVENTS, type RaceEvent, type Recording, recordingsOf} from "../src/lib/c
  * used to be a screenshot of Strava's web page. Both ways that goes wrong were real:
  *
  *   THE LAST DIGIT IS A CONVERSION CHOICE, and this file and `km` have to make the SAME one or
- *   every row is off by 0.01. It is metres rounded half-up to two places, because the API's
- *   metres are the source of record and that is the maintainer's instruction. See `km` in
- *   constants.ts for why the rule does NOT rest on what Strava's own surfaces render, and for
- *   the evidence that they truncate.
+ *   a row is off by 0.01. It is the API's metres rounded DOWN to two places — the maintainer's
+ *   rule, and the input to it is `distance` off this endpoint, never a figure read off a Strava
+ *   page. That rule has been set three times, so check `km` in constants.ts before concluding a
+ *   row is wrong.
  *
  *   AN ACTIVITY CAN BE EDITED AFTER YOU READ IT, so a screenshot is a reading of a MUTABLE
  *   record. One row was authored from a screenshot showing 13:36:10 elapsed, 6:31:11 moving
@@ -79,15 +79,28 @@ const hms = (total: number): string => {
 };
 
 /**
- * Metres -> km at two places, rounded half-up, which is what `km` holds.
+ * Metres -> km at two places, ROUNDED DOWN, which is what `km` holds.
  *
- * SCALE TO INTEGER HUNDREDTHS FIRST. The obvious `Number((metres / 1000).toFixed(2))` gives a
- * DIFFERENT answer on a row that ships: 78595.0 m is 78.60 here and 78.59 through `toFixed`,
- * because 78.595 lands just below the decimal midpoint once it is a binary double. Dividing by
- * ten and rounding integer hundredths is the true half-up. Swapping this for `toFixed` reddens
- * correct data — or, worse, invites someone to edit the row to match the helper.
+ * SCALE TO INTEGER HUNDREDTHS FIRST, and `Math.floor` rather than `Math.trunc` is only a
+ * spelling here: a distance is never negative, so the two agree — but the rule this stands for
+ * is "drop the third decimal", and `floor` is the one that keeps saying that if a signed value
+ * ever reaches it.
+ *
+ * `Number((metres / 1000).toFixed(2))` IS NOT THIS, AND ONE ROW MAKES IT LOOK LIKE IT IS.
+ * `toFixed` rounds the double it is handed, so 78595.0 m gives `78.59` — which is what this
+ * helper returns, by luck, because 78.595 lands just below the decimal midpoint once it is
+ * binary. It differs on most of the other rows here (140498.0 -> `140.50` against 140.49,
+ * 22115.1 -> `22.12` against 22.11). Swapping this for `toFixed` therefore reddens correct data
+ * on some rows and passes the WRONG figure on others — or, worse, invites someone to edit a row
+ * to match the helper.
+ *
+ * THE DIVISION IS EXACT WHERE IT HAS TO BE. `metres / 10` can only land a hair below an integer
+ * if that integer is not representable, and every quotient here is far under 2^53, so a distance
+ * that is a whole multiple of 10 m does not floor down to the hundredth beneath it. Checked by
+ * execution on every row this file reads, along with `Object.is(floor(m/10)/100, <the 2dp
+ * literal>)` — which is what lets the assertions below use `toBe`.
  */
-const km2 = (metres: number): number => Math.round(metres / 10) / 100;
+const km2 = (metres: number): number => Math.floor(metres / 10) / 100;
 
 const details = new Map<string, Detail>();
 
@@ -139,20 +152,23 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
         for (const {event: e, part} of pairs) {
             const d = details.get(part.id)!;
             // `toBe`, NOT `toBeCloseTo(…, 2)`, and the difference is the whole gate. `toBeCloseTo`
-            // with 2 digits passes whenever the gap is under 0.005, which is EVERY value the wrong
-            // authoring routes produce: |m/1000 − round(m/10)/100| ≤ 0.005 always, so a `km` pasted
-            // as the API's raw metres over 1000 — `160.566` — was green here AND green in the whole
-            // suite, while shipping `160.566 km` to llms.txt and `160.57` to the bib. The comment on
-            // `km` promises this suite reddens "a figure typed in by any other route"; only exact
-            // equality keeps that promise. Safe because `Math.round(m/10)/100` and a 2dp literal
-            // parse to the same double — checked with `Object.is` on all eight rows.
+            // with 2 digits passes whenever the gap is under 0.005, and a `km` pasted as the API's
+            // raw metres over 1000 — `160.566` — sits 0.006 from this rule and 0.004 from the row
+            // beside it in the same array. So that matcher would redden or green a raw paste
+            // depending on the third decimal of the ride, which is a gate whose behaviour is a
+            // property of the DATA. It was green on 160.566 here and in the whole suite once,
+            // while shipping `160.566 km` to llms.txt and a rounded figure to the bib. The comment
+            // on `km` promises this suite reddens "a figure typed in by any other route"; only
+            // exact equality keeps that promise. Safe because `Math.floor(m/10)/100` and a 2dp
+            // literal parse to the same double — checked with `Object.is` on every row here.
             expect(
                 part.km,
                 `${e.date} ${e.name}: file says ${part.km} km, activity ${part.id} is `
-                + `${d.distance} m, which ROUNDS to ${km2(d.distance)} km. A gap of exactly 0.01 `
-                + "means the figure was truncated rather than rounded — this file held that rule "
-                + "for four commits and it was wrong; see the note above `km` in constants.ts. "
-                + "More decimal places than two means it was pasted from the API unconverted.",
+                + `${d.distance} m, which ROUNDS DOWN to ${km2(d.distance)} km. A file figure exactly `
+                + "0.01 ABOVE that is the half-up conversion, which this repository has held twice "
+                + "and does not hold now — read the note above `km` in constants.ts before changing "
+                + "either side. More decimal places than two means it was pasted from the API "
+                + "unconverted.",
             ).toBe(km2(d.distance));
         }
     });
@@ -176,10 +192,11 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
      * and the other half went unseen.
      *
      * `km` IS THE SUMMED METRES CONVERTED ONCE, not the sum of the parts' converted figures.
-     * Two roundings can compound where one cannot. The two agree on both split races in
-     * `EVENTS` today and are not guaranteed to in general — which is exactly why this
-     * assertion reads the metres rather than adding up `part.km`, and why nothing else in the
-     * suite can stand in for it.
+     * Converting once drops one third decimal; adding the parts drops one PER PART, so the sum
+     * of the printed figures runs low — and under the rounded-down rule that is not a corner
+     * case a future ride might hit, it is happening in `EVENTS` now (a race printing 163.05
+     * whose two bib lines add to 163.04). That is exactly why this assertion reads the metres
+     * rather than adding up `part.km`, and why nothing else in the suite can stand in for it.
      */
     it("agrees with the summed metres of all a race's recordings, converted once", () => {
         for (const e of recorded) {
@@ -187,8 +204,9 @@ describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
             expect(
                 e.km,
                 `${e.date} ${e.name}: file says ${e.km} km, its ${recordingsOf(e).length} recording(s) `
-                + `sum to ${metres} m, which ROUNDS to ${km2(metres)} km. Sum the metres and convert `
-                + "ONCE — adding up the parts' printed figures is a second rounding.",
+                + `sum to ${metres} m, which ROUNDS DOWN to ${km2(metres)} km. Sum the metres and `
+                + "convert ONCE — adding up the parts' printed figures drops a third decimal per "
+                + "part and lands under this figure.",
             ).toBe(km2(metres));
         }
     });

@@ -581,8 +581,10 @@ describe("EVENTS", () => {
      * IT DELIBERATELY DOES NOT ASSERT THE SUM WHERE THERE ARE SEVERAL. The race's `km` is the
      * summed METRES converted once, and the parts' are each converted separately, so the two
      * are not required to be equal — only `tests/strava-verify.test.ts`, which has the metres,
-     * can check that. Asserting equality here would be red on correct data the first time a
-     * split race's roundings failed to coincide.
+     * can check that. Asserting equality here would be red on correct data, and no longer
+     * hypothetically: under the rounded-down rule one split race in `EVENTS` prints a distance
+     * a hundredth above the sum of its own two parts. The assertion below this one bounds that
+     * gap instead.
      */
     it("holds each recording's own figures to the shapes the bib prints them in", () => {
         let checked = 0;
@@ -608,11 +610,14 @@ describe("EVENTS", () => {
      * figure nothing else here can see.
      *
      * `km` is the summed METRES converted once, and the parts are each converted separately,
-     * so the two are NOT required to be equal and `toBe` would be red on correct data. But
-     * they cannot be far apart either: each part is rounded to two places, so it carries at
-     * most 0.005 of error, and N parts carry at most N x 0.005. That bound is exact rather
-     * than a tolerance chosen to make the test pass — widen it and it stops catching
-     * anything; narrow it and it reddens a legitimate row.
+     * so the two are NOT required to be equal and `toBe` would be red on correct data. The
+     * gap between them is not a tolerance, though — under the rounded-down rule it is an exact
+     * integer window, and a one-sided one. Every conversion DROPS the third decimal, so the
+     * race loses one of them and the sum of N parts loses N: the race figure is never below
+     * the sum, and never more than N-1 hundredths above it. With two parts that is a window
+     * two values wide, and both split races in `EVENTS` use it — one lands on 0, the other on
+     * 1 hundredth. Half-up gave a symmetric +/-0.005-per-part bound instead; do not restore it
+     * without re-deriving from the rule in `km`, which has now been set three times.
      *
      * WHAT IT CATCHES, AND WHY IT IS WORTH HAVING. `tests/strava-verify.test.ts` holds this
      * figure against the real metres, but it is OPT-IN and needs live credentials, so it does
@@ -620,20 +625,27 @@ describe("EVENTS", () => {
      * race-level `km` on a split race — a transposition, a digit dropped, a figure left at
      * one part's value — ships green. With two parts the window is 0.01 km wide, so anything
      * worth calling a typo is outside it.
+     *
+     * COUNTED IN HUNDREDTHS, not compared as decimals. Every figure here is a whole number of
+     * hundredths by construction, so scaling to integers makes the bound exact instead of a
+     * float comparison landing on 0.00999999999999801 and passing on luck — which is what the
+     * decimal form of this assertion did on the row that discriminates the rule.
      */
     it("keeps a split race's distance within rounding of its parts", () => {
         let checked = 0;
+        const hundredths = (km: number): number => Math.round(km * 100);
         for (const e of EVENTS) {
             const parts = recordingsOf(e);
             if (parts.length < 2) continue;
-            const summed = parts.reduce((total, part) => total + part.km, 0);
-            const bound = parts.length * 0.005;
+            const gap = hundredths(e.km) - parts.reduce((total, part) => total + hundredths(part.km), 0);
             expect(
-                Math.abs(e.km - summed) <= bound,
-                `${e.name} says ${e.km} km but its ${parts.length} recordings sum to ${summed.toFixed(2)} km, `
-                + `which is outside the ${bound} km the roundings can account for. The race's km is the summed `
-                + "METRES converted once, so it may differ from this sum — but only by a rounding, never by this "
-                + "much. Check the figure against the API with tests/strava-verify.test.ts.",
+                gap >= 0 && gap <= parts.length - 1,
+                `${e.name} says ${e.km} km but its ${parts.length} recordings sum to `
+                + `${(parts.reduce((t, p) => t + hundredths(p.km), 0) / 100).toFixed(2)} km — a gap of ${gap} `
+                + `hundredth(s), outside the 0 to ${parts.length - 1} that rounding each part down can account `
+                + "for. The race's km is the summed METRES converted once, so it may sit ABOVE this sum by a "
+                + "hundredth per extra part, but never below it and never further. Check the figure against the "
+                + "API with tests/strava-verify.test.ts.",
             ).toBe(true);
             checked++;
         }

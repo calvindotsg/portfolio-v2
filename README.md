@@ -165,8 +165,8 @@ One suite is OPT-IN and reaches the network, which is why it is listed apart:
   default run: `pnpm test` gates both deploys, so a rate limit or an expired token would read
   as a broken site. It catches the two things a hand-typed figure gets wrong — a figure read
   off a screenshot before the activity was edited, and a distance converted the other way from
-  the rule, since `km` is metres rounded half-up to two places and truncating instead puts four
-  of these rows out by 0.01. The token needs `activity:read_all`; a detailed read answers 404,
+  the rule, since `km` is this endpoint's metres rounded DOWN to two places and rounding half-up
+  instead puts most of these rows out by 0.01. The token needs `activity:read_all`; a detailed read answers 404,
   not 403, when the scope is missing, so an under-scoped token looks exactly like a wrong id.
 
 One suite has the repository itself as its subject rather than the site:

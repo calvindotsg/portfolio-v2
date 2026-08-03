@@ -455,7 +455,7 @@ export type RaceEvent = {
      * THAT REVERSED AN EARLIER RULE, and the reversal is his — do not "restore" the old one
      * from the reasoning still recorded under {@link elapsed_time}. This used to be the
      * EVENT's distance always, on the argument that a bib should print the race rather than
-     * the ride, and the gap is not small: the round-island ride's own 160.57 km against the
+     * the ride, and the gap is not small: the round-island ride's own 160.56 km against the
      * 121.98 km route, a 21 km half marathon recorded as 22.45. Both readings are defensible
      * and he chose the recorded one, because it is the figure the linked activity will show a
      * reader who follows the bib.
@@ -470,23 +470,23 @@ export type RaceEvent = {
      *   candidate. NO EXAMPLE IS NAMED HERE ON PURPOSE, and the reason is the paragraph below.
      *
      *   THIS SHAPE AND THE NEXT ONE ARE NOT TOLD APART BY THE DATA, AND 10 JULY PROVES IT THE
-     *   EXPENSIVE WAY. That day held a 22.56 km "VIP escort through Phuket" and the 140.50 km
+     *   EXPENSIVE WAY. That day held a 22.55 km "VIP escort through Phuket" and the 140.49 km
      *   ride, 14:25 apart. It was recorded here as this first shape — the escort read as a
      *   separate outing — and stood as the worked example of it for two revisions. **The rider
      *   then said the escort is part 1 of the event and the ride is part 2**, which makes it
-     *   the second shape and moves 22.56 km into the race. Nothing in the API changed; the
+     *   the second shape and moves 22.55 km into the race. Nothing in the API changed; the
      *   titles never discriminated it, and neither did the gap. Only he can. So: ASK, do not
      *   infer, and do not restore an example here from a reading of a day.
      *
      *   THE RACE ITSELF WAS RECORDED IN PARTS — the rider stopped and restarted, so no single
      *   activity holds the ride. Then this is the SUMMED METRES CONVERTED ONCE, not the sum of
-     *   the parts' printed figures: two roundings can compound where one cannot. The 2024
-     *   round-island ride is the case — it broke a bike, was repaired at a shop and finished,
-     *   and 17908.4 + 117411.0 gives 135.32 where truncation would give 135.31.
+     *   the parts' printed figures: two conversions each drop a third decimal where one drops
+     *   it once. The 2026 Phuket-to-Krabi row is the live case — 22558.8 + 140498.0 is 163.05
+     *   as a race, where its own two printed parts add to 163.04.
      *
      *   THE ARITHMETIC WAS NEVER THE HARD PART. A bib printing an aggregate while linking to
      *   ONE part sends a reader to a smaller number, which is the mismatch {@link elapsed_time}
-     *   exists to prevent, one layer up — so this row could not be corrected until the bib could
+     *   exists to prevent, one layer up — so a split row could not be corrected until the bib could
      *   SAY it was recorded in parts. It can: {@link Recording} carries each part's own distance
      *   and clock, and the bib lists them, so every link promises what it delivers. That is why
      *   the parts' figures are stored rather than derived.
@@ -497,40 +497,34 @@ export type RaceEvent = {
      * lists a day, but the titles do not settle it. 2023's parts are named `1/2` and `2/2`, while
      * 2024's second recording is named for the mechanical — and both are one race.
      *
-     * TWO PLACES, ROUNDED FROM THE API'S METRES. The activity reports whole metres and a
-     * fraction — 78595.0, 140498.0, 10166.6 — and this field is that value in kilometres to
-     * two places, rounded half-up. `tests/strava-verify.test.ts` asserts exactly that
-     * conversion, so a figure typed in by any other route turns it red.
+     * TWO PLACES, ROUNDED DOWN FROM THE API'S METRES. The activity reports whole metres and a
+     * fraction — 78595.0, 140498.0, 10166.6 — and this field is that value in kilometres with
+     * the third decimal DROPPED rather than rounded: 78.59, 140.49, 10.16. Half-up would give
+     * 78.60, 140.50 and 10.17, so the two rules disagree on most of the rows below and a figure
+     * arrived at by rounding is not a near miss — it is the other convention.
+     * `tests/strava-verify.test.ts` asserts exactly this conversion against the API, so a
+     * figure typed in by any other route turns it red.
      *
-     * THE RULE IS THE MAINTAINER'S, AND IT DELIBERATELY DOES NOT DEPEND ON WHAT STRAVA RENDERS.
-     * That independence is the point, because the rendering question is genuinely unsettled and
-     * this field was already reversed once over it.
+     * THE INPUT IS THE API'S `distance`, AND NOTHING RENDERED. That is the maintainer's rule in
+     * his own words — round down based on the distance retrieved from the Strava API — and the
+     * scope of it is the point: what any Strava surface prints for a ride is not an input to this
+     * field, so a screenshot neither confirms it nor contradicts it. Readings of those surfaces
+     * have gone both ways in this repository (an embed dropping the third decimal on 5 of 5
+     * discriminating rides; two activity-page figures that disagree with each other), and that is
+     * why they are recorded nowhere in this comment as evidence. The metres are the record.
      *
-     * The field held TRUNCATION for four commits, on the argument that Strava's page truncates
-     * and so truncating kept a promise: a reader following a bib's link sees the same digits the
-     * bib showed them. Four rows were written that way, then rewritten. What is actually
-     * measurable:
+     * IT ALSO HAPPENS TO BE WHAT STRAVA DOES, which is worth one sentence and no more: Strava
+     * says it displays the figure it received "rounded down" — riders call it the "Strava tax"
+     * (https://www.bikeradar.com/news/strava-tax) — so a bib and the page it links to agree, and
+     * the site never overstates a ride. Consistency, not the reason.
      *
-     *   Strava's EMBED renderer truncates, on 5 of 5 discriminating activities in this account
-     *   — 78595.0 m renders `78.5 km`, 140498.0 `140.4`, 10166.6 `10.1`, 160566.0 `160.5`,
-     *   22558.8 `22.5`, where rounding would give `.6`, `.5`, `.2`, `.6`, `.6`. Three imperial
-     *   readings truncate too, and they derive from the metres rather than from the km, so the
-     *   widget is formatting the same quantity the API reports.
-     *
-     *   The ACTIVITY PAGE — the surface a bib actually links to — could not be read at all
-     *   without the owner's session, and the one 2dp figure ever compared against its own raw
-     *   metres went the other way: 22619.7 m shown as `22.62`, where truncation gives 22.61.
-     *   One sample, on a `followers_only` activity, not reproducible by a reviewer.
-     *
-     * So the honest position is that the embed truncates, the page is unread, and the two need
-     * not agree. **Do not restore truncation on the strength of the embed** — and equally, do
-     * not write into this comment that the page rounds. The rule stands on the API being the
-     * source of record, which needs no reading of any renderer.
-     *
-     * The lesson generalises past this field: a rule with a persuasive rationale attached is
-     * harder to re-examine than a bare one. The truncation rule survived a review because its
-     * story was doing the arguing — and then the sentence replacing it made a renderer claim on
-     * one unreproducible sample, which a review panel promptly took apart. Twice in one change.
+     * THE RULE HAS NOW BEEN SET THREE TIMES: down, then half-up, then down again on 2026-08-03.
+     * Each earlier setting shipped with a story doing its arguing — "a reader following the link
+     * sees the digits the bib showed them", then a renderer claim resting on a single sample —
+     * and each story outlived the rule it was written for, with four correct rows rewritten
+     * underneath them twice. A rule with a persuasive rationale attached is harder to re-examine
+     * than a bare one, so this one is kept bare: reverse it on his say-so, not on a paragraph,
+     * and never on a reading of a page.
      */
     km: number
     sport: Sport
@@ -572,12 +566,12 @@ export type RaceEvent = {
      * IT IS ELAPSED, NOT MOVING, AND THE BIB SAYS SO. The two are far apart on these
      * rides — the 10 July ride is 8:32:05 elapsed against 5:03:55 moving — so an unlabelled
      * time invites a reader to divide it into the distance printed beside it and get 16.5
-     * km/h, where that ride actually moved at 27.7 (140.50 km / 5:03:55). The label is not
+     * km/h, where that ride actually moved at 27.7 (140.49 km / 5:03:55). The label is not
      * decoration; it names which clock.
      *
      * BOTH FIGURES COME OFF THE SAME SCOPE, which is what {@link km} changed and it settled
      * a long argument in this comment rather than continuing it. 16.5 is that recording's own
-     * 140.50 km over its own 8:32:05, and 27.7 is the same distance over its own moving time:
+     * 140.49 km over its own 8:32:05, and 27.7 is the same distance over its own moving time:
      * a reader dividing the two numbers on the bib gets a real elapsed speed for a real ride.
      * They used to be different scopes — the EVENT's 160.59 km over the ACTIVITY's clock, which
      * is 18.8 and belonged to nothing — and three revisions of this paragraph went wrong
@@ -587,7 +581,7 @@ export type RaceEvent = {
      *
      * WHERE A RACE WAS RECORDED IN PARTS THAT SCOPE IS THE RACE, NOT AN ACTIVITY, and the rule
      * survives because both figures move together: the summed distance over the whole span is
-     * still a real elapsed speed for the race as ridden (135.32 km over 10:05:34 is 13.4 km/h,
+     * still a real elapsed speed for the race as ridden (135.31 km over 10:05:34 is 13.4 km/h,
      * and the 2h43m in a bike shop is inside both terms). What would break it is mixing the
      * scopes again — a summed distance over one part's clock. Each PART's own pair is printed
      * on its own link for the same reason, so a reader who follows one is never dividing two
@@ -596,9 +590,9 @@ export type RaceEvent = {
      * WHICH ACTIVITIES, WHERE A DAY HOLDS MORE THAN ONE: the ones in `recordings`, the ones
      * these times came off, the ones the bib links to — and which those are is the rider's
      * call, not a reading of the data. 10 July is the case that names the rule, and it has
-     * been read BOTH ways: the day's 22.56 km escort and its 140.50 km ride are now parts 1
-     * and 2 of one event, so the row prints their summed 163.06 over a 10:09:34 span. It
-     * printed 140.50 over 8:32:05 while the escort counted as a separate outing.
+     * been read BOTH ways: the day's 22.55 km escort and its 140.49 km ride are now parts 1
+     * and 2 of one event, so the row prints their summed 163.05 over a 10:09:34 span. It
+     * printed 140.49 over 8:32:05 while the escort counted as a separate outing.
      *
      * NOTE WHAT DID NOT CHANGE WITH IT: the event's ADVERTISED 160.59 km was never a candidate
      * under either reading, and still is not. A bib prints what was recorded, so the only
@@ -672,14 +666,14 @@ export type Recording = {
      */
     id: string
     /**
-     * THIS ACTIVITY's distance in km, the API's metres rounded half-up to two places —
-     * the same conversion {@link RaceEvent.km} takes, and for the same reason.
+     * THIS ACTIVITY's distance in km, the API's metres rounded DOWN to two places — the
+     * same conversion {@link RaceEvent.km} takes, and for the same reason.
      *
-     * NOTE THE RACE'S `km` IS NOT THE SUM OF THESE. It is the summed METRES converted
-     * once, because two roundings can compound where one cannot. The two agree on both
-     * races currently in `EVENTS` and are not guaranteed to in general, so do not derive
-     * one from the other — `tests/strava-verify.test.ts` holds each against the API
-     * separately, which is the only check that can tell them apart.
+     * NOTE THE RACE'S `km` IS NOT THE SUM OF THESE, and one of the split races in `EVENTS`
+     * shows it: 22.55 + 140.49 is 163.04 where the race prints 163.05. The race is the summed
+     * METRES converted once, so it drops one third decimal; adding the parts drops one per
+     * part. Do not derive either figure from the other — `tests/strava-verify.test.ts` holds
+     * each against the API separately, which is the only check that can tell them apart.
      */
     km: number
     /** THIS ACTIVITY's elapsed time, `H:MM:SS`. Not the race's — see the type note. */
@@ -689,44 +683,45 @@ export type Recording = {
 export const EVENTS: readonly RaceEvent[] = [
     {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 22.45, sport: "running", country: "Singapore", elapsed_time: "3:44:25",
      recordings: [{id: "8204481233", km: 22.45, elapsed_time: "3:44:25"}]},
-    // 22.12 km IS NOT A TYPO FOR A 40 km SPORTIVE. The activity's own description reads
+    // 22.11 km IS NOT A TYPO FOR A 40 km SPORTIVE. The activity's own description reads
     // "Rainy rainy morning! Our 40km sportive ride turns out to be a 20km scenic ride!" —
     // so this row is the rule above `km` doing exactly what it says: the bib prints the ride
     // that was ridden, not the route that was entered. Do not "correct" it to the event's
-    // advertised distance. (22115.1 m rounds half-up to 22.12; Strava's page shows 22.11,
-    // which is the truncation this file declines to follow.)
-    {date: "2023-05-07", name: "OCBC Cycle Singapore", km: 22.12, sport: "cycling", country: "Singapore", elapsed_time: "1:53:15",
-     recordings: [{id: "9024119101", km: 22.12, elapsed_time: "1:53:15"}]},
+    // advertised distance. (The API reports 22115.1 m, which is 22.11 under the rule above and
+    // 22.12 rounded half-up.)
+    {date: "2023-05-07", name: "OCBC Cycle Singapore", km: 22.11, sport: "cycling", country: "Singapore", elapsed_time: "1:53:15",
+     recordings: [{id: "9024119101", km: 22.11, elapsed_time: "1:53:15"}]},
     // THE SPLIT RACE. The bike broke down at Lim Chu Kang, was repaired at a shop, and the
     // ride finished — two recordings with 2:43:19 of workshop between them. `km` is the
     // summed metres (17908.4 + 117411.0 = 135319.4) converted ONCE, and `elapsed_time` is
     // first start to last stop, NOT the sum of the two elapsed times (7:22:15): elapsed
     // already contains stops, so it must not depend on where the rider pressed the button.
     // This row carried only the post-repair recording until the wall could draw a split,
-    // and under-reported the race by 17.91 km and four hours.
-    {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 135.32, sport: "cycling", country: "Singapore", elapsed_time: "10:05:34",
-     recordings: [{id: "12058884605", km: 17.91, elapsed_time: "1:28:41"},
+    // and under-reported the race by 17.90 km and four hours.
+    {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", km: 135.31, sport: "cycling", country: "Singapore", elapsed_time: "10:05:34",
+     recordings: [{id: "12058884605", km: 17.90, elapsed_time: "1:28:41"},
                   {id: "12058885236", km: 117.41, elapsed_time: "5:53:34"}]},
-    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.60, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25",
-     recordings: [{id: "16736512210", km: 78.60, elapsed_time: "7:40:25"}]},
+    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", km: 78.59, sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25",
+     recordings: [{id: "16736512210", km: 78.59, elapsed_time: "7:40:25"}]},
     {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 130.03, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15",
      recordings: [{id: "18433212592", km: 130.03, elapsed_time: "8:14:15"}]},
     // THE SECOND SPLIT RACE, and it was classified the other way first. The day holds a
-    // 22.56 km escort out of Phuket and the 140.50 km ride, and this row printed only the
+    // 22.55 km escort out of Phuket and the 140.49 km ride, and this row printed only the
     // ride on the reading that the escort was a separate outing sharing the date. The rider
     // says otherwise: the escort IS part of the event. `km` is the summed metres converted
-    // once (22558.8 + 140498.0 = 163056.8, which rounds to 163.06 and truncates to 163.05 —
-    // a second row that discriminates the rule), and `elapsed_time` is first start to last
-    // stop, 10:09:34, against 9:55:09 summed and a 14:25 gap between the two.
-    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 163.06, sport: "cycling", country: "Thailand", elapsed_time: "10:09:34",
-     recordings: [{id: "19250544118", km: 22.56, elapsed_time: "1:23:04"},
-                  {id: "19254155835", km: 140.50, elapsed_time: "8:32:05"}]},
+    // once (22558.8 + 140498.0 = 163056.8, so 163.05), and `elapsed_time` is first start to
+    // last stop, 10:09:34, against 9:55:09 summed and a 14:25 gap between the two. This is
+    // the row where converting once and adding the parts DISAGREE: the two bib lines below
+    // add to 163.04. That is the rule working, not a typo.
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 163.05, sport: "cycling", country: "Thailand", elapsed_time: "10:09:34",
+     recordings: [{id: "19250544118", km: 22.55, elapsed_time: "1:23:04"},
+                  {id: "19254155835", km: 140.49, elapsed_time: "8:32:05"}]},
     {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.10, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31",
      recordings: [{id: "19279762093", km: 158.10, elapsed_time: "9:41:31"}]},
-    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.17, sport: "running", country: "Singapore", elapsed_time: "0:58:26",
-     recordings: [{id: "19513789157", km: 10.17, elapsed_time: "0:58:26"}]},
-    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 160.57, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17",
-     recordings: [{id: "19566067972", km: 160.57, elapsed_time: "10:56:17"}]},
+    {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.16, sport: "running", country: "Singapore", elapsed_time: "0:58:26",
+     recordings: [{id: "19513789157", km: 10.16, elapsed_time: "0:58:26"}]},
+    {date: "2026-08-02", name: "Pesta Sukan Round Island Bike Adventure", km: 160.56, sport: "cycling", country: "Singapore", elapsed_time: "10:56:17",
+     recordings: [{id: "19566067972", km: 160.56, elapsed_time: "10:56:17"}]},
     {date: "2026-09-27", name: "The Kiprun Singapore 2026", km: 21.10, sport: "running", country: "Singapore"},
     {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", km: 1022.00, sport: "cycling", country: "Taiwan"},
     {date: "2026-12-06", name: "BYD Singapore International Marathon", km: 42.20, sport: "running", country: "Singapore"},
@@ -1002,7 +997,7 @@ export const PATCHES: {
     /**
      * The word before a finished bib's time, and it is load-bearing rather than a caption.
      * Elapsed and moving are far apart on a long ride — 8:32:05 against 5:03:55 over the
-     * same 140.50 km — so a bare time invites a reader to divide it into the distance and
+     * same 140.49 km — so a bare time invites a reader to divide it into the distance and
      * get an average that is 11 km/h wrong (16.5 against 27.7). It read 9 while the bib
      * printed the EVENT's distance over the activity's clock; both figures now come off one
      * activity, which makes the pair honest and the gap wider. See
