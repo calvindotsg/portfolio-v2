@@ -15,14 +15,18 @@ word each one prints — `Booked` in the meta row, or `DNF` in the hero slot. Se
 `patchState` in `projection.ts` and `.bib--dnf` in `Patch.astro`.
 
 **A race can be known TWICE and the bib prints both accounts without reconciling
-them.** An earned bib carries a **ledger**: one row per source, each holding that
-source's own distance beside that source's own clock — `OFFICIAL 21.10 3:30:59`
-over `RECORDED 22.45 3:44:25`. The rule the whole device rests on is that **nothing
-a reader can divide crosses two sources**, which is strictly stronger than the
-`Elapsed` label it replaced. A certified course and a GPS trace disagree by design,
-and so do a chip time and a watch; publishing the disagreement is the point.
-`OfficialResult` in `constants.ts` has the argument, and `.bib-ledger` in
-`Patch.astro` has the drawing.
+them.** Any bib that is not booked carries a **ledger**, and a DNF carries one too —
+which is the point rather than an edge case, since an abandoned race is exactly
+where the two accounts are most worth reading side by side. Each row is one source,
+holding that source's own distance beside that source's own clock —
+`OFFICIAL 21.10 3:30:59` over `RECORDED 22.45 3:44:25`. The rule the whole device
+rests on is that **nothing a reader can divide crosses two sources**, which is
+strictly stronger than the `Elapsed` label it replaced. A certified course and a GPS
+trace disagree by design, and so do a chip time and a watch; publishing the
+disagreement is the point. `OfficialResult` in `constants.ts` has the argument, and
+`.bib-ledger` in `Patch.astro` has the drawing — **including the two container arms
+that restack it as the reader enlarges the text**, without which the three-column
+form shatters a row's name into single letters at the 200% WCAG requires.
 
 **The one scope rule**: the wall is the whole calendar; a goal card is `GOAL_YEAR`
 alone. `EVENTS` feeds both, and `eventsInYear` in `projection.ts` is what keeps a

@@ -1153,15 +1153,22 @@ if (recordings.length === 1) {
      *
      * WHY NOT A WIDER GAP: `column-gap` is uniform, so widening it pays TWICE — once here,
      * where it is wanted, and once between the row's name and its distance, where the flexible
-     * track already provides all the separation anyone needs. Measured at the wall's narrowest
-     * bib (218px, at a 768px viewport): a 1.5em uniform gap wraps 4 cells and 2.2em wraps 10,
-     * because the extra demand squeezes the leader track to nothing and the row's name breaks.
-     * The same air bought as padding on ONE side wraps NOTHING at 1.4em — the leader track
-     * absorbs it, which is exactly what a flexible track is for.
+     * track already provides all the separation anyone needs. Measured on a 218px bib: a 1.5em
+     * uniform gap wraps 4 cells and 2.2em wraps 10, because the extra demand squeezes the
+     * leader track to nothing and the row's name breaks. The same air bought as padding on ONE
+     * side wraps NOTHING at 1.4em — the leader track absorbs it, which is exactly what a
+     * flexible track is for.
      *
      * 1.4em IS 19.5px OF INK-TO-INK SEPARATION against 5.5px before, roughly three characters
-     * at this size. Re-measure rather than re-reason if it moves: the binding constraint is the
-     * narrowest bib on the wall, not the phone, because a phone gives a bib the whole column.
+     * at this size.
+     *
+     * THAT 218px WAS NOT THE FLOOR, AND THE CORRECTION IS WORTH KEEPING. It was read off a
+     * 768px viewport and called the narrowest bib on the wall; the wall's column is actually
+     * `min(13rem, 100%)`, so the floor is 208px and several viewport bands sit on it. At 208px
+     * this padding wrapped the row's name at the DEFAULT text size — nothing here was wrong
+     * except the width it was checked at. The repair was not a smaller number but the
+     * container arms below, which stop asking one line to hold all three cells; re-measure
+     * against 208px, and against the arms, rather than re-deriving from this paragraph.
      *
      * IT GOES ON THE HEADING TOO, or the heading stops sitting over the column it governs.
      */
