@@ -338,10 +338,19 @@ describe("dist/", () => {
          * AND THE ORACLE IS ITSELF GUARDED, because the calendar cannot guard it.
          *
          * The snap above only changes an answer for a race of THREE OR MORE parts — two doubles
-         * cannot land on the wrong side of a hundredth, as `raceKm` says in place. Today the
-         * calendar holds seven one-part races and three two-part ones and NOTHING ELSE, so
-         * deleting the snap from this oracle leaves the whole suite green: measured, the same
-         * defect class three of this file's other gates were just repaired for.
+         * cannot land on the wrong side of a hundredth, as `raceKm` says in place. When this was
+         * written the calendar held seven one-part races and three two-part ones and nothing
+         * else, so deleting the snap from this oracle left the whole suite green: measured, and
+         * the same defect class three of this file's other gates had just been repaired for.
+         *
+         * NOTHING HERE ASSERTS THE CALENDAR STILL LOOKS LIKE THAT, deliberately. A first draft
+         * of this block did — `EVENTS.every(e => recordingsOf(e).length < 3)` — and that is a
+         * gate that goes RED THE DAY A CORRECT DATA EDIT LANDS, since a race split across three
+         * activities is an ordinary thing this repo supports (a mechanical, then a lost signal).
+         * It would have reddened the deploy on a true row while accusing a comment of being
+         * stale, which is how a reader gets trained to loosen a gate. The fixture below does not
+         * care either way: if such a race is entered, this simply stops being the ONLY thing
+         * exercising the snap.
          *
          * `tests/constants.test.ts` guards the snap inside `raceKm` with a synthetic fixture for
          * exactly this reason. This is the mirror's half, and it has to be a HAND-COMPUTED
@@ -357,10 +366,6 @@ describe("dist/", () => {
             elapsed_time: "1:00:00",
             recordings: [{id: "a", metres: 86432.4}, {id: "b", metres: 47793.2}, {id: "c", metres: 24244.4}],
         } as unknown as typeof EVENTS[number];
-        expect(EVENTS.every((e) => recordingsOf(e).length < 3),
-            "a race with three or more recordings is now on the calendar — this fixture has stopped "
-            + "being the only thing exercising the snap, which is good; say so here rather than "
-            + "leaving the comment above claiming it is").toBe(true);
         expect(expectedKm(BOUNDARY),
             "the oracle must snap the summed metres to a micron before truncating, or a three-part "
             + "race prints a hundredth less than it rode and reddens the deploy against a correct build")
