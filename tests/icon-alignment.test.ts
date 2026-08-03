@@ -262,7 +262,7 @@ describe("an inline icon is centred on its text's cap band", () => {
      *
      * The Now card's explainer icon belongs in the FLEX group, and it is worth saying
      * why rather than leaving it to the count: its anchor is a flex box, so the glyph
-     * inside is a flex item and is blockified like the other ten in this derived group.
+     * inside is a flex item and is blockified like every other member of this derived group.
      * It sits in the card's corner, not in a line of prose, so there is no cap line for
      * the baseline nudge to centre it on — its container centres it instead.
      *
@@ -277,18 +277,29 @@ describe("an inline icon is centred on its text's cap band", () => {
      * tests/rendered-html.test.ts about icons rendering here was narrowed rather than
      * this count being fudged.
      *
-     * Be careful quoting a number here, because two files legitimately count differently.
-     * This group TOTALS eleven — six social links, two chevrons, both toggle glyphs and
-     * this one — so there are ten others. Only ten are ever laid out at once, since the
-     * toggle hides whichever glyph is not current. `Now.astro` says "nine other icons"
+     * Be careful quoting a number here, because two files legitimately count differently —
+     * and PREFER THE RELATION TO THE FIGURE, which is the lesson of this very paragraph.
+     * Its members are the six social links, two chevrons, both toggle glyphs, the hero's own
+     * way to the whole wall, and this one; from any one of them, every OTHER member is one
+     * fewer than the group total, and one fewer than the total is ever laid out at once,
+     * since the toggle hides whichever glyph is not current. Two sentences here were left
+     * quoting "ten" when the total moved from eleven to twelve — they had been coincidentally
+     * equal at the old total, which is exactly how a stale figure survives a careful edit.
+     * `Now.astro` says "nine other icons"
      * for a set that predates the chevrons; that sentence is about the ones relying on a
      * container to centre them and is counted separately there.
      */
     const TOGGLE_GLYPHS = 2;
     /** Per goal card: the events control's chevron, and nothing else since the bar lost its glyph. */
     const FLEX_ICONS_PER_GOAL = 1;
+    /**
+     * The hero's link to the whole wall carries the mirror of the wall's own way back. It is
+     * flex-hosted like every other mark on a control: the anchor is `inline-flex`, so the
+     * glyph is blockified and the inline cap-band correction must NOT reach it.
+     */
+    const HERO_WALL_LINK_ICONS = 1;
     const EXPECTED_FLEX_HOSTED = LINKS.length + GOALS.length * FLEX_ICONS_PER_GOAL + TOGGLE_GLYPHS
-        + [NOW.explainer_icon].length;
+        + HERO_WALL_LINK_ICONS + [NOW.explainer_icon].length;
     const EXPECTED_INLINE_HOSTED = [WELCOME.greeting_icon, ...CAREER.map((c) => c.icon), FOOTER.icon].length;
     const EXPECTED_ICONS = EXPECTED_FLEX_HOSTED + EXPECTED_INLINE_HOSTED;
 

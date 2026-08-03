@@ -320,11 +320,18 @@ export type Goal = {
     /**
      * The sport in as few letters as it can be said — "Ride", not "Cycling".
      *
-     * It exists for the patch wall, where the sport is announced inside a 13rem bib
-     * on a line that already carries a date and sometimes a status tag. `goal_name`
+     * It exists for THE BIB, and only for the bib: the sport is announced inside a 13rem
+     * bib on a line that already carries a date and sometimes a status tag. `goal_name`
      * uppercased is what that line held first, and "CYCLING" wrapped it; there is no
      * room for the long word and no reason to spend it, because the icon beside this
      * is carrying the same meaning a second time.
+     *
+     * IT IS NOT THE WALL'S NAVIGATION WORD, and it was read that way once. The filter
+     * chips took this field too, so the wall's own "where am I" control said RIDE while
+     * the control that opened it, the page's heading and the URL all said cycling. A
+     * space constraint that is real inside a bib does not transfer to a row with a line
+     * to itself — the chips read `goal_name` now. Before reaching for this field, check
+     * that the place you are putting it is short of room.
      *
      * It lives on the GOAL rather than beside {@link EVENTS} because the goal is
      * already the one place a sport is described — icon, unit, display name — and a

@@ -317,7 +317,16 @@ describe("page content", () => {
 
     it("renders one card per goal, with its figures", () => {
         for (const goal of GOALS) {
-            expect(text).toContain(`My ${goal.goal_name} goal this year`);
+            // THE HEADING AND ITS OWN CONTROL MUST WRITE THE SPORT THE SAME WAY, which is the
+            // property; the literal was the defect. This asserted `My ${goal.goal_name} goal`
+            // with `goal_name`'s display capital, so the page shipped "My Cycling goal this
+            // year" above a button reading "My cycling events" — one card contradicting itself
+            // about a word, 250px apart, with the gate agreeing. Deriving both sides from the
+            // same lowercase form is what makes them unable to drift.
+            const sport = goal.goal_name.toLowerCase();
+            expect(text).toContain(`My ${sport} goal this year`);
+            expect(text, `the card's heading and its control must write "${sport}" identically`)
+                .toContain(NEXT_RACE.control.replace("{sport}", sport));
             // Composed phrases, not bare numbers: "1000" alone also appears in
             // ABOUT_ME prose, so a bare containment cannot fail for the card.
             //

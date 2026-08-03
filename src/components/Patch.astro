@@ -7,9 +7,19 @@ interface Props {
     event: RaceEvent;
     /** Derived from the calendar by `patchState`, never stored. See projection.ts. */
     state: PatchState;
+    /**
+     * This bib's position in the wall as rendered, from 0. It feeds `--i`, which the
+     * entrance cascade in BasicLayout.astro turns into a delay.
+     *
+     * IT COMES FROM THE RENDER LOOP RATHER THAN FROM `nth-child`, and that is the
+     * difference between a cascade that survives the calendar and one that has to be
+     * extended by hand every time a race is entered. The home page's ladder is written
+     * out rung by rung because its children are authored; a wall's are data.
+     */
+    index: number;
 }
 
-const {event, state} = Astro.props;
+const {event, state, index} = Astro.props;
 
 /*
  * ONE BIB. Three states, TWO treatments — and on two of the three the distance is the only
@@ -83,7 +93,7 @@ const {event, state} = Astro.props;
  * dynamic. Safe, because every selector involved is class-based — `.bib`, `.bib--booked`,
  * `.bib-meta` — as are `structuralSelector` and the colour model in patch-wall.test.ts;
  * an element-name selector here would have made this a rewrite. `container-type` stays on
- * whichever element wears `.bib`, or the hero's `22cqi` loses its container.
+ * whichever element wears `.bib`, or the hero's `30cqi` loses its container.
  *
  * IT IS CONDITIONAL ON THE RECORDINGS, NOT ON THE STATE, because `recordings` is optional
  * and a finished race without one must still render as an ordinary finished bib — the rule
@@ -148,7 +158,7 @@ const parts = recordings.length > 1 ? recordings : null;
 const Tag = only === null ? "div" : "a";
 ---
 
-<li class="bib-cell">
+<li class="bib-cell" style={`--i:${index}`}>
 <Tag
         class:list={["bib", `bib--${event.sport}`, state === "booked" && "bib--booked",
                      state === "dnf" && "bib--dnf",
@@ -427,8 +437,8 @@ const Tag = only === null ? "div" : "a";
      * FORCED COLOURS FLATTEN THE TWO TREATMENTS INTO ONE. The whole distinction is
      * carried by background-color and border-color, and a forced-colours mode
      * overrides both — a finished bib loses its face, a booked bib's hairline becomes
-     * the same CanvasText as everything else, and the wall becomes six identical
-     * boxes. The tag still says "Booked", so no information is lost, but the shape
+     * the same CanvasText as everything else, and every bib on the wall flattens to
+     * the same box. The tag still says "Booked", so no information is lost, but the shape
      * stops helping.
      *
      * A thicker border on the earned bib restores the distinction in the one channel
@@ -573,7 +583,7 @@ const Tag = only === null ? "div" : "a";
 
     /*
      * THE DISTANCE IS THE HERO, and it is sized against the BIB rather than against
-     * the viewport: `22cqi` reads the bib's own inline size, so what the number is
+     * the viewport: `30cqi` reads the bib's own inline size, so what the number is
      * proportional to is the box it is printed on and not the window.
      *
      * WHICH OF THE TWO TERMS ACTUALLY BINDS — measured, because an earlier revision of
@@ -581,12 +591,21 @@ const Tag = only === null ? "div" : "a";
      * and "a four-column wall on a desktop" printing at the same proportion; neither
      * half survives measurement.
      *
-     *   at a 16px root   the 3rem cap binds at every width from 320 to 3840 except one
-     *                    (768, where 22cqi resolves to 47.96 against a 48px cap), so
-     *                    the hero is a constant 48px across the whole desktop range
-     *   at a 42px root   22cqi binds on a narrow bib — 33px on the 150px-wide bib at
-     *                    320px — and the number shrinks with its box instead of
-     *                    overflowing it
+     *   at a 16px root   the 3rem cap binds at EVERY width from 320 to 3840, so the hero
+     *                    is a constant 48px across the whole range. (It used to carve out
+     *                    768, where the old 22cqi resolved to 47.96 against the 48px cap
+     *                    and just undercut it. Widening the term to 30cqi closed that gap
+     *                    rather than opening a new one: a larger percentage reaches the
+     *                    cap sooner, so raising it can only ever bind at MORE widths.
+     *                    Re-measured across ten widths after the change.)
+     *   at a 42px root   the container term binds on a narrow bib, and the number
+     *                    shrinks with its box instead of overflowing it. MEASURE THE
+     *                    CONTENT BOX, NOT THE BIB: this line read "33px on the
+     *                    150px-wide bib at 320px", which is 22% of 150 — but
+     *                    `container-type: inline-size` resolves `cqi` against the
+     *                    container's CONTENT box, 80.8px here, so the real figure was
+     *                    17.78px. The number was out by 1.86x for as long as it stood,
+     *                    and it is the number the whole rule was reasoned from
      *   columns          the wall reaches THREE, never four: `main` is `max-w-4xl`, so
      *                    the grid stops widening long before a fourth 13rem track fits
      *
@@ -597,11 +616,35 @@ const Tag = only === null ? "div" : "a";
      * characters, the widest the calendar holds — from filling a 13rem column at the
      * default size, and the cqi term keeps it inside a bib the reader's own text size
      * has squeezed to 150px.
+     *
+     * 30cqi, NOT 22 — BECAUSE THE HIERARCHY WAS INVERTING. Sized at 22cqi the hero
+     * SHRANK as the reader asked for more text while `.bib-name` grew, and at 320px the
+     * two crossed over: measured as the ratio of hero to name at that width,
+     *
+     *     root 16   4.36x        root 32   1.37x        root 40   0.74x
+     *
+     * — the distance printed 26% SMALLER than the race name beside it. A bib is a
+     * printed number; that ratio is the object's identity, and inverting it says the
+     * name is the headline. At 30cqi the same three configurations measure 4.36 / 1.87 /
+     * 1.00, so the crossover is gone.
+     *
+     * THE OBVIOUS FIX IS THE WRONG ONE AND WAS BUILT BEFORE BEING REJECTED. A floor of
+     * `max(1.25rem, ...)` looks like the direct answer and holds 1.82x at every root —
+     * but `rem` grows with the very setting this is defending against, so at a 40px root
+     * the floor IS 50px, and `1022.00` then measures 139.2px of ink inside a 54.5px box
+     * and spills 14.2px past the bib's own edge. The clip sweep reported zero for it,
+     * which is why this is written down: the loss is outside what that instrument reads,
+     * and only a per-element ink-versus-box measurement finds it.
+     *
+     * 30cqi reaches PARITY at the extreme rather than dominance, which is a deliberate
+     * stopping point rather than the best available number. Spill begins around 45px of
+     * hero at 320px/root 40, so a larger term would buy more separation — at the cost of
+     * a figure that is being sized by a rule nobody can check by reading it.
      */
     .bib-value {
         grid-area: value;
         margin: 0;
-        font-size: min(3rem, 22cqi);
+        font-size: min(3rem, 30cqi);
         font-weight: 800;
         line-height: 0.82;
         letter-spacing: -0.045em;
@@ -859,9 +902,30 @@ const Tag = only === null ? "div" : "a";
      * them render — and `.bib-cell { display: grid }` stretches a bib to its row's height, so
      * the cost would propagate to each linked bib's row-mates as well.
      */
+
+    /*
+     * THE TEAR LINE SITS AT THE FOOT OF THE BIB, NOT WHEREVER THE ROWS HAPPEN TO STOP.
+     *
+     * `.bib-cell` stretches a bib to the tallest bib in its grid row, and `.bib` packs its
+     * rows to the top — so on a bib shorter than its row-mates the leftover height collected
+     * BELOW the stub, and the perforation landed at whatever height that bib's own content
+     * ended at. Measured on the wall at 1440x900: the tear line sat at three different
+     * heights within a single row, up to 34.1px apart, and one bib printed 78.5px of empty
+     * face beneath its own stub — a stub with a field under it is not a stub.
+     *
+     * The fix is one flexible row before `go`, so the slack collects ABOVE the perforation
+     * instead of below it. `deadBelow` — perforation to the bib's own bottom edge — is a
+     * constant 11.4px on every bib in every row now, against a 11.4-78.5px spread before.
+     *
+     * ONLY THESE TWO RULES CARRY IT, and that is not an oversight: they are the only
+     * templates with a `go` area at all. `.bib` and `.bib--dnf` have no stub, so there is no
+     * perforation for slack to sit under and nothing to hold down — adding the row there
+     * would charge every bib on the wall for a problem two of them have.
+     */
     .bib--linked,
     .bib--split {
-        grid-template-areas: "date date" "value unit" "name name" "place place" "time time" "go go";
+        grid-template-areas: "date date" "value unit" "name name" "place place" "time time" ". ." "go go";
+        grid-template-rows: repeat(5, auto) 1fr auto;
     }
 
     /*
@@ -882,7 +946,8 @@ const Tag = only === null ? "div" : "a";
      */
     .bib--dnf.bib--linked,
     .bib--dnf.bib--split {
-        grid-template-areas: "date date" "value value" "covered covered" "name name" "place place" "time time" "go go";
+        grid-template-areas: "date date" "value value" "covered covered" "name name" "place place" "time time" ". ." "go go";
+        grid-template-rows: repeat(6, auto) 1fr auto;
     }
 
     /*

@@ -3,7 +3,9 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, raceKm, WELCOME} from "../src/lib/constants";
+import {
+    CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, raceKm, recordingsOf, WELCOME,
+} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
@@ -171,7 +173,17 @@ describe("dist/", () => {
             // its own date, and `rowFor` fails naming both keys. Re-adding a
             // `toContain(event.date)` here would only restate the key.
             const row = rowFor(`${event.name} (${event.date})`, event.name, event.date);
-            expect(row, `${event.name}'s distance must be on its own line`).toContain(`${raceKm(event)} km`);
+            // NOT EVERY RACE HAS A DISTANCE TO PRINT. An abandoned race with nothing recorded
+            // has no honest figure — `raceKm` would hand back the ADVERTISED distance, i.e.
+            // the claim that he covered a route he did not finish — so the endpoint omits the
+            // clause entirely and this asserts the omission rather than demanding a number.
+            if (patchState(event) === "dnf" && recordingsOf(event).length === 0) {
+                expect(row, `${event.name} was abandoned with nothing recorded, so no distance may be claimed`)
+                    .not.toMatch(/\d+\.\d\d km/);
+            } else {
+                expect(row, `${event.name}'s distance must be on its own line`)
+                    .toContain(`${raceKm(event).toFixed(2)} km`);
+            }
             expect(row, `${event.name}'s country must be on its own line`).toContain(event.country);
         }
         for (const project of PROJECTS) {
@@ -287,10 +299,49 @@ describe("dist/", () => {
         // `raceKm`, not `event.km`: a recorded race has no stored distance at all under the
         // recorded|booked union, and reading the field gives `undefined km` for every one of
         // them — which is what this assertion caught when the two changes met.
+        /*
+         * AN INDEPENDENT ORACLE, NOT A SECOND CALL TO THE ENDPOINT'S OWN EXPRESSION.
+         *
+         * This used to be `raceKm(event)` interpolated exactly as `llms.txt.ts` interpolates
+         * it — byte-identical source on both sides. That gate could only ever see WHICH
+         * expression the endpoint used, never what the expression PRODUCES, so it was green
+         * on the day the endpoint told a crawler that an abandoned race had covered its full
+         * advertised distance. A test that re-derives its expectation from the code under
+         * test asserts nothing about the output.
+         *
+         * So the kilometres are re-derived here from the row's OWN STORED FIELDS, applying
+         * Strava's rounding rule (metres, truncated DOWN to two places) rather than calling
+         * the function that applies it. If `kmFromMetres` ever changes its rule, this goes
+         * red — which is the point: the rule has been reversed twice, and a gate that
+         * follows it silently is a gate that cannot notice.
+         *
+         * AND THE MICRON SNAP IS PART OF THE RULE, not part of the implementation. An oracle
+         * that re-derives the arithmetic has to re-derive ALL of it: adding doubles is not
+         * exact, so a three-part race can sum to 158469.99999999997 where the metres say
+         * 158470, and a bare `Math.floor` then expects 158.46 for a race the site correctly
+         * prints as 158.47. The first draft of this oracle omitted the snap and would have
+         * turned the DEPLOY red against a correct build the day such a race was entered —
+         * confidently wrong, in the direction that looks most rigorous. `raceKm` documents
+         * the snap and why it is 1e-6; this mirrors it rather than calling it, and the
+         * mirroring is the whole reason the oracle is worth having.
+         */
+        const expectedKm = (event: typeof EVENTS[number]): string => {
+            const parts = recordingsOf(event);
+            const metres = parts.reduce((m, r) => m + r.metres, 0);
+            const km = parts.length > 0
+                ? Math.floor(Math.round(metres * 1e6) / 1e6 / 10) / 100
+                : (event as {km?: number}).km ?? NaN;
+            return km.toFixed(2);
+        };
+        // "" means THE ROW MUST CARRY NO DISTANCE AT ALL — an abandoned race with nothing
+        // recorded has no honest figure to give, and the advertised one would be the exact
+        // claim the bib refuses. Asserted as an absence below rather than as a substring.
         const clauseFor = (event: typeof EVENTS[number]): string =>
             patchState(event) === "dnf"
-                ? `${PATCHES.covered_label.toLowerCase()} ${raceKm(event)} km`
-                : `${raceKm(event)} km`;
+                ? (recordingsOf(event).length === 0
+                    ? ""
+                    : `${PATCHES.covered_label.toLowerCase()} ${expectedKm(event)} km`)
+                : `${expectedKm(event)} km`;
         for (const event of EVENTS) {
             const state = patchState(event);
             const when = event.end_date ? `${event.date} to ${event.end_date}` : event.date;
@@ -302,8 +353,14 @@ describe("dist/", () => {
             }
             const row = llms.split("\n").find((l) => l.includes(line));
             expect(row, `"${line}" must be on a line of its own`).toBeDefined();
-            expect(row, `${event.name} (${state}) must print "${clauseFor(event)}"`)
-                .toContain(clauseFor(event));
+            const clause = clauseFor(event);
+            if (clause === "") {
+                expect(row, `${event.name} was abandoned with nothing recorded, so its row must claim no `
+                    + `distance at all — the advertised figure would say he covered a route he did not finish`)
+                    .not.toMatch(/\d+\.\d\d km/);
+            } else {
+                expect(row, `${event.name} (${state}) must print "${clause}"`).toContain(clause);
+            }
             if (state !== "dnf") {
                 expect(row, `${event.name} is ${state}, so its distance takes no "${PATCHES.covered_label}" label`)
                     .not.toContain(PATCHES.covered_label.toLowerCase());
@@ -2045,6 +2102,205 @@ describe("source hygiene", () => {
             checked++;
         }
         expect(checked, "no page has a <main> — the ladder check is vacuous").toBeGreaterThan(0);
+    });
+
+    /**
+     * ONE ENTRANCE, TWO PAGES — asserted as SAMENESS rather than as two sets of numbers.
+     *
+     * The wall's bibs stagger too, and the whole requirement is that they do it in the
+     * ladder's own vocabulary: a second cascade with its own duration or step is two
+     * cascades that disagree, which is what this exists to stop. So nothing here pins a
+     * literal — it reads the ladder's keyframe, duration and step out of the sheet and
+     * demands the bib rule match. Change the ladder and the bibs must follow; change one
+     * of them alone and this is red.
+     *
+     * The CEILING is asserted as a `min()` rather than by re-deriving a delay per bib,
+     * because the bib count moves with the calendar and a gate that counts races is a
+     * gate that has to be edited when one is entered.
+     */
+    it("gives the wall's bibs the home page's entrance, not a second one of their own", () => {
+        const layout = read("src/layouts/BasicLayout.astro");
+        const ladder = layout.match(/main\s*>\s*\*\s*\{\s*animation:\s*([^;]+);/)?.[1]?.trim();
+        expect(ladder, "the home page's entrance shorthand must be readable").toBeTruthy();
+        const rungs = [...layout.matchAll(/nth-child\((\d+)\)\s*\{\s*animation-delay:\s*([\d.]+)s/g)]
+            .map((m) => ({n: Number(m[1]), d: Number(m[2])}))
+            .sort((a, b) => a.n - b.n);
+        const step = Math.round((rungs[1].d - rungs[0].d) * 1000) / 1000;
+        const ceiling = rungs[rungs.length - 1].d;
+
+        const bib = layout.match(/\.bib-cell\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(bib.match(/animation:\s*([^;]+);/)?.[1]?.trim(),
+            `the bibs must wear the ladder's own animation shorthand ("${ladder}"), or the two pages `
+            + `arrive differently`).toBe(ladder);
+        const delay = bib.match(/animation-delay:\s*([^;]+);/)?.[1]?.trim() ?? "";
+        expect(delay, "a bib's delay must come from its render index, not a hand-written ladder")
+            .toContain("var(--i)");
+        expect(delay, `the bibs' step must be the ladder's ${step}s`).toContain(`${step}s`);
+        // min(--i, N) * step must land the tail on the ladder's own last rung.
+        const cap = Number(delay.match(/min\(\s*var\(--i\)\s*,\s*(\d+)\s*\)/)?.[1]);
+        expect(cap, "the bib delay must cap, or a long calendar runs a cascade for over a second")
+            .toBeGreaterThan(0);
+        expect(Math.round(cap * step * 1000) / 1000,
+            `the bibs must stop at the ladder's own ${ceiling}s ceiling so the two pages cannot drift`)
+            .toBe(ceiling);
+
+        // AND THE REDUCED-MOTION ARM MUST REACH THEM. It named `main > *` only, and a bib
+        // cell is not a child of main — so the wall would have kept animating for a reader
+        // who asked it not to, with every other assertion here green.
+        const reduced = layout.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\s{4}\}/)?.[1] ?? "";
+        expect(reduced, "the reduced-motion arm must switch the bibs off too").toContain(".bib-cell");
+
+        /*
+         * AND THE INDEX HAS TO REACH THE MARKUP — the half everything above is structurally
+         * blind to. Those assertions resolve the DECLARATION: they prove the sheet asks for
+         * `min(var(--i), 7)`. Nothing in a declaration can prove that anything SETS `--i`,
+         * and an unset one is not a small defect: `calc()` over an unresolved custom property
+         * is invalid at computed-value time, so `animation-delay` takes its initial `0s` and
+         * all thirteen bibs arrive together. That is the whole cascade gone, not a wrong step.
+         *
+         * MEASURED, not reasoned: deleting `style={"--i:" + index}` from `Patch.astro` and
+         * rebuilding left the suite at 451 passed / 7 skipped — every assertion above green
+         * over a wall with no stagger at all. This loop is what that mutation now fails.
+         *
+         * THE VALUES ARE ASSERTED AS THE RENDER ORDER, not merely as present, because a
+         * constant `--i` is also a set property and also a dead cascade.
+         */
+        const walls = builtPages().filter((p) => p.startsWith("dist/patches"));
+        expect(walls.length, "no wall page was built, so the entrance has nothing to reach")
+            .toBeGreaterThan(0);
+        for (const page of walls) {
+            const cells = [...parseHTML(read(page)).document.querySelectorAll(".bib-cell")];
+            expect(cells.length, `${page} renders no bib cells, so its entrance is untested`)
+                .toBeGreaterThan(0);
+            expect(
+                cells.map((c) => c.getAttribute("style")?.match(/--i:\s*(\d+)/)?.[1]),
+                `${page}: every bib must carry its own render index as --i, or the delay is `
+                + `invalid and the whole wall arrives at once`,
+            ).toEqual(cells.map((_, i) => String(i)));
+        }
+    });
+
+    /**
+     * A CONTROL WHOSE ONLY VISIBLE NAME IS A GLYPH MUST STILL HAVE ONE IN FORCED COLOURS.
+     *
+     * presetIcons paints an icon as a MASK over `background-color`, and a forced-colours mode
+     * overrides `background-color` — so the glyph goes to the ground colour and the control
+     * becomes an empty box of exactly the icon's size. Where the glyph IS the on-screen name,
+     * that erases the control: the reader cannot tell what it does, or that it is a control.
+     *
+     * DERIVED FROM THE BUILT MARKUP, NOT FROM A LIST, and that is the whole point of writing
+     * it this way. A hand-fixed sweep repainted seven such controls and missed an eighth — the
+     * Now card's explainer link — because it wore no shared class and so appeared in nobody's
+     * grep. A list would have to be remembered; this is a question asked of every page.
+     *
+     * THE DISCRIMINATOR IS "IS THE GLYPH THE NAME", not "does the control hold a glyph", and
+     * the difference is what keeps this gate honest. A bib holds a sport mark and reads
+     * "Ride 158.10 km …" beside it; a text link holds an arrow and reads "My events", and
+     * `.text-link` also carries an underline that forced colours preserves. Those lose
+     * decoration. An icon-only control loses its name. Requiring cover for every glyph would
+     * redden this build on correct code — measured: 13 such controls on `/patches` alone,
+     * every one of them labelled.
+     *
+     * `sr-only` TEXT IS NOT VISIBLE TEXT, so it is subtracted before asking. Counting it would
+     * make every icon-only control here look labelled and the gate would assert nothing at all.
+     */
+    it("keeps a name on every icon-only control when colours are forced", () => {
+        // Every selector inside any @media block that mentions forced-colors, from this page's
+        // inline component styles AND the shared chunks it loads. Component CSS on this site is
+        // largely INLINE, so reading only dist/_astro/*.css finds a fraction of the rules.
+        const forcedSelectors = (css: string): string[] => {
+            const out: string[] = [];
+            const at = /@media[^{]*forced-colors[^{]*\{/g;
+            // The match itself is not wanted, only where it ENDS — `at.lastIndex` is the first
+            // byte inside the block, and the brace walk below finds the matching close.
+            while (at.exec(css) !== null) {
+                let i = at.lastIndex, depth = 1;
+                while (i < css.length && depth > 0) {
+                    if (css[i] === "{") depth++;
+                    else if (css[i] === "}") depth--;
+                    i++;
+                }
+                for (const rule of css.slice(at.lastIndex, i - 1).matchAll(/([^{}]+)\{[^{}]*\}/g)) {
+                    out.push(...rule[1].split(",").map((s) => s.trim()).filter(Boolean));
+                }
+            }
+            return out;
+        };
+        const shared = cssChunks().map((c) => c.css).join("\n");
+
+        let iconOnly = 0;
+        for (const page of builtPages()) {
+            const html = read(page);
+            const {document} = parseHTML(html);
+            const inline = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((s) => s[1]).join("\n");
+            const selectors = forcedSelectors(`${inline}\n${shared}`);
+            for (const glyph of [...document.querySelectorAll('[aria-hidden="true"]')]) {
+                if (![...glyph.classList].some((c) => c.startsWith("i-"))) continue;
+                const control = glyph.closest("a,button");
+                if (!control) continue;
+                const spoken = [...control.querySelectorAll(".sr-only")].map((n) => n.textContent ?? "").join("");
+                const seen = (control.textContent ?? "").replace(spoken, "").replace(/\s+/g, " ").trim();
+                if (seen !== "") continue;   // it has words; the glyph is decoration
+                iconOnly++;
+                const covered = selectors.some((s) => {
+                    try { return glyph.matches(s); } catch { return false; }
+                });
+                expect(covered,
+                    `${page}: <${control.tagName.toLowerCase()} class="${control.getAttribute("class")}"> has no `
+                    + `visible name but its glyph, and no @media (forced-colors: active) rule repaints that glyph. `
+                    + `A forced-colours reader gets an empty box where the control is.`).toBe(true);
+            }
+        }
+        // CALIBRATION. Every assertion above is inside two `continue`s; if the shape of the
+        // markup moved, this test would pass by never asking anything.
+        expect(iconOnly, "no icon-only control was found on any page, so this gate is vacuous")
+            .toBeGreaterThan(0);
+    });
+
+    /**
+     * A `grid-template-areas` WHOSE ROWS DISAGREE ON COLUMN COUNT IS THROWN AWAY WHOLE.
+     *
+     * The rows of that property form a rectangle; a row with a different number of tokens
+     * makes the declaration invalid, and an invalid declaration is DROPPED — not clamped, not
+     * partially applied. The element then falls back to whatever earlier rule set the property,
+     * so the page still renders, still looks broadly right, and every named area the rule was
+     * introducing silently does not exist.
+     *
+     * THIS SHIPPED. A spacer row was written `"."` among two-column rows, meaning to leave one
+     * flexible gap above the stub. It invalidated both bib templates, so `.bib--linked` computed
+     * the BASE five-row template with no `go` area at all and the action row auto-placed into
+     * implicit tracks. Measured before the fix: `grid-template-areas` computed as
+     * `"date date" "value unit" "name name" "place place" "time time"` — the two new rows absent
+     * — and the wall pages carried 125-446px of height nobody asked for. Nothing was red. The
+     * correct spelling is one token PER COLUMN: `". ."`.
+     *
+     * ASKED OF THE EMITTED CSS, not of the `.astro` source, because the source is not what the
+     * browser parses and this is a parsing failure.
+     */
+    it("gives every grid-template-areas rows of equal width, or the browser drops it whole", () => {
+        const sheets = [
+            ...cssChunks().map((c) => ({where: c.file, css: c.css})),
+            ...builtPages().map((p) => ({
+                where: p,
+                css: [...read(p).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((s) => s[1]).join("\n"),
+            })),
+        ];
+        let checked = 0;
+        for (const {where, css} of sheets) {
+            for (const decl of css.matchAll(/grid-template-areas\s*:\s*([^;}]+)/g)) {
+                const rows = [...decl[1].matchAll(/"([^"]*)"/g)].map((r) => r[1].trim());
+                if (rows.length === 0) continue;   // `none`, or a var() this cannot read
+                checked++;
+                const widths = rows.map((r) => r.split(/\s+/).filter(Boolean).length);
+                expect(new Set(widths).size,
+                    `${where}: grid-template-areas rows are ${widths.join("/")} tokens wide. They must all `
+                    + `match or the whole declaration is invalid and silently dropped — a "." spacer in a `
+                    + `two-column template has to be written ". ." — rows were: ${rows.map((r) => `"${r}"`).join(" ")}`)
+                    .toBe(1);
+            }
+        }
+        expect(checked, "no grid-template-areas was found in any emitted sheet, so this gate is vacuous")
+            .toBeGreaterThan(0);
     });
 
     it("gives every class token on every page a rule in the stylesheet it loads", () => {

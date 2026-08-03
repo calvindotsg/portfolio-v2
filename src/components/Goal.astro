@@ -95,7 +95,13 @@ const statusLine = goalStatusLine(goal);
 const countdown = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
 ---
 
-<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${goal.goal_name} goal this year`>
+{/* SENTENCE CASE, because the control at the foot of this same card already writes it
+     that way: `NEXT_RACE.control` lowercases the sport for "My cycling events", and the
+     wall it opens is headed with those very words. The heading said "My Cycling goal"
+     — a mid-sentence capital the card then contradicted in its own button. `goal_name`
+     is a DISPLAY name and is capitalised for the places that need it; the casing
+     belongs to the sentence, not to the field. */}
+<Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${goal.goal_name.toLowerCase()} goal this year`>
     <p class="goal-figure" aria-hidden="true">{goal.current_progress}<span
             class="goal-figure-target"> / {goal.total_goal} {goal.measurable_unit}</span></p>
     <ProgressBar

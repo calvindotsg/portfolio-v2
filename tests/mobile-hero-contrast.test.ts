@@ -1,6 +1,7 @@
 import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
+import {WELCOME} from "../src/lib/constants";
 import {pageCss} from "./helpers/css";
 
 /**
@@ -133,10 +134,24 @@ describe("mobile hero legibility", () => {
         const type = document.querySelector("main .intro-type");
         expect(type, "the welcome copy must sit in a scrim-carrying block").toBeTruthy();
 
-        expect(type!.querySelector("h6"), "the eyebrow must be inside it").toBeTruthy();
-        const inside = type!.querySelectorAll("h1").length;
-        expect(inside).toBe(document.querySelectorAll("main h1").length);
-        expect(inside).toBeGreaterThan(0);
+        // EVERY LINE OF THE HERO COPY, counted rather than sampled by tag. This asserted
+        // an eyebrow and a count of `h1`s, which pinned the hero's MARKUP where the
+        // property is about its EXTENT: the scrim has to cover whatever the copy column
+        // holds. The eyebrow has since gone and the two taglines are paragraphs — the
+        // scrim's job did not change, so the assertion should not have been able to fail.
+        // The copy lines PLUS the hero's way to the wall, which is a line of the block for
+        // scrim purposes even though it is a control: the veil has to cover whatever the
+        // column holds, and a link over an un-scrimmed photo is the same legibility problem
+        // as a tagline over one.
+        const lines = type!.querySelectorAll("h1, p");
+        expect(lines.length, "every line of the hero copy must sit inside the scrimmed block")
+            .toBe(WELCOME.description.length + 1);
+        expect(type!.querySelector('a[href="/patches"]'),
+            "the hero's link to the whole wall must sit inside the scrim, not beside it").toBeTruthy();
+        expect(type!.querySelectorAll("h1").length, "the greeting is the page's one top-level heading")
+            .toBe(1);
+        expect(document.querySelectorAll("main h1").length,
+            "the page must ship exactly one top-level heading, and it must be the greeting").toBe(1);
         expect(type!.querySelector("img"), "the portrait must stay outside the scrimmed block").toBeNull();
     });
 

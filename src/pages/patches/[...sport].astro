@@ -22,7 +22,10 @@ import {iconClass} from "../../lib/icons";
  *     a crawler sees all describe the unfiltered page.
  *
  * A navigation also costs nothing to a reader here: the pages are prerendered, the
- * whole wall is six items, and the back button does the obvious thing.
+ * wall is small, and the back button does the obvious thing. (It said "six items" while
+ * the calendar held one year; the wall keeps every race now, so a COUNT written here
+ * rots every time a race is entered and nothing can see it — `docs-drift` resolves names
+ * that must exist, never quoted values. Say the property, not the number.)
  *
  * THE REST PARAMETER MATCHES ZERO SEGMENTS, which is what makes `/patches` itself
  * one of the three rather than a fourth file repeating this one.
@@ -53,9 +56,21 @@ const goal = sport === undefined ? undefined : goalForSport(sport);
  */
 const filters = [
     {href: "/patches", label: PATCHES.all_label, count: patchWall().length, active: sport === undefined},
+    /*
+     * THE CHIP SAYS THE SAME WORD THE CONTROL THAT OPENED THIS PAGE SAID. It used to read
+     * `short_name` — "Ride" and "Run" — which is the bib's word, and the bib has a reason
+     * for it that the filter row does not share: a 13rem bib line already carrying a date
+     * and a status tag has no room for "CYCLING". This row has a whole line to itself.
+     *
+     * The cost of the short word was a vocabulary that broke at every click. A reader
+     * presses "My cycling events" on the home page, lands on a page headed "My cycling
+     * events" at a URL ending `/cycling`, and the control telling them which of the three
+     * walls they are on says RIDE. That is the same defect the heading pairing above was
+     * changed to close, in the one element whose whole job is to say where you are.
+     */
     ...GOALS.map((g) => ({
         href: `/patches/${g.sport}`,
-        label: g.short_name,
+        label: g.goal_name,
         count: patchWall(g.sport).length,
         active: g.sport === sport,
     })),
@@ -173,7 +188,7 @@ const description = goal === undefined
         </div>
         <Card>
             <ul class="patch-wall">
-                {patches.map(({event, state}) => <Patch event={event} state={state}/>)}
+                {patches.map(({event, state}, index) => <Patch event={event} state={state} index={index}/>)}
             </ul>
         </Card>
     </main>
@@ -384,6 +399,23 @@ const description = goal === undefined
             background-color: Highlight;
             border-color: CanvasText;
             color: HighlightText;
+        }
+    }
+
+    /*
+     * THE WAY BACK KEEPS ITS MARK IN FORCED COLOURS. Same mechanism as the filter pin above:
+     * presetIcons paints a glyph as a mask over `background-color`, a forced-colours mode
+     * overrides that, and the arrow beside the words went to Canvas on Canvas. The link's own
+     * text and `.text-link`'s underline both survive without help — this restores the mark.
+     *
+     * Said again here rather than shared, because Astro scopes a component's styles to that
+     * component; IntroCard.astro carries the long form of the argument and 404.astro carries
+     * the third copy. All three own a `.text-link` with a mark.
+     */
+    @media (forced-colors: active) {
+        .text-link span[aria-hidden] {
+            forced-color-adjust: none;
+            background-color: LinkText;
         }
     }
 </style>

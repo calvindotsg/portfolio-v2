@@ -440,9 +440,27 @@ describe("required rate", () => {
     });
 
     it("keeps the generated branches inside the worst case that was measured", () => {
-        // "1000 km/wk to go" = 99.31px, the widest the rate branch can produce, and
-        // it fits with 10.7px to spare. "1000 km to go" = 80.11px covers `final`.
-        const longest = "1000 km/wk to go";
+        // RE-MEASURED when the rate branch gained its booked clause. The old bound was
+        // "1000 km/wk to go" = 99.31px; the branch now emits e.g. "71 km/wk to go, 1022
+        // booked" and the bound is the widest form of THAT, measured in the page's own
+        // 300/12px face against the goal card's tightest text column — 182px, at exactly
+        // 1024px wide.
+        //
+        //   "71 km/wk to go, 1022 booked"       162.52px   ships today
+        //   "1000 km/wk to go, 9999 booked"     181.31px   the string bound below
+        //   "71 km/wk to go, 1022 km booked"    182.59px   REJECTED — overflows by 0.59px
+        //
+        // That last row is why the unit is not repeated: it wraps, and a wrapped line takes
+        // the cycling card to 273px against the running card's 257, which the reader sees
+        // because the two cards sit one directly above the other.
+        //
+        // THE BOUND IS NOT REACHABLE AND IS DELIBERATELY STILL THE BOUND. Booked kilometres
+        // are subtracted from the deficit before the rate is divided out, so the two figures
+        // move in opposite directions: 9999 booked would drive the rate to zero and hand the
+        // answer to the `covered` branch, which takes no clause. Pinning the unreachable
+        // product of both maxima is the conservative direction — it cannot pass a string the
+        // real worst case would fail.
+        const longest = "1000 km/wk to go, 9999 booked";
         for (const goal of GOALS) {
             for (const raw of [0, 1, goal.total_goal / 2, goal.total_goal - 1]) {
                 for (const iso of [AS_OF, "2026-12-25"]) {
@@ -1092,6 +1110,57 @@ describe("the rendered page", () => {
             .flatMap((c) => [...c.querySelectorAll("span")])
             .filter((s) => wanted.has((s.textContent ?? "").trim()));
         expect(lines.length).toBe(expected.length);
+    });
+
+    /**
+     * WHAT THE RATE IS BANKING, ASSERTED AGAINST A SECOND SOURCE — because the gate above
+     * cannot see this feature at all, and neither could anything else.
+     *
+     * `expected` up there is `GOALS.map(goalStatusLine)`. Delete the booked clause from
+     * `goalStatusLine` and the expectation shortens with it, the shorter line is what the
+     * page renders, and the assertion passes. MEASURED: reverting `case "rate"` to the bare
+     * `${kmPerWeek} ${unit}/wk to go` removed every "booked" from `dist/index.html` — 0
+     * occurrences — and left `pnpm test` at 456 passed / 7 skipped. The one shipped
+     * home-page feature in its own commit was gated by nothing.
+     *
+     * So the figure here comes from `bookedAhead`, which `goalStatusLine` does not decide,
+     * and the sentence shape is read off the RENDERED page rather than regenerated. A
+     * tautology cannot be repaired by asserting harder on the same expression; it is
+     * repaired by asking a different one.
+     */
+    it("says on the card what the rate is already banking", () => {
+        const onRate = GOALS.filter((g) => goalStatus(g).kind === "rate");
+        expect(onRate.length, "no goal is on the `rate` branch, so this gate is vacuous today")
+            .toBeGreaterThan(0);
+        const text = [...document.querySelectorAll("[data-card]")]
+            .flatMap((c) => [...c.querySelectorAll("span")])
+            .map((s) => (s.textContent ?? "").trim());
+        let checked = 0;
+        for (const goal of onRate) {
+            const status = goalStatus(goal);
+            // Narrowed rather than asserted: `kmPerWeek` lives on the `rate` member alone, and
+            // `onRate` filtered on `kind` without telling the compiler. A cast here would be a
+            // lie the day a branch is renamed.
+            if (status.kind !== "rate") continue;
+            // INDEPENDENT OF `goalStatusLine`: the same rounding it applies, applied here to
+            // the accessor it applies it to. A goal with nothing booked must print no clause
+            // at all — the empty case is the one a "contains a number" check would miss.
+            const booked = Math.round(bookedAhead(goal.sport, UPDATED_AT));
+            const opening = `${status.kmPerWeek} ${goal.measurable_unit}/wk to go`;
+            const rate = text.find((t) => t.startsWith(opening));
+            expect(rate, `${goal.sport}'s rate line must be on the page`).toBeDefined();
+            if (booked > 0) {
+                expect(rate, `${goal.sport} has ${booked} ${goal.measurable_unit} booked ahead of it, and the `
+                    + `rate already subtracts them — the card must say so rather than presenting a `
+                    + `figure that silently assumes every booked race gets finished`)
+                    .toBe(`${opening}, ${booked} booked`);
+            } else {
+                expect(rate, `${goal.sport} has nothing booked, so the clause must be absent rather than zeroed`)
+                    .not.toContain("booked");
+            }
+            checked++;
+        }
+        expect(checked, "no rate line was found on the page at all").toBeGreaterThan(0);
     });
 
     it("does not add a child to <main>", () => {

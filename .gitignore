@@ -5,6 +5,13 @@ dist/
 .astro/
 
 # dependencies
+# Both spellings. The trailing slash matches a DIRECTORY only, so a `node_modules`
+# SYMLINK — which is how an isolated worktree borrows the main checkout's install, and
+# is what every fan-out agent in this repo is told to create instead of installing —
+# sails straight past it. One got committed, and CI failed on the next run with
+# `ENOTDIR: not a directory, mkdir .../node_modules` during `pnpm install`, which reads
+# like a broken runner rather than a stray file in the tree.
+node_modules
 node_modules/
 
 .netlify/

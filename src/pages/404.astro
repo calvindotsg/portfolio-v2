@@ -224,4 +224,21 @@ const title = `${NOT_FOUND.heading} — ${METADATA.name}`;
         line-height: 0.82;
         letter-spacing: -0.045em;
     }
+
+    /*
+     * THE HOME LINK'S MARK, KEPT IN FORCED COLOURS. presetIcons paints a glyph as a mask over
+     * `background-color`, which a forced-colours mode overrides, so the arrow beside "Home"
+     * was erased to Canvas on Canvas. The words and `.text-link`'s underline both survive on
+     * their own — this restores the mark, which is a signifier the link is meant to carry.
+     *
+     * The same rule is said in IntroCard.astro and patches/[...sport].astro; read the long
+     * form there. Astro scopes a component's styles to that component, so each page that owns
+     * a `.text-link` with a mark has to say it once.
+     */
+    @media (forced-colors: active) {
+        .text-link span[aria-hidden] {
+            forced-color-adjust: none;
+            background-color: LinkText;
+        }
+    }
 </style>
