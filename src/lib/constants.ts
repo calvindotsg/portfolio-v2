@@ -715,6 +715,14 @@ export type Recording = {
 export const EVENTS: readonly RaceEvent[] = [
     {date: "2022-12-04", name: "Standard Chartered Singapore Half Marathon", km: 22.45, sport: "running", country: "Singapore", elapsed_time: "3:44:25",
      recordings: [{id: "8204481233", km: 22.45, elapsed_time: "3:44:25"}]},
+    // 22.12 km IS NOT A TYPO FOR A 40 km SPORTIVE. The activity's own description reads
+    // "Rainy rainy morning! Our 40km sportive ride turns out to be a 20km scenic ride!" —
+    // so this row is the rule above `km` doing exactly what it says: the bib prints the ride
+    // that was ridden, not the route that was entered. Do not "correct" it to the event's
+    // advertised distance. (22115.1 m rounds half-up to 22.12; Strava's page shows 22.11,
+    // which is the truncation this file declines to follow.)
+    {date: "2023-05-07", name: "OCBC Cycle Singapore", km: 22.12, sport: "cycling", country: "Singapore", elapsed_time: "1:53:15",
+     recordings: [{id: "9024119101", km: 22.12, elapsed_time: "1:53:15"}]},
     // THE RACE THAT WAS NOT FINISHED, and the only row carrying an `outcome`. It was ridden
     // in two parts — the split has nothing to do with the abandonment — so `km` is the summed
     // metres converted ONCE (87422.6 + 22619.7 = 110042.3, which rounds to 110.04 where adding
