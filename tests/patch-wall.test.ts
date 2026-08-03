@@ -1297,13 +1297,21 @@ describe("dist/patches", () => {
         // the `gap` shorthand, ROW FIRST, so a gate reading only the longhand asks the built
         // sheet for a property that is not in it and fails on correct code. This file records
         // the same trap for `text-decoration`.
-        const gapDecl = rules.map((r) => decl(r.body, "column-gap") ?? decl(r.body, "gap"))
+        // UNCONDITIONAL RULES ONLY, on both sides of the comparison. The ledger's narrow arms
+        // set this same padding to zero (a clock alone on a line has no distance to be told
+        // apart from), and `parseRules` returns an at-rule's children as ordinary rules
+        // carrying an `at`. Source order happens to put the base rule first today, so a bare
+        // `.find()` reads 1.4em — but it would read the arm's 0 the moment the sheet is
+        // reordered, and fail on correct code. What this gate is about is the UNCONDITIONAL
+        // separation, so it asks for exactly that.
+        const gapDecl = rules.filter((r) => r.at === "")
+            .map((r) => decl(r.body, "column-gap") ?? decl(r.body, "gap"))
             .find((v) => v !== undefined);
         expect(gapDecl, "the ledger must declare a column gap").toBeTruthy();
         const parts = gapDecl!.trim().split(/\s+/);
         const gap = parts.length > 1 ? parts[1] : parts[0];
         const padRules = parseRules(pageCss(PAGES.all))
-            .filter((r) => r.selectors.some((s) => /\.bib-ledger-time\b/.test(s)));
+            .filter((r) => r.at === "" && r.selectors.some((s) => /\.bib-ledger-time\b/.test(s)));
         const pad = padRules.map((r) => decl(r.body, "padding-left")).find((v) => v !== undefined);
         const em = (v: string | undefined) => Number.parseFloat(v ?? "0");
         expect(em(pad), `the clock column needs air of its own — at the gap alone (${gap}) a distance `
@@ -1315,6 +1323,71 @@ describe("dist/patches", () => {
             .filter((r) => r.selectors.some((s) => /\.bib-ledger-time-head\b/.test(s)))
             .map((r) => decl(r.body, "padding-left")).find((v) => v !== undefined);
         expect(headPad, "the clock heading must move with its column").toBe(pad);
+
+        // AND THE HEADING'S OWN RULE IS READ UNCONDITIONALLY TOO, for the reason above.
+    });
+
+    /**
+     * THE LEDGER MUST REFLOW ON THE BIB'S OWN WIDTH, AND THE CONDITION MUST BE FONT-RELATIVE.
+     *
+     * WHAT THIS CATCHES. `overflow-wrap: anywhere` and `minmax(0, auto)` above are a pair that
+     * turns an overflow into a break — which is what keeps the clock off the card, and is also
+     * a licence for the leader track to be squeezed to nothing. Measured on the shipped wall at
+     * a 32px root, the size WCAG SC 1.4.4 requires the page to survive: a 390px phone gave the
+     * bib 260px and `RECORDED` rendered as EIGHT STACKED SINGLE LETTERS. 280 wrapped cells
+     * across ten viewports and five root sizes, with the whole suite green and no ink escaping
+     * any bib — because the failure is legibility, and the sweep that passed this design was
+     * measuring containment. A containment measurement cannot see this class at all.
+     *
+     * WHY `em` IS THE ASSERTION AND NOT A NUMBER. The broken widths STRADDLE the healthy ones
+     * in px — 320px at a 16px root is fine at 254px while 375px at 32px is broken at 245px, and
+     * a 490px tablet band is broken at 208px — so no pixel threshold separates them. Divided by
+     * the reader's own root size the two sets separate cleanly: everything at or under 13.08em
+     * wrapped, everything at or over 13.63em did not. A px-valued query would therefore be
+     * either a no-op or a false positive, and it would also stop moving when the reader
+     * enlarges the text, which is the one thing this rule exists to respond to.
+     *
+     * WHAT IS NOT ASSERTED HERE. The rendered result. This file reads a stylesheet, so what is
+     * checkable is the PROPERTY — the arms exist, they key on the bib's inline size, their
+     * thresholds are font-relative, and the row's name is what gives way. The figures are
+     * re-swept in a browser when this area changes; the numbers above are that sweep.
+     */
+    it("reflows the ledger on the bib's own width, in units that follow the reader's text", () => {
+        const rules = parseRules(pageCss(PAGES.all))
+            .filter((r) => r.selectors.some((s) => /\.bib-ledger/.test(s)) && r.at !== "");
+
+        const arms = [...new Set(rules.map((r) => r.at))].filter((a) => /@container/.test(a));
+        expect(arms.length, "the ledger must reflow on the bib's own inline size — at the "
+            + "reader's 200% the three-column form shatters `RECORDED` into single letters")
+            .toBeGreaterThan(0);
+
+        // BOTH SPELLINGS, and it is what the build actually emits rather than defensiveness.
+        // The source declares `(max-width: 14em)` and the minifier rewrites it to the range
+        // form `(width<=14em)`. A gate written against the source spelling asks the shipped
+        // sheet for text that is not in it and fails on correct code — the same trap this file
+        // records for the `gap` shorthand and for `text-decoration`.
+        for (const at of arms) {
+            expect(at, `"${at}" must key on the container's WIDTH`).toMatch(/max-width|width\s*<=/);
+            const value = /(?:max-width\s*:|width\s*<=)\s*([\d.]+)(\w+)/.exec(at);
+            expect(value, `"${at}" must carry a readable width threshold`).toBeTruthy();
+            expect(value![2], `"${at}" must be font-relative. A pixel threshold cannot express `
+                + "this condition — the broken bib widths straddle the healthy ones in px — and "
+                + "it would stop moving when the reader enlarges the text, which is the only "
+                + "thing this rule responds to")
+                .toMatch(/^r?em$/);
+        }
+
+        // THE ROW'S NAME IS WHAT GIVES WAY, and it must give way to a WHOLE row: spanning only
+        // part of the track list leaves it in a column narrow enough to break again.
+        const whoSpans = rules
+            .filter((r) => r.selectors.some((s) => /\.bib-ledger-who\b/.test(s)))
+            .map((r) => decl(r.body, "grid-column"))
+            .filter((v) => v !== undefined);
+        expect(whoSpans.length, "some arm must give the row's name a line of its own — it is the "
+            + "one cell here a reader can do without on its own row, and the figures' shared "
+            + "columns are what the ledger is FOR").toBeGreaterThan(0);
+        expect(whoSpans.some((v) => /1\s*\/\s*-1/.test(v!)), `the name must span every column, `
+            + `got ${JSON.stringify(whoSpans)}`).toBe(true);
     });
 
     /**
