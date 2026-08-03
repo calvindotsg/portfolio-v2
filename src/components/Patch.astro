@@ -12,7 +12,13 @@ interface Props {
 const {event, state} = Astro.props;
 
 /*
- * ONE BIB. Two treatments of it, and the distance is the only thing drawn large.
+ * ONE BIB. Three states, TWO treatments — and on two of the three the distance is the only
+ * thing drawn large.
+ *
+ * The face is the whole of the visual difference: an earned patch has it, and a race you
+ * have not earned one for does not, whether that is because it has not happened yet or
+ * because it was abandoned. Those last two share a drawing on purpose — the outline means
+ * "no patch here", which is true of both — and what tells them apart is text.
  *
  * The sport's icon and name come from the GOAL that owns the sport, never from a
  * lookup beside EVENTS — `goalForSport` in constants.ts has the argument, and the
@@ -39,10 +45,32 @@ const {event, state} = Astro.props;
  * should claim the same precision about its distance.
  *
  * THE STATE IS SAID IN WORDS AS WELL AS IN THE TREATMENT. The outline carries it
- * visually and the tag carries it in text, which is not redundancy to be tidied
+ * visually and the words carry it in text, which is not redundancy to be tidied
  * away — SC 1.4.1 does not accept a visual treatment as the only carrier of
- * information. A finished bib needs no tag because it is the unmarked case, and the
+ * information. A finished bib needs no words because it is the unmarked case, and the
  * wall's lede gives it its name — a Finisher Patch.
+ *
+ * THE TWO UNEARNED STATES PUT THOSE WORDS IN DIFFERENT PLACES, and that asymmetry is the
+ * decision this component was redesigned around rather than an inconsistency in it.
+ *
+ *   BOOKED carries `booked_label` as a tag in the meta row. It is an annotation on a bib
+ *   whose figures are all still true: the race IS that far, it IS on that date, and none of
+ *   it has happened yet.
+ *
+ *   A DNF replaces the hero with `dnf_result`, and the distance moves down to a labelled
+ *   row. Nothing is being annotated — the bib's central claim is wrong. A results sheet
+ *   prints DNF in the column a finishing POSITION would have gone in, a status code that
+ *   REPLACES a result, and that is the only vernacular available: neither Strava nor Garmin
+ *   models a DNF at all, so there is no app pattern to borrow. Six candidates carrying it as
+ *   a tag were drawn first and all lost the same way — the meta row wraps, so three letters
+ *   land tucked in after the sport at a fraction of the hero's size. The QUIETEST thing on
+ *   the bib would have been carrying the most important fact about it. In the hero slot the
+ *   same three letters are the largest.
+ *
+ * THE VARIANT THAT PUT `DNF` ON THE EARNED FACE WAS DRAWN AND REJECTED. The inverted face is
+ * the strongest mark this palette can make and it is spent on the thing the page is about;
+ * an unfinished race is precisely not that. So the word goes in the hero and the face stays
+ * withheld — see `.bib--dnf` in the sheet for what that costs, which is nothing.
  *
  * THE MIRROR-IMAGE TAG WAS CONSIDERED AND REJECTED when the earned bib was named,
  * which is the obvious next move and the wrong one. You mark the exception, not the
@@ -123,6 +151,7 @@ const Tag = only === null ? "div" : "a";
 <li class="bib-cell">
 <Tag
         class:list={["bib", `bib--${event.sport}`, state === "booked" && "bib--booked",
+                     state === "dnf" && "bib--dnf",
                      only !== null && "bib--linked", parts !== null && "bib--split"]}
         href={only === null ? undefined : stravaActivityUrl(only)}
         target={only === null ? undefined : "_blank"}
@@ -142,8 +171,34 @@ const Tag = only === null ? "div" : "a";
         </span>
         {state === "booked" && <span class="bib-tag">{PATCHES.booked_label}</span>}
     </p>
-    <p class="bib-value">{whole}<span class="bib-fraction">.{fraction}</span></p>
-    <p class="bib-unit">{goal.measurable_unit}</p>
+    {/* THE HERO SLOT SAYS HOW THE RACE ENDED, AND ON ONE KIND OF BIB THAT IS NOT A DISTANCE.
+        See the note at the head of this file for the whole argument; what it comes to here is that a
+        results sheet prints DNF in the column a finishing POSITION would have gone in — a
+        status code REPLACING a result rather than annotating one — so it takes the slot, and
+        the kilometres move down to a row that says what they are.
+
+        NO UNIT ON THAT BRANCH. `.bib-unit` sets "KM" on its side against the number, and a
+        unit is a thing you put on a QUANTITY; beside three letters it would be reading as a
+        unit of DNF. The distance keeps its unit on the row it moved to, inline.
+
+        THE EXPANSION IS SR-ONLY AND SITS OUTSIDE `.bib-value`, which is deliberate rather
+        than fussy: inside it, the hero's text content becomes "DNFDid not finish" and every
+        assertion that reads that element — and every future one — has to know about it. */}
+    {state === "dnf" ? (
+            <Fragment>
+                <p class="bib-value">{PATCHES.dnf_result}</p>
+                <span class="sr-only">{PATCHES.dnf_name}</span>
+                <p class="bib-ridden">
+                    <span class="bib-ridden-label">{PATCHES.ridden_label}</span>
+                    <span class="bib-ridden-value">{`${event.km.toFixed(2)} ${goal.measurable_unit}`}</span>
+                </p>
+            </Fragment>
+    ) : (
+            <Fragment>
+                <p class="bib-value">{whole}<span class="bib-fraction">.{fraction}</span></p>
+                <p class="bib-unit">{goal.measurable_unit}</p>
+            </Fragment>
+    )}
     <p class="bib-name">{event.name}</p>
     <p class="bib-place">{event.country}</p>
     {event.elapsed_time && (
@@ -234,8 +289,15 @@ const Tag = only === null ? "div" : "a";
      * A FINISHED BIB IS INVERTED — face --text, ink --background — which is the
      * strongest mark this palette can make and is spent here deliberately: an earned
      * bib is the thing the page is about. A booked bib is the same box with the face
-     * removed. Nothing about the two treatments differs except these values and the
-     * border, which is why they cannot drift apart in layout.
+     * removed, and differs in nothing but these values and the border — which is why the
+     * two cannot drift apart in layout.
+     *
+     * A DNF IS THE ONE STATE THAT ALSO MOVES THE ROWS, and it is worth saying because the
+     * sentence above was true of every bib until it existed. It takes the same four values
+     * as a booked bib and then re-declares `grid-template-areas`, because its hero is a
+     * word rather than a number and the distance it displaces needs a row of its own. So
+     * "a treatment is a set of values" still holds for the FACE; it stopped being the whole
+     * story for the LAYOUT. See `.bib--dnf`.
      */
     .bib {
         --face: var(--text);
@@ -315,6 +377,40 @@ const Tag = only === null ? "div" : "a";
     }
 
     /*
+     * DNF: A BIB YOU WILL NEVER EARN. The face is withheld for the same reason a booked
+     * bib's is — the inverted face is what an earned patch looks like and this is not one —
+     * and the four values below are IDENTICAL to `.bib--booked`'s, character for character.
+     *
+     * THAT IDENTITY IS THE DESIGN, NOT A SHORTCUT, and it is what a third face would have
+     * cost. A mid-tone "ghosted" ground was drawn and rejected: it needs its own token in
+     * both themes, its own `--sport-on-*` pair so the mark stays legible on it, and four more
+     * contrast pairs held forever by tests/patch-wall.test.ts — for a distinction the bib
+     * already draws in words. Repeating a value is cheap; a new ground is not.
+     *
+     * SO WHAT SEPARATES THE TWO OUTLINES IS TEXT, AND DELIBERATELY ONLY TEXT. A booked bib
+     * wears `booked_label` in the meta row; this one prints `dnf_result` in the hero slot the
+     * distance would have had. That choice is what makes this state cost ZERO mode overrides
+     * below: a hatch or a perforation is `background-image`, which print discards; a heavier
+     * border or a knockout chip is colour, which forced colours replaces. Text is the one
+     * channel no rendering mode takes away, so the state survives every mode without a second
+     * drawing of it being argued and measured. The two `border-width` lists further down are
+     * joined rather than added to — a DNF is an outline and prints like one.
+     *
+     * WHY THE ROW ORDER CHANGES HERE. `ridden` sits directly under `value`, so the two facts
+     * about the result are together — what it was, and what was covered getting there —
+     * before the bib gets round to naming the race. The `unit` area is gone because no
+     * element claims it: see the markup, which does not render `.bib-unit` on this branch.
+     */
+    .bib--dnf {
+        --face: transparent;
+        --ink: var(--text);
+        --sport: var(--sport-on-card);
+        border-color: color-mix(in srgb, var(--text) 32%, transparent);
+        background-image: none;
+        grid-template-areas: "date date" "value value" "ridden ridden" "name name" "place place" "time time";
+    }
+
+    /*
      * FORCED COLOURS FLATTEN THE TWO TREATMENTS INTO ONE. The whole distinction is
      * carried by background-color and border-color, and a forced-colours mode
      * overrides both — a finished bib loses its face, a booked bib's hairline becomes
@@ -334,7 +430,8 @@ const Tag = only === null ? "div" : "a";
             border-width: 3px;
         }
 
-        .bib--booked {
+        .bib--booked,
+        .bib--dnf {
             border-width: 1px;
         }
 
@@ -377,7 +474,8 @@ const Tag = only === null ? "div" : "a";
             background-image: none;
         }
 
-        .bib--booked {
+        .bib--booked,
+        .bib--dnf {
             border-width: 1px;
         }
     }
@@ -412,7 +510,8 @@ const Tag = only === null ? "div" : "a";
      */
     .bib-date,
     .bib-tag,
-    .bib-time-label {
+    .bib-time-label,
+    .bib-ridden-label {
         opacity: 0.8;
     }
 
@@ -751,6 +850,27 @@ const Tag = only === null ? "div" : "a";
     }
 
     /*
+     * A DNF THAT ALSO LINKS OUT NEEDS BOTH ADDED ROWS, and neither rule above can give it
+     * them: `.bib--dnf` has `ridden` and no `go`, the pair above has `go` and no `ridden`, and
+     * both are single-class, so whichever is written last would simply win and delete the
+     * other's row. Hence one compound rule holding the union.
+     *
+     * IT IS NOT A SPECIFICITY WORKAROUND — that part is free, since a compound selector
+     * outranks a single class wherever it sits in the sheet. What it is, is the only place the
+     * six-row template can be SAID; grid areas do not merge.
+     *
+     * BOTH COMBINATIONS ARE LISTED THOUGH ONLY ONE IS ON THE WALL TODAY. The split case is
+     * real; the linked case is a DNF recorded as a single activity, which is the ordinary
+     * shape and simply has not happened yet. Leaving it out would mean the next such race
+     * silently loses its action row, which is the failure this file has already shipped once
+     * in a different rule.
+     */
+    .bib--dnf.bib--linked,
+    .bib--dnf.bib--split {
+        grid-template-areas: "date date" "value value" "ridden ridden" "name name" "place place" "time time" "go go";
+    }
+
+    /*
      * THE STUB IS PERFORATED ONCE, NOT ONCE PER LINE, and that is the difference between
      * material vocabulary and decoration. A race bib has A stub — it does not sprout a second
      * one because a watch stopped — so the perforation stays on the LIST and the recordings
@@ -950,11 +1070,47 @@ const Tag = only === null ? "div" : "a";
         text-transform: uppercase;
     }
 
-    .bib-time-label {
+    /*
+     * THE DISTANCE ON A BIB THAT DID NOT FINISH, demoted out of the hero slot into a caption
+     * and a figure. `.bib--dnf` above says why the hero is not available to it.
+     *
+     * IT IS DRAWN AS THE ELAPSED ROW'S TWIN, and that is the point rather than reuse: the two
+     * rows now say the two things that ARE known about an abandoned race — how far and how
+     * long — in one grammar, under one another, both subordinate to the verdict above them.
+     * A reader meets them as a pair.
+     *
+     * SO THE SHARED RULES BELOW ARE WRITTEN AS SELECTOR LISTS AND MUST STAY THAT WAY. Splitting
+     * them to "tidy up" is how the two rows drift a weight or a tracking apart, which nothing
+     * in the suite would catch and every reader would feel. They are separate CLASSES rather
+     * than one shared name because `bib-time-label` on a distance is a lie somebody later
+     * corrects; the rig that settled this design did exactly that and it read as a slip.
+     *
+     * `flex-wrap` and `overflow-wrap` for the reason `.bib-time` has them, and it is the same
+     * trap, not a precaution: `RIDDEN` and `110.04` are single unbreakable tokens, and a bib
+     * does not clip, so at a large enough text size each one paints OUTSIDE the border box onto
+     * the card — where this ink sits at 1.045:1 and is simply gone. tests/patch-wall.test.ts
+     * holds this class to that rule with the other four.
+     */
+    .bib-ridden {
+        grid-area: ridden;
+        display: flex;
+        flex-wrap: wrap;
+        overflow-wrap: anywhere;
+        align-items: baseline;
+        gap: 0.45em;
+        margin: 0;
+        font-size: 0.625rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .bib-time-label,
+    .bib-ridden-label {
         font-weight: 700;
     }
 
-    .bib-time-value {
+    .bib-time-value,
+    .bib-ridden-value {
         font-weight: 800;
         font-variant-numeric: tabular-nums;
         letter-spacing: 0.08em;

@@ -7,8 +7,13 @@ minimal design. The home page is a single-screen bento grid showing Calvin's
 professional background, his cycling and running goals, and personal interests;
 `/patches` is a wall of **every race he has entered**, in any year, drawn as bibs,
 with a prerendered page per sport. A **Finisher Patch** is a race completed and
-earned — an outline bib is an event that has not become one yet, which is why the
-wall's headings say "events" and only the earned bibs are patches.
+earned, which is why the wall's headings say "events" and only the earned bibs are
+patches. **An outline is a bib with no patch on it, and that is TWO different
+facts**: a race still to come, or one that was started and not finished. They share
+a treatment because the treatment means "not earned"; what tells them apart is the
+word each one prints — `Booked` in the meta row, or `DNF` in the slot the distance
+would have had. See `patchState` in `projection.ts` and `.bib--dnf` in
+`Patch.astro`.
 
 **The one scope rule**: the wall is the whole calendar; a goal card is `GOAL_YEAR`
 alone. `EVENTS` feeds both, and `eventsInYear` in `projection.ts` is what keeps a
@@ -186,9 +191,9 @@ block above it before giving either consumer the other's list.
   `projection.ts` for why the pair means "run"
 - **A race can be recorded as MORE THAN ONE Strava activity, and the bib's shape follows
   the count.** `recordings` is a list — a mechanical, a lost signal or a watch that died
-  splits one race across several files. TWO of the round-island rides were recorded that
-  way and only ONE is on the wall — the other is also a DNF, which the wall has no state
-  for, so it stays off until that exists. Count the rows rather than trusting this sentence. The race's `km` is the summed METRES converted once (not the sum of the parts'
+  splits one race across several files. Count the rows rather than trusting any sentence
+  about how many there are — and note that being split and being a DNF are INDEPENDENT:
+  one race is both, and neither fact implies the other. The race's `km` is the summed METRES converted once (not the sum of the parts'
   printed figures, which rounds twice) and its `elapsed_time` is first start to last stop,
   never the sum of the parts: elapsed already contains stops, so it must not depend on
   where the rider pressed the button. **The rule the bib is drawn by: a bib is the link

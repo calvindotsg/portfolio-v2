@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PROJECTS, WELCOME} from "../src/lib/constants";
+import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, WELCOME} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
@@ -219,14 +219,37 @@ describe("dist/", () => {
         // return -1, and `slice(-1, n)` is a silently empty or wildly wrong window rather
         // than an error -- so renaming a heading would have degraded this gate into one
         // that reports on a string nobody meant, instead of failing.
-        const bounds = ["completed:", "Still to come:", "## Pages"].map((marker) => {
+        //
+        // THE MIDDLE SECTION IS CONDITIONAL, and asserting THAT is half of this gate. The
+        // endpoint omits the DNF list when nothing was abandoned — an empty heading would
+        // advertise a category the record does not hold — so the marker list is built from
+        // the calendar and the presence of the heading is itself checked, both directions.
+        // Deriving the markers without that check would let the section silently vanish.
+        const dnfHeading = `${PATCHES.dnf_name}:`;
+        const anyDnf = EVENTS.some((event) => patchState(event) === "dnf");
+        expect(
+            llms.includes(dnfHeading),
+            `llms.txt must carry a "${dnfHeading}" section when, and only when, a race on the calendar was abandoned`,
+        ).toBe(anyDnf);
+
+        const markers = ["completed:", ...(anyDnf ? [dnfHeading] : []), "Still to come:", "## Pages"];
+        const bounds = markers.map((marker) => {
             const at = llms.indexOf(marker);
             expect(at, `llms.txt must contain the "${marker}" marker this gate slices on`)
                 .toBeGreaterThan(-1);
             return at;
         });
-        const completed = llms.slice(bounds[0], bounds[1]);
-        const ahead = llms.slice(bounds[1], bounds[2]);
+        // Keyed by the STATE each section holds, so the loop below can ask one question per
+        // event instead of enumerating pairs — and so a fourth state fails the coverage
+        // check underneath rather than quietly landing in no section at all.
+        const sections: Record<string, string> = {
+            finished: llms.slice(bounds[0], bounds[1]),
+            ...(anyDnf ? {dnf: llms.slice(bounds[1], bounds[2])} : {}),
+            booked: llms.slice(bounds[markers.length - 2], bounds[markers.length - 1]),
+        };
+        for (const state of new Set(EVENTS.map((event) => patchState(event)))) {
+            expect(Object.keys(sections), `llms.txt has no section for the "${state}" state`).toContain(state);
+        }
 
         // THESE LISTS ARE THE WHOLE CALENDAR, SO THEIR HEADINGS MAY NOT NAME A YEAR.
         // `EVENTS` is every race in any year -- the scope rule above `eventsInYear` --
@@ -240,19 +263,30 @@ describe("dist/", () => {
         // "completed:" marker, so a heading of "Races and challenges in 2026, completed:"
         // puts the year BEFORE the window and the assertion inspects "completed:" alone.
         const headings = llms.split("\n")
-            .filter((line) => line.endsWith("completed:") || line === "Still to come:");
-        expect(headings, "both race-list headings must be found").toHaveLength(2);
+            .filter((line) => line.endsWith("completed:") || line === "Still to come:" || line === dnfHeading);
+        expect(headings, "every race-list heading must be found").toHaveLength(markers.length - 1);
         for (const heading of headings) {
             expect(heading, `"${heading}" names a year over the whole-calendar EVENTS list`)
                 .not.toMatch(/\d{4}/);
         }
 
+        // MATCHED ON DATE AND NAME, NOT ON NAME ALONE, and the calendar forces it: the
+        // round-island ride appears THREE times under one name, and they are no longer all
+        // in the same section — the 2023 running of it was abandoned. A bare
+        // `section.includes(event.name)` reports every one of them as present in every
+        // section that holds any of them, which is an assertion that cannot fail and
+        // cannot discriminate. Reconstructing the rendered line also means a change to the
+        // endpoint's format goes red here instead of degrading this into a check on a
+        // string nobody emits.
         for (const event of EVENTS) {
-            const finished = patchState(event) === "finished";
-            expect(completed.includes(event.name), `${event.name} finished=${finished}: wrong side of "completed"`)
-                .toBe(finished);
-            expect(ahead.includes(event.name), `${event.name} finished=${finished}: wrong side of "still to come"`)
-                .toBe(!finished);
+            const state = patchState(event);
+            const when = event.end_date ? `${event.date} to ${event.end_date}` : event.date;
+            const line = `${when} — ${event.name}`;
+            expect(llms.split(line).length - 1, `"${line}" must be listed exactly once in llms.txt`).toBe(1);
+            for (const [bucket, text] of Object.entries(sections)) {
+                expect(text.includes(line), `"${line}" is ${state}: wrong side of the "${bucket}" list`)
+                    .toBe(bucket === state);
+            }
         }
     });
 

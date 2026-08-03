@@ -529,10 +529,23 @@ describe("EVENTS", () => {
             // recording branch can answer. `patchState(e)` takes BUILD_DATE, under which
             // every past race is finished by the clock anyway — the assertion could not
             // fail, which is the tautology the comment above condemns.
+            //
+            // ASKED AS "THE CLOCK DID NOT DECIDE THIS", NOT AS `=== "finished"`, and the
+            // difference arrived with `dnf`. A recorded race that was ABANDONED is `dnf` on
+            // every day, so the old spelling was red on correct data. Relaxing it to
+            // `!== "booked"` would have been the weak fix: a past race is not booked by the
+            // CLOCK either, so deleting the recording branch entirely would still pass. What
+            // a recording actually buys is that the answer does not MOVE with the day, and
+            // that is what this now asks — red if the branch goes, green for either settled
+            // outcome, and still not a tautology.
             expect(
                 patchState(e, "1970-01-01"),
-                `${e.name} carries a full recording, so its bib must be earned ahead of the clock`,
-            ).toBe("finished");
+                `${e.name} carries a full recording, so its state must be settled ahead of the clock`,
+            ).toBe(patchState(e, BUILD_DATE));
+            expect(
+                patchState(e, "1970-01-01"),
+                `${e.name} carries a full recording, so it cannot be drawn as still to come`,
+            ).not.toBe("booked");
             expect(
                 parseIsoDate(e.end_date ?? e.date) <= parseIsoDate(BUILD_DATE),
                 `${e.name} would be drawn as an EARNED patch, but it does not finish until `
@@ -768,6 +781,21 @@ describe("the next race for a sport", () => {
      * The partition is over THIS YEAR's races, for the reason given above: both branches
      * of the card's line read the year, and the wall reads the calendar.
      */
+    /**
+     * A COUNTDOWN MUST NEVER POINT AT A RACE THAT IS ALREADY OVER, and a DNF is the one
+     * shape that could get past `nextRace` — it is not `finished`, so any spelling of the
+     * search as "the first race that is not finished" selects it, and the goal card counts
+     * down to a race abandoned in the past. The function asks for `booked` explicitly, which
+     * is correct; this is what stops that being a coincidence.
+     */
+    it("never counts down to a race that was abandoned", () => {
+        const abandoned = ev({date: "2026-03-01", sport: "cycling", outcome: "dnf", elapsed_time: "5:00:00",
+            recordings: [{id: "1", km: 10, elapsed_time: "5:00:00"}]});
+        const ahead = ev({date: "2026-09-01", sport: "cycling", name: "the real next race"});
+        expect(nextRace("cycling", "2026-06-15", [abandoned]), "a DNF is not a race still to come").toBeNull();
+        expect(nextRace("cycling", "2026-06-15", [abandoned, ahead])?.event.name).toBe("the real next race");
+    });
+
     it("accounts for every race of the sport between the two branches", () => {
         const wrong: string[] = [];
         const thisYear = eventsInYear(GOAL_YEAR);
@@ -778,8 +806,19 @@ describe("the next race for a sport", () => {
                 const booked = wall.filter((p) => p.state === "booked").length;
                 const hasNext = nextRace(goal.sport, iso) !== null;
                 if ((booked > 0) !== hasNext) wrong.push(`${iso} ${goal.sport}: ${booked} booked but next=${hasNext}`);
-                if (patchesEarned(goal.sport, iso) + booked !== wall.length) {
-                    wrong.push(`${iso} ${goal.sport}: earned + booked != wall`);
+                // THREE TERMS, BECAUSE A DNF IS ON THE WALL AND IN NEITHER BRANCH OF THE
+                // CARD'S LINE. That is correct and deliberate — it is not a patch and it is
+                // not still to come — but it means the partition is no longer earned+booked,
+                // and the two-term form would go red the first time a race in GOAL_YEAR is
+                // abandoned. Only the year scope is hiding that today: the one DNF on the
+                // calendar is from 2023, so this sweep never sees it.
+                const dnf = wall.filter((p) => p.state === "dnf").length;
+                const earned = patchesEarned(goal.sport, iso);
+                if (earned + booked + dnf !== wall.length) {
+                    wrong.push(
+                        `${iso} ${goal.sport}: earned(${earned}) + booked(${booked}) + dnf(${dnf}) `
+                        + `!= wall(${wall.length})`,
+                    );
                 }
             }
         }
