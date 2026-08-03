@@ -226,18 +226,36 @@ export function bookedAhead(sport: Sport, iso: string, events: readonly RaceEven
     let km = 0
     for (const e of events) {
         if (e.sport !== sport) continue
-        // A race with a recording has been RIDDEN, whatever the day says — see
-        // `hasRecording`. Its kilometres are in the bot's total, or will be at the next
-        // fetch, so booking them here would count the race twice. Skipping is also the
-        // safe direction while the bot catches up: the deficit stays whole, so the rate
-        // reads high rather than flattering. The cross-consumer sweep in
-        // tests/patch-wall.test.ts forces this line — without it the wall calls a race
-        // finished while the card is still counting its kilometres as ahead.
-        if (hasRecording(e)) continue
-        // Every race reaching this line is unrecorded, so `raceKm` is its ADVERTISED distance —
-        // the only figure it has. Going through the accessor anyway keeps one reader of the
-        // distance in the codebase rather than two, and it is what makes the line above the
-        // sole thing deciding which races count.
+        // ONLY A RACE THE WALL CALLS `booked` HAS KILOMETRES AHEAD OF IT, and this asks
+        // the wall's own function rather than re-deriving the reasons — which is the
+        // whole point. This line used to read `if (hasRecording(e)) continue`, an
+        // enumeration of ONE reason to skip, and it was complete only while the wall had
+        // two states:
+        //
+        //   FINISHED — the race has been RIDDEN whatever the day says, so its kilometres
+        //   are in the bot's total or will be at the next fetch, and booking them here
+        //   would count the race twice.
+        //
+        //   DNF — the race will never be ridden, so booking it promises kilometres that
+        //   are not coming. `hasRecording` catches a DNF that was recorded and MISSES one
+        //   that was not: abandoning the 1,022 km Formosa tour mid-way books all 1,022 km
+        //   of it into the cycling card while the wall draws the bib as DNF.
+        //
+        // Skipping is also the safe direction while the bot catches up: the deficit stays
+        // whole, so the rate reads high rather than flattering. The cross-consumer sweep
+        // in tests/patch-wall.test.ts forces this line — without it the wall and the card
+        // contradict each other — and `books nothing for a race that was abandoned` below
+        // holds the DNF half, which the sweep cannot see while every DNF on the calendar
+        // happens to carry a recording.
+        if (patchState(e, iso) !== "booked") continue
+        // WHICH DISTANCE THAT IS depends on the row, and the accessor is what stops this
+        // line having to know. A booked race is USUALLY unrecorded, so `raceKm` hands back
+        // the ADVERTISED figure — the only one it has. But `booked` is not a synonym for
+        // unrecorded: a row carrying `recordings` without an `elapsed_time` is booked too
+        // (`hasRecording` needs both), and there `raceKm` returns the distance derived from
+        // the metres. Both are the best figure that row holds, which is why one reader of
+        // the distance beats two. An earlier revision of this comment claimed every race
+        // reaching here is unrecorded; a review panel found that false twice over.
         const booked = raceKm(e)
         if (!Number.isFinite(booked) || booked < 0) continue
         const start = parseIsoDate(e.date)
@@ -396,6 +414,14 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * Derivation cannot do that — the wall is rebuilt on every deploy and the bot
  * deploys whenever the kilometres move.
  *
+ * `RaceEvent.outcome` IS STORED AND IS NOT THAT FLAG, said here because this
+ * paragraph is where a reader meets the rule and the exception is 300 lines away in
+ * another file. The test is not "is it stored" but "does the calendar keep
+ * re-deriving the answer": it does for `done`, which is why that flag rots, and it
+ * cannot for an abandonment, which nothing in the data records at all. The argument
+ * is written out above `outcome` in constants.ts; satisfy it before storing a second
+ * one.
+ *
  * THERE ARE TWO WAYS TO BE `finished`, AND THE ORDER MATTERS. A race with a
  * recording is finished because it was run; a race without one is finished once the
  * whole event is behind the day. The first is asked first, and it is the only reason
@@ -453,13 +479,35 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * claims a plan. A race with a recording never reaches the comparison — it is finished
  * on its recording — and that is not a way round the rule, because a finishing time on
  * an unreadable date fails the build outright (tests/projection.test.ts).
+ *
+ * `dnf` IS THE ONE STATE NOTHING HERE DERIVES, and it is asked first for exactly that
+ * reason. Every other answer this function gives is read off the data — a recording, a
+ * date, a clock — and a race that was abandoned carries all three of those looking
+ * exactly like a race that was completed, because no device models the difference (see
+ * `RaceEvent.outcome` in constants.ts). So it is hand-entered, and every question below
+ * it would resolve such a race `finished`: it has a recording, and its date is years
+ * past. Moving this line down the function is silent — the type still checks, the wall
+ * still renders, and the bib simply claims a result the rider did not get.
+ *
+ * IT IS NOT A SECOND WAY OF BEING BOOKED, though it is DRAWN like one. A booked bib says
+ * "not yet" and a DNF says "not at all"; they share a treatment because the treatment
+ * means "no patch here", and the DNF bib carries its own word in the largest type it
+ * has. What follows from that is arithmetic rather than styling: {@link patchesEarned}
+ * counts `finished` and so skips it, which is right — a DNF is not a Finisher Patch —
+ * while {@link bookedAhead} skips it too, for the unrelated reason that it has a
+ * recording, which is also right: he rode those kilometres and the bot's total holds
+ * them. The two exclusions have different causes and must not be merged.
  */
-export type PatchState = "finished" | "booked"
+export type PatchState = "finished" | "booked" | "dnf"
 
 /** The last day an event occupies — its own date unless it spans several. */
 const eventEnd = (event: RaceEvent): string => event.end_date ?? event.date
 
 export function patchState(event: RaceEvent, iso: string = BUILD_DATE): PatchState {
+    // ASKED FIRST, AND THE ORDER IS LOAD-BEARING — see the paragraph above the type. A DNF
+    // has both halves of a recording and a date long past, so every question below this one
+    // answers "finished" for it.
+    if (event.outcome === "dnf") return "dnf"
     // The recording is the finish line. Asked before the clock, because the clock
     // cannot see a race run this morning and this is the only way a race becomes a
     // patch on the day it is run. See `hasRecording` for why it takes both fields.
@@ -504,6 +552,13 @@ export type Patch = {event: RaceEvent, state: PatchState}
  * the two runs read as two blocks with nothing between them. A heading or rule would
  * belong to the page, not to this function.
  *
+ * A DNF IS AN OUTLINE INSIDE THE SOLID RUN, and that is the one place the paragraph above
+ * stops being tidy. It is deliberate rather than a cost tolerated: the run is a history
+ * in date order, and an abandoned race happened on its day like every other race around
+ * it, so sorting it anywhere else would be sorting by outcome. The outline says no patch
+ * was earned; the position says when it was ridden. Those are different questions and the
+ * bib answers both.
+ *
  * SORTED HERE RATHER THAN IN THE FIXTURE, and the reason is a defect that already
  * shipped once in the design previews for this feature: their captions claimed an
  * order the array happened to supply, and nobody read the render against the
@@ -522,7 +577,22 @@ export type Patch = {event: RaceEvent, state: PatchState}
  * same-day races depend on whether they have happened yet, which is a stranger rule
  * than one alphabetical tiebreak that never moves.
  */
-const STATE_RANK: Record<PatchState, number> = {booked: 0, finished: 1}
+/*
+ * TWO RUNS, THREE STATES — so this is a RANK rather than an ordering of the states, and
+ * `dnf` shares its rank with `finished`. The wall is a HISTORY, not a ranking: a race
+ * abandoned in 2023 belongs in date order among the races completed either side of it,
+ * not gathered into a third group that would read as a league table of how well each one
+ * went.
+ *
+ * A SHARED RANK IS WHY THE COMPARATOR BELOW CANNOT ASK `a.state !== b.state` FIRST, which
+ * is what it did while there were only two states and what the `Record<PatchState, …>`
+ * type will NOT catch when a third is added. That line returned `RANK[a] - RANK[b]` for
+ * any pair whose states differ — which for a finished/dnf pair is `0`, an "equal" verdict
+ * that never reaches the date comparison and leaves the two in fixture order. Green
+ * types, green suite on any calendar with no DNF, and a wall that silently stops sorting
+ * the moment one appears. Compare the RANKS and fall through when they match.
+ */
+const STATE_RANK: Record<PatchState, number> = {booked: 0, finished: 1, dnf: 1}
 
 export function patchWall(
     sport?: Sport,
@@ -533,10 +603,15 @@ export function patchWall(
         .filter((e) => sport === undefined || e.sport === sport)
         .map((event) => ({event, state: patchState(event, iso)}))
         .sort((a, b) => {
-            if (a.state !== b.state) return STATE_RANK[a.state] - STATE_RANK[b.state]
+            const byRank = STATE_RANK[a.state] - STATE_RANK[b.state]
+            if (byRank !== 0) return byRank
             if (a.event.date !== b.event.date) {
                 const earlierFirst = a.event.date < b.event.date ? -1 : 1
-                return a.state === "booked" ? earlierFirst : -earlierFirst
+                // Equal rank, states not necessarily equal — a finished bib and a DNF share
+                // one. So this asks the RANK rather than the state name: the forward-pointing
+                // run counts up towards the next race, and everything behind today counts
+                // back, whatever kind of history it is.
+                return STATE_RANK[a.state] === STATE_RANK.booked ? earlierFirst : -earlierFirst
             }
             return a.event.name < b.event.name ? -1 : a.event.name > b.event.name ? 1 : 0
         })

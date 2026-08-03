@@ -58,7 +58,18 @@ export const GET: APIRoute = ({site}) => {
     const run = (event: typeof EVENTS[number]) => {
         const when = event.end_date ? `${event.date} to ${event.end_date}` : event.date
         const time = event.elapsed_time ? `, ${event.elapsed_time}` : ""
-        return `- ${when} — ${event.name}, ${raceKm(event)} km, ${event.country}${time}`
+        // A DNF's KILOMETRES ARE NOT THE RACE'S, AND THE ROW HAS TO SAY SO ITSELF. In every
+        // other bucket this figure is how long the race was; on an abandoned race it is how
+        // far he got, which is the distinction the bib draws by moving the number out of the
+        // hero into a labelled row. The section heading carries it for a reader of the whole
+        // file — but this file is written to be CHUNKED and quoted, and a row lifted out of
+        // its section takes the heading's context with it and none of its meaning. The label
+        // is the bib's own constant rather than a second string, so the page and this file
+        // cannot drift into describing the same number two ways.
+        const far = patchState(event) === "dnf"
+            ? `${PATCHES.covered_label.toLowerCase()} ${raceKm(event)} km`
+            : `${raceKm(event)} km`
+        return `- ${when} — ${event.name}, ${far}, ${event.country}${time}`
     }
     // "Has it happened" is `patchState`, NOT a date comparison — asking the site's own
     // predicate rather than restating it, which is the whole point of this endpoint.
@@ -70,8 +81,17 @@ export const GET: APIRoute = ({site}) => {
     // have said "finished" while this file still said "still to come". Masked on the day
     // it was written — the 2026-07-29 Garmin run already had yesterday's date by then —
     // which is precisely how it would have shipped.
+    //
+    // THREE BUCKETS, ALL THREE BY EQUALITY — and the middle one is why `upcoming` no longer
+    // asks `!== "finished"`. That negation was a binary split of a predicate that had two
+    // answers when it was written, so the day `patchState` gained a third it silently filed a
+    // race abandoned in 2023 under "Still to come". Nothing would have gone red: the endpoint
+    // still emits, the counts still add up, and the only witness is a line claiming a race
+    // three years past is ahead of him. A catch-all branch inherits every state added after
+    // it; equality forces the author of the next one to come back here.
     const done = EVENTS.filter((event) => patchState(event) === "finished")
-    const upcoming = EVENTS.filter((event) => patchState(event) !== "finished")
+    const abandoned = EVENTS.filter((event) => patchState(event) === "dnf")
+    const upcoming = EVENTS.filter((event) => patchState(event) === "booked")
 
     const body = [
         `# ${METADATA.full_name}`,
@@ -117,6 +137,16 @@ export const GET: APIRoute = ({site}) => {
         "",
         ...(done.length ? done.map(run) : ["- none yet"]),
         "",
+        // THE ONLY SECTION THAT DISAPPEARS WHEN IT IS EMPTY, and the asymmetry is deliberate.
+        // The other two have a floor — "none yet", "nothing scheduled" — because their absence
+        // is itself an answer an agent asked "what has he done" needs. An empty DNF list is not
+        // information about a person; printing a heading over it advertises a category the
+        // record does not contain. It also spares the file a permanent line of nothing on the
+        // outcome most riders would rather it never had to hold.
+        //
+        // The heading is `dnf_name` rather than the bib's three letters: this is read by a
+        // machine with no wall around it, and `DNF` is unambiguous only inside its own venue.
+        ...(abandoned.length ? [`${PATCHES.dnf_name}:`, "", ...abandoned.map(run), ""] : []),
         "Still to come:",
         "",
         ...(upcoming.length ? upcoming.map(run) : ["- nothing scheduled"]),
@@ -130,7 +160,7 @@ export const GET: APIRoute = ({site}) => {
         // which fixed that break once already. An answer engine citing "the Patches page"
         // would be naming something that exists under no such name.
         `- [${PATCHES.home_label}](${abs("/")}): the goals, the day job, and where to find me`,
-        `- [${PATCHES.heading}](${abs("/patches/")}): every race and challenge, earned and upcoming`,
+        `- [${PATCHES.heading}](${abs("/patches/")}): every race and challenge, finished or not`,
         ...GOALS.map((goal) =>
             `- [${NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())}]`
             + `(${abs(`/patches/${goal.sport}/`)}): ${goal.goal_name.toLowerCase()} events only`),

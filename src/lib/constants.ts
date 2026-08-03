@@ -523,6 +523,34 @@ type RaceEventCommon = {
      */
     country: string
     /**
+     * HOW THE RACE ENDED, WHERE IT DID NOT END THE WAY EVERY OTHER ROW'S DID. Absent on a
+     * race that was finished and on one that has not been run.
+     *
+     * IT IS THE ONE FACT ON A BIB NOTHING CAN DERIVE. Neither Strava nor Garmin has any
+     * concept of a DNF: an abandoned ride is stored exactly like a finished one — distance,
+     * clock, map — so no recording, no elapsed time and no calendar comparison can tell the
+     * two apart. `patchState` reads every other bib off the data; this one it can only be
+     * told. A race abandoned at 110 km looks, to the build, precisely like a race completed
+     * at 110 km.
+     *
+     * THE OBVIOUS OBJECTION, PRE-EMPTED, because otherwise this reads as a violation of the
+     * rule in the {@link PATCHES} note below and the next reader deletes it. That rule forbids a
+     * STORED `done` flag, because such a flag "goes stale in the one direction nobody
+     * notices — a race that has been run still rendering as still-to-come". A DNF cannot go
+     * stale in that direction or in any other: it is immutable history, settled the day the
+     * rider stopped, exactly like the {@link elapsed_time} beside it. Storing a fact that
+     * stopped changing is what this file already does everywhere; the forbidden thing is
+     * storing an answer the calendar keeps re-deriving.
+     *
+     * A UNION RATHER THAN `dnf?: true`, and the difference costs nothing today. A DSQ and a
+     * cancelled event are the same shape of fact, and each would otherwise arrive as another
+     * boolean that has to be checked against the first. It is also what this codebase already
+     * reaches for — `GoalStatus` and `PatchState` in projection.ts are both unions for the
+     * same reason. Do not add a member he has not asked for; the point is only not to
+     * foreclose one.
+     */
+    outcome?: "dnf"
+    /**
      * How long the race took, as `H:MM:SS`. Absent until the race has been run and the
      * figure typed in; a bib without one simply prints no time line.
      *
@@ -600,9 +628,7 @@ type RecordedRace = RaceEventCommon & {
      * mechanical, a lost signal, a watch that died. This replaced a single
      * `strava_activity_id?: string`, which asserted that a race has at most ONE recording;
      * that was false for the round-island rides, and the wall printed one part of a race as
-     * though it were the whole thing. TWO of those rides were recorded in parts and only ONE
-     * of them is on this list — the other is also a DNF, which the wall has no state for, so
-     * it stays off until that exists. Do not read "the split races" as a plural of what is
+     * though it were the whole thing. Do not read "the split races" as a plural of what is
      * here; count the rows. A `string | readonly string[]`
      * union was considered and rejected — it pushes normalisation onto every consumer —
      * as was keeping the singular field and adding a second one beside it, which is the
@@ -724,9 +750,14 @@ export type Recording = {
      * the API rather than a comparison through whichever rule was current.
      *
      * IT IS ALSO THE ONLY FORM THAT SUMS CORRECTLY. A race recorded in parts converts the
-     * SUMMED metres once — see {@link raceKm} — which is not the sum of what the parts print:
-     * every conversion drops a third decimal, so adding the printed figures drops one per part.
-     * Two of these rows differ by that hundredth today.
+     * SUMMED metres once — see {@link raceKm} — which is not the sum of what the parts print.
+     * Each conversion drops whatever is below a hundredth, which is somewhere in [0, 0.01) and
+     * NOT a hundredth apiece: a part landing exactly on a hundredth loses nothing. So the sum
+     * of the printed parts is at or below the race's own figure, never above it, and whether a
+     * given race shows the gap depends on its parts — count the rows rather than trusting any
+     * sentence here about how many do. Do not derive either figure from the other;
+     * `tests/strava-verify.test.ts` holds each against the API separately, which is the only
+     * check that can tell them apart.
      */
     metres: number
     /** THIS ACTIVITY's elapsed time, `H:MM:SS`. Not the race's — see the type note. */
@@ -744,6 +775,19 @@ export const EVENTS: readonly RaceEvent[] = [
     // said, and 22.11 is what the conversion makes of it.
     {date: "2023-05-07", name: "OCBC Cycle Singapore", sport: "cycling", country: "Singapore", elapsed_time: "1:53:15",
      recordings: [{id: "9024119101", metres: 22115.1, elapsed_time: "1:53:15"}]},
+    // THE RACE THAT WAS NOT FINISHED, and the only row carrying an `outcome`. It was ridden
+    // in two parts — the split has nothing to do with the abandonment — so its distance is the
+    // summed metres converted ONCE (87422.6 + 22619.7 = 110042.3, so 110.04) and `elapsed_time`
+    // is first start to last stop, 13:14:12, NOT the 13:07:06 the parts sum to. The race figure
+    // does NOT discriminate the rounding rule here — 110042.3 m is 110.04 either way — but the
+    // second RECORDING does: 22619.7 m is 22.61 rounded down and 22.62 half-up, and 22.62 is
+    // also the one figure ever read off Strava's own page that disagrees with the rule this
+    // file follows. It is the API's metres that decide, so the bib prints 22.61.
+    // Nothing in the recordings says it ended early: Strava stores an abandoned ride exactly
+    // like a completed one, which is the whole reason `outcome` is hand-entered.
+    {date: "2023-08-06", name: "Pesta Sukan Round Island Bike Adventure", sport: "cycling", country: "Singapore", outcome: "dnf", elapsed_time: "13:14:12",
+     recordings: [{id: "9593519661", metres: 87422.6, elapsed_time: "10:47:28"},
+                  {id: "9599925310", metres: 22619.7, elapsed_time: "2:19:38"}]},
     // THE SPLIT RACE. The bike broke down at Lim Chu Kang, was repaired at a shop, and the
     // ride finished — two recordings with 2:43:19 of workshop between them. The race's
     // distance is the summed metres converted once (17908.4 + 117411.0 = 135319.4, so
@@ -986,7 +1030,10 @@ export const NOW: {
  * "booked" flag either, on an event or in this block: whether a bib has been earned
  * is derived from the calendar every build (`patchState` in projection.ts), because
  * a stored flag goes stale in the one direction nobody notices — a race that has
- * been run still rendering as still-to-come. And there are no per-sport headings or
+ * been run still rendering as still-to-come. {@link RaceEvent.outcome} is the one
+ * stored fact about a race's result, and it passes that test rather than being
+ * excused from it: the calendar never re-derives an abandonment, so there is no
+ * answer for it to drift from. The argument is written out where it is declared. And there are no per-sport headings or
  * titles, because those are built from {@link Goal.goal_name}; adding them here
  * would let the wall call a sport something the goal card does not.
  *
@@ -1044,6 +1091,51 @@ export const PATCHES: {
     description_sport: string
     all_label: string
     booked_label: string
+    /**
+     * WHAT A BIB PRINTS WHERE THE DISTANCE GOES, ON A RACE THAT WAS NOT FINISHED. It is a
+     * RESULT, not a tag, and the difference is the whole design.
+     *
+     * IT IS THE RESULTS SHEET'S OWN DEVICE. A sheet prints `DNF` in the column a finishing
+     * POSITION would have gone in — a status code that REPLACES a result rather than
+     * annotating one — and that is exactly what this does to the hero. There is no app
+     * pattern to borrow: neither Strava nor Garmin models a DNF at all (see
+     * {@link RaceEvent.outcome}), so the sport's own paperwork is the only vernacular
+     * available, and this audience reads the three letters without a legend.
+     *
+     * THE TAG WAS DRAWN AND LOST, which is worth recording because it is the obvious move.
+     * Six of the seven candidates reviewed carried the state in the meta row beside
+     * {@link booked_label}. Measured in the rig: that row wraps, so the word lands tucked in
+     * after the sport at a fraction of the hero's size — the QUIETEST thing on the bib
+     * carrying the most important fact about it, while "Booked" gets a line of its own. In
+     * the hero slot the same three letters are the largest thing there. So there is no
+     * `dnf_label`; the word IS the result.
+     *
+     * THREE CHARACTERS IS WHAT LETS IT BE THE HERO at all — `.bib-value` is sized against the
+     * bib's own inline size and caps at 3rem, so a longer word would either shrink or escape.
+     * The counter-case is the one the 404 page hit from the other side, where `DNS` reads as
+     * Domain Name System: an abbreviation is unambiguous only inside its own venue, and a
+     * wall of race bibs is this one's venue.
+     */
+    dnf_result: string
+    /**
+     * WHAT {@link dnf_result} IS SHORT FOR, said in the accessible name and nowhere on
+     * screen. It is the same device {@link split_name} and {@link NEW_TAB_NOTICE} use, and
+     * for the same reason: the name stays a true SUPERSET of the visible text rather than an
+     * `aria-label` replacing it.
+     *
+     * THREE LETTERS ARE WHY THE HERO WORKS AND ALSO WHY THIS IS OWED. `DNF` announces as
+     * three letters or as one nonsense syllable depending on the reader, and neither is the
+     * fact. A sighted visitor who does not know the abbreviation at least has the bib around
+     * it — an outline, no patch, a distance labelled as merely ridden — to read it against;
+     * a listener meeting it in a run of announced text has less. `<abbr title>` is the
+     * textbook answer and was rejected: `title` is unannounced by most screen readers and
+     * unreachable entirely on touch, so it would look like a fix and be one nowhere.
+     *
+     * SENTENCE CASE, NOT CAPITALS. It is spoken, never printed — the bib's uppercase is a
+     * `text-transform` on ink this string never becomes — and a capitalised run invites a
+     * reader to spell it out.
+     */
+    dnf_name: string
     home_label: string
     home_icon: string
     filter_label: string
@@ -1057,6 +1149,33 @@ export const PATCHES: {
      * {@link RaceEvent.elapsed_time}.
      */
     elapsed_label: string
+    /**
+     * THE WORD BEFORE THE DISTANCE ON A BIB WHOSE HERO IS {@link dnf_result}. It is the
+     * second half of that design and does not stand on its own.
+     *
+     * THE KILOMETRES DO NOT DISAPPEAR, THEY STOP CLAIMING A RESULT. He rode 110.04 of them
+     * and the bot's total counts every one; what a DNF bib must not do is print that figure
+     * in the slot every other bib uses to say how long the race WAS. So the distance moves
+     * down to a labelled row drawn like the elapsed one — dimmed caption, full-ink value —
+     * where it reads as what was covered rather than as what was completed.
+     *
+     * IT IS A PAST PARTICIPLE, NOT A NOUN, and that is what makes the row say the thing:
+     * "Distance" would name a quantity, where this names something that happened and
+     * stopped. The pairing with {@link elapsed_label} is deliberate — two captions, same
+     * grammar, one naming the clock and one the ground covered.
+     *
+     * AND IT IS SPORT-NEUTRAL, WHICH IS THE HALF THAT WAS WRONG FIRST. It read "Ridden",
+     * a cycling verb, on a field the type lets any sport reach — {@link RaceEvent.outcome}
+     * is on the shared event shape, so the first abandoned RUN would have shipped a bib
+     * reading "RIDDEN 21.10 KM" with nothing red anywhere. The per-sport fix is available
+     * ({@link goalForSport} is the join for exactly this) and is the wrong one here: the
+     * participle for running is "Run", which {@link Goal.short_name} already prints in the
+     * meta row two lines above, so the bib would read RUN … RUN 21.10 KM. One neutral word
+     * says what the paragraph above already argues for — the ground covered — for both.
+     * The gate is in tests/patch-wall.test.ts: it renders a DNF bib for each sport and
+     * holds the two labels EQUAL, which a per-sport lookup would fail.
+     */
+    covered_label: string
     /**
      * The glyph on the bib's action row. It names the destination — it no longer has to
      * carry the affordance by itself, which is the correction below.
@@ -1112,6 +1231,15 @@ export const PATCHES: {
      *
      * It opens with a leading separator in `Patch.astro` rather than here, so the string
      * reads as a phrase rather than as punctuation with a fragment attached.
+     *
+     * `{race}` IS NOT ENOUGH ON ITS OWN, AND `{date}` IS HERE BECAUSE THE CALENDAR PROVED IT.
+     * The round-island ride is an ANNUAL event, so its name repeats down the wall — and two of
+     * its runnings are recorded in parts, which puts four links carrying one race name on a
+     * single page. A reader listing every link on the page (NVDA Insert+F7, the VoiceOver
+     * rotor) gets exactly these strings and no surrounding bib, so the name has to say WHICH
+     * running. The whole-bib link form already self-disambiguates — its name opens with the
+     * bib's date — so without this the two forms disagree about whether a date is part of a
+     * link's identity. Same source, {@link formatPatchDate}, so they cannot word it differently.
      */
     split_name: string
     /**
@@ -1153,19 +1281,41 @@ export const PATCHES: {
      * A rule, not a caption: "every one I finish becomes" is true on a wall with nothing
      * earned yet and on one with nothing left booked, where a sentence describing what is
      * currently on screen would be false half the year.
+     *
+     * "I HAVE NOT FINISHED" RATHER THAN "STILL AHEAD OF ME", AND THE PRECISION IS THE POINT.
+     * An outline used to mean exactly one thing and now means two: a race still to come, and
+     * one that was started and not completed ({@link dnf_result}). "Still ahead of me" was
+     * true of every outline on the wall the day it was written and became false the day the
+     * second kind arrived — the failure mode this file's comments keep recording, where copy
+     * describes the data as it happened to stand. The replacement is true of BOTH kinds
+     * without enumerating them, which is what keeps it from turning back into a legend: a
+     * DNF bib prints its own three letters in the largest type it has, so the sentence does
+     * not have to tell them apart.
+     *
+     * BOTH CLAUSES TURN ON THE SAME VERB, WRITTEN OUT BOTH TIMES. Finishing is the axis the
+     * whole wall is sorted and drawn by, so the sentence says it twice rather than eliding
+     * the second one. "every one I DO" was tried and reverted: `do` reads as VP-anaphora for
+     * `finish` to one reader and as "every race I take part in" to another, and the second
+     * reading is a promise the DNF bib beside it disproves — on a cycling site, where "I did
+     * the Round Island" is the ordinary way to say you rode it, that reading is the likelier
+     * one. A wall whose whole subject is the difference between finishing and not cannot
+     * afford a sentence with a reading that collapses it.
      */
-    lede: "The outlines are races still ahead of me; every one I finish becomes a Finisher Patch.",
-    description_all: "Every race Calvin has entered, finished and still to come, drawn as race bibs.",
-    description_sport: "Every {sport} race Calvin has entered, finished and still to come, drawn as race bibs.",
+    lede: "The outlines are races I have not finished; every one I finish becomes a Finisher Patch.",
+    description_all: "Every race Calvin has entered, finished or not, drawn as race bibs.",
+    description_sport: "Every {sport} race Calvin has entered, finished or not, drawn as race bibs.",
     all_label: "All",
     booked_label: "Booked",
+    dnf_result: "DNF",
+    dnf_name: "Did not finish",
     home_label: "Home",
     home_icon: "ri:arrow-left-line",
     filter_label: "Filter by sport",
     elapsed_label: "Elapsed",
+    covered_label: "Covered",
     strava_icon: "fa6-brands:strava",
     strava_name: "View on Strava",
-    split_name: "on Strava, {race}",
+    split_name: "on Strava, {race}, {date}",
     split_line: "View {distance}",
 }
 

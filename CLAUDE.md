@@ -7,8 +7,13 @@ minimal design. The home page is a single-screen bento grid showing Calvin's
 professional background, his cycling and running goals, and personal interests;
 `/patches` is a wall of **every race he has entered**, in any year, drawn as bibs,
 with a prerendered page per sport. A **Finisher Patch** is a race completed and
-earned — an outline bib is an event that has not become one yet, which is why the
-wall's headings say "events" and only the earned bibs are patches.
+earned, which is why the wall's headings say "events" and only the earned bibs are
+patches. **An outline is a bib with no patch on it, and that is TWO different
+facts**: a race still to come, or one that was started and not finished. They share
+a treatment because the treatment means "not earned"; what tells them apart is the
+word each one prints — `Booked` in the meta row, or `DNF` in the slot the distance
+would have had. See `patchState` in `projection.ts` and `.bib--dnf` in
+`Patch.astro`.
 
 **The one scope rule**: the wall is the whole calendar; a goal card is `GOAL_YEAR`
 alone. `EVENTS` feeds both, and `eventsInYear` in `projection.ts` is what keeps a
@@ -158,8 +163,12 @@ block above it before giving either consumer the other's list.
 - `src/pages/patches/[...sport].astro` — the patch wall. One rest-parameter route
   prerenders three pages (`/patches`, `/patches/cycling`, `/patches/running`), so
   filtering by sport is a real URL rather than client state. Whether a bib is
-  earned is DERIVED every build (`patchState` in `projection.ts`) and must never
-  become a stored flag
+  earned is DERIVED every build (`patchState` in `projection.ts`) **from facts the
+  build can see**, and must never become a stored `done` flag. The ONE fact no build
+  can see is an abandonment — no device models a DNF — so that one is TOLD, as
+  `RaceEvent.outcome`. It is immutable history rather than an answer the calendar
+  keeps re-deriving, which is the test the rule is actually made of; read the note on
+  the field before adding a second
 - **The site has TWO clocks and they answer different questions.** `UPDATED_AT` is
   the bot's stamp — "the day the kilometres last MOVED", frozen on purpose when they
   do not — and it stays on the dateline and the required rate, whose numerator and
@@ -175,8 +184,12 @@ block above it before giving either consumer the other's list.
   four at once only proves the union is covered, which is how `patchWall` stayed uncovered
 - **A race with BOTH `elapsed_time` and a `recordings` entry is finished because it
   was run**, whatever the clock says — that pair is the only way a race can be
-  recorded on the day it happened, and `bookedAhead` must skip the same races or the
-  wall and the goal cards contradict each other. Recording a race you have just run is a
+  recorded on the day it happened. **`bookedAhead` books ONLY what the wall calls
+  `booked`**, and it asks `patchState` to find out rather than re-deriving the reasons:
+  the two consumers have to agree about every race or the card promises kilometres the
+  wall says are not coming. Asking `hasRecording` instead was complete only while the
+  wall had two states — it skips an abandoned race that was recorded and books one that
+  was not. Recording a race you have just run is a
   two-step edit, and **which step goes first depends on whether the race is already in
   `EVENTS`**: a race not yet listed — fetch first (`gh workflow run strava-progress.yml`),
   then add it; a race already listed — add the recording first and let the cron follow.
@@ -186,11 +199,12 @@ block above it before giving either consumer the other's list.
   `projection.ts` for why the pair means "run"
 - **A race can be recorded as MORE THAN ONE Strava activity, and the bib's shape follows
   the count.** `recordings` is a list — a mechanical, a lost signal or a watch that died
-  splits one race across several files. TWO of the round-island rides were recorded that
-  way and only ONE is on the wall — the other is also a DNF, which the wall has no state
-  for, so it stays off until that exists. Count the rows rather than trusting this sentence. The race's distance is the summed METRES converted once by `raceKm` (not the sum of the parts'
-  printed figures: each conversion rounds DOWN, so the parts drop a hundredth apiece and one
-  split race on the wall prints a distance above its own two lines) and its `elapsed_time` is first start to last stop,
+  splits one race across several files. Count the rows rather than trusting any sentence
+  about how many there are — and note that being split and being a DNF are INDEPENDENT:
+  one race is both, and neither fact implies the other. The race's distance is the summed
+  METRES converted once by `raceKm` (not the sum of the parts' printed figures: each
+  conversion drops whatever is under a hundredth, so the parts' figures sum to at or below
+  the race's own — never above it) and its `elapsed_time` is first start to last stop,
   never the sum of the parts: elapsed already contains stops, so it must not depend on
   where the rider pressed the button. **The rule the bib is drawn by: a bib is the link
   when there is one place to go; when there is more than one, the bib HOLDS the links.**

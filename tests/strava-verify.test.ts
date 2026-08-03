@@ -21,8 +21,9 @@ import {EVENTS, raceKm, type RaceEvent, type Recording, recordingsOf} from "../s
  *   witness, and enough to say it was re-processed rather than cropped, since a crop of that
  *   size would move a 2dp distance. The file was
  *   recording a result the activity no longer claimed and nothing in the repository could have
- *   said so. That row has since left `EVENTS` for an unrelated reason (it was a DNF, and the
- *   wall cannot draw one yet), but it is the failure this suite exists for.
+ *   said so. That row is back in `EVENTS` — the wall draws a DNF now — and this suite holds it
+ *   against the API like every other, which is the point: it is the failure this suite exists
+ *   for, on a row that was once removed for want of a state to draw it in.
  *
  *   DO NOT TRY TO EXPLAIN THE OLD FIGURE — one revision of this note argued the row must have
  *   been quoting a whole-day total, because 13:36:10 matches nothing derivable from the
@@ -46,11 +47,11 @@ import {EVENTS, raceKm, type RaceEvent, type Recording, recordingsOf} from "../s
  *
  * IT NEEDS `activity:read_all`, NOT `activity:read`. A detailed activity read answers 404
  * — not 403 — when the token lacks the scope, so an under-scoped token looks exactly like
- * a wrong id. And a `followers_only` activity needs the `_all` half: one of these rows is that,
- * and it is also the one that cannot be checked any other way, since a logged-out page leaks a
- * title only for `everyone` visibility. (It was two until the DNF row came out — a count in a
- * comment about the data is exactly the thing that rots, so treat this one as an example of the
- * class rather than a census.)
+ * a wrong id. And a `followers_only` activity needs the `_all` half, and such a row cannot be
+ * checked any other way, since a logged-out page leaks a title only for `everyone` visibility.
+ * (No count here on purpose: how many rows are `followers_only` is a property of the data on
+ * the day you read this, and this note has already been wrong about it once. Treat it as an
+ * example of the class rather than a census.)
  *
  * WHAT IT DELIBERATELY DOES NOT ASSERT is `km` against a route's advertised distance. The
  * rule is that `km` is the LINKED activity's distance — see the field's own note — so the
