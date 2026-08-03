@@ -698,7 +698,15 @@ describe("dist/patches", () => {
      */
     it("gives each of the three states its own words and its own class, whatever the date", async () => {
         const container = await AstroContainer.create();
-        const event = EVENTS[0];
+        // A RACE THIS TEST CONTROLS, NOT `EVENTS[0]`. Forcing a state onto whatever race
+        // happens to sit first in the calendar makes this test's meaning depend on how the
+        // fixture is ordered: the covered-row assertions below need a race that HAS
+        // recordings, and the day someone adds a DNF-with-nothing-recorded to the top of
+        // `EVENTS` — a supported shape — this reddens against a component behaving exactly
+        // as specified. Picking the first race that carries recordings states the
+        // requirement instead of inheriting it.
+        const event = EVENTS.find((e) => recordingsOf(e).length > 0)!;
+        expect(event, "this test needs a recorded race to force states onto").toBeDefined();
         const rendered = async (state: PatchState) =>
             parseHTML(await container.renderToString(Patch, {props: {event, state}})).document;
 
@@ -740,9 +748,13 @@ describe("dist/patches", () => {
         // per-sport lookup, and any sport-conditional branch in the component, separates
         // them. `outcome` sits on the shared event shape, so a running DNF is data the type
         // already permits and the wall would otherwise call a run a ride.
+        // WITH RECORDINGS, for the same reason the event above is chosen rather than taken:
+        // the covered row exists only when there is a distance to report, so a sport whose
+        // first race happens to be a DNF-with-nothing-recorded would compare a real label
+        // against `undefined` and read as two sports disagreeing about the word.
         const bySport = await Promise.all(GOALS.map(async ({sport}) => {
-            const one = EVENTS.find((e) => e.sport === sport);
-            if (one === undefined) throw new Error(`no ${sport} event to render`);
+            const one = EVENTS.find((e) => e.sport === sport && recordingsOf(e).length > 0);
+            if (one === undefined) throw new Error(`no recorded ${sport} event to render`);
             const doc = parseHTML(await container.renderToString(Patch, {props: {event: one, state: "dnf"}})).document;
             return doc.querySelector(".bib-covered-label")?.textContent?.trim();
         }));
@@ -981,9 +993,16 @@ describe("dist/patches", () => {
             expect(cell.querySelector(".bib"), "each cell must hold exactly one bib").toBeTruthy();
             expect(cell.querySelectorAll(".bib").length).toBe(1);
         }
-        const rule = parseRules(pageCss(PAGES.all)).find((r) => r.selectors.some((sel) => /\.bib-cell\b/.test(sel)));
-        expect(rule, "the cell must ship a rule — without one it is an inert wrapper").toBeTruthy();
-        expect(decl(rule!.body, "display"), "the cell must stretch its bib to the row's height").toBe("grid");
+        // EVERY `.bib-cell` RULE, not the first one. `.find` asked which rule comes first in
+        // the sheet and then asked IT for `display` — so the day a second `.bib-cell` rule was
+        // added anywhere earlier (the shared entrance cascade in BasicLayout.astro is one), a
+        // correct `display: grid` further down became invisible and this reddened on a page
+        // that was fine. The property is "the cell is declared a grid SOMEWHERE", and the
+        // cascade is what the browser reads, so the search has to span the sheet.
+        const rules = parseRules(pageCss(PAGES.all)).filter((r) => r.selectors.some((sel) => /\.bib-cell\b/.test(sel)));
+        expect(rules.length, "the cell must ship a rule — without one it is an inert wrapper").toBeGreaterThan(0);
+        const displays = rules.map((r) => decl(r.body, "display")).filter(Boolean);
+        expect(displays, "the cell must stretch its bib to the row's height").toContain("grid");
     });
 
     /**
@@ -1155,10 +1174,26 @@ describe("dist/patches", () => {
                 expect(value.querySelector(".bib-fraction"), `${event.name} splits no fraction off a verdict`)
                     .toBeNull();
                 expect(bib.querySelector(".bib-unit"), `${event.name} puts no unit on a verdict`).toBeNull();
-                expect(bib.querySelector(".bib-covered-value")?.textContent?.trim(), `${event.name} covered distance`)
-                    .toBe(`${km} ${goalForSport(event.sport).measurable_unit}`);
-                expect(bib.querySelector(".bib-covered-label")?.textContent?.trim(), `${event.name} covered label`)
-                    .toBe(PATCHES.covered_label);
+                // BOTH DIRECTIONS OF THE COVERED ROW, because a DNF does not always have a
+                // distance to report. `recordings` is optional on every race, so a DNF the
+                // owner remembers without one is a SUPPORTED shape — and `Patch.astro` omits
+                // the row for it deliberately, since the only honest answer to "how far did
+                // he get" is then nothing at all. Asserting the row unconditionally made that
+                // supported shape turn the DEPLOY red against a component doing exactly what
+                // it is specified to do; the `else` is what stops the fix from trading the
+                // rule away instead, by holding the row absent when there is no evidence.
+                if (recordingsOf(event).length > 0) {
+                    expect(bib.querySelector(".bib-covered-value")?.textContent?.trim(),
+                        `${event.name} covered distance`)
+                        .toBe(`${km} ${goalForSport(event.sport).measurable_unit}`);
+                    expect(bib.querySelector(".bib-covered-label")?.textContent?.trim(),
+                        `${event.name} covered label`)
+                        .toBe(PATCHES.covered_label);
+                } else {
+                    expect(bib.querySelector(".bib-covered"),
+                        `${event.name} was abandoned with nothing recorded, so the bib has no distance to `
+                        + `report and must print no covered row rather than an invented figure`).toBeNull();
+                }
                 continue;
             }
             expect(value.textContent?.replace(/\s+/g, ""), `${event.name} distance`).toBe(km);

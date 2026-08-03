@@ -3,7 +3,9 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, raceKm, WELCOME} from "../src/lib/constants";
+import {
+    CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, raceKm, recordingsOf, WELCOME,
+} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
@@ -171,7 +173,17 @@ describe("dist/", () => {
             // its own date, and `rowFor` fails naming both keys. Re-adding a
             // `toContain(event.date)` here would only restate the key.
             const row = rowFor(`${event.name} (${event.date})`, event.name, event.date);
-            expect(row, `${event.name}'s distance must be on its own line`).toContain(`${raceKm(event)} km`);
+            // NOT EVERY RACE HAS A DISTANCE TO PRINT. An abandoned race with nothing recorded
+            // has no honest figure — `raceKm` would hand back the ADVERTISED distance, i.e.
+            // the claim that he covered a route he did not finish — so the endpoint omits the
+            // clause entirely and this asserts the omission rather than demanding a number.
+            if (patchState(event) === "dnf" && recordingsOf(event).length === 0) {
+                expect(row, `${event.name} was abandoned with nothing recorded, so no distance may be claimed`)
+                    .not.toMatch(/\d+\.\d\d km/);
+            } else {
+                expect(row, `${event.name}'s distance must be on its own line`)
+                    .toContain(`${raceKm(event).toFixed(2)} km`);
+            }
             expect(row, `${event.name}'s country must be on its own line`).toContain(event.country);
         }
         for (const project of PROJECTS) {
@@ -287,10 +299,38 @@ describe("dist/", () => {
         // `raceKm`, not `event.km`: a recorded race has no stored distance at all under the
         // recorded|booked union, and reading the field gives `undefined km` for every one of
         // them — which is what this assertion caught when the two changes met.
+        /*
+         * AN INDEPENDENT ORACLE, NOT A SECOND CALL TO THE ENDPOINT'S OWN EXPRESSION.
+         *
+         * This used to be `raceKm(event)` interpolated exactly as `llms.txt.ts` interpolates
+         * it — byte-identical source on both sides. That gate could only ever see WHICH
+         * expression the endpoint used, never what the expression PRODUCES, so it was green
+         * on the day the endpoint told a crawler that an abandoned race had covered its full
+         * advertised distance. A test that re-derives its expectation from the code under
+         * test asserts nothing about the output.
+         *
+         * So the kilometres are re-derived here from the row's OWN STORED FIELDS, applying
+         * Strava's rounding rule (metres, truncated DOWN to two places) rather than calling
+         * the function that applies it. If `kmFromMetres` ever changes its rule, this goes
+         * red — which is the point: the rule has been reversed twice, and a gate that
+         * follows it silently is a gate that cannot notice.
+         */
+        const expectedKm = (event: typeof EVENTS[number]): string => {
+            const parts = recordingsOf(event);
+            const km = parts.length > 0
+                ? Math.floor(parts.reduce((m, r) => m + r.metres, 0) / 10) / 100
+                : (event as {km?: number}).km ?? NaN;
+            return km.toFixed(2);
+        };
+        // "" means THE ROW MUST CARRY NO DISTANCE AT ALL — an abandoned race with nothing
+        // recorded has no honest figure to give, and the advertised one would be the exact
+        // claim the bib refuses. Asserted as an absence below rather than as a substring.
         const clauseFor = (event: typeof EVENTS[number]): string =>
             patchState(event) === "dnf"
-                ? `${PATCHES.covered_label.toLowerCase()} ${raceKm(event)} km`
-                : `${raceKm(event)} km`;
+                ? (recordingsOf(event).length === 0
+                    ? ""
+                    : `${PATCHES.covered_label.toLowerCase()} ${expectedKm(event)} km`)
+                : `${expectedKm(event)} km`;
         for (const event of EVENTS) {
             const state = patchState(event);
             const when = event.end_date ? `${event.date} to ${event.end_date}` : event.date;
@@ -302,8 +342,14 @@ describe("dist/", () => {
             }
             const row = llms.split("\n").find((l) => l.includes(line));
             expect(row, `"${line}" must be on a line of its own`).toBeDefined();
-            expect(row, `${event.name} (${state}) must print "${clauseFor(event)}"`)
-                .toContain(clauseFor(event));
+            const clause = clauseFor(event);
+            if (clause === "") {
+                expect(row, `${event.name} was abandoned with nothing recorded, so its row must claim no `
+                    + `distance at all — the advertised figure would say he covered a route he did not finish`)
+                    .not.toMatch(/\d+\.\d\d km/);
+            } else {
+                expect(row, `${event.name} (${state}) must print "${clause}"`).toContain(clause);
+            }
             if (state !== "dnf") {
                 expect(row, `${event.name} is ${state}, so its distance takes no "${PATCHES.covered_label}" label`)
                     .not.toContain(PATCHES.covered_label.toLowerCase());
@@ -2045,6 +2091,53 @@ describe("source hygiene", () => {
             checked++;
         }
         expect(checked, "no page has a <main> — the ladder check is vacuous").toBeGreaterThan(0);
+    });
+
+    /**
+     * ONE ENTRANCE, TWO PAGES — asserted as SAMENESS rather than as two sets of numbers.
+     *
+     * The wall's bibs stagger too, and the whole requirement is that they do it in the
+     * ladder's own vocabulary: a second cascade with its own duration or step is two
+     * cascades that disagree, which is what this exists to stop. So nothing here pins a
+     * literal — it reads the ladder's keyframe, duration and step out of the sheet and
+     * demands the bib rule match. Change the ladder and the bibs must follow; change one
+     * of them alone and this is red.
+     *
+     * The CEILING is asserted as a `min()` rather than by re-deriving a delay per bib,
+     * because the bib count moves with the calendar and a gate that counts races is a
+     * gate that has to be edited when one is entered.
+     */
+    it("gives the wall's bibs the home page's entrance, not a second one of their own", () => {
+        const layout = read("src/layouts/BasicLayout.astro");
+        const ladder = layout.match(/main\s*>\s*\*\s*\{\s*animation:\s*([^;]+);/)?.[1]?.trim();
+        expect(ladder, "the home page's entrance shorthand must be readable").toBeTruthy();
+        const rungs = [...layout.matchAll(/nth-child\((\d+)\)\s*\{\s*animation-delay:\s*([\d.]+)s/g)]
+            .map((m) => ({n: Number(m[1]), d: Number(m[2])}))
+            .sort((a, b) => a.n - b.n);
+        const step = Math.round((rungs[1].d - rungs[0].d) * 1000) / 1000;
+        const ceiling = rungs[rungs.length - 1].d;
+
+        const bib = layout.match(/\.bib-cell\s*\{([^}]*)\}/)?.[1] ?? "";
+        expect(bib.match(/animation:\s*([^;]+);/)?.[1]?.trim(),
+            `the bibs must wear the ladder's own animation shorthand ("${ladder}"), or the two pages `
+            + `arrive differently`).toBe(ladder);
+        const delay = bib.match(/animation-delay:\s*([^;]+);/)?.[1]?.trim() ?? "";
+        expect(delay, "a bib's delay must come from its render index, not a hand-written ladder")
+            .toContain("var(--i)");
+        expect(delay, `the bibs' step must be the ladder's ${step}s`).toContain(`${step}s`);
+        // min(--i, N) * step must land the tail on the ladder's own last rung.
+        const cap = Number(delay.match(/min\(\s*var\(--i\)\s*,\s*(\d+)\s*\)/)?.[1]);
+        expect(cap, "the bib delay must cap, or a long calendar runs a cascade for over a second")
+            .toBeGreaterThan(0);
+        expect(Math.round(cap * step * 1000) / 1000,
+            `the bibs must stop at the ladder's own ${ceiling}s ceiling so the two pages cannot drift`)
+            .toBe(ceiling);
+
+        // AND THE REDUCED-MOTION ARM MUST REACH THEM. It named `main > *` only, and a bib
+        // cell is not a child of main — so the wall would have kept animating for a reader
+        // who asked it not to, with every other assertion here green.
+        const reduced = layout.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\s{4}\}/)?.[1] ?? "";
+        expect(reduced, "the reduced-motion arm must switch the bibs off too").toContain(".bib-cell");
     });
 
     it("gives every class token on every page a rule in the stylesheet it loads", () => {

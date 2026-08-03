@@ -1,7 +1,7 @@
 import type {APIRoute} from "astro"
 import {
     ABOUT_ME, CAREER, EVENTS, GOAL_YEAR, GOALS, LINKS, METADATA, NEXT_RACE, PATCHES, PROJECTS,
-    raceKm,
+    raceKm, recordingsOf,
 } from "../lib/constants"
 import stravaProgress from "../data/strava-progress.json"
 import {patchState} from "../lib/projection"
@@ -66,10 +66,24 @@ export const GET: APIRoute = ({site}) => {
         // its section takes the heading's context with it and none of its meaning. The label
         // is the bib's own constant rather than a second string, so the page and this file
         // cannot drift into describing the same number two ways.
-        const far = patchState(event) === "dnf"
-            ? `${PATCHES.covered_label.toLowerCase()} ${raceKm(event)} km`
-            : `${raceKm(event)} km`
-        return `- ${when} — ${event.name}, ${far}, ${event.country}${time}`
+        //
+        // AND ON AN ABANDONED RACE WITH NOTHING RECORDED THERE IS NO FIGURE TO GIVE. `raceKm`
+        // falls back to the race's ADVERTISED distance when no metres exist, which is the right
+        // answer for a booked race and the worst possible one here: it told a crawler he covered
+        // the full 1,022 km of a race he did not finish — the exact claim the bib beside it is
+        // built to refuse, printed in the file written for machines that cannot see the bib.
+        // The condition is `Patch.astro`'s own, so the two cannot drift.
+        //
+        // TWO DECIMALS, because the wall prints two and this file is quoted beside it. `raceKm`
+        // returns a number, so `130.03` survives and `160.5` reaches a reader as `160.5 km`
+        // against the bib's `160.50` — one race described two ways by one site.
+        const dnfWithNothingRecorded = patchState(event) === "dnf" && recordingsOf(event).length === 0
+        const far = dnfWithNothingRecorded
+            ? ""
+            : patchState(event) === "dnf"
+                ? `, ${PATCHES.covered_label.toLowerCase()} ${raceKm(event).toFixed(2)} km`
+                : `, ${raceKm(event).toFixed(2)} km`
+        return `- ${when} — ${event.name}${far}, ${event.country}${time}`
     }
     // "Has it happened" is `patchState`, NOT a date comparison — asking the site's own
     // predicate rather than restating it, which is the whole point of this endpoint.
