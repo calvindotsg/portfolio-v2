@@ -256,6 +256,61 @@ is cosmetic.
 
 ## Findings considered and rejected
 
+### Two review panels over PR #122 (2026-08-03, merged at `ea6fa8f`)
+
+An 8-dimension audit panel over the shipped site, then a 5-dimension panel over
+that panel's own work. Every entry below was **re-measured on 2026-08-03 before
+being written here**, because the handover that proposed this section stated three
+things that turned out not to be true.
+
+**SC 1.4.11 non-text contrast was NOT "never measured".** That claim was carried
+forward twice and is wrong. Four surfaces are gated in the suite today:
+
+| surface | floor | where |
+|---|---|---|
+| progress-bar fill vs track | 3:1 | `tests/build-output.test.ts` |
+| control accent vs surface | 3:1 | same file — it shipped at 1.89:1 once |
+| the Now card's live dot | 3:1 | same file |
+| a bib's sport mark | 4.5:1 | `tests/patch-wall.test.ts` — the mark includes the word, so it takes the text floor |
+
+What was genuinely unmeasured, and now is:
+
+- **Focus indicators — measured, all pass.** 3.00:1 to 18.86:1 across both themes,
+  both pages, seven focusable kinds. The bibs and the goal cards' control carry an
+  authored ring in the accent; the rest inherit the browser's own ring, which
+  clears 3:1 on both grounds. Nothing is owed here, but note the dependency: three
+  control kinds pass on a colour this repo does not choose.
+- **The perforation is exempt, not unmeasured.** On screen it is a
+  `radial-gradient` at 45% of the row's ink — a texture, and SC 1.4.11 exempts
+  purely decorative graphics. `Patch.astro` says so in place ("quiet enough to stay
+  behind the words it introduces"). Filing it as a gap would be a false positive;
+  it is a border only in the print and forced-colours arms.
+- **A booked or DNF bib's outline is 2.13:1 in light and 2.84:1 in dark**, against
+  a 3:1 floor. This is the one real gap and it is **the maintainer's call, because
+  the remedy is a palette change** — see "Open items" below.
+
+**Also verified and downgraded:**
+
+- **The `ping` halo under `prefers-reduced-motion`.** `Pulse.astro` states a
+  rationale, and it is about CONTRAST ("the halo carries no information the dot
+  does not"), not about motion — so the rationale does not answer the motion
+  question, and the reduced-motion arm in `BasicLayout.astro` names `main > *` and
+  `.bib-cell`, neither of which reaches a span inside a card. Recorded as open
+  rather than resolved; it is a small, real inconsistency, not a WCAG A failure.
+- **A year axis on the patch wall.** Rejected on measurement in the first panel
+  (+47.4% document height at 1440, from empty grid cells beside singleton years,
+  and it breaks the one-cell-per-race contract). The stale premise it originally
+  rested on was fixed in #122. The prototype was not retained, so that figure is
+  quoted from the run that made it and has not been re-derived here.
+
+**Findings the panels killed, so they are not re-found:** a "new tab" notice on the
+six intro links (refuted on the recorded decision at `constants.ts:978`, which
+cites G201's own noise guidance); a claim that the `llms.txt` DNF guard "cannot
+fail" (refuted — it can, once a qualifying row exists; the coverage hole was real
+and is closed by `tests/llms-dnf-fixture.test.ts`, but the reasoning was wrong);
+and a proposed rewrite of this file's DNS record counts that replaced two true
+figures with one false one.
+
 ### Run 4 (2026-07-29, audited at `45e286f`)
 
 Nine read-only opus auditors (playbook categories, with the maintainer's
@@ -489,8 +544,29 @@ remains open:
 ## Open items owned by the maintainer
 
 None of these is an agent's call. They are recorded so a new run does not
-"helpfully" do them; the first two have since been resolved and are kept with
+"helpfully" do them; two have since been resolved and are kept with
 their resolutions rather than deleted.
+
+- **A booked or DNF bib's outline is below the SC 1.4.11 floor.** Measured
+  2026-08-03 on the shipped build: **2.13:1 in light, 2.84:1 in dark**, against 3:1.
+  The border is the row's own ink at 32% alpha, composited over the wall's card.
+  **It is the maintainer's call because the only remedy is a palette change**, and
+  the palette is a settled decision — raising the alpha or picking a second token
+  changes how every outline bib reads against every earned one beside it.
+  There is a real argument that it is not a failure at all: SC 1.4.11 covers visual
+  information *required* to identify a state, and neither state depends on the
+  border — a booked bib prints the word `Booked` in its meta row and a DNF prints
+  `DNF` where the distance would be, which is the distinction `CLAUDE.md` says is
+  load-bearing. What the outline carries alone is the bib's EXTENT, not its state.
+  Do not change a token to close this without asking; do not delete this entry
+  because the argument above is persuasive, either. It is measured and open.
+- **The `ping` halo keeps animating under `prefers-reduced-motion`.** The
+  reduced-motion arm in `BasicLayout.astro` names `main > *` and `.bib-cell`;
+  the halo is a span inside a card, so neither reaches it. `Pulse.astro` states a
+  rationale for not gating the halo, but that rationale is about contrast, not
+  motion, so it does not settle this. Small and real; a design call rather than a
+  conformance failure, since SC 2.2.2 is about content that moves for more than
+  five seconds and this is a decorative pulse on a status dot.
 
 - ~~**`www.calvin.sg` serves the site instead of redirecting.**~~ **Resolved 2026-07-30.**
   `https://www.calvin.sg/` now answers `301` to the apex, preserving path and query, in
