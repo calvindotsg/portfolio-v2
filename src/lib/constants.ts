@@ -797,8 +797,9 @@ export const EVENTS: readonly RaceEvent[] = [
     // said, and 22.11 is what the conversion makes of it.
     {date: "2023-05-07", name: "OCBC Cycle Singapore", sport: "cycling", country: "Singapore", elapsed_time: "1:53:15",
      recordings: [{id: "9024119101", metres: 22115.1, elapsed_time: "1:53:15"}]},
-    // THE RACE THAT WAS NOT FINISHED, and the only row carrying an `outcome`. It was ridden
-    // in two parts — the split has nothing to do with the abandonment — so its distance is the
+    // A RACE THAT WAS NOT FINISHED, and the one that shows the split and the abandonment are
+    // independent: it was ridden in two parts and the split has nothing to do with why it
+    // ended. (The other `outcome` row below is a single recording.) Its distance is the
     // summed metres converted ONCE (87422.6 + 22619.7 = 110042.3, so 110.04) and `elapsed_time`
     // is first start to last stop, 13:14:12, NOT the 13:07:06 the parts sum to. The race figure
     // does NOT discriminate the rounding rule here — 110042.3 m is 110.04 either way — but the
@@ -820,7 +821,17 @@ export const EVENTS: readonly RaceEvent[] = [
     {date: "2024-08-04", name: "Pesta Sukan Round Island Bike Adventure", sport: "cycling", country: "Singapore", elapsed_time: "10:05:34",
      recordings: [{id: "12058884605", metres: 17908.4, elapsed_time: "1:28:41"},
                   {id: "12058885236", metres: 117411.0, elapsed_time: "5:53:34"}]},
-    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", sport: "cycling", country: "Malaysia", elapsed_time: "7:40:25",
+    // THE ROW THAT SHOWS WHY `outcome` IS TOLD RATHER THAN LOOKED UP. The 42 km road ride was
+    // not completed: the rider was past the cut-off and marshalled onto the shortcut. The
+    // OFFICIAL RESULT DISAGREES — checkpointspot prints `Status: Finished` against bib 2192,
+    // because a timing sheet records the mat you crossed, not the course you rode, and a
+    // diverted rider crosses the same finish mat. So the results page is not a second opinion
+    // this row could be checked against; it is a third device that cannot see the fact either,
+    // alongside Strava and the calendar. Do not "correct" this to `finished` on the strength of
+    // that page. The recording is the rider's own 78.59 km of the day, which is why the bib's
+    // covered row reads further than the race advertised while the hero still says DNF —
+    // `covered_label` names ground, not a result.
+    {date: "2025-12-14", name: "OCBC Cycle Johor Bahru", sport: "cycling", country: "Malaysia", outcome: "dnf", elapsed_time: "7:40:25",
      recordings: [{id: "16736512210", metres: 78595.0, elapsed_time: "7:40:25"}]},
     {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15",
      recordings: [{id: "18433212592", metres: 130033.0, elapsed_time: "8:14:15"}]},
