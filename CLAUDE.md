@@ -201,8 +201,10 @@ block above it before giving either consumer the other's list.
   the count.** `recordings` is a list — a mechanical, a lost signal or a watch that died
   splits one race across several files. Count the rows rather than trusting any sentence
   about how many there are — and note that being split and being a DNF are INDEPENDENT:
-  one race is both, and neither fact implies the other. The race's `km` is the summed METRES converted once (not the sum of the parts'
-  printed figures, which rounds twice) and its `elapsed_time` is first start to last stop,
+  one race is both, and neither fact implies the other. The race's distance is the summed
+  METRES converted once by `raceKm` (not the sum of the parts' printed figures: each
+  conversion drops whatever is under a hundredth, so the parts' figures sum to at or below
+  the race's own — never above it) and its `elapsed_time` is first start to last stop,
   never the sum of the parts: elapsed already contains stops, so it must not depend on
   where the rider pressed the button. **The rule the bib is drawn by: a bib is the link
   when there is one place to go; when there is more than one, the bib HOLDS the links.**
@@ -223,7 +225,14 @@ the file:
 - `EVENTS`: every race entered, in any year — read by both the projection and the patch
   wall, at two different scopes (see the rule above). Adding a past race is a data edit:
   `elapsed_time` and `recordings` are optional, so a race remembered without a
-  recording is still a complete bib
+  recording is still a complete bib. **A race is one of TWO SHAPES and the type enforces it:**
+  recorded, carrying each activity's `metres` exactly as the API reported them and NO distance
+  of its own, or booked, carrying the event's advertised `km` and no recordings. Every consumer
+  reads `raceKm`, which rounds the metres DOWN to two places — Strava's own rule, and the input
+  is the API's `distance` rather than anything Strava renders. That rounding has been reversed
+  twice and is now one line in `kmFromMetres` rather than a figure in every row, which is the
+  point of storing the metres. Nothing offline can catch a mistyped `metres`; only
+  `tests/strava-verify.test.ts` can, and it is opt-in
 - `PATCHES`: the wall's own prose, now one lede rather than a scope sentence plus a key.
   Its heading is `My events`; "patch wall" survives in the URL and the metaphor, not as a
   visible title

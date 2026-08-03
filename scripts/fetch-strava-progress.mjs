@@ -9,12 +9,33 @@ import { pathToFileURL } from "node:url";
 // STRAVA_ATHLETE_ID repository variable, and the goal targets live in
 // src/lib/constants.ts, which clamps the raw km written here. See README.md
 // "Configuration".
+/**
+ * A YEAR'S TOTAL, IN KILOMETRES TO ONE PLACE, ROUNDED DOWN.
+ *
+ * DOWN, NOT HALF-UP, AND IT IS THE SAME RULE `kmFromMetres` FOLLOWS IN src/lib/constants.ts —
+ * the site's other conversion, which turns a race's metres into the figure on its bib. Strava
+ * displays what it received rounded down, so both figures agree with the source they quote, and
+ * neither ever claims a metre nobody rode. Read the note above `kmFromMetres` for the argument;
+ * this is its sibling, and changing one without the other puts the goal card and the wall on
+ * different conventions.
+ *
+ * ONE DECIMAL RATHER THAN TWO, deliberately: this is a year's total against a four-figure
+ * target, printed as `2246.4`, where the second decimal would be noise. That is the ONLY
+ * difference between the two functions, and it is why this is not shared code — the other side
+ * is TypeScript that this zero-dependency script cannot import.
+ *
+ * SCALE TO INTEGER TENTHS FIRST, and do not reach for `Number((meters / 1000).toFixed(1))`:
+ * it rounds the double it is handed, so it agrees with this rule on some totals and not others.
+ * 2246480 m is 2246.5 through it and 2246.4 here; 2246450 m is 2246.4 through BOTH, because
+ * 2246.45 is 2246.4499999999998 once it is binary. An earlier revision of this comment used
+ * that second figure as the example and was wrong — the test beside it was green under the very
+ * implementation it was added to exclude.
+ */
 export function kmFromMeters(meters, label) {
     if (typeof meters !== "number" || !Number.isFinite(meters) || meters < 0) {
         throw new Error(`Bad ${label} distance from Strava: ${JSON.stringify(meters)}`);
     }
-    // Meters → km, 1 decimal (matches the existing 2246.4 style).
-    return Number((meters / 1000).toFixed(1));
+    return Math.floor(meters / 100) / 10;
 }
 
 // The Singapore calendar date. The cron fires 21:13 UTC, which is 05:13 the NEXT

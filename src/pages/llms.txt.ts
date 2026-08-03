@@ -1,6 +1,7 @@
 import type {APIRoute} from "astro"
 import {
     ABOUT_ME, CAREER, EVENTS, GOAL_YEAR, GOALS, LINKS, METADATA, NEXT_RACE, PATCHES, PROJECTS,
+    raceKm,
 } from "../lib/constants"
 import stravaProgress from "../data/strava-progress.json"
 import {patchState} from "../lib/projection"
@@ -66,8 +67,8 @@ export const GET: APIRoute = ({site}) => {
         // is the bib's own constant rather than a second string, so the page and this file
         // cannot drift into describing the same number two ways.
         const far = patchState(event) === "dnf"
-            ? `${PATCHES.covered_label.toLowerCase()} ${event.km} km`
-            : `${event.km} km`
+            ? `${PATCHES.covered_label.toLowerCase()} ${raceKm(event)} km`
+            : `${raceKm(event)} km`
         return `- ${when} — ${event.name}, ${far}, ${event.country}${time}`
     }
     // "Has it happened" is `patchState`, NOT a date comparison — asking the site's own

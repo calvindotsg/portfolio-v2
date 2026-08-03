@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, WELCOME} from "../src/lib/constants";
+import {CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, raceKm, WELCOME} from "../src/lib/constants";
 import stravaProgress from "../src/data/strava-progress.json";
 import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
@@ -171,7 +171,7 @@ describe("dist/", () => {
             // its own date, and `rowFor` fails naming both keys. Re-adding a
             // `toContain(event.date)` here would only restate the key.
             const row = rowFor(`${event.name} (${event.date})`, event.name, event.date);
-            expect(row, `${event.name}'s distance must be on its own line`).toContain(`${event.km} km`);
+            expect(row, `${event.name}'s distance must be on its own line`).toContain(`${raceKm(event)} km`);
             expect(row, `${event.name}'s country must be on its own line`).toContain(event.country);
         }
         for (const project of PROJECTS) {
@@ -284,10 +284,13 @@ describe("dist/", () => {
         // so a row quoted away from its heading keeps the number and loses the meaning. The
         // second `expect` is what makes this discriminate rather than merely pass: without
         // it, labelling EVERY row is as green as labelling the right ones.
+        // `raceKm`, not `event.km`: a recorded race has no stored distance at all under the
+        // recorded|booked union, and reading the field gives `undefined km` for every one of
+        // them — which is what this assertion caught when the two changes met.
         const clauseFor = (event: typeof EVENTS[number]): string =>
             patchState(event) === "dnf"
-                ? `${PATCHES.covered_label.toLowerCase()} ${event.km} km`
-                : `${event.km} km`;
+                ? `${PATCHES.covered_label.toLowerCase()} ${raceKm(event)} km`
+                : `${raceKm(event)} km`;
         for (const event of EVENTS) {
             const state = patchState(event);
             const when = event.end_date ? `${event.date} to ${event.end_date}` : event.date;
@@ -1305,7 +1308,7 @@ describe("every link on every page says that it is one", () => {
             // difference is not academic — it was measured. This read `a.childNodes` filtered to
             // `nodeType === 3`, so a link whose words sit inside SPANS scored as having none and
             // took this branch as though it were a bare glyph. The patch wall's split lines are
-            // exactly that shape (`<span class="bib-split-km">17.91 km</span>`): they carry two
+            // exactly that shape (`<span class="bib-split-km">17.90 km</span>`): they carry two
             // visible figures and were being exempted here as icon-only, so the affordance this
             // gate exists to check was never checked for them. Excluding `.sr-only` subtrees and
             // reading the rest of `textContent` is what the branch always meant. The genuinely

@@ -1,5 +1,5 @@
 ---
-import {goalForSport, NEW_TAB_NOTICE, PATCHES, type RaceEvent, recordingsOf, stravaActivityUrl} from "../lib/constants";
+import {goalForSport, NEW_TAB_NOTICE, PATCHES, type RaceEvent, raceKm, recordingKm, recordingsOf, stravaActivityUrl} from "../lib/constants";
 import {formatPatchDate, patchDateSegments, type PatchState} from "../lib/projection";
 import {iconClass} from "../lib/icons";
 
@@ -28,14 +28,14 @@ const {event, state} = Astro.props;
  * nothing red.
  *
  * THE FRACTION IS SPLIT OUT so it can be set small. A race distance is measured to
- * two decimals and the hundredths are real — 140.50 is not 140 — but at the size
+ * two decimals and the hundredths are real — 140.49 is not 140 — but at the size
  * this number is drawn they would dominate the digits that carry the meaning. The
- * text content is unbroken either way, so a screen reader still hears "140.50".
+ * text content is unbroken either way, so a screen reader still hears "140.49".
  *
  * `toFixed(2)` IS WHAT MAKES THAT A COLUMN OF ONE KIND OF NUMBER, and the races on the
- * wall print in THREE different shapes without it: 22.45, 130.03 and 160.57
- * already carry two places, 78.60, 140.50 and 21.10 lose their trailing zero to `78.6`,
- * `140.5` and `21.1`, and 1022.00 loses the point entirely to `1022`. (An earlier revision
+ * wall print in THREE different shapes without it: 22.45, 130.03 and 160.56
+ * already carry two places, 158.10, 21.10 and 42.20 lose their trailing zero to `158.1`,
+ * `21.1` and `42.2`, and 1022.00 loses the point entirely to `1022`. (An earlier revision
  * of this comment claimed all but the tour were already two-place — worth the correction
  * because it is the SINGLE-place ones that make the case: a lone bare integer reads as an
  * approximation, and a mix of one and two places reads as inconsistent precision. Which
@@ -135,7 +135,7 @@ const {event, state} = Astro.props;
  */
 const date = patchDateSegments(event);
 const goal = goalForSport(event.sport);
-const [whole, fraction] = event.km.toFixed(2).split(".");
+const [whole, fraction] = raceKm(event).toFixed(2).split(".");
 const recordings = recordingsOf(event);
 // The ONE recording a bib can be the anchor for, or null where there is none or several.
 // Everything downstream keys on this rather than counting again, so the three cases cannot
@@ -202,7 +202,7 @@ const Tag = only === null ? "div" : "a";
                 {recordings.length > 0 && (
                         <p class="bib-covered">
                             <span class="bib-covered-label">{PATCHES.covered_label}</span>
-                            <span class="bib-covered-value">{`${event.km.toFixed(2)} ${goal.measurable_unit}`}</span>
+                            <span class="bib-covered-value">{`${raceKm(event).toFixed(2)} ${goal.measurable_unit}`}</span>
                         </p>
                 )}
             </Fragment>
@@ -244,7 +244,7 @@ const Tag = only === null ? "div" : "a";
                         <li>
                             <a class="bib-split" href={stravaActivityUrl(part)} target="_blank">
                                 <span class={`${iconClass(PATCHES.strava_icon)} bib-icon bib-go-mark`} aria-hidden="true"></span>
-                                <span class="bib-split-km">{PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} ${goal.measurable_unit}`)}</span>
+                                <span class="bib-split-km">{PATCHES.split_line.replace("{distance}", `${recordingKm(part).toFixed(2)} ${goal.measurable_unit}`)}</span>
                                 {" "}
                                 <span class="bib-split-time">{part.elapsed_time}</span>
                                 <span class="sr-only">{" " + PATCHES.split_name.replace("{race}", event.name).replace("{date}", formatPatchDate(event) ?? "") + " "}</span>
@@ -937,7 +937,7 @@ const Tag = only === null ? "div" : "a";
      * `flex-wrap` and `overflow-wrap` for the reason `.bib-time` and `.bib-go` have them,
      * and the same trap: a bib does NOT clip, so ink that escapes paints onto the card at
      * 1.045:1 — unreadable rather than absent, and unseen by any sweep that walks only
-     * clipping ancestors. `17.91` and `1:28:41` are unbreakable tokens of the same shape as
+     * clipping ancestors. `17.90` and `1:28:41` are unbreakable tokens of the same shape as
      * the elapsed row's, which was measured escaping from a 42px root.
      */
     .bib-split {
@@ -1034,8 +1034,8 @@ const Tag = only === null ? "div" : "a";
      * activity, and on a split bib it is the race, summed distance over the whole span. What
      * it must never be is a mixture — a summed distance over one part's clock, which is the
      * 18.8 the old event-scope distance produced and belonged to nothing. The label names
-     * which clock so the reader does not have to guess which. See `km` and `elapsed_time` in
-     * constants.ts, and `Recording` for why each split line prints its own pair.
+     * which clock so the reader does not have to guess which. See `raceKm` and `elapsed_time`
+     * in constants.ts, and `Recording` for why each split line prints its own pair.
      *
      * The label is dimmed with the date, the tag and the place, which puts it under the
      * same composited-contrast assertion as those three: the authored ink is `--background`

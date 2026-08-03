@@ -1,5 +1,5 @@
 import stravaProgress from "../data/strava-progress.json"
-import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, recordingsOf, type Sport} from "./constants"
+import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, raceKm, recordingsOf, type Sport} from "./constants"
 import {BUILD_DATE} from "./today"
 
 /**
@@ -248,17 +248,26 @@ export function bookedAhead(sport: Sport, iso: string, events: readonly RaceEven
         // holds the DNF half, which the sweep cannot see while every DNF on the calendar
         // happens to carry a recording.
         if (patchState(e, iso) !== "booked") continue
-        if (!Number.isFinite(e.km) || e.km < 0) continue
+        // WHICH DISTANCE THAT IS depends on the row, and the accessor is what stops this
+        // line having to know. A booked race is USUALLY unrecorded, so `raceKm` hands back
+        // the ADVERTISED figure — the only one it has. But `booked` is not a synonym for
+        // unrecorded: a row carrying `recordings` without an `elapsed_time` is booked too
+        // (`hasRecording` needs both), and there `raceKm` returns the distance derived from
+        // the metres. Both are the best figure that row holds, which is why one reader of
+        // the distance beats two. An earlier revision of this comment claimed every race
+        // reaching here is unrecorded; a review panel found that false twice over.
+        const booked = raceKm(e)
+        if (!Number.isFinite(booked) || booked < 0) continue
         const start = parseIsoDate(e.date)
         if (Number.isNaN(start)) continue
         const end = e.end_date ? parseIsoDate(e.end_date) : start
         if (Number.isNaN(end) || end < start) continue
-        if (today <= start) { km += e.km; continue }        // wholly ahead
+        if (today <= start) { km += booked; continue }       // wholly ahead
         if (today > end) continue                            // wholly done
         // Mid-event: the days not yet ridden, inclusive of today.
         const totalDays = Math.round((end - start) / MS_PER_DAY) + 1
         const doneDays = Math.round((today - start) / MS_PER_DAY)
-        km += e.km * ((totalDays - doneDays) / totalDays)
+        km += booked * ((totalDays - doneDays) / totalDays)
     }
     return km
 }

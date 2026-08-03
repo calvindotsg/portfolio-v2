@@ -163,10 +163,11 @@ One suite is OPT-IN and reaches the network, which is why it is listed apart:
   `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN` in the environment —
   the same names `scripts/fetch-strava-progress.mjs` reads. Deliberately not part of the
   default run: `pnpm test` gates both deploys, so a rate limit or an expired token would read
-  as a broken site. It catches the two things a hand-typed figure gets wrong — a figure read
-  off a screenshot before the activity was edited, and a distance converted the other way from
-  the rule, since `km` is metres rounded half-up to two places and truncating instead puts four
-  of these rows out by 0.01. The token needs `activity:read_all`; a detailed read answers 404,
+  as a broken site. It is the ONLY thing that can catch a mistyped `metres`, and that is now
+  the single distance figure a human types: a row stores the API's metres and every kilometre a
+  reader sees is computed by `raceKm`, so the conversion is unit-tested offline and only the
+  stored input needs a witness. It also catches the older failure, a figure read off a
+  screenshot before the activity was edited. The token needs `activity:read_all`; a detailed read answers 404,
   not 403, when the scope is missing, so an under-scoped token looks exactly like a wrong id.
 
 One suite has the repository itself as its subject rather than the site:

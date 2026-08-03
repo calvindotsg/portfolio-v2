@@ -5,8 +5,8 @@ import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
 import {
-    EVENTS, GOAL_YEAR, goalForSport, GOALS, NEW_TAB_NOTICE, PATCHES, type RaceEvent, recordingsOf,
-    type Sport, stravaActivityUrl,
+    EVENTS, GOAL_YEAR, goalForSport, GOALS, NEW_TAB_NOTICE, PATCHES, raceKm, type RaceEvent,
+    type Recording, recordingKm, recordingsOf, type Sport, stravaActivityUrl,
 } from "../src/lib/constants";
 import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
@@ -71,8 +71,12 @@ const PAGES = {
     running: "dist/patches/running/index.html",
 } as const;
 
+// The default fixture is a BOOKED race, and an override that adds `recordings` makes it a
+// recorded one — which drops `km`, since a recorded race derives its distance. The cast is
+// what lets one builder produce both: a spread over a union cannot be verified by the
+// compiler, though every call site below is one legal shape or the other.
 const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
-    ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over});
+    ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over}) as RaceEvent;
 
 /**
  * THE DAY A BUILT PAGE WAS DRAWN FOR, read off the page rather than recomputed.
@@ -214,7 +218,7 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      */
     it("earns a bib from the recording, on the day of the race and against a frozen clock", () => {
         const run = ev({date: "2026-06-10", elapsed_time: "0:58:26",
-            recordings: [{id: "19513789157", km: 10, elapsed_time: "0:58:26"}]});
+            recordings: [{id: "19513789157", metres: 10000, elapsed_time: "0:58:26"}]});
         expect(patchState(run, "2026-06-10"), "the day itself, hours after finishing").toBe("finished");
         expect(patchState(run, "2026-05-27"), "a clock that stopped a fortnight ago").toBe("finished");
     });
@@ -227,7 +231,7 @@ describe("a bib's state is derived from the calendar, never stored", () => {
     it("takes a half-recording as no recording, leaving the day to decide", () => {
         const timed = ev({date: "2026-06-10", elapsed_time: "0:58:26"});
         const linked = ev({date: "2026-06-10",
-            recordings: [{id: "19513789157", km: 10, elapsed_time: "0:58:26"}]});
+            recordings: [{id: "19513789157", metres: 10000, elapsed_time: "0:58:26"}]});
         for (const half of [timed, linked]) {
             expect(patchState(half, "2026-06-10"), `${JSON.stringify(half)} on the day`).toBe("booked");
             expect(patchState(half, "2026-06-11"), "the day after, by the clock as before").toBe("finished");
@@ -241,12 +245,14 @@ describe("a bib's state is derived from the calendar, never stored", () => {
      * still pass if BOTH sides forgot, and this one names which side did.
      */
     it("stops booking a recorded race's kilometres, on the day it is run", () => {
-        const run = ev({date: "2026-06-10", km: 10, sport: "running", elapsed_time: "0:58:26",
-            recordings: [{id: "1", km: 10, elapsed_time: "0:58:26"}]});
+        const run = ev({date: "2026-06-10", sport: "running", elapsed_time: "0:58:26",
+            recordings: [{id: "1", metres: 10000, elapsed_time: "0:58:26"}]});
         expect(bookedAhead("running", "2026-06-01", [run]), "still ahead by the calendar").toBe(0);
         expect(bookedAhead("running", "2026-06-10", [run]), "the day of the race").toBe(0);
-        // The comparison: the same race without its recording is booked exactly as before.
-        const {elapsed_time: _t, recordings: _r, ...plain} = run;
+        // The comparison: the same race unrecorded carries the ADVERTISED distance — the only
+        // one it can have — and is booked exactly as before. It is built rather than stripped
+        // from `run`: a recorded race has no `km` to keep, which is the shape change.
+        const plain = ev({date: "2026-06-10", km: 10, sport: "running"});
         expect(bookedAhead("running", "2026-06-01", [plain]), "no recording, so the clock still books it").toBe(10);
     });
 
@@ -264,7 +270,7 @@ describe("a bib's state is derived from the calendar, never stored", () => {
     it("calls an abandoned race a dnf, before it asks the recording or the clock", () => {
         const abandoned = ev({
             date: "2026-06-10", outcome: "dnf", elapsed_time: "5:00:00",
-            recordings: [{id: "1", km: 10, elapsed_time: "5:00:00"}],
+            recordings: [{id: "1", metres: 10000, elapsed_time: "5:00:00"}],
         });
         for (const iso of ["1970-01-01", "2026-06-09", "2026-06-10", "2026-06-11", "2030-01-01"]) {
             expect(patchState(abandoned, iso), `${iso}: an abandonment does not become a finish`).toBe("dnf");
@@ -717,7 +723,7 @@ describe("dist/patches", () => {
         expect(dnf.querySelector(".bib-unit"), "a verdict is not a quantity, so it takes no unit").toBeNull();
         expect(dnf.querySelector(".bib-covered-label")?.textContent?.trim()).toBe(PATCHES.covered_label);
         expect(dnf.querySelector(".bib-covered-value")?.textContent?.trim())
-            .toBe(`${event.km.toFixed(2)} ${goalForSport(event.sport).measurable_unit}`);
+            .toBe(`${raceKm(event).toFixed(2)} ${goalForSport(event.sport).measurable_unit}`);
         // The abbreviation is expanded for a listener and for nobody else — the repo's rule
         // is that the accessible name is a SUPERSET of the visible text, never a
         // replacement, so this must be present AND must not have leaked onto the bib.
@@ -758,7 +764,7 @@ describe("dist/patches", () => {
             "a DNF with no recording has no evidence of a distance, so it prints none").toBeNull();
         const recorded = parseHTML(await container.renderToString(Patch, {
             props: {
-                event: ev({outcome: "dnf", km: 12.5, recordings: [{id: "1", km: 12.5, elapsed_time: "1:00:00"}]}),
+                event: ev({outcome: "dnf", recordings: [{id: "1", metres: 12500, elapsed_time: "1:00:00"}]}),
                 state: "dnf",
             },
         })).document;
@@ -864,7 +870,7 @@ describe("dist/patches", () => {
                     // name, or a reader listing every link on the page cannot tell which wall
                     // entry it belongs to.
                     const name = (line.textContent ?? "").replace(/\s+/g, " ").trim();
-                    for (const said of [part.km.toFixed(2), part.elapsed_time, event.name, NEW_TAB_NOTICE]) {
+                    for (const said of [recordingKm(part).toFixed(2), part.elapsed_time, event.name, NEW_TAB_NOTICE]) {
                         expect(name, `split line ${i + 1} of ${event.name} must announce "${said}"`).toContain(said);
                     }
                 }
@@ -893,7 +899,7 @@ describe("dist/patches", () => {
             // The accessible name is name-from-content, so it must be a superset of what
             // is on screen — including the transcription of the aria-hidden glyph.
             const name = (bib.textContent ?? "").replace(/\s+/g, " ").trim();
-            for (const part of [event.name, event.country, String(event.km).split(".")[0], PATCHES.strava_name]) {
+            for (const part of [event.name, event.country, String(raceKm(event)).split(".")[0], PATCHES.strava_name]) {
                 expect(name, `the announced name must carry "${part}"`).toContain(part);
             }
         }
@@ -1098,7 +1104,7 @@ describe("dist/patches", () => {
     /**
      * THE TIME IS LABELLED, and the label is the assertion rather than a nicety. Elapsed
      * and moving are far apart on these rides — 8:32:05 against 5:03:55 over the same
-     * 140.50 km — so a bare time invites a reader to divide it into the distance above it
+     * 140.49 km — so a bare time invites a reader to divide it into the distance above it
      * and be 11 km/h wrong (16.5 against 27.7). See `elapsed_label` in constants.ts, which
      * carries the same figure; it read 9 while the bib printed the EVENT's distance.
      */
@@ -1137,7 +1143,7 @@ describe("dist/patches", () => {
     it("prints every distance to two decimals, split so the fraction can be set small", () => {
         for (const {bib, event} of wallBibs(PAGES.all)) {
             const value = bib.querySelector(".bib-value")!;
-            const km = event.km.toFixed(2);
+            const km = raceKm(event).toFixed(2);
             // THE HERO IS NOT ALWAYS THE DISTANCE. On a bib for a race that was not
             // finished the hero is the RESULT and the distance moves to its own labelled
             // row — so this branch holds the same two-decimal rule against a different
@@ -1875,9 +1881,9 @@ describe("nothing inside the wall's card is pinned to a device pixel", () => {
  */
 describe("a bib that opens a new tab says so, last", () => {
     const linked: RaceEvent = {
-        date: `${GOAL_YEAR}-07-10`, name: "A Race With A Recording", km: 100, sport: "cycling",
+        date: `${GOAL_YEAR}-07-10`, name: "A Race With A Recording", sport: "cycling",
         country: "Thailand", elapsed_time: "5:00:00",
-        recordings: [{id: "1234567890123", km: 100, elapsed_time: "5:00:00"}],
+        recordings: [{id: "1234567890123", metres: 100000, elapsed_time: "5:00:00"}],
     };
     const unlinked: RaceEvent = {
         date: `${GOAL_YEAR}-07-10`, name: "A Race With No Recording", km: 100, sport: "cycling",
@@ -1966,14 +1972,15 @@ describe("a bib that opens a new tab says so, last", () => {
  * and four exist only here, and they are what prove the shape is a list rather than a pair.
  */
 describe("a race recorded in parts lists them, and the bib stops being the link", () => {
-    const parts = (n: number) => Array.from({length: n}, (_, i) => ({
-        id: `${1000000000 + i}`,
-        km: 10 + i,
-        elapsed_time: `${i + 1}:0${i}:00`,
-    }));
+    const parts = (n: number): [Recording, ...Recording[]] =>
+        Array.from({length: n}, (_, i) => ({
+            id: `${1000000000 + i}`,
+            metres: 10000 + i * 1000,
+            elapsed_time: `${i + 1}:0${i}:00`,
+        })) as [Recording, ...Recording[]];
 
     const split = (n: number): RaceEvent => ({
-        date: `${GOAL_YEAR}-07-10`, name: "A Race Recorded In Parts", km: 100, sport: "cycling",
+        date: `${GOAL_YEAR}-07-10`, name: "A Race Recorded In Parts", sport: "cycling",
         country: "Thailand", elapsed_time: "9:00:00", recordings: parts(n),
     });
 
@@ -2008,7 +2015,7 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
             // smaller figures than the bib showed. The verb is asserted because without it the
             // line is typographically identical to the elapsed caption above it.
             const name = (line.textContent ?? "").replace(/\s+/g, " ").trim();
-            const said = PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} km`);
+            const said = PATCHES.split_line.replace("{distance}", `${recordingKm(part).toFixed(2)} km`);
             for (const token of [said, part.elapsed_time, "A Race Recorded In Parts", NEW_TAB_NOTICE]) {
                 expect(name, `line ${i + 1} must announce "${token}"`).toContain(token);
             }
@@ -2050,7 +2057,7 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
             for (const hidden of [...shown.querySelectorAll(".sr-only")]) hidden.remove();
             const visible = (shown.textContent ?? "").replace(/\s+/g, " ").trim();
 
-            const label = PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} km`);
+            const label = PATCHES.split_line.replace("{distance}", `${recordingKm(part).toFixed(2)} km`);
             expect(visible, `line ${i + 1} must SHOW its label, not hide it`).toContain(label);
             expect(visible.startsWith(PATCHES.split_line.split("{")[0].trim()),
                 "the imperative leads, so the line reads as a control rather than as a caption").toBe(true);
@@ -2085,9 +2092,9 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
 
     it("leaves a one-recording bib exactly as it was", async () => {
         const one: RaceEvent = {
-            date: `${GOAL_YEAR}-07-10`, name: "A Race With One Recording", km: 100, sport: "cycling",
+            date: `${GOAL_YEAR}-07-10`, name: "A Race With One Recording", sport: "cycling",
             country: "Thailand", elapsed_time: "5:00:00",
-            recordings: [{id: "1234567890123", km: 100, elapsed_time: "5:00:00"}],
+            recordings: [{id: "1234567890123", metres: 100000, elapsed_time: "5:00:00"}],
         };
         const doc = await render(one);
 
