@@ -391,7 +391,16 @@ export function goalStatusLine(goal: Goal, iso: string = UPDATED_AT, events: rea
  * 20px on each of two cards and 40px of mobile document, and putting the clause on the
  * countdown row instead desynchronises the pair (257 vs 273px) because the cycling figure
  * wraps — and the two cards sit one directly above the other. Extending this line costs
- * nothing at all: cards stay 257 / 229px and the document stays 900 / 1754.
+ * nothing at all: both cards and the document are the same height with the clause as
+ * without it, at every width and every reader text size measured.
+ *
+ * NO ABSOLUTE PAIR HERE ANY MORE, deliberately. This sentence used to end "the document
+ * stays 900 / 1754", and the mobile figure was never a state of the tree: 1754 is what the
+ * document WOULD have measured had the eyebrow been deleted without the hero's door landing
+ * too, and the two shipped together. The claim that matters is a DIFFERENCE — this clause
+ * moves nothing — and a difference survives the next unrelated change to the hero where a
+ * pinned absolute silently stops being true. Measure the pair if you need it; do not
+ * re-pin it here.
  *
  * A COMMA RATHER THAN A MIDDOT. Both were rendered and both fit. The middot is Garmin's
  * separator and reads as an instrument row; this card is deliberately a sentence — the

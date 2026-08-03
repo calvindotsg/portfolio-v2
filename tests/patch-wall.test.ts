@@ -1257,6 +1257,25 @@ describe("dist/patches", () => {
                 const actual = parseHTML(read(target)).document.querySelectorAll(".bib").length;
                 expect(shown, `${page}: "${a.textContent?.trim()}" advertises ${shown} but ${target} renders ${actual}`).toBe(actual);
             }
+
+            /*
+             * AND EACH CHIP MUST SAY THE SPORT, NOT THE VERB. The labels moved from
+             * `short_name` to `goal_name` because a chip reading "Ride" named the activity
+             * where the wall beside it names the sport — the same defect the heading pairing
+             * was changed to close, in the one element whose whole job is to say where you
+             * are. Everything above this loop passes on either wording: it asserts the link
+             * COUNT, the `aria-current`, the `href` and the number badge, and none of those
+             * move when the word does. Reverting the one-word change left the whole suite
+             * green, so the wording was shipped with nothing holding it.
+             *
+             * Read off `GOALS` rather than written out, so a third sport joins by existing.
+             */
+            const spoken = links.map((a) => a.textContent?.replace(/\d+/g, "").replace(/\s+/g, " ").trim());
+            for (const goal of GOALS) {
+                expect(spoken, `${page}: no filter chip is named "${goal.goal_name}" — a chip must name the SPORT `
+                    + `the way the wall does, not the activity verb (${goal.short_name})`)
+                    .toContain(goal.goal_name);
+            }
         }
     });
 

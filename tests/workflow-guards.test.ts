@@ -115,10 +115,21 @@ const upstreamOf = (id: string): Set<string> => {
  * friends fail the line match rather than being blocklisted, which is the right way round: an
  * exact command is a small set, and the ways to swallow a status are not.
  *
- * A step-level `if:` is deliberately NOT rejected. The review flagged it, and it is real
- * blindness, but it is not reachable here: `pnpm test` is the only step that produces `dist/`,
- * so skipping it makes the next step's `find dist -name '*.html'` exit 1 under `bash -e` and
- * the job goes red anyway. Gating on it would be a rule with no defect behind it.
+ * A step-level `if:` IS now rejected when it does not hold on the paths that publish, and the
+ * history of that line is the argument for executing a rationale rather than inheriting one.
+ * It used to read "deliberately NOT rejected … not reachable here: `pnpm test` is the only
+ * step that produces `dist/`, so skipping it makes the next step's `find dist -name '*.html'`
+ * exit 1 under `bash -e` and the job goes red anyway." That is TRUE of `pnpm test`. It is
+ * false of `pnpm check` and `pnpm eslint`, which produce nothing any later step reads — and
+ * when this predicate was parameterised to cover them, the exemption came along silently.
+ * MEASURED: adding `if: github.event_name == 'workflow_dispatch'` to the `pnpm check` step
+ * leaves the suite fully green while deleting the only type gate over every `.ts` file from
+ * every PR and every push to main.
+ *
+ * IT IS EVALUATED, NOT BANNED, which is this file's whole method. A blanket "no `if:`" would
+ * forbid a legitimate future conditional that still holds on both publishing paths; asking
+ * GitHub's own evaluator whether the step actually runs is the question the invariant is
+ * really made of.
  */
 const NEUTERED = (v: boolean | string | undefined) => v === true || v === "true";
 
@@ -138,8 +149,22 @@ const NEUTERED = (v: boolean | string | undefined) => v === true || v === "true"
  * second matcher: comments stripped, whole-line match, both the bare and the `run` spelling
  * of the command, and anything that neuters the exit code disqualifies the step.
  */
+/**
+ * THE TWO CONTEXTS THAT BUILD AND PUBLISH. A gate step has to actually run on both of them or
+ * the invariant CLAUDE.md states — a red run of any of the three blocks the deploy — is not
+ * true. Named here rather than inlined so `CONTEXTS` stays the single list of situations this
+ * file reasons about.
+ */
+const PUBLISHING_PATHS = ["same-repo PR from a human", "push to main"] as const;
+
+/** Does this step's own `if:` let it run wherever the site can be published? */
+const stepAlwaysRuns = (s: Step): boolean => {
+    if (typeof s.if !== "string") return true;
+    return PUBLISHING_PATHS.every((name) => evaluate(s.if as string, CONTEXTS[name]));
+};
+
 const stepsRunning = (id: string, command: string): Step[] =>
-    (CI.jobs[id]?.steps ?? []).filter((s) => (s.run ?? "")
+    (CI.jobs[id]?.steps ?? []).filter((s) => stepAlwaysRuns(s) && (s.run ?? "")
         .split("\n")
         .filter((line) => !/^\s*#/.test(line))
         .some((line) => new RegExp(`^pnpm (run )?${command}$`).test(line.trim())));

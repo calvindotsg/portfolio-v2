@@ -69,14 +69,19 @@ export const GET: APIRoute = ({site}) => {
         //
         // AND ON AN ABANDONED RACE WITH NOTHING RECORDED THERE IS NO FIGURE TO GIVE. `raceKm`
         // falls back to the race's ADVERTISED distance when no metres exist, which is the right
-        // answer for a booked race and the worst possible one here: it told a crawler he covered
-        // the full 1,022 km of a race he did not finish — the exact claim the bib beside it is
+        // answer for a booked race and the worst possible one here: the row would tell a crawler
+        // he covered the whole of a route he abandoned — the exact claim the bib beside it is
         // built to refuse, printed in the file written for machines that cannot see the bib.
-        // The condition is `Patch.astro`'s own, so the two cannot drift.
+        // NO ROW IN `EVENTS` IS THAT SHAPE TODAY. The guard is here because the TYPE reaches it:
+        // `outcome` is legal on the booked shape, so this is one data edit away rather than a
+        // defect that shipped, and on the calendar's longest advertised race it would publish
+        // four figures of distance he did not ride. The condition is `Patch.astro`'s own, so
+        // the two cannot drift.
         //
         // TWO DECIMALS, because the wall prints two and this file is quoted beside it. `raceKm`
-        // returns a number, so `130.03` survives and `160.5` reaches a reader as `160.5 km`
-        // against the bib's `160.50` — one race described two ways by one site.
+        // returns a NUMBER, and a number has no trailing zero to keep: `130.03` prints itself,
+        // but Krabi to Phuket reaches a reader as `158.1 km` against the bib's own `158.10` —
+        // one race described two ways by one site.
         const dnfWithNothingRecorded = patchState(event) === "dnf" && recordingsOf(event).length === 0
         const far = dnfWithNothingRecorded
             ? ""

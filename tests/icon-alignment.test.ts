@@ -262,7 +262,7 @@ describe("an inline icon is centred on its text's cap band", () => {
      *
      * The Now card's explainer icon belongs in the FLEX group, and it is worth saying
      * why rather than leaving it to the count: its anchor is a flex box, so the glyph
-     * inside is a flex item and is blockified like the other ten in this derived group.
+     * inside is a flex item and is blockified like every other member of this derived group.
      * It sits in the card's corner, not in a line of prose, so there is no cap line for
      * the baseline nudge to centre it on — its container centres it instead.
      *
@@ -277,10 +277,15 @@ describe("an inline icon is centred on its text's cap band", () => {
      * tests/rendered-html.test.ts about icons rendering here was narrowed rather than
      * this count being fudged.
      *
-     * Be careful quoting a number here, because two files legitimately count differently.
-     * This group TOTALS twelve — six social links, two chevrons, both toggle glyphs, the
-     * hero's own way to the whole wall, and this one — so there are eleven others. Only ten are ever laid out at once, since the
-     * toggle hides whichever glyph is not current. `Now.astro` says "nine other icons"
+     * Be careful quoting a number here, because two files legitimately count differently —
+     * and PREFER THE RELATION TO THE FIGURE, which is the lesson of this very paragraph.
+     * Its members are the six social links, two chevrons, both toggle glyphs, the hero's own
+     * way to the whole wall, and this one; from any one of them, every OTHER member is one
+     * fewer than the group total, and one fewer than the total is ever laid out at once,
+     * since the toggle hides whichever glyph is not current. Two sentences here were left
+     * quoting "ten" when the total moved from eleven to twelve — they had been coincidentally
+     * equal at the old total, which is exactly how a stale figure survives a careful edit.
+     * `Now.astro` says "nine other icons"
      * for a set that predates the chevrons; that sentence is about the ones relying on a
      * container to centre them and is counted separately there.
      */

@@ -1112,6 +1112,57 @@ describe("the rendered page", () => {
         expect(lines.length).toBe(expected.length);
     });
 
+    /**
+     * WHAT THE RATE IS BANKING, ASSERTED AGAINST A SECOND SOURCE — because the gate above
+     * cannot see this feature at all, and neither could anything else.
+     *
+     * `expected` up there is `GOALS.map(goalStatusLine)`. Delete the booked clause from
+     * `goalStatusLine` and the expectation shortens with it, the shorter line is what the
+     * page renders, and the assertion passes. MEASURED: reverting `case "rate"` to the bare
+     * `${kmPerWeek} ${unit}/wk to go` removed every "booked" from `dist/index.html` — 0
+     * occurrences — and left `pnpm test` at 456 passed / 7 skipped. The one shipped
+     * home-page feature in its own commit was gated by nothing.
+     *
+     * So the figure here comes from `bookedAhead`, which `goalStatusLine` does not decide,
+     * and the sentence shape is read off the RENDERED page rather than regenerated. A
+     * tautology cannot be repaired by asserting harder on the same expression; it is
+     * repaired by asking a different one.
+     */
+    it("says on the card what the rate is already banking", () => {
+        const onRate = GOALS.filter((g) => goalStatus(g).kind === "rate");
+        expect(onRate.length, "no goal is on the `rate` branch, so this gate is vacuous today")
+            .toBeGreaterThan(0);
+        const text = [...document.querySelectorAll("[data-card]")]
+            .flatMap((c) => [...c.querySelectorAll("span")])
+            .map((s) => (s.textContent ?? "").trim());
+        let checked = 0;
+        for (const goal of onRate) {
+            const status = goalStatus(goal);
+            // Narrowed rather than asserted: `kmPerWeek` lives on the `rate` member alone, and
+            // `onRate` filtered on `kind` without telling the compiler. A cast here would be a
+            // lie the day a branch is renamed.
+            if (status.kind !== "rate") continue;
+            // INDEPENDENT OF `goalStatusLine`: the same rounding it applies, applied here to
+            // the accessor it applies it to. A goal with nothing booked must print no clause
+            // at all — the empty case is the one a "contains a number" check would miss.
+            const booked = Math.round(bookedAhead(goal.sport, UPDATED_AT));
+            const opening = `${status.kmPerWeek} ${goal.measurable_unit}/wk to go`;
+            const rate = text.find((t) => t.startsWith(opening));
+            expect(rate, `${goal.sport}'s rate line must be on the page`).toBeDefined();
+            if (booked > 0) {
+                expect(rate, `${goal.sport} has ${booked} ${goal.measurable_unit} booked ahead of it, and the `
+                    + `rate already subtracts them — the card must say so rather than presenting a `
+                    + `figure that silently assumes every booked race gets finished`)
+                    .toBe(`${opening}, ${booked} booked`);
+            } else {
+                expect(rate, `${goal.sport} has nothing booked, so the clause must be absent rather than zeroed`)
+                    .not.toContain("booked");
+            }
+            checked++;
+        }
+        expect(checked, "no rate line was found on the page at all").toBeGreaterThan(0);
+    });
+
     it("does not add a child to <main>", () => {
         // card-fill.test.ts:347 fires at +1 child with a message naming neither
         // cards nor datelines, so an implementer would hunt the wrong red.

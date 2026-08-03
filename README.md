@@ -146,11 +146,20 @@ that carry most of the weight:
 
 The rest are geometry and content gates — `page-fit`, `card-fill`,
 `control-geometry`, `icon-alignment`, `mobile-hero-contrast`, `patch-wall`,
-`projection` and `clock-split` — plus `workflow-guards` and `dns-config`, which
-read `.github/workflows/` rather than the site and execute those workflows' `if:`
-guards in GitHub's own expression evaluator: the deploy gate and the DNS apply
-gate respectively. Deliberately no counts in prose, of suites or of assertions:
-read them from `pnpm test`.
+`projection`, `clock-split` and `llms-dnf-fixture` — plus `workflow-guards` and
+`dns-config`, which read `.github/workflows/` rather than the site and execute
+those workflows' `if:` guards in GitHub's own expression evaluator: the deploy
+gate and the DNS apply gate respectively. Deliberately no counts in prose, of
+suites or of assertions: read them from `pnpm test`.
+
+A suite that MOCKS A MODULE gets a file of its own, and `clock-split` and
+`llms-dnf-fixture` are why that rule is written down rather than assumed. Both
+forge a fact the live data does not currently hold — a bot stamp lagging the build
+day, and a race abandoned before anything was recorded — because in each case the
+gates around it could only discriminate on data the calendar happens not to
+contain, so they were passing without proving anything. `vi.mock` is file-scoped,
+and one that leaked into a suite comparing against `dist/` would redden it on
+correct code.
 
 One suite is OPT-IN and reaches the network, which is why it is listed apart:
 

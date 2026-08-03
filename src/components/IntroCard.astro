@@ -270,8 +270,29 @@ import portfolioImage from '../assets/me.webp'
      * accessible name on its own colour. Scoped by the attribute that makes the mark
      * decorative rather than by a class of its own, which the control allowlist forbids.
      */
+    /*
+     * AND THE SAME FOR A LINK THAT IS A RUN OF WORDS. `.text-link` carries a mark too — the
+     * hero's way to the wall wears the same arrow `EventsLink` wears — and it was erased by
+     * the same mechanism while the rule below said "every icon-mask glyph". Measured under forced
+     * colours: 784 of 784 pixels of that arrow's box were Canvas, i.e. no ink at all.
+     *
+     * IT IS A LESSER FAULT THAN THE ONE ABOVE, and worth saying so rather than filing both as
+     * one. An icon-only control loses its NAME when its glyph goes; this link keeps the words
+     * "My events" and keeps the underline `.text-link` ships, both browser-forced to LinkText
+     * on Canvas. What it loses is a signifier it did not need twice. It is repaired because
+     * the mark is meant to be there, not because the link stops working without it.
+     *
+     * LinkText is the right keyword for BOTH: the anchor's own text is forced to LinkText
+     * whatever the author says, so painting the mark anything else would make the glyph
+     * disagree with the words beside it.
+     *
+     * SAID AGAIN IN 404.astro AND patches/[...sport].astro, because Astro scopes a component's
+     * styles to that component and all three pages own a `.text-link` carrying a mark. That
+     * duplication is the same one `a.control` already lives with.
+     */
     @media (forced-colors: active) {
-        a.control span[aria-hidden] {
+        a.control span[aria-hidden],
+        .text-link span[aria-hidden] {
             forced-color-adjust: none;
             background-color: LinkText;
         }

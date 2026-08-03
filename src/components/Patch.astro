@@ -93,7 +93,7 @@ const {event, state, index} = Astro.props;
  * dynamic. Safe, because every selector involved is class-based — `.bib`, `.bib--booked`,
  * `.bib-meta` — as are `structuralSelector` and the colour model in patch-wall.test.ts;
  * an element-name selector here would have made this a rewrite. `container-type` stays on
- * whichever element wears `.bib`, or the hero's `22cqi` loses its container.
+ * whichever element wears `.bib`, or the hero's `30cqi` loses its container.
  *
  * IT IS CONDITIONAL ON THE RECORDINGS, NOT ON THE STATE, because `recordings` is optional
  * and a finished race without one must still render as an ordinary finished bib — the rule
@@ -583,7 +583,7 @@ const Tag = only === null ? "div" : "a";
 
     /*
      * THE DISTANCE IS THE HERO, and it is sized against the BIB rather than against
-     * the viewport: `22cqi` reads the bib's own inline size, so what the number is
+     * the viewport: `30cqi` reads the bib's own inline size, so what the number is
      * proportional to is the box it is printed on and not the window.
      *
      * WHICH OF THE TWO TERMS ACTUALLY BINDS — measured, because an earlier revision of
@@ -924,7 +924,7 @@ const Tag = only === null ? "div" : "a";
      */
     .bib--linked,
     .bib--split {
-        grid-template-areas: "date date" "value unit" "name name" "place place" "time time" "." "go go";
+        grid-template-areas: "date date" "value unit" "name name" "place place" "time time" ". ." "go go";
         grid-template-rows: repeat(5, auto) 1fr auto;
     }
 
@@ -946,7 +946,7 @@ const Tag = only === null ? "div" : "a";
      */
     .bib--dnf.bib--linked,
     .bib--dnf.bib--split {
-        grid-template-areas: "date date" "value value" "covered covered" "name name" "place place" "time time" "." "go go";
+        grid-template-areas: "date date" "value value" "covered covered" "name name" "place place" "time time" ". ." "go go";
         grid-template-rows: repeat(6, auto) 1fr auto;
     }
 

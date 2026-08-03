@@ -401,4 +401,21 @@ const description = goal === undefined
             color: HighlightText;
         }
     }
+
+    /*
+     * THE WAY BACK KEEPS ITS MARK IN FORCED COLOURS. Same mechanism as the filter pin above:
+     * presetIcons paints a glyph as a mask over `background-color`, a forced-colours mode
+     * overrides that, and the arrow beside the words went to Canvas on Canvas. The link's own
+     * text and `.text-link`'s underline both survive without help — this restores the mark.
+     *
+     * Said again here rather than shared, because Astro scopes a component's styles to that
+     * component; IntroCard.astro carries the long form of the argument and 404.astro carries
+     * the third copy. All three own a `.text-link` with a mark.
+     */
+    @media (forced-colors: active) {
+        .text-link span[aria-hidden] {
+            forced-color-adjust: none;
+            background-color: LinkText;
+        }
+    }
 </style>
