@@ -333,6 +333,39 @@ describe("dist/", () => {
                 : (event as {km?: number}).km ?? NaN;
             return km.toFixed(2);
         };
+
+        /*
+         * AND THE ORACLE IS ITSELF GUARDED, because the calendar cannot guard it.
+         *
+         * The snap above only changes an answer for a race of THREE OR MORE parts — two doubles
+         * cannot land on the wrong side of a hundredth, as `raceKm` says in place. Today the
+         * calendar holds seven one-part races and three two-part ones and NOTHING ELSE, so
+         * deleting the snap from this oracle leaves the whole suite green: measured, the same
+         * defect class three of this file's other gates were just repaired for.
+         *
+         * `tests/constants.test.ts` guards the snap inside `raceKm` with a synthetic fixture for
+         * exactly this reason. This is the mirror's half, and it has to be a HAND-COMPUTED
+         * figure rather than a second call to `raceKm` — the moment this asks `raceKm` what the
+         * answer is, the oracle stops being independent and the gate below means nothing.
+         *
+         * 86432.4 + 47793.2 + 24244.4 is 158470 m exactly, which is 158.47 km. IEEE sums it to
+         * 158469.99999999997, so an unsnapped floor prints 158.46 — a hundredth of a kilometre
+         * the rider did not lose, and a DEPLOY reddened against a correct build.
+         */
+        const BOUNDARY = {
+            date: "2020-01-01", name: "Float-boundary fixture", sport: "cycling", country: "Nowhere",
+            elapsed_time: "1:00:00",
+            recordings: [{id: "a", metres: 86432.4}, {id: "b", metres: 47793.2}, {id: "c", metres: 24244.4}],
+        } as unknown as typeof EVENTS[number];
+        expect(EVENTS.every((e) => recordingsOf(e).length < 3),
+            "a race with three or more recordings is now on the calendar — this fixture has stopped "
+            + "being the only thing exercising the snap, which is good; say so here rather than "
+            + "leaving the comment above claiming it is").toBe(true);
+        expect(expectedKm(BOUNDARY),
+            "the oracle must snap the summed metres to a micron before truncating, or a three-part "
+            + "race prints a hundredth less than it rode and reddens the deploy against a correct build")
+            .toBe("158.47");
+
         // "" means THE ROW MUST CARRY NO DISTANCE AT ALL — an abandoned race with nothing
         // recorded has no honest figure to give, and the advertised one would be the exact
         // claim the bib refuses. Asserted as an absence below rather than as a substring.
