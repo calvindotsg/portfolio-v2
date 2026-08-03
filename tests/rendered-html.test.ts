@@ -442,7 +442,7 @@ describe("page content", () => {
      */
     it("words the countdown for every state a year passes through", () => {
         const race = (daysAway: number, underWay = false) =>
-            ({event: {date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling" as const, country: "Nowhere"}, daysAway, underWay});
+            ({event: {date: "2026-06-01", name: "Fixture", advertised_km: 10, sport: "cycling" as const, country: "Nowhere"}, daysAway, underWay});
 
         expect(nextRaceLine(race(0), 0)).toBe("Next race is today");
         expect(nextRaceLine(race(1), 0)).toBe("Next race is tomorrow");
@@ -808,9 +808,11 @@ describe("page content", () => {
         // on screen said the card was where the link ended: the reader aimed at words and the
         // box quietly extended past them. Shrink-wrapping was one fix for that. Drawing the box
         // is the other, and it is the one this control now uses — a full-width, bordered,
-        // plated 48px bar whose edges are exactly where they appear to be. It is the same
-        // argument the bib makes (`.bib--linked` in Patch.astro): the whole object is the
-        // anchor, and a reader can tell because it looks like one.
+        // plated 48px bar whose edges are exactly where they appear to be. The rule is that a
+        // control's box must end where it appears to end, whichever fix gets it there.
+        // (This used to cite the bib as the same argument, back when the whole bib was the
+        // anchor. It is not one any more — a race can have more than one destination, so each
+        // is a line on the bib's stub — which makes the bib the OTHER fix, not this one.)
         //
         // SO THE ESCAPE HATCH IS NARROW ON PURPOSE. A stretched box qualifies only if the
         // control's OWN rules draw a border, unconditionally — a `:hover` border is a

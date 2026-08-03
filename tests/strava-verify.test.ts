@@ -12,9 +12,10 @@ import {EVENTS, raceKm, type RaceEvent, type Recording, recordingsOf} from "../s
  *   SAME one or a race's figure is off by 0.01. It is the API's metres rounded DOWN to two
  *   places — the maintainer's rule, and the input to it is `distance` off this endpoint, never
  *   a figure read off a Strava page. That rule has been set three times, so read the note above
- *   `kmFromMetres` in constants.ts before concluding a row is wrong. NOTE WHAT `km` MEANS NOW:
- *   it is the ADVERTISED distance of a race with no recording, and a recorded race does not
- *   carry one at all — so a sentence here about "the `km` rule" would point at the wrong field.
+ *   `kmFromMetres` in constants.ts before concluding a row is wrong. NOTE WHICH FIELD THAT RULE
+ *   IS ABOUT: it is the stored `metres`, never `advertised_km`, which is the organiser's own
+ *   figure and is rounded by nobody. A recorded race MAY carry both — the ledger prints the two
+ *   accounts side by side — so a sentence here about "the km rule" would point at the wrong one.
  *
  *   AN ACTIVITY CAN BE EDITED AFTER YOU READ IT, so a screenshot is a reading of a MUTABLE
  *   record. One row was authored from a screenshot showing 13:36:10 elapsed, 6:31:11 moving
@@ -58,7 +59,15 @@ import {EVENTS, raceKm, type RaceEvent, type Recording, recordingsOf} from "../s
  * WHAT IT DELIBERATELY DOES NOT ASSERT is a recorded race against its route's advertised
  * distance. A recorded race's figure is `raceKm` over the metres below — see that accessor's
  * note — so the activity is the authority here, not the event. The advertised figure lives on
- * `km`, which only an unrecorded race carries, and nothing in this file reads it.
+ * `advertised_km`, which a recorded race is now allowed to carry as well, and nothing in this
+ * file reads it.
+ *
+ * THAT REFUSAL LEAVES A REAL HOLE AND IT IS NOT THIS SUITE'S TO CLOSE. `advertised_km` and the
+ * two official clocks are hand-transcribed off a results sheet and printed to the bib
+ * unconverted, so nothing anywhere can witness a transposed digit in them — there is no API
+ * behind a timing provider's page. Comparing them to the activity would be the wrong repair:
+ * the two accounts are SUPPOSED to disagree, which is the ledger's whole subject. README.md
+ * names the hole where the rest of this suite's coverage is described.
  */
 const ENABLED = process.env.STRAVA_VERIFY === "1";
 

@@ -40,7 +40,7 @@ const ABANDONED_KM = 1022.00;
 const DNF_NOTHING_RECORDED = {
     date: "2020-03-01",
     name: "Fixture Tour That Was Abandoned",
-    km: ABANDONED_KM,
+    advertised_km: ABANDONED_KM,
     sport: "cycling",
     country: "Nowhere",
     outcome: "dnf",
@@ -102,7 +102,7 @@ describe("llms.txt on a race abandoned with nothing recorded", () => {
     it("still prints a distance for an abandoned race that WAS recorded", async () => {
         // The other side of the branch, so this file cannot be satisfied by an endpoint that
         // simply stopped printing distances for every DNF. The calendar's real abandoned race
-        // carries recordings and its covered distance is honest — it is how far he got.
+        // carries recordings and its recorded distance is honest — it is how far he got.
         const {EVENTS, PATCHES, raceKm, recordingsOf} = await import("../src/lib/constants");
         const recordedDnf = EVENTS.find((e) => patchState(e) === "dnf" && recordingsOf(e).length > 0);
         expect(recordedDnf, "the calendar must still hold a recorded abandoned race").toBeDefined();
@@ -112,6 +112,6 @@ describe("llms.txt on a race abandoned with nothing recorded", () => {
         const row = (await render()).split("\n")
             .find((l) => l.includes(recordedDnf!.name) && l.includes(recordedDnf!.date))!;
         expect(row, `${recordedDnf!.name} (${recordedDnf!.date}) must have a row of its own`).toBeDefined();
-        expect(row).toContain(`${PATCHES.covered_label.toLowerCase()} ${raceKm(recordedDnf!).toFixed(2)} km`);
+        expect(row).toContain(`${PATCHES.recorded_row.toLowerCase()} ${raceKm(recordedDnf!).toFixed(2)} km`);
     });
 });

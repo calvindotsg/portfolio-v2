@@ -67,15 +67,20 @@ const {event, state, index} = Astro.props;
  *   whose figures are all still true: the race IS that far, it IS on that date, and none of
  *   it has happened yet.
  *
- *   A DNF replaces the hero with `dnf_result`, and the distance moves down to a labelled
- *   row. Nothing is being annotated — the bib's central claim is wrong. A results sheet
- *   prints DNF in the column a finishing POSITION would have gone in, a status code that
- *   REPLACES a result, and that is the only vernacular available: neither Strava nor Garmin
- *   models a DNF at all, so there is no app pattern to borrow. Six candidates carrying it as
- *   a tag were drawn first and all lost the same way — the meta row wraps, so three letters
- *   land tucked in after the sport at a fraction of the hero's size. The QUIETEST thing on
- *   the bib would have been carrying the most important fact about it. In the hero slot the
- *   same three letters are the largest.
+ *   A DNF replaces the hero with `dnf_result`. Nothing is being annotated — the bib's central
+ *   claim is wrong. A results sheet prints DNF in the column a finishing POSITION would have
+ *   gone in, a status code that REPLACES a result, and that is the only vernacular available:
+ *   neither Strava nor Garmin models a DNF at all, so there is no app pattern to borrow. Six
+ *   candidates carrying it as a tag were drawn first and all lost the same way — the meta row
+ *   wraps, so three letters land tucked in after the sport at a fraction of the hero's size.
+ *   The QUIETEST thing on the bib would have been carrying the most important fact about it.
+ *   In the hero slot the same three letters are the largest.
+ *
+ *   THE KILOMETRES IT DISPLACES NEED NO SPECIAL ROW ANY MORE, and that is what the ledger
+ *   took off this branch. They used to move into a `Covered` line that existed to argue they
+ *   were not a result; the ledger's `RECORDED` row already says exactly that, on every earned
+ *   bib, because naming the source is what the whole device does. So a DNF bib and a finished
+ *   one now differ in their HERO and in nothing else — one grid template serves both.
  *
  * THE VARIANT THAT PUT `DNF` ON THE EARNED FACE WAS DRAWN AND REJECTED. The inverted face is
  * the strongest mark this palette can make and it is spent on the thing the page is about;
@@ -89,82 +94,171 @@ const {event, state, index} = Astro.props;
  * information. `booked_label` earns its place precisely because the outline is the
  * minority — the maintainer's call, taken with both options drawn.
  *
- * THE WHOLE BIB IS THE LINK WHERE THERE IS ONE, and the tag it renders as is therefore
- * dynamic. Safe, because every selector involved is class-based — `.bib`, `.bib--booked`,
- * `.bib-meta` — as are `structuralSelector` and the colour model in patch-wall.test.ts;
- * an element-name selector here would have made this a rewrite. `container-type` stays on
- * whichever element wears `.bib`, or the hero's `30cqi` loses its container.
+ * THE BIB IS NEVER THE ANCHOR NOW, AND THE FACT THAT KILLED THAT DESIGN IS A SECOND LINK.
  *
- * IT IS CONDITIONAL ON THE RECORDINGS, NOT ON THE STATE, because `recordings` is optional
- * and a finished race without one must still render as an ordinary finished bib — the rule
- * above `EVENTS` in constants.ts, and what makes filling in a back catalogue a data edit.
- * Whether any race on the wall is in that state right now is not the point and changes with
- * the data; this used to name one that has since been recorded. The fixtures in
- * patch-wall.test.ts hold the case either way.
+ * It used to be one wherever a race had exactly one recording: the whole 260px box was the
+ * control, and its accessible name was the bib's entire text, which self-disambiguated
+ * against every other bib on the wall. That was the right answer while Strava was the only
+ * place a bib could go. A race with a published result has TWO destinations that are not the
+ * same claim — the organiser's sheet and the rider's file — and anchors do not nest, so one
+ * of them would have had to sit inside the other or not exist. The usual escape, a stretched
+ * `::before` over the card, is unavailable here: patch-wall.test.ts refuses any rule reaching
+ * a bib through a pseudo-element, by construction.
  *
- * AND IT IS CONDITIONAL ON HOW MANY. **A bib is the link when there is one place to go;
- * when there is more than one, the bib HOLDS the links instead.** A race recorded in parts
- * has no single honest destination — Strava cannot merge two activities, so there is no URL
- * that is the whole race — and anchors do not nest, so the bib cannot both be a link and
- * contain them. The usual escape, a stretched `::before` over the card, is unavailable here:
- * patch-wall.test.ts refuses any rule reaching a bib through a pseudo-element, by
- * construction.
+ * SO EVERY DESTINATION IS A LINE ON THE STUB, and the rule the bib was already drawn by
+ * simply took its second case: **a bib is the link when there is one place to go; when there
+ * is more than one, the bib HOLDS the links.** Split races have worked that way since they
+ * arrived; what changed is that a race can now have more than one place to go without being
+ * split at all, which is common rather than exceptional. Keeping two idioms for the same
+ * object — sometimes the box, sometimes the stub — would mean a reader has to work out which
+ * kind of bib they are looking at before they know where to aim.
  *
- * THE ALTERNATIVE WAS TO DELEGATE ON EVERY BIB, and it was drawn and rejected. It would give
- * every linked bib the SAME accessible name — one string, "View on Strava", repeated across
- * as many races as the wall holds, which is the SC 2.4.4 failure this file otherwise works to
- * avoid — while shrinking a whole bib to a 24px row on races that have nothing wrong with
- * them. (No count here on purpose: how many bibs link is a property of the data on the day
- * you read this, and the argument does not depend on it.) Only the exception pays, which is
- * the rule `booked_label` is already decided by a few paragraphs up: you mark the exception,
- * not the norm.
+ * THE OBJECTION THAT USED TO DECIDE THIS IS ANSWERED RATHER THAN OVERRULED. Delegating on
+ * every bib was rejected once because it would give every linked bib the SAME accessible name
+ * — one string, "View on Strava", repeated across as many races as the wall holds, which is
+ * SC 2.4.4. That is exactly what `race_name` in constants.ts exists for: every stub link's
+ * name now carries the race and its date, so the disambiguation the whole-bib form got for
+ * free is stated instead of inherited. Verified on the rendered wall rather than argued —
+ * patch-wall.test.ts holds every link name on a page distinct.
+ *
+ * WHAT IT COSTS IS REAL AND WAS ACCEPTED: a 260px target becomes a 24px row on races that
+ * have nothing wrong with them. What buys it back is that the row says where it goes, which a
+ * box never did — the two friends who could not tell a bib was clickable were looking at the
+ * form that was easiest to hit.
+ *
+ * `container-type` stays on whichever element wears `.bib`, or the hero's `30cqi` loses its
+ * container. Every selector involved is class-based — `.bib`, `.bib--booked`, `.bib-meta` —
+ * as are `structuralSelector` and the colour model in patch-wall.test.ts, which is what made
+ * this change an edit rather than a rewrite.
+ *
+ * THE STUB IS CONDITIONAL ON THERE BEING SOMEWHERE TO GO, NOT ON THE STATE. `recordings` is
+ * optional and a finished race without one must still render as an ordinary finished bib —
+ * the rule above `EVENTS` in constants.ts, and what makes filling in a back catalogue a data
+ * edit. Whether any race on the wall is in that state right now is not the point and changes
+ * with the data; the fixtures in patch-wall.test.ts hold the case either way.
  *
  * `target="_blank"` and NO `rel`, matching this site's existing convention — Now.astro and
  * IntroCard.astro both use a bare `target="_blank"` and browsers imply `noopener`.
  * Introducing `rel` on one link out of three is how a convention starts to look accidental.
  *
- * NO `aria-label`. The accessible name is the bib's whole text — READ OFF CHROME'S
- * ACCESSIBILITY TREE, not assembled by hand, because this comment got it wrong the first time
- * and no assertion could see that (the guard uses `toContain`, which is order-blind by
- * construction). The name is verbose and is a true superset of what is on screen, this repo's
- * rule; an aria-label would REPLACE all of it with a summary.
+ * NO `aria-label`, ANYWHERE ON THIS BIB. Each stub link's name is the words on screen plus an
+ * `sr-only` run that EXTENDS them — the race, its date, and for the results link which clock
+ * its figure is. That is a true superset of what is on screen, this repo's rule; an aria-label
+ * would REPLACE it with a summary. Read a name off the accessibility tree rather than
+ * assembling it from this file: an earlier revision of this comment quoted one it had built by
+ * hand and got the order wrong, and no assertion could see that (the guard uses `toContain`,
+ * which is order-blind by construction).
  *
- * THE ACTION ROW MOVED THE CALL TO ACTION FROM THIRD PLACE TO LAST, which is the position it
- * should always have had. It used to sit in the meta row as an `sr-only` transcription of the
- * glyph, so a listener heard "12 JUL 2026 RIDE ON STRAVA 158.10 KM …" — the destination
- * announced between the sport and the distance, before the race had even been named. Now the
- * words are visible, they are the last thing on the bib, and the announcement follows the
- * reading order:
- *
- *     "12 JUL 2026 RIDE 158.10 KM MBG DCR 2026 - KRABI TO PHUKET THAILAND
- *      ELAPSED 9:41:31 VIEW ON STRAVA"
- *
- * That is a side effect of a change made for sighted readers, and it is the better ordering on
- * its own terms. Re-read it off the AX tree rather than trusting this paragraph if the row ever
- * moves again — the last revision of this comment was falsified by exactly that.
+ * THE CALL TO ACTION IS THE LAST THING ON THE BIB, which is the position it should always have
+ * had. It used to sit in the meta row as an `sr-only` transcription of a glyph, so a listener
+ * heard the destination announced between the sport and the distance, before the race had even
+ * been named. Now the words are visible, they sit under the perforation, and the announcement
+ * follows the reading order the bib is drawn in.
  */
 const date = patchDateSegments(event);
 const goal = goalForSport(event.sport);
 const [whole, fraction] = raceKm(event).toFixed(2).split(".");
 const recordings = recordingsOf(event);
-// The ONE recording a bib can be the anchor for, or null where there is none or several.
-// Everything downstream keys on this rather than counting again, so the three cases cannot
-// drift apart: no recordings (a plain bib), one (today's bib, unchanged), many (the stub).
-const only = recordings.length === 1 ? recordings[0] : null;
-const parts = recordings.length > 1 ? recordings : null;
-// `div` rather than `li`: the LIST ITEM is the cell wrapper now, and a second one nested
-// inside it is invalid HTML that no test in this repo reads markup strictly enough to see.
-// Caught by looking at the built page, which is the only place it showed.
-const Tag = only === null ? "div" : "a";
+const dateText = formatPatchDate(event) ?? "";
+/*
+ * WHICH RACE THIS IS, for any stub link whose on-screen words are the same on every bib. See
+ * `race_name` in constants.ts for why every one of them is owed it.
+ */
+const raceName = PATCHES.race_name.replace("{race}", event.name).replace("{date}", dateText);
+/*
+ * THE OFFICIAL ACCOUNT, READ ONCE. `net_time` wins where it exists — it is the rider's own
+ * race, mat to mat — and the clock's NAME travels with the figure so the link can say which
+ * one it is. The two are derived together on purpose: reading the time in one place and the
+ * word in another is how a bib ends up announcing a gun time as a net one.
+ */
+const official = event.official;
+const officialTime = official?.net_time ?? official?.gun_time;
+const officialClock = official?.net_time === undefined ? PATCHES.gun_clock : PATCHES.net_clock;
+/*
+ * THE LEDGER, BUILT AS ROWS RATHER THAN AS BRANCHES IN THE MARKUP. Each row is one source's
+ * own distance beside that same source's own clock, which is the rule the whole device rests
+ * on: nothing a reader can divide crosses two accounts.
+ *
+ * A BOOKED BIB HAS NO LEDGER AT ALL. There is nothing to report yet — its hero already prints
+ * the advertised distance, and a one-row ledger saying `OFFICIAL 21.10` under it would be the
+ * same fact twice.
+ *
+ * THE NEIGHBOURING CASE IS REACHABLE AND IS DELIBERATELY LEFT ALONE. A race whose date has
+ * passed is `finished` whether or not it was recorded, so a past race carrying an official
+ * result and no recording would print its advertised distance in the hero AND again in the
+ * ledger's official row. That is not the duplication the paragraph above refuses: the booked
+ * case repeats a distance and adds NOTHING, while this one attributes the figure to a named
+ * source and carries that source's clock beside it, which is the entire ledger. The calendar
+ * holds no such race today (checked: zero), and if one is added the row is wanted — read this
+ * before "fixing" the repeat away.
+ *
+ * A CELL CAN BE EMPTY AND THE ROW STILL EARNS ITS PLACE, which is the case the type reaches
+ * and the calendar does not currently hold. A race remembered with a finishing time and no
+ * recording has a clock and no honest distance: `raceKm` would fall back to the ADVERTISED
+ * figure, and printing that against `RECORDED` would have the bib claim he covered a course
+ * the site has no evidence he rode — on an abandoned race, the exact claim the hero is
+ * refusing two rows up. So the distance cell is conditional on there being metres, and the
+ * clock cell on there being a time, independently.
+ */
+const ledger: {who: string, km: string, time: string}[] = [];
+if (state !== "booked") {
+    if (official !== undefined && event.advertised_km !== undefined) {
+        ledger.push({who: PATCHES.official_row, km: event.advertised_km.toFixed(2), time: officialTime ?? ""});
+    }
+    if (recordings.length > 0 || event.elapsed_time !== undefined) {
+        ledger.push({
+            who: PATCHES.recorded_row,
+            km: recordings.length > 0 ? raceKm(event).toFixed(2) : "",
+            time: event.elapsed_time ?? "",
+        });
+    }
+}
+/*
+ * THE STUB'S LINES, IN THE ORDER A STRANGER CAN USE THEM. The results sheet first: it renders
+ * for a logged-out visitor where every Strava link on this wall is a login wall.
+ *
+ * A ONE-RECORDING RACE GETS ONE LINE SAYING WHERE IT GOES; a race recorded in parts gets one
+ * line PER PART, each printing that part's own distance and clock, so no link promises the
+ * bib's summed hero. `time` is what separates the two forms and is absent on the others: a
+ * shared label repeated once per part is information at two and noise at four, so the parts
+ * carry figures instead — the argument `booked_label` is already decided by.
+ */
+const stub: {href: string, icon: string, label: string, time?: string, name: string}[] = [];
+if (official?.url !== undefined) {
+    stub.push({
+        href: official.url,
+        icon: PATCHES.official_icon,
+        label: PATCHES.official_link,
+        // A sheet can publish a result with no time on it — see `OfficialResult`. The clock
+        // phrase then has nothing to name, so the link falls back to the plain race name
+        // rather than announcing "net time , …".
+        name: officialTime === undefined ? raceName : PATCHES.official_name
+            .replace("{clock}", officialClock).replace("{time}", officialTime)
+            .replace("{race}", event.name).replace("{date}", dateText),
+    });
+}
+if (recordings.length === 1) {
+    stub.push({href: stravaActivityUrl(recordings[0]), icon: PATCHES.strava_icon, label: PATCHES.strava_name, name: raceName});
+} else {
+    for (const part of recordings) {
+        stub.push({
+            href: stravaActivityUrl(part),
+            icon: PATCHES.strava_icon,
+            label: PATCHES.split_line.replace("{distance}", `${recordingKm(part).toFixed(2)} ${goal.measurable_unit}`),
+            time: part.elapsed_time,
+            name: PATCHES.split_name.replace("{race}", event.name).replace("{date}", dateText),
+        });
+    }
+}
 ---
 
 <li class="bib-cell" style={`--i:${index}`}>
-<Tag
+{/* A `div`, always. The LIST ITEM is the cell wrapper above; a second one nested inside it
+    is invalid HTML that no test in this repo reads markup strictly enough to see, and it
+    was caught by looking at the built page. */}
+<div
         class:list={["bib", `bib--${event.sport}`, state === "booked" && "bib--booked",
-                     state === "dnf" && "bib--dnf",
-                     only !== null && "bib--linked", parts !== null && "bib--split"]}
-        href={only === null ? undefined : stravaActivityUrl(only)}
-        target={only === null ? undefined : "_blank"}
+                     state === "dnf" && "bib--dnf", stub.length > 0 && "bib--stub"]}
 >
     <p class="bib-meta">
         {/* One <time> per endpoint, never one around the whole range: `datetime` names a
@@ -189,7 +283,8 @@ const Tag = only === null ? "div" : "a";
 
         NO UNIT ON THAT BRANCH. `.bib-unit` sets "KM" on its side against the number, and a
         unit is a thing you put on a QUANTITY; beside three letters it would be reading as a
-        unit of DNF. The distance keeps its unit on the row it moved to, inline.
+        unit of DNF. The ledger below states the unit once, in a column heading, which is what
+        lets this branch drop it without the bib losing the word entirely.
 
         THE EXPANSION IS SR-ONLY AND SITS OUTSIDE `.bib-value`, which is deliberate rather
         than fussy: inside it, the hero's text content becomes "DNFDid not finish" and every
@@ -198,23 +293,6 @@ const Tag = only === null ? "div" : "a";
             <Fragment>
                 <p class="bib-value">{PATCHES.dnf_result}</p>
                 <span class="sr-only">{PATCHES.dnf_name}</span>
-                {/* CONDITIONAL ON THE RECORDINGS, BECAUSE `km` MEANS TWO DIFFERENT THINGS.
-                    On a recorded row it is the distance that was covered; on a row with no
-                    recording it is the event's ADVERTISED distance — see `RaceEvent.km`, which
-                    says so, and the Formosa tour, which carries 1022.00 having never been
-                    ridden. Printing that figure under this caption would have the bib assert
-                    the rider covered the whole of a race he abandoned, which is the one claim
-                    this treatment exists to stop the bib making. A DNF the owner remembers
-                    without a recording therefore prints the verdict and no distance: the site
-                    holds no evidence of one, and saying nothing is the honest form of that.
-                    The row is not made mandatory instead, because a race remembered without a
-                    recording is still a complete bib — `hasRecording` in projection.ts. */}
-                {recordings.length > 0 && (
-                        <p class="bib-covered">
-                            <span class="bib-covered-label">{PATCHES.covered_label}</span>
-                            <span class="bib-covered-value">{`${raceKm(event).toFixed(2)} ${goal.measurable_unit}`}</span>
-                        </p>
-                )}
             </Fragment>
     ) : (
             <Fragment>
@@ -224,61 +302,69 @@ const Tag = only === null ? "div" : "a";
     )}
     <p class="bib-name">{event.name}</p>
     <p class="bib-place">{event.country}</p>
-    {event.elapsed_time && (
-            <p class="bib-time">
-                <span class="bib-time-label">{PATCHES.elapsed_label}</span>
-                <span class="bib-time-value">{event.elapsed_time}</span>
-            </p>
-    )}
-    {only !== null && (
-            <p class="bib-go">
-                <span class={`${iconClass(PATCHES.strava_icon)} bib-icon bib-go-mark`} aria-hidden="true"></span>
-                {PATCHES.strava_name}
-            </p>
-    )}
-    {/* THE STUB, WHERE A RACE WAS RECORDED IN PARTS. One line per recording, each its own
-        link, each printing the distance and the clock waiting at the other end of it — so
-        the bib's summed hero is never what any link promises.
+    {/* THE LEDGER: WHOSE ACCOUNT, HOW FAR, HOW LONG — once per source that has one.
 
-        THE LINES CARRY FIGURES AND NO WORDS, which is what lets this scale. A shared label
-        repeated once per recording is information at two parts and noise at four, the same
-        argument `booked_label` is decided by. Figures do not go stale that way, and a run of
-        them is a splits table, which is what a results sheet prints anyway.
+        THE HEADING STATES THE UNIT ONCE. Repeating it on every figure was built first and
+        does not fit; the measurements are in `time_head` in constants.ts. The distance
+        heading is the goal's own `measurable_unit`, the same string the hero sets on its
+        side, so the two cannot word it differently.
 
-        The destination and the race are said in the accessible name instead — this bib's
-        rule is that the name is a true superset of what is on screen, never an aria-label
-        replacing it, and a reader listing every link on the page needs both. */}
-    {parts !== null && (
-            <ul class="bib-splits">
-                {parts.map((part) => (
+        THE FIRST CELL OF THE HEADING ROW IS EMPTY, and it is a real element rather than a
+        skipped one: `display: contents` puts these three spans directly into the ledger's
+        grid, so leaving it out would shift the two headings a column to the left. It carries
+        no text, so it announces as nothing.
+
+        A CELL'S CLASS NAMES ITS COLUMN, NOT ITS KIND, and that is what keeps a heading over
+        the figures it governs. All three captions — the two headings and each row's source
+        name — are drawn alike, because they ARE alike; what differs is that a heading is
+        ALIGNED with the column under it, and alignment is the property that has to win. The
+        shared rules below are written as selector lists so a heading and its column cannot
+        drift apart. */}
+    {ledger.length > 0 && (
+            <div class="bib-ledger">
+                <div class="bib-ledger-head">
+                    <span></span>
+                    <span class="bib-ledger-km-head">{goal.measurable_unit}</span>
+                    <span class="bib-ledger-time-head">{PATCHES.time_head}</span>
+                </div>
+                {ledger.map((row) => (
+                        <div class="bib-ledger-row">
+                            <span class="bib-ledger-who">{row.who}</span>
+                            <span class="bib-ledger-km">{row.km}</span>
+                            <span class="bib-ledger-time">{row.time}</span>
+                        </div>
+                ))}
+            </div>
+    )}
+    {/* THE STUB. One line per place this bib can go, each its own link, under one perforation.
+
+        THE RESULTS SHEET IS FIRST because it is the one a logged-out reader can follow — see
+        `official_link` in constants.ts. Where a race was recorded in parts, each part prints
+        its own distance and clock, so the bib's summed hero is never what any link promises.
+
+        The race and the date are said in the accessible name rather than on the bib — this
+        bib's rule is that the name is a true superset of what is on screen, never an
+        aria-label replacing it, and a reader listing every link on the page needs both.
+
+        (The obvious phrasing of what NEW_TAB_NOTICE says is not written here on purpose: that
+        word is a UnoCSS utility, and prose in an `.astro` file is extracted like markup, so
+        naming it emits a rule no element wears and the orphan gate fails the build.) */}
+    {stub.length > 0 && (
+            <ul class="bib-stub">
+                {stub.map((line) => (
                         <li>
-                            <a class="bib-split" href={stravaActivityUrl(part)} target="_blank">
-                                <span class={`${iconClass(PATCHES.strava_icon)} bib-icon bib-go-mark`} aria-hidden="true"></span>
-                                <span class="bib-split-km">{PATCHES.split_line.replace("{distance}", `${recordingKm(part).toFixed(2)} ${goal.measurable_unit}`)}</span>
-                                {" "}
-                                <span class="bib-split-time">{part.elapsed_time}</span>
-                                <span class="sr-only">{" " + PATCHES.split_name.replace("{race}", event.name).replace("{date}", formatPatchDate(event) ?? "") + " "}</span>
+                            <a class="bib-stub-link" href={line.href} target="_blank">
+                                <span class={`${iconClass(line.icon)} bib-icon bib-stub-mark`} aria-hidden="true"></span>
+                                <span class="bib-stub-label">{line.label}</span>
+                                {line.time && <Fragment>{" "}<span class="bib-stub-time">{line.time}</span></Fragment>}
+                                <span class="sr-only">{", " + line.name + " "}</span>
                                 <span class="sr-only">{NEW_TAB_NOTICE}</span>
                             </a>
                         </li>
                 ))}
             </ul>
     )}
-    {/* THE NOTICE FOLLOWS THE ACTION ROW, and the order is the point: the announced name now ends
-        with the call to action and then the warning, so the warning qualifies the control it
-        belongs to instead of trailing the elapsed time. Both are conditional on the LINK rather
-        than on the state — an earned bib with no Strava id is an ordinary <div> and opens nothing.
-
-        (The obvious phrasing of what NEW_TAB_NOTICE says is not written here on purpose: that
-        word is a UnoCSS utility, and prose in an `.astro` file is extracted like markup, so
-        naming it emits a rule no element wears and the orphan gate fails the build.)
-
-        The measurement in NEW_TAB_NOTICE was taken when this name was 92 characters and the
-        destination was announced THIRD, inside the meta row. The action row moved that to last and
-        the name is now 97 characters plus this notice; re-read it off the AX tree rather than
-        trusting either figure. */}
-    {only !== null && <span class="sr-only">{NEW_TAB_NOTICE}</span>}
-</Tag>
+</div>
 </li>
 
 <style>
@@ -315,12 +401,14 @@ const Tag = only === null ? "div" : "a";
      * removed, and differs in nothing but these values and the border — which is why the
      * two cannot drift apart in layout.
      *
-     * A DNF IS THE ONE STATE THAT ALSO MOVES THE ROWS, and it is worth saying because the
-     * sentence above was true of every bib until it existed. It takes the same four values
-     * as a booked bib and then re-declares `grid-template-areas`, because its hero is a
-     * word rather than a number and the distance it displaces needs a row of its own. So
-     * "a treatment is a set of values" still holds for the FACE; it stopped being the whole
-     * story for the LAYOUT. See `.bib--dnf`.
+     * A DNF IS AGAIN NOTHING BUT A SET OF VALUES, and the round trip is worth recording. It
+     * used to re-declare `grid-template-areas` as well, because its hero is a word rather
+     * than a number and the distance it displaced needed a row of its own — which forced a
+     * FOURTH template for the case that also had a stub, since grid areas do not merge and
+     * two single-class rules would simply have deleted each other's row. The ledger holds
+     * every account in one area on every earned bib, so the displaced distance has nowhere
+     * special to go and the two extra templates went with it. The sentence above is true of
+     * the LAYOUT again, not only of the face.
      */
     .bib {
         --face: var(--text);
@@ -334,7 +422,7 @@ const Tag = only === null ? "div" : "a";
         container-type: inline-size;
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-areas: "date date" "value unit" "name name" "place place" "time time";
+        grid-template-areas: "date date" "value unit" "name name" "place place" "ledger ledger";
         align-content: start;
         row-gap: 0.3rem;
         padding: 0.7rem 0.8rem 0.65rem;
@@ -419,10 +507,14 @@ const Tag = only === null ? "div" : "a";
      * drawing of it being argued and measured. The two `border-width` lists further down are
      * joined rather than added to — a DNF is an outline and prints like one.
      *
-     * WHY THE ROW ORDER CHANGES HERE. `covered` sits directly under `value`, so the two facts
-     * about the result are together — what it was, and what was covered getting there —
-     * before the bib gets round to naming the race. The `unit` area is gone because no
-     * element claims it: see the markup, which does not render `.bib-unit` on this branch.
+     * IT DECLARES NO TEMPLATE OF ITS OWN, AND THAT IS LOAD-BEARING RATHER THAN TIDY. The base
+     * template's second column is `auto` and the ONLY thing that ever sits in it is
+     * `.bib-unit`, which this branch does not render (see the markup, and the note there for
+     * why a unit beside three letters would be reading as a unit of DNF). An `auto` track with
+     * no item in it resolves to zero, and nothing declares a `column-gap` — so `"value unit"`
+     * lays out identically to the `"value value"` this rule used to restate. Re-declaring it
+     * would be a second copy of the base layout that has to be edited in step with it, which
+     * is the drift the four locals above exist to prevent.
      */
     .bib--dnf {
         --face: transparent;
@@ -430,7 +522,6 @@ const Tag = only === null ? "div" : "a";
         --sport: var(--sport-on-card);
         border-color: color-mix(in srgb, var(--text) 32%, transparent);
         background-image: none;
-        grid-template-areas: "date date" "value value" "covered covered" "name name" "place place" "time time";
     }
 
     /*
@@ -457,15 +548,6 @@ const Tag = only === null ? "div" : "a";
         .bib--dnf {
             border-width: 1px;
         }
-
-        /* The mode discards --accent along with everything else, so the outline would vanish
-           and a linked bib would be indistinguishable from an unlinked one in the only
-           channel it had left. LinkText is the colour reserved for exactly this, and it
-           is a system colour rather than a token, so it is set here. */
-        .bib--linked {
-            border-color: LinkText;
-        }
-
     }
 
     /*
@@ -533,15 +615,16 @@ const Tag = only === null ? "div" : "a";
      */
     .bib-date,
     .bib-tag,
-    .bib-time-label,
-    .bib-covered-label {
+    .bib-ledger-who,
+    .bib-ledger-km-head,
+    .bib-ledger-time-head {
         opacity: 0.8;
     }
 
     /*
-     * THE THIRD UNBREAKABLE TOKEN ON A BIB, AND IT WAS MISSED TWICE. `.bib-place` and
-     * `.bib-time` were each given this after escaping the bib; "Booked" is the same shape —
-     * one word with nowhere to break — and nothing had measured it.
+     * THE THIRD UNBREAKABLE TOKEN ON A BIB, AND IT WAS MISSED TWICE. `.bib-place` and the row
+     * `.bib-ledger` replaced were each given this after escaping the bib; "Booked" is the same
+     * shape — one word with nowhere to break — and nothing had measured it.
      *
      * Found on a sweep of ORIGIN/MAIN taken as the baseline for this change, so it predates
      * everything here: measured against the bib's border box at 320px wide, the tag escapes by
@@ -718,190 +801,23 @@ const Tag = only === null ? "div" : "a";
     }
 
     /*
-     * A LINKED BIB SAYS SO IN WORDS, NOT WITH A HOVER. There is no hover on a phone, and this
-     * site has already removed one card hover for advertising an affordance that did not
-     * exist — the opposite failure is an affordance that exists and is never advertised.
-     * The action row at the foot of the bib is permanent and is TEXT, so it carries the fact
-     * without leaning on colour (SC 1.4.1).
+     * A BIB SAYS WHERE IT GOES IN WORDS, NOT WITH A HOVER. There is no hover on a phone, and
+     * this site has already removed one card hover for advertising an affordance that did not
+     * exist — the opposite failure is an affordance that exists and is never advertised. The
+     * stub at the foot of the bib is permanent and is TEXT, so it carries the fact without
+     * leaning on colour (SC 1.4.1).
      *
-     * That used to read "the Strava mark in the meta row", which described a 7.5x10px glyph
-     * that no longer exists there — see `.bib-go`. The mark was the whole cue and was not
-     * enough; the words are.
-     *
-     * The hover and focus outline is the second cue rather than the only one. It is an
-     * OUTLINE rather than the border, and that is what makes its contrast answerable: an
-     * outline paints outside the bib, so the surface it must clear is the card, which is
-     * the pair `--accent` is already held to 3:1 against in tests/build-output.test.ts.
-     * The border would have painted against the bib's own face, which differs by state
-     * and by theme — four pairs to hold instead of one.
-     *
-     * THE TWO STATES ARE SPLIT ACROSS TWO RULES NOW, WHICH IS NOT A STYLE CHOICE. A touch
-     * browser applies `:hover` on tap and holds it until the reader taps elsewhere, so on a
-     * phone this outline stayed on whichever bib was last pressed, reading as a selected
-     * state the bib does not have. Every `hover:` UTILITY on the site is guarded by a variant in uno.config.ts;
-     * a hand-written rule has to carry the guard itself, and it cannot be applied to the
-     * selector list as a whole because `:focus-visible` is a KEYBOARD indicator that must
-     * survive on every device. tests/build-output.test.ts fails the build on any `:hover`
-     * rule that ships outside a `(hover: hover)` context.
+     * THE BIB ITSELF NOW HAS NO INTERACTIVE STATE AT ALL, and this rule is what is left of the
+     * three that used to give it one. `.bib--linked:hover`, `:focus-visible` and `:active` all
+     * painted an `--accent` outline around the whole box, which was correct while the box was
+     * the anchor; every one of those states belongs to a stub line now (see `.bib-stub-link`,
+     * which carries the same three in the bib's own ink and records why the token changes).
+     * `text-decoration: none` survives because a stub link inherits it — a ruled link is a WEB
+     * convention imported into a paper one, and a bib is a printed artifact.
      */
     .bib {
         text-decoration: none;
     }
-
-    .bib--linked:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
-    }
-
-    @media (hover: hover) {
-        .bib--linked:hover {
-            outline: 2px solid var(--accent);
-            outline-offset: 2px;
-        }
-    }
-
-    /*
-     * AND A PRESS HAS TO SHOW SOMETHING, WHICH IS A DEBT THE GUARD ABOVE CREATED.
-     *
-     * Guarding the outline was right, but it was the only thing this bib did when a finger
-     * landed on it. UnoCSS's preflight sets `-webkit-tap-highlight-color: transparent` on
-     * `html, :host`, so the platform's own press flash is off site-wide — which means that
-     * after the guard, a tap on a bib painted NOTHING until the next page rendered.
-     *
-     * The site already answers this everywhere else: the shared plate idiom in uno.config.ts
-     * carries its press affordance on `:active`, which is not hover-gated and does still fire
-     * on touch. So
-     * without this the two objects on this site that say "the whole box is the anchor" — the
-     * goal card's call to action and the bib — disagree about whether a press is acknowledged.
-     * This is the bib saying the same thing in the bib's own idiom.
-     *
-     * `:active` is the correct state and not a workaround: it is defined for the interval
-     * between press and release on every input, so it costs a pointer reader nothing and is
-     * the only affordance a touch reader can produce deliberately.
-     */
-    .bib--linked:active {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
-    }
-
-    /*
-     * THE ACTION ROW: WHAT THE BIB DOES, SAID IN WORDS.
-     *
-     * It replaces a 7.5 x 10px Strava glyph in the meta row whose only text was `sr-only` —
-     * 75px² on a 324 x 141px bib, 0.16% of it, monochrome and unlabelled. That was the whole of
-     * what told a reader a bib could be clicked, and two friends reviewing the site did not see
-     * it. The row answers both halves of what they reported: it says the bib is a control and
-     * what using it does, and because ONLY a bib with a recording carries the row, it is also
-     * what distinguishes the bibs that link from the ones that do not.
-     *
-     * FULL INK, AND EMPHATIC WEIGHT, DELIBERATELY. Every other quiet line on this bib — the
-     * date, the booked tag, the elapsed label, the place — shares `opacity: 0.8`, and dropping
-     * this row into that group would draw the one line that is a control exactly like the four
-     * that are captions. It is the second thing on the bib set at full strength, after the
-     * distance. Keeping it out of the dimmed set also keeps it out of the composited-contrast
-     * sweep's dimmed group, where its authored 18.86:1 is the honest number rather than one
-     * that has to be re-derived through an alpha.
-     *
-     * `flex-wrap` and `overflow-wrap` for the reason `.bib-time` has them and the same trap:
-     * "Strava" is a single unbreakable token, the bib does NOT clip, and ink that escapes a bib
-     * paints onto the card at 1.045:1 — unreadable rather than absent, and unseen by any sweep
-     * that walks only clipping ancestors.
-     *
-     * (The first draft of this comment used the obvious adjective for that, twice, and turned
-     * the orphan gate red: the word is a UnoCSS utility, and prose in an `.astro` file is
-     * extracted like markup. Same footgun `underline` is blocklisted for, one word further on.)
-     */
-    .bib-go {
-        grid-area: go;
-        display: flex;
-        flex-wrap: wrap;
-        overflow-wrap: anywhere;
-        align-items: center;
-        gap: 0.4em;
-        margin: 0.25rem 0 0;
-        padding-top: 0.5rem;
-        font-size: 0.625rem;
-        font-weight: 800;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        /*
-         * THE PERFORATION IS THIS ROW'S OWN BACKGROUND, NOT A PSEUDO-ELEMENT, and four separate
-         * gates in this repo are why. It was built as `::before` first, and that version tripped
-         * every one of them at once:
-         *
-         *   the bib's colour resolver (patch-wall.test.ts) refuses any rule reaching a bib
-         *   through a combinator or pseudo, because it models the cascade as a class subset and
-         *   would otherwise read the rule as applying when it does not;
-         *   the absolute-height gate, since a 1px pseudo needs a pinned `height`;
-         *   the every-class-has-a-rule gate, once the label's own rule went away with the
-         *   text decoration; and this file's own not-dimmed assertion, whose selector matched `::before`
-         *   and read the perforation's alpha as the ROW being dimmed.
-         *
-         * Painting it here needs no box, no height and no opacity: the alpha lives in the colour
-         * via `color-mix`, which is how `.bib--booked` already tones its border, and the dots sit
-         * on the row's own padding. One rule, one class, and every gate satisfied by construction
-         * rather than by exemption.
-         */
-        background-image: radial-gradient(circle at 1.5px 0.5px,
-            color-mix(in srgb, currentColor 45%, transparent) 0 1px, transparent 1.2px);
-        background-size: 6px 1px;
-        background-repeat: repeat-x;
-        background-position: top left;
-    }
-
-    /*
-     * THE TEAR-OFF PERFORATION ABOVE IS THE ONE PIECE OF THIS CHANGE THAT IS NOT A FIX.
-     *
-     * A race bib is perforated above the stub that carries your result — the part you hand in,
-     * or the part you keep. What sits below that line is where this ride's result actually
-     * lives, so the device is not decoration: it is the bib's own material vocabulary saying
-     * the same thing the words say. That is the whole argument for it, and if the row ever
-     * stops leading somewhere the perforation has to go with it.
-     *
-     * IT BORROWS THE PIN-HOLES' CONSTRUCTION BUT NOT THEIR GEOMETRY OR THEIR TOKEN, and both
-     * departures were measured rather than reasoned.
-     *
-     * The obvious move is to draw a perforation exactly like a corner pin-hole — same
-     * `radial-gradient`, same 1.7px-to-1.8px antialiasing band, same `--hole` token, on the
-     * argument that a perforation and a pin-hole are the same event on real paper. It was built
-     * that way first and rendered wrong twice over. At 1.7px on a 6px tile the dots very nearly
-     * touch, so a RUN of them reads as a heavy dashed rule rather than as holes — a pin-hole
-     * gets its character from being isolated. And `--hole` at full strength is the card colour
-     * against an inverted face, the strongest mark this palette can make; on a row meant to be
-     * a quiet piece of stationery it shouted.
-     *
-     * So: 1px dots on the same 6px tile, in the row's own ink at 45%. Fine enough to read as
-     * perforation, quiet enough to stay behind the words it introduces. `currentColor` rather
-     * than a token means it follows the row into forced colours without naming anything.
-     */
-
-    /*
-     * NO TEXT DECORATION HERE, AND THAT IS THE WHOLE OF WHY THIS ROW LOOKS THE WAY IT DOES.
-     *
-     * A first revision drew this label the way the three text links elsewhere on the site are
-     * drawn. It was wrong twice over, and both reasons are worth keeping because the mistake is
-     * an easy one to repeat:
-     *
-     *   IT IS THE WRONG VOCABULARY. A bib is a printed artifact. Every row on it is uppercase,
-     *   letterspaced and undecorated, and `.bib` sets `text-decoration: none` on the anchor
-     *   deliberately. A ruled link is a WEB convention imported into a paper one, and it read as
-     *   exactly that — the one element on the bib that did not belong to the bib.
-     *
-     *   IT DESCRIBED THE WRONG TARGET. The whole bib is the anchor, ~260px of it. A decoration
-     *   under 15px of ink advertises those 15px as the control, so it does not merely fail to
-     *   help — it tells the reader something false about where to aim.
-     *
-     * What carries the affordance instead is all bib-native: an imperative verb phrase that says
-     * what using it does, the brand glyph beside it, and FULL INK at the bib's emphatic weight
-     * against four dimmed captions. On this bib only the distance is louder.
-     */
-    /*
-     * THE ROW IS DECLARED ON THE LINKED BIB, NOT ON `.bib`, and that is a height decision rather
-     * than tidiness. `.bib` carries ONE shared `grid-template-areas` with a 0.3rem `row-gap`, so
-     * adding a sixth area there would charge every bib on the wall for a row that only two of
-     * them render — and `.bib-cell { display: grid }` stretches a bib to its row's height, so
-     * the cost would propagate to each linked bib's row-mates as well.
-     */
 
     /*
      * THE TEAR LINE SITS AT THE FOOT OF THE BIB, NOT WHEREVER THE ROWS HAPPEN TO STOP.
@@ -913,58 +829,67 @@ const Tag = only === null ? "div" : "a";
      * heights within a single row, up to 34.1px apart, and one bib printed 78.5px of empty
      * face beneath its own stub — a stub with a field under it is not a stub.
      *
-     * The fix is one flexible row before `go`, so the slack collects ABOVE the perforation
+     * The fix is one flexible row before `stub`, so the slack collects ABOVE the perforation
      * instead of below it. `deadBelow` — perforation to the bib's own bottom edge — is a
      * constant 11.4px on every bib in every row now, against a 11.4-78.5px spread before.
      *
-     * ONLY THESE TWO RULES CARRY IT, and that is not an oversight: they are the only
-     * templates with a `go` area at all. `.bib` and `.bib--dnf` have no stub, so there is no
-     * perforation for slack to sit under and nothing to hold down — adding the row there
-     * would charge every bib on the wall for a problem two of them have.
+     * ONE RULE CARRIES IT, WHERE IT USED TO TAKE FOUR. `.bib--linked` and `.bib--split` each
+     * needed the extra rows, and `.bib--dnf` re-declared the template for its own hero, so a
+     * DNF that also linked out needed a compound rule holding the union of both — grid areas
+     * do not merge, and two single-class rules would simply have deleted each other's row. A
+     * DNF now declares no template at all (see `.bib--dnf`) and every destination is a stub
+     * line, so there is one modifier and one template left. Anything that reintroduces a
+     * per-state template brings all four back.
+     *
+     * IT IS NOT DECLARED ON `.bib`, and that is a height decision rather than tidiness. A bib
+     * with nowhere to go has no perforation for slack to sit under and nothing to hold down,
+     * so the two extra rows would charge every bib on the wall — and `.bib-cell { display:
+     * grid }` stretches a bib to its row's height, so the cost would propagate to its
+     * row-mates as well.
      */
-    .bib--linked,
-    .bib--split {
-        grid-template-areas: "date date" "value unit" "name name" "place place" "time time" ". ." "go go";
+    .bib--stub {
+        grid-template-areas: "date date" "value unit" "name name" "place place" "ledger ledger" ". ." "stub stub";
         grid-template-rows: repeat(5, auto) 1fr auto;
-    }
-
-    /*
-     * A DNF THAT ALSO LINKS OUT NEEDS BOTH ADDED ROWS, and neither rule above can give it
-     * them: `.bib--dnf` has `covered` and no `go`, the pair above has `go` and no `covered`, and
-     * both are single-class, so whichever is written last would simply win and delete the
-     * other's row. Hence one compound rule holding the union.
-     *
-     * IT IS NOT A SPECIFICITY WORKAROUND — that part is free, since a compound selector
-     * outranks a single class wherever it sits in the sheet. What it is, is the only place the
-     * six-row template can be SAID; grid areas do not merge.
-     *
-     * BOTH COMBINATIONS ARE ON THE WALL. The linked case — a DNF recorded as a single
-     * activity — was written here before any race held it, on the argument that leaving it out
-     * would mean the next such race silently lost its action row; the next such race has since
-     * arrived. Keep both listed if one of them empties again, for the reason that paid off
-     * here, and because that is the failure this file has already shipped once in a different
-     * rule.
-     */
-    .bib--dnf.bib--linked,
-    .bib--dnf.bib--split {
-        grid-template-areas: "date date" "value value" "covered covered" "name name" "place place" "time time" ". ." "go go";
-        grid-template-rows: repeat(6, auto) 1fr auto;
     }
 
     /*
      * THE STUB IS PERFORATED ONCE, NOT ONCE PER LINE, and that is the difference between
      * material vocabulary and decoration. A race bib has A stub — it does not sprout a second
-     * one because a watch stopped — so the perforation stays on the LIST and the recordings
-     * are printed on it. A device that scales with the length of an array has stopped
-     * describing the object and started describing the data.
+     * one because a watch stopped, or because the organiser published a sheet — so the
+     * perforation stays on the LIST and the lines are printed on it. A device that scales with
+     * the length of an array has stopped describing the object and started describing the data.
      *
-     * Same construction as `.bib-go`, which is the row this replaces on a split bib: 1px dots
-     * on a 6px tile, in the row's own ink at 45%, painted on the element's own padding rather
-     * than by a pseudo-element. The four gates that forbid the pseudo are written out above
-     * `.bib-go`; they apply here identically.
+     * A RACE BIB IS PERFORATED ABOVE THE PART THAT CARRIES YOUR RESULT — the part you hand in,
+     * or the part you keep. What sits below the line is where this race's result actually
+     * lives, so the device is not decoration: it is the bib's own material vocabulary saying
+     * the same thing the words say. If the lines ever stop leading somewhere, the perforation
+     * goes with them.
+     *
+     * IT BORROWS THE PIN-HOLES' CONSTRUCTION BUT NOT THEIR GEOMETRY OR THEIR TOKEN, and both
+     * departures were measured rather than reasoned. The obvious move is to draw a perforation
+     * exactly like a corner pin-hole — same `radial-gradient`, same 1.7px-to-1.8px antialiasing
+     * band, same `--hole` token, on the argument that a perforation and a pin-hole are the same
+     * event on real paper. It was built that way first and rendered wrong twice over. At 1.7px
+     * on a 6px tile the dots very nearly touch, so a RUN of them reads as a heavy dashed rule
+     * rather than as holes — a pin-hole gets its character from being isolated. And `--hole` at
+     * full strength is the card colour against an inverted face, the strongest mark this
+     * palette can make; on a row meant to be a quiet piece of stationery it shouted. So: 1px
+     * dots on the same 6px tile, in the row's own ink at 45%. `currentColor` rather than a
+     * token means it follows the stub into forced colours without naming anything.
+     *
+     * IT IS A BACKGROUND AND NOT A PSEUDO-ELEMENT, and four separate gates in this repo are
+     * why. It was built as `::before` first, and that version tripped every one of them at
+     * once: the bib's colour resolver (patch-wall.test.ts) refuses any rule reaching a bib
+     * through a combinator or pseudo, because it models the cascade as a class subset and would
+     * otherwise read the rule as applying when it does not; the absolute-height gate, since a
+     * 1px pseudo needs a pinned `height`; the every-class-has-a-rule gate; and this file's own
+     * not-dimmed assertion, whose selector matched `::before` and read the perforation's alpha
+     * as the ROW being dimmed. Painting it here needs no box, no height and no opacity — the
+     * alpha lives in the colour via `color-mix`, which is how `.bib--booked` already tones its
+     * border, and the dots sit on the list's own padding.
      */
-    .bib-splits {
-        grid-area: go;
+    .bib-stub {
+        grid-area: stub;
         display: grid;
         gap: 0;
         margin: 0.25rem 0 0;
@@ -980,13 +905,14 @@ const Tag = only === null ? "div" : "a";
     }
 
     /*
-     * ONE RECORDING, AS A SPLIT LINE. Its own distance and its own clock, which are exactly
-     * the two figures a reader would otherwise be ambushed by at the other end of the link.
+     * ONE LINE OF THE STUB: ONE PLACE THIS BIB GOES. Where that is a part of a split race it
+     * prints that part's own distance and clock, which are exactly the two figures a reader
+     * would otherwise be ambushed by at the other end of the link.
      *
      * `min-height` IS THE TARGET FLOOR AND IT IS NOT DECORATIVE. This row is a target where
      * the whole bib used to be one. Without the declaration it renders 24.59px against
      * SC 2.5.8's 24px — a 0.6px pass resting on UnoCSS preflight's `line-height: 1.5`, which
-     * nothing here declares or asserts; at 1.4 it fails. And two split lines are vertically
+     * nothing here declares or asserts; at 1.4 it fails. And two stub lines are vertically
      * adjacent with no gap, so the spacing exception is arithmetically identical to the size
      * rule (centre-to-centre distance IS the row height) and can never rescue one. 1.5rem is
      * the floor this repo already sets for a small control, and being font-relative it scales
@@ -1000,13 +926,13 @@ const Tag = only === null ? "div" : "a";
      * perforation is on the list rather than this row, so it keeps the content width and
      * does not widen with the padding.
      *
-     * `flex-wrap` and `overflow-wrap` for the reason `.bib-time` and `.bib-go` have them,
-     * and the same trap: a bib does NOT clip, so ink that escapes paints onto the card at
-     * 1.045:1 — unreadable rather than absent, and unseen by any sweep that walks only
-     * clipping ancestors. `17.90` and `1:28:41` are unbreakable tokens of the same shape as
-     * the elapsed row's, which was measured escaping from a 42px root.
+     * `flex-wrap` and `overflow-wrap` for the reason `.bib-ledger` has them, and the same
+     * trap: a bib does NOT clip, so ink that escapes paints onto the card at 1.045:1 —
+     * unreadable rather than absent, and unseen by any sweep that walks only clipping
+     * ancestors. `17.90`, `1:28:41` and `RESULT` are unbreakable tokens of the same shape as
+     * the ledger's, which was measured escaping from a 42px root.
      */
-    .bib-split {
+    .bib-stub-link {
         display: flex;
         flex-wrap: wrap;
         overflow-wrap: anywhere;
@@ -1028,18 +954,18 @@ const Tag = only === null ? "div" : "a";
         text-transform: uppercase;
     }
 
-    .bib-split-km {
+    .bib-stub-label {
         font-variant-numeric: tabular-nums;
     }
 
     /*
-     * The clock is dimmed and the distance is not, which is the same split `.bib-time` makes
-     * one row up: the distance is what tells one link from another, the clock is context for
+     * The clock is dimmed and the distance is not, which is the same split the ledger makes
+     * within a row: the distance is what tells one link from another, the clock is context for
      * it. That puts this under the composited-contrast sweep with the date, the tag and the
      * place, where the floor is actually checkable — the authored ink is `--background` on
      * `--text`, 18.86:1, and tells you nothing.
      */
-    .bib-split-time {
+    .bib-stub-time {
         margin-left: auto;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
@@ -1052,7 +978,7 @@ const Tag = only === null ? "div" : "a";
      *
      * The bib's own outline paints OUTSIDE the bib, so the surface it must clear is the card
      * — the pair `--accent` is already held to 3:1 against, at 6.52:1 light and 12.55:1 dark.
-     * A split line sits INSIDE the inverted face, where that same token lands at 2.77:1 and
+     * A stub line sits INSIDE the inverted face, where that same token lands at 2.77:1 and
      * 1.37:1, both under SC 1.4.11. (2.77 is the number the booked-bib note above already
      * flags for the sport mark: the palette has one accent and it was chosen against the
      * card.) `currentColor` is `--ink` on `--face`, 18.86:1 by construction, and it follows
@@ -1064,137 +990,284 @@ const Tag = only === null ? "div" : "a";
      * be a red build on correct code. `outline` is not a modelled property, which is what
      * makes it the one channel a state has inside a bib.
      *
-     * OFFSET INWARDS, because two split lines are adjacent with no gap and an outset outline
+     * OFFSET INWARDS, because two stub lines are adjacent with no gap and an outset outline
      * would paint into the next target.
      *
-     * The hover half is split from the others for the reason `.bib--linked`'s is: a touch
+     * The hover half is split from the others for the reason the retired whole-bib outline
+     * split it: a touch
      * browser applies `:hover` on tap and holds it, while `:focus-visible` is a keyboard
      * indicator every device needs. `:active` is not gated either, and is the only affordance
      * a touch reader can produce deliberately — it matters more here than on the bib, because
      * the platform's own tap flash is `--accent` at 18% and composites to 1.09:1 on an
      * inverted face, which is nothing at all.
      */
-    .bib-split:focus-visible {
+    .bib-stub-link:focus-visible {
         outline: 2px solid currentColor;
         outline-offset: -1px;
     }
 
-    .bib-split:active {
+    .bib-stub-link:active {
         outline: 2px solid currentColor;
         outline-offset: -1px;
     }
 
     @media (hover: hover) {
-        .bib-split:hover {
+        .bib-stub-link:hover {
             outline: 2px solid currentColor;
             outline-offset: -1px;
         }
     }
 
     /*
-     * THE TIME IS LABELLED, and the label is the point rather than a caption. Elapsed and
-     * moving are far apart on a long ride — 8:32:05 against 5:03:55 on the 10 July ride —
-     * so a bare time invites a reader to divide it into the distance printed above it and
-     * conclude one speed where the rider held another. What makes the division HONEST is
-     * that both figures come off the same scope: on a single-recording bib that is the
-     * activity, and on a split bib it is the race, summed distance over the whole span. What
-     * it must never be is a mixture — a summed distance over one part's clock, which is the
-     * 18.8 the old event-scope distance produced and belonged to nothing. The label names
-     * which clock so the reader does not have to guess which. See `raceKm` and `elapsed_time`
-     * in constants.ts, and `Recording` for why each split line prints its own pair.
+     * THE LEDGER: EVERY ACCOUNT OF THIS RACE, ONE PER ROW, EACH CARRYING ITS OWN TWO FIGURES.
      *
-     * The label is dimmed with the date, the tag and the place, which puts it under the
-     * same composited-contrast assertion as those three: the authored ink is `--background`
-     * on `--text`, 18.86:1 before any opacity touches it, so the floor is only checkable
-     * from the composite. The VALUE is not dimmed — it is the second real figure on the
-     * bib after the distance, and the only one that says what the day cost.
+     * IT REPLACES `.bib-time` AND `.bib-covered`, WHICH WERE ALREADY EACH OTHER'S TWIN. Those
+     * two said the two things known about an abandoned race — how far and how long — in one
+     * grammar, under one another. The device generalises exactly one step: a race can be known
+     * TWICE, by the organiser and by the rider, and each knowing is a distance and a clock. So
+     * the pair becomes a ledger and the twin rules become one.
+     *
+     * NOTHING A READER CAN DIVIDE CROSSES TWO ACCOUNTS, WHICH IS THE WHOLE RULE. Elapsed and
+     * moving are far apart on a long ride — 8:32:05 against 5:03:55 on the 10 July ride — so a
+     * bare time invites a reader to divide it into whatever distance is nearest and conclude a
+     * speed the rider never held. The old answer was a LABEL naming which clock; this one is
+     * stronger, because the two figures a reader would naturally divide are now on the same
+     * line and belong to the same instrument by construction. A gun time is never printed
+     * beside a GPS distance. See `official_row` in constants.ts for why the rows are named for
+     * their SOURCE rather than for their clock, and what that costs.
+     *
+     * THREE COLUMNS ON THE LEDGER, NOT ON EACH ROW: a row is `display: contents`, so its three
+     * spans are laid out by this grid and every cell in a column shares a track. Two rows
+     * sized independently would not line up, and a ledger whose columns do not line up is a list.
+     *
+     * THE SOURCE NAMES AND THE HEADINGS ARE DIMMED; THE FIGURES ARE NOT. That puts the
+     * captions under the same composited-contrast assertion as the date, the tag and the place
+     * — the authored ink is `--background` on `--text`, 18.86:1 before any opacity touches it,
+     * so the floor is only checkable from the composite.
+     *
+     * IT WRAPS, AND IT BREAKS. Two separate defects, and the first fix did not cover the
+     * second — a review panel found that on the row this replaces, and the numbers here are
+     * the corrected ones. Wrapping alone is necessary and not sufficient: each line is then
+     * sized independently, and `OFFICIAL`, `21.10` and `3:30:59` are single unbreakable tokens,
+     * so at a large enough text size each one is individually wider than the bib and paints
+     * OUTSIDE it. Measured on the row this replaces, against the bib's BORDER box (the
+     * meaningful edge — the 0.8rem of padding inside it is inverted face, where ink is
+     * perfectly legible) at 320px: the caption escaped from a 40px root (+9.88px) and the
+     * figure from 42px (+1.55px), reaching +75.5 and +47.11 at a 48px root. There the ink is
+     * `--background` on the CARD rather than on the bib's face — 1.045:1, unreadable — so
+     * "3:30:59" reads as "3:30:" and "OFFICIAL" as "OFFI".
+     *
+     * `overflow-wrap: anywhere` is what fixes it, and `anywhere` rather than `break-word` for
+     * the reason recorded on the wall's page heading: `break-word` does not affect intrinsic
+     * minimum sizing, so it breaks the rendered line and leaves the overflow. It is declared
+     * on the ledger and inherits to every cell.
+     *
+     * TWO INSTRUMENTS MISSED THIS AND THE REASON IS THE SAME. The wall sweep walks only
+     * elements inside a clipping ancestor, and `.bib` does not clip (`container-type` is not a
+     * clip) — so the ink escapes onto the card and the sweep reports nothing. Before that it
+     * excluded no visually-suppressed subtree either, and the sr-only text this bib introduced
+     * buried the real loss under thousands of pixels of fake one. A page that does not clip
+     * needs its own edge measured.
      */
-    .bib-time {
-        grid-area: time;
-        display: flex;
-        /*
-         * IT WRAPS, AND IT BREAKS. Two separate defects, and the first fix did not cover the
-         * second — a review panel found that and the numbers here are the corrected ones.
-         *
-         * `flex-wrap` splits the row into two lines. That is necessary and not sufficient:
-         * each line is then sized independently, and `ELAPSED` and `9:41:31` are single
-         * unbreakable tokens, so at a large enough text size each one is individually wider
-         * than the bib and paints OUTSIDE it. Measured against the bib's BORDER box (the
-         * meaningful edge — the 0.8rem of padding inside it is inverted face, where ink is
-         * perfectly legible) at 320px: the label escapes from a 40px root (+9.88px) and the
-         * value from 42px (+1.55px), reaching +75.5 and +47.11 at a 48px root. There the ink
-         * is `--background` on the CARD rather than on the bib's face — 1.045:1, unreadable —
-         * so "9:41:31" reads as "9:41:" and "ELAPSED" as "ELAP".
-         *
-         * `overflow-wrap: anywhere` is what fixes it, and `anywhere` rather than `break-word`
-         * for the reason recorded on the wall's page heading: `break-word` does not affect intrinsic
-         * minimum sizing, so it breaks the rendered line and leaves the overflow. `.bib-place`
-         * takes it too — "SINGAPORE" and "THAILAND" are the same unbreakable-token case and
-         * were escaping EARLIER and further than the time (+28.92px at a 40px root, +98.3 at
-         * 48) since before this row existed. Verified after: every measured escape is negative
-         * at every configuration, i.e. inside the border box.
-         *
-         * TWO INSTRUMENTS MISSED THIS AND THE REASON IS THE SAME. The wall sweep walks only
-         * elements inside a clipping ancestor, and `.bib` does not clip
-         * (`container-type` is not a clip) — so the ink escapes onto the card and the sweep
-         * reports nothing. Before that it excluded no visually-suppressed subtree either, and the
-         * sr-only text this bib introduced buried the real loss under thousands of pixels of
-         * fake one. A page that does not clip needs its own edge measured.
-         */
-        flex-wrap: wrap;
-        overflow-wrap: anywhere;
+    /*
+     * THE SLACK GOES AFTER THE ROW'S NAME, NEVER BETWEEN ITS TWO FIGURES, and that is the one
+     * thing this track list is for. Both were built and rendered.
+     *
+     * `auto 1fr auto` puts the flexible track in the MIDDLE, so a bib wider than its ledger's
+     * content strands the clock at the right-hand edge: measured on a 390px viewport, where
+     * the wall gives a bib the full 324px, the ink gap between `160.56` and `10:56:17` was
+     * **127.4px** against 5.5px everywhere else. That is the rift a reader has to scan across
+     * — and it falls exactly between the distance and the clock that belong to the SAME
+     * source, which is the one pair this whole device exists to keep together.
+     *
+     * `1fr auto auto` moves the slack to the leader position, where a gap after a row's key is
+     * what a results sheet, an index and a scorecard all already do. The two
+     * figures group and right-align in shared tracks, so `21.10` sits over `22.45` and
+     * `3:30:59` over `3:44:25` — the comparison the ledger is FOR is now a vertical one.
+     *
+     * `minmax(0, auto)` ON THE FIGURE TRACKS, NOT BARE `auto`, and it is not decoration. An
+     * `auto` minimum is the content's MIN-CONTENT size, which an unbreakable token like
+     * `10:09:34` cannot go below however the text is allowed to wrap — so the track holds the
+     * grid wider than the bib and the ink paints on the card at 1.045:1, where it is
+     * unreadable rather than absent and no clip sweep sees it (`.bib` does not clip). Measured
+     * at 320px: the clock column escaped the border box by +3.52px from a 44px root and
+     * +4.61px at 48; with the floor removed it is 39.39px INSIDE at the same setting.
+     * `overflow-wrap: anywhere` below is what then breaks the token — the two are a pair, and
+     * neither works alone.
+     */
+    .bib-ledger {
+        grid-area: ledger;
+        display: grid;
+        grid-template-columns: 1fr minmax(0, auto) minmax(0, auto);
         align-items: baseline;
-        gap: 0.45em;
-        margin: 0;
+        overflow-wrap: anywhere;
+        column-gap: 0.55em;
+        row-gap: 0.2rem;
+        margin: 0.15rem 0 0;
+        padding: 0;
         font-size: 0.625rem;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
+    }
+
+    /* See the ledger's note: a row is not a box, it is three cells joining the ledger's own
+       columns. Without this each row would be its own formatting context, and the columns
+       would then be per-row rather than shared — which is the difference between a set of
+       ruled figures and a list. */
+    .bib-ledger-head,
+    .bib-ledger-row {
+        display: contents;
     }
 
     /*
-     * THE DISTANCE ON A BIB THAT DID NOT FINISH, demoted out of the hero slot into a caption
-     * and a figure. `.bib--dnf` above says why the hero is not available to it.
+     * FIVE CLASSES, THREE SELECTOR LISTS, AND THEY MUST STAY LISTS. Splitting one to "tidy up"
+     * is how a heading and the column under it drift a weight or an alignment apart, which
+     * nothing in the suite would catch and every reader would feel.
      *
-     * IT IS DRAWN AS THE ELAPSED ROW'S TWIN, and that is the point rather than reuse: the two
-     * rows now say the two things that ARE known about an abandoned race — how far and how
-     * long — in one grammar, under one another, both subordinate to the verdict above them.
-     * A reader meets them as a pair.
-     *
-     * SO THE SHARED RULES BELOW ARE WRITTEN AS SELECTOR LISTS AND MUST STAY THAT WAY. Splitting
-     * them to "tidy up" is how the two rows drift a weight or a tracking apart, which nothing
-     * in the suite would catch and every reader would feel. They are separate CLASSES rather
-     * than one shared name because `bib-time-label` on a distance is a lie somebody later
-     * corrects; the rig that settled this design did exactly that and it read as a slip.
-     *
-     * `flex-wrap` and `overflow-wrap` for the reason `.bib-time` has them, and it is the same
-     * trap, not a precaution: `COVERED` and `110.04` are single unbreakable tokens, and a bib
-     * does not clip, so at a large enough text size each one paints OUTSIDE the border box onto
-     * the card — where this ink sits at 1.045:1 and is simply gone. tests/patch-wall.test.ts
-     * holds this class to that rule with the other four.
+     * THE CROSSING IS THE POINT: a cell is drawn by what KIND it is and placed by which COLUMN
+     * it is in, and those two groupings are not the same partition. All three captions are
+     * dimmed and 700 — a heading is a caption — while both headings are aligned with the
+     * figures beneath them rather than with the caption beside them. Written as one class per
+     * cell rather than as combinators because the colour model in patch-wall.test.ts refuses
+     * any rule reaching a bib through one.
      */
-    .bib-covered {
-        grid-area: covered;
-        display: flex;
-        flex-wrap: wrap;
-        overflow-wrap: anywhere;
-        align-items: baseline;
-        gap: 0.45em;
-        margin: 0;
-        font-size: 0.625rem;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-    }
-
-    .bib-time-label,
-    .bib-covered-label {
+    .bib-ledger-who,
+    .bib-ledger-km-head,
+    .bib-ledger-time-head {
         font-weight: 700;
     }
 
-    .bib-time-value,
-    .bib-covered-value {
+    .bib-ledger-km,
+    .bib-ledger-time {
         font-weight: 800;
         font-variant-numeric: tabular-nums;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
+    }
+
+    .bib-ledger-km,
+    .bib-ledger-km-head,
+    .bib-ledger-time,
+    .bib-ledger-time-head {
+        justify-self: end;
+    }
+
+    /*
+     * THE CLOCK COLUMN BUYS ITS OWN AIR, AND IT IS PADDING RATHER THAN A WIDER `column-gap`.
+     *
+     * WHY IT IS NEEDED AT ALL: grouping the two figures closed a 127px rift and opened its
+     * opposite in the same edit. `160.56` and `10:56:17` are both tabular, both 800, both 10px,
+     * and at the ledger's 0.55em gap they read as ONE run of digits — reported on the rig the
+     * moment it was drawn. A distance and a clock are different fields and the drawing has to
+     * say so.
+     *
+     * WHY NOT A WIDER GAP: `column-gap` is uniform, so widening it pays TWICE — once here,
+     * where it is wanted, and once between the row's name and its distance, where the flexible
+     * track already provides all the separation anyone needs. Measured on a 218px bib: a 1.5em
+     * uniform gap wraps 4 cells and 2.2em wraps 10, because the extra demand squeezes the
+     * leader track to nothing and the row's name breaks. The same air bought as padding on ONE
+     * side wraps NOTHING at 1.4em — the leader track absorbs it, which is exactly what a
+     * flexible track is for.
+     *
+     * 1.4em IS 19.5px OF INK-TO-INK SEPARATION against 5.5px before, roughly three characters
+     * at this size.
+     *
+     * THAT 218px WAS NOT THE FLOOR, AND THE CORRECTION IS WORTH KEEPING. It was read off a
+     * 768px viewport and called the narrowest bib on the wall; the wall's column is actually
+     * `min(13rem, 100%)`, so the floor is 208px and several viewport bands sit on it. At 208px
+     * this padding wrapped the row's name at the DEFAULT text size — nothing here was wrong
+     * except the width it was checked at. The repair was not a smaller number but the
+     * container arms below, which stop asking one line to hold all three cells; re-measure
+     * against 208px, and against the arms, rather than re-deriving from this paragraph.
+     *
+     * IT GOES ON THE HEADING TOO, or the heading stops sitting over the column it governs.
+     */
+    .bib-ledger-time,
+    .bib-ledger-time-head {
+        padding-left: 1.4em;
+    }
+
+    /*
+     * WHEN THE BIB IS TOO NARROW FOR THREE COLUMNS, THE ROW'S NAME TAKES A LINE OF ITS OWN.
+     *
+     * WHAT GOES WRONG WITHOUT THIS, AND WHY NOTHING CAUGHT IT. `overflow-wrap: anywhere` above
+     * lets a cell's min-content fall to ONE CHARACTER, which is what stops the clock painting
+     * on the card — and it is also a licence for the leader track to be squeezed to nothing
+     * long before anything overflows. Measured on the shipped wall at a 32px root, WCAG SC
+     * 1.4.4's required 200%: a 390px phone gives the bib 260px, and `RECORDED` rendered as
+     * eight stacked single letters beside a two-line `10:56:17`. The escape sweep that passed
+     * this design read ink against the bib's edge and found none — correctly, because the text
+     * was not escaping, it was SHATTERING. A containment measurement cannot see a legibility
+     * failure, and this pair of properties converts the second into the first by design.
+     *
+     * THE CONDITION IS THE BIB'S OWN WIDTH IN `em`, NOT A VIEWPORT BREAKPOINT. A wall column is
+     * `min(13rem, 100%)`, so the same bib width arrives from a phone at a large text size and
+     * from a tablet showing more columns; measured, the two are indistinguishable to the
+     * ledger and a viewport query would catch one and miss the other. `.bib` already declares
+     * `container-type: inline-size`, and its font-size tracks the root exactly, so `em` here is
+     * the reader's own text size — which is the whole point, since the failure is what happens
+     * when they enlarge it. Swept 16→32px root across ten viewports: every band that wrapped
+     * was at or under 13.08em and every clean band at or over 13.63em, so 14em sits in the gap
+     * and takes the 13.63em band with it — that one is the 218px bib whose own margin is under
+     * a pixel (see the clock-column note above, which had it as the binding case and was
+     * measuring a floor 10px too high).
+     *
+     * THE FIGURES KEEP THEIR SHARED COLUMNS, which is the reason the name moves rather than
+     * the ledger collapsing to one column per cell. `21.10` still sits over `22.45` and
+     * `3:30:59` over `3:44:25`; a source's distance still sits beside that same source's
+     * clock, so the rule that nothing divisible crosses two sources survives the reflow
+     * untouched. Only the leader rail is spent, and it is the one thing here a reader can do
+     * without: the name is already the first thing on its row.
+     */
+    @container (max-width: 14em) {
+        .bib-ledger-who {
+            grid-column: 1 / -1;
+            justify-self: start;
+        }
+
+        /* The name now occupies a whole row, so auto-placement would put the distance back
+           under it in the leader column. Both figures are pinned to the tracks their own
+           headings are in. */
+        .bib-ledger-km {
+            grid-column: 2;
+        }
+
+        .bib-ledger-time {
+            grid-column: 3;
+        }
+    }
+
+    /*
+     * NARROWER STILL, AND THE CLOCK TAKES THE LINE. Two figures stop fitting on one line well
+     * before the reader stops enlarging, and what breaks then is the worse failure of the two:
+     * a distance wraps into two readable halves, but `10:56:17` wrapping after `10:5` reads as
+     * a DIFFERENT TIME, not as a damaged one. A figure that lies is worse than a figure that is
+     * hard to read, so the clock gets a whole line before it is allowed to break.
+     *
+     * MEASURED, NOT CHOSEN. At a 390px viewport and a 32px root the ledger has 206.8px, while
+     * `160.56` (79.2px), the gap (11px) and `10:56:17` (130.4px) want 220.6px between them even
+     * with the clock's air given back — so no amount of tuning fits them on one line. At 320px
+     * the ledger has 136.8px against a clock needing 130.4px, and one figure per line is the
+     * only arrangement that exists. 9em is the widest band that still fails; every band above
+     * it is clean under the rule above, so the two arms hand over without overlapping.
+     *
+     * THE CLOCK'S AIR IS RETURNED HERE because the thing it was bought to prevent cannot happen
+     * on a line the distance is not on — see the clock-column note, which is about two figures
+     * reading as one run of digits.
+     *
+     * THE UNIT HEADING STAYS AND THE CLOCK'S DOES NOT, which is not symmetry but a judgement
+     * about what each figure can say for itself: `H:MM:SS` announces what it is to anyone who
+     * reads it, and `78.59` does not. The ledger's whole reason for a heading row was to state
+     * the unit ONCE rather than on every figure, so the unit is the one that has to survive.
+     */
+    @container (max-width: 9em) {
+        .bib-ledger-time {
+            grid-column: 1 / -1;
+            padding-left: 0;
+        }
+
+        .bib-ledger-time-head {
+            display: none;
+        }
     }
 
     .bib-name {
@@ -1218,14 +1291,16 @@ const Tag = only === null ? "div" : "a";
      * siblings and were dead from the moment they were written — forced colours kept painting an
      * `--accent` outline the mode discards, and print kept a hover outline on paper.
      *
-     * THE NOTE THAT RECORDED THAT WAS ITSELF STALE, AND I REPRODUCED THE BUG BEHIND IT. It said
-     * these blocks sat "at the foot of the sheet"; they did not — `.bib-time`, `.bib-time-label`,
-     * `.bib-time-value` and `.bib-name` were all below them, which was harmless only because
-     * none of those four happened to touch a property an override sets. Adding the action row
-     * broke that coincidence: its base `.bib-go` rule landed below the print at-rule, and the
-     * print override measured DEAD in the built stylesheet — offset 3680 against a base rule at
-     * 3955. Caught by reading emitted rule offsets out of `dist`, which is the only place source
-     * order is observable; nothing in the suite and nothing in review saw it.
+     * THE NOTE THAT RECORDED THAT WAS ITSELF STALE, AND THE BUG BEHIND IT WAS THEN REPRODUCED.
+     * It said these blocks sat "at the foot of the sheet"; they did not — four plain rules were
+     * below them, which was harmless only because none of the four happened to touch a property
+     * an override sets. Adding a row with a perforation broke that coincidence: the base rule
+     * landed below the print at-rule, and the print override measured DEAD in the built
+     * stylesheet — offset 3680 against a base rule at 3955. Caught by reading emitted rule
+     * offsets out of `dist`, which is the only place source order is observable; nothing in the
+     * suite and nothing in review saw it. (No class is named in this paragraph on purpose: the
+     * ones involved have since been renamed, and a rule name in a story about ordering is the
+     * part that goes stale while the lesson does not.)
      *
      * So the blocks were moved to where the comment always claimed they were. Anything
      * mode-specific belongs here, at the actual end, and any new plain rule belongs ABOVE.
@@ -1238,18 +1313,6 @@ const Tag = only === null ? "div" : "a";
      * that each need re-arguing. Note `(hover: hover)` is TRUE while printing from a pointer
      * device (measured, not assumed), so the print override is still live where it matters.
      */
-    @media (forced-colors: active) {
-        .bib--linked:focus-visible {
-            outline-color: LinkText;
-        }
-    }
-
-    @media (forced-colors: active) and (hover: hover) {
-        .bib--linked:hover {
-            outline-color: LinkText;
-        }
-    }
-
     @media (forced-colors: active) {
 
         /*
@@ -1265,18 +1328,19 @@ const Tag = only === null ? "div" : "a";
          * that can disappear — but a brand mark that paints nothing is still a defect, and this
          * is one declaration.
          */
-        .bib-go-mark {
+        .bib-stub-mark {
             forced-color-adjust: none;
             background-color: LinkText;
         }
 
         /*
-         * `LinkText` on the row, so it is coloured as a link rather than as body text — and in
-         * this mode that colour is doing real work, because the row carries no text decoration
-         * (see the plain rule above for why a rule on a bib is the wrong vocabulary). The words
-         * and the perforation both survive; this is what makes them read as a control.
+         * `LinkText` on each line, so it is coloured as a link rather than as body text — and
+         * in this mode that colour is doing real work, because a stub line carries no text
+         * decoration (see the plain rules above for why a rule on a bib is the wrong
+         * vocabulary). The words and the perforation both survive; this is what makes them
+         * read as controls.
          */
-        .bib-go {
+        .bib-stub-link {
             color: LinkText;
         }
 
@@ -1290,48 +1354,25 @@ const Tag = only === null ? "div" : "a";
          * is not the pin-holes' language any more, but nothing in this mode is: the corner holes
          * disappear here too, for exactly the same reason.
          */
-        .bib-go {
-            background-image: none;
-            border-top: 1px dashed CanvasText;
-        }
-
-        /* The split lines take the same three treatments the action row does, for the same
-           three reasons: `LinkText` so they read as controls in a mode that discards the
-           text decoration they never had, and the perforation redrawn as a dashed border
-           because a background image is exactly what this mode throws away. */
-        .bib-split {
-            color: LinkText;
-        }
-
-        .bib-splits {
+        .bib-stub {
             background-image: none;
             border-top: 1px dashed CanvasText;
         }
     }
 
     @media (forced-colors: active) and (hover: hover) {
-        .bib-split:hover {
+        .bib-stub-link:hover {
             outline-color: LinkText;
         }
     }
 
     @media (forced-colors: active) {
-        .bib-split:focus-visible {
+        .bib-stub-link:focus-visible {
             outline-color: LinkText;
         }
     }
 
-    @media print and (hover: hover) {
-        .bib--linked:hover {
-            outline: none;
-        }
-    }
-
     @media print {
-        .bib--linked:focus-visible {
-            outline: none;
-        }
-
         /*
          * Chrome's default `print-color-adjust: economy` drops backgrounds, so the perforation
          * goes the same way the pin-holes and the bib's face already do on paper. Redrawn as a
@@ -1339,34 +1380,24 @@ const Tag = only === null ? "div" : "a";
          * every other line on the bib: paper is white whichever theme the reader had on screen,
          * so a token here would carry an assumption that is only true half the time.
          *
-         * It is worth keeping in print precisely BECAUSE the link is dead on paper: the
-         * perforation is the part of this row that still means something there — it says this
-         * bib has a stub — while the words become a note about where the ride was recorded.
-         */
-        .bib-go {
-            background-image: none;
-            border-top: 1px dashed #000;
-        }
-
-        /* Literal black for the reason every other print rule here takes it: paper is white
-           whichever theme the reader had on screen. The split lines keep their perforation
-           on paper for the same reason the action row does — the link is dead there, but the
-           perforation still says this bib has a stub, and what is printed on it is the race
-           broken into the parts it was recorded in. */
-        .bib-splits {
+         * It is worth keeping in print precisely BECAUSE the links are dead on paper: the
+         * perforation is the part of the stub that still means something there — it says this
+         * bib has one — while the lines become a note about where the race is recorded and who
+         * recorded it. */
+        .bib-stub {
             background-image: none;
             border-top: 1px dashed #000;
         }
     }
 
     @media print and (hover: hover) {
-        .bib-split:hover {
+        .bib-stub-link:hover {
             outline: none;
         }
     }
 
     @media print {
-        .bib-split:focus-visible {
+        .bib-stub-link:focus-visible {
             outline: none;
         }
     }

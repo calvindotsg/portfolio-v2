@@ -11,9 +11,22 @@ earned, which is why the wall's headings say "events" and only the earned bibs a
 patches. **An outline is a bib with no patch on it, and that is TWO different
 facts**: a race still to come, or one that was started and not finished. They share
 a treatment because the treatment means "not earned"; what tells them apart is the
-word each one prints — `Booked` in the meta row, or `DNF` in the slot the distance
-would have had. See `patchState` in `projection.ts` and `.bib--dnf` in
-`Patch.astro`.
+word each one prints — `Booked` in the meta row, or `DNF` in the hero slot. See
+`patchState` in `projection.ts` and `.bib--dnf` in `Patch.astro`.
+
+**A race can be known TWICE and the bib prints both accounts without reconciling
+them.** Any bib that is not booked carries a **ledger**, and a DNF carries one too —
+which is the point rather than an edge case, since an abandoned race is exactly
+where the two accounts are most worth reading side by side. Each row is one source,
+holding that source's own distance beside that source's own clock —
+`OFFICIAL 21.10 3:30:59` over `RECORDED 22.45 3:44:25`. The rule the whole device
+rests on is that **nothing a reader can divide crosses two sources**, which is
+strictly stronger than the `Elapsed` label it replaced. A certified course and a GPS
+trace disagree by design, and so do a chip time and a watch; publishing the
+disagreement is the point. `OfficialResult` in `constants.ts` has the argument, and
+`.bib-ledger` in `Patch.astro` has the drawing — **including the two container arms
+that restack it as the reader enlarges the text**, without which the three-column
+form shatters a row's name into single letters at the 200% WCAG requires.
 
 **The one scope rule**: the wall is the whole calendar; a goal card is `GOAL_YEAR`
 alone. `EVENTS` feeds both, and `eventsInYear` in `projection.ts` is what keeps a
@@ -93,10 +106,11 @@ block above it before giving either consumer the other's list.
   so a third variant is caught rather than skipped. Every link must carry a
   signifier a reader can perceive, and a build-wide gate in
   `tests/build-output.test.ts` walks every `<a>` on every page to enforce it — its
-  absence let five links ship drawn exactly like the prose beside them. A bib is
-  the exception the gate names explicitly: the whole bib is the anchor and its
-  signifier is the action row inside it, drawn in the bib's own idiom rather than
-  as a text link
+  absence let five links ship drawn exactly like the prose beside them. A bib's stub
+  is the one exception the gate names: a `.bib-stub-link` on a `.bib-stub` carries its
+  signifier in the bib's own idiom — a mark, an imperative label at the bib's emphatic
+  weight, and the perforation the stub is drawn with — rather than as a text link. It
+  was TWO exemptions until every destination became a stub line
 - **A hover style must need a pointer to produce it.** A touch browser applies
   `:hover` on tap and holds it until the reader taps elsewhere, so every `hover:`
   utility is emitted inside `@media (hover: hover)` by the `hover-needs-a-pointer`
@@ -117,7 +131,7 @@ block above it before giving either consumer the other's list.
   `.is-leaving` would redden a correct build. The twin may differ from the press where
   holding it would be wrong — the current sport chip is the one case, and says why in
   place. Held-eligibility is derived from the script's own refusals (`target="_blank"` is
-  what excludes every bib), so it follows the markup rather than a list
+  what excludes every link on a bib), so it follows the markup rather than a list
 - **Text-relative sizing**: every breakpoint, `main`'s height clamp, the card
   heading's space and the control box are font-relative, so the page grows with
   the reader's text instead of clipping it. `tests/page-fit.test.ts` and
@@ -206,14 +220,19 @@ block above it before giving either consumer the other's list.
   conversion drops whatever is under a hundredth, so the parts' figures sum to at or below
   the race's own — never above it) and its `elapsed_time` is first start to last stop,
   never the sum of the parts: elapsed already contains stops, so it must not depend on
-  where the rider pressed the button. **The rule the bib is drawn by: a bib is the link
-  when there is one place to go; when there is more than one, the bib HOLDS the links.**
-  Strava cannot merge activities, so no single URL is the whole race, and anchors do not
-  nest — a split bib is therefore a `div` whose stub carries one link per recording, each
-  printing that part's own distance and clock so no link promises the bib's summed hero.
-  A one-recording bib is untouched by any of this, which is deliberate: delegating on every
-  bib would give all of them the same accessible name. See `Patch.astro` for the whole
-  argument and `Recording` in `constants.ts` for why the parts' figures are stored
+  where the rider pressed the button. Each part's own figures are printed on its own link
+  so no link promises the bib's summed hero; see `Recording` in `constants.ts` for why they
+  are stored
+- **NO BIB IS EVER THE ANCHOR. Every destination is a line on the stub.** The rule it comes
+  from is unchanged — a bib is the link when there is one place to go, and HOLDS the links
+  when there is more than one — but a race can now have a published results sheet as well as
+  a recording, so "more than one" is the ordinary case rather than the exception. Anchors do
+  not nest, so one destination would have had to sit inside the other. What paid for it is
+  `race_name` in `constants.ts`: every stub link's accessible name carries the race and its
+  date, which is the disambiguation the whole-bib form used to get for free from announcing
+  the bib's entire text. **The results link goes ABOVE the Strava one**, because both cited
+  sheets render for a logged-out visitor and every Strava link on the wall is a login wall.
+  See `Patch.astro` for the whole argument
 
 ## Content Management
 
@@ -226,13 +245,20 @@ the file:
   wall, at two different scopes (see the rule above). Adding a past race is a data edit:
   `elapsed_time` and `recordings` are optional, so a race remembered without a
   recording is still a complete bib. **A race is one of TWO SHAPES and the type enforces it:**
-  recorded, carrying each activity's `metres` exactly as the API reported them and NO distance
-  of its own, or booked, carrying the event's advertised `km` and no recordings. Every consumer
-  reads `raceKm`, which rounds the metres DOWN to two places — Strava's own rule, and the input
-  is the API's `distance` rather than anything Strava renders. That rounding has been reversed
-  twice and is now one line in `kmFromMetres` rather than a figure in every row, which is the
-  point of storing the metres. Nothing offline can catch a mistyped `metres`; only
-  `tests/strava-verify.test.ts` can, and it is opt-in
+  recorded, carrying each activity's `metres` exactly as the API reported them, or booked,
+  carrying no recordings. Every consumer reads `raceKm`, which rounds the metres DOWN to two
+  places — Strava's own rule, and the input is the API's `distance` rather than anything
+  Strava renders. That rounding has been reversed twice and is now one line in `kmFromMetres`
+  rather than a figure in every row, which is the point of storing the metres. Nothing
+  offline can catch a mistyped `metres`; only `tests/strava-verify.test.ts` can, and it is
+  opt-in.
+  **`advertised_km` IS THE ORGANISER'S DISTANCE AND MAY SIT BESIDE THE METRES**, which is the
+  one guard the ledger cost: that field was `km?: never` on a recorded race, so the compiler
+  refused the pair. It cannot now, because the pair is the ledger's whole subject. What the
+  type used to enforce is the PRECEDENCE, and that moved into `raceKm` — the metres win
+  wherever both exist — with a test in `tests/constants.test.ts` that names the rule and
+  three more gates that redden on the mutation. `official` may only appear beside an
+  `advertised_km`; the `Documented | Undocumented` pairing is what says so
 - `PATCHES`: the wall's own prose, now one lede rather than a scope sentence plus a key.
   Its heading is `My events`; "patch wall" survives in the URL and the metaphor, not as a
   visible title

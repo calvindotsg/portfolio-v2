@@ -60,12 +60,20 @@ export const GET: APIRoute = ({site}) => {
         const time = event.elapsed_time ? `, ${event.elapsed_time}` : ""
         // A DNF's KILOMETRES ARE NOT THE RACE'S, AND THE ROW HAS TO SAY SO ITSELF. In every
         // other bucket this figure is how long the race was; on an abandoned race it is how
-        // far he got, which is the distinction the bib draws by moving the number out of the
-        // hero into a labelled row. The section heading carries it for a reader of the whole
-        // file — but this file is written to be CHUNKED and quoted, and a row lifted out of
-        // its section takes the heading's context with it and none of its meaning. The label
-        // is the bib's own constant rather than a second string, so the page and this file
-        // cannot drift into describing the same number two ways.
+        // far he got, which is the distinction the bib draws by naming whose account each of
+        // its figures is. The section heading carries it for a reader of the whole file — but
+        // this file is written to be CHUNKED and quoted, and a row lifted out of its section
+        // takes the heading's context with it and none of its meaning. The word is the bib's
+        // own constant rather than a second string, so the page and this file cannot drift
+        // into describing the same number two ways.
+        //
+        // IT NAMES THE SOURCE NOW RATHER THAN THE PARTICIPLE, following the bib. `Covered`
+        // said what happened to the kilometres; `Recorded` says which instrument produced
+        // them, which is the stronger claim and the one the ledger is built on. Note what
+        // this file does NOT carry: the OTHER account. A results sheet's own distance and
+        // clock are on the bib and are not repeated here, because a crawler quoting one line
+        // per race is owed the rider's figures — the site's own claim — rather than two
+        // sources it would have to reconcile in a sentence.
         //
         // AND ON AN ABANDONED RACE WITH NOTHING RECORDED THERE IS NO FIGURE TO GIVE. `raceKm`
         // falls back to the race's ADVERTISED distance when no metres exist, which is the right
@@ -86,7 +94,7 @@ export const GET: APIRoute = ({site}) => {
         const far = dnfWithNothingRecorded
             ? ""
             : patchState(event) === "dnf"
-                ? `, ${PATCHES.covered_label.toLowerCase()} ${raceKm(event).toFixed(2)} km`
+                ? `, ${PATCHES.recorded_row.toLowerCase()} ${raceKm(event).toFixed(2)} km`
                 : `, ${raceKm(event).toFixed(2)} km`
         return `- ${when} — ${event.name}${far}, ${event.country}${time}`
     }

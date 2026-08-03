@@ -72,11 +72,32 @@ const PAGES = {
 } as const;
 
 // The default fixture is a BOOKED race, and an override that adds `recordings` makes it a
-// recorded one — which drops `km`, since a recorded race derives its distance. The cast is
-// what lets one builder produce both: a spread over a union cannot be verified by the
-// compiler, though every call site below is one legal shape or the other.
+// recorded one. The cast is what lets one builder produce both: a spread over a union cannot
+// be verified by the compiler, though every call site below is one legal shape or the other.
+//
+// IT KEEPS `advertised_km` UNDER EITHER OVERRIDE, and that is now deliberate rather than
+// incidental. A recorded race may legitimately carry the organiser's own division beside its
+// metres — that pair is what the ledger publishes — so a fixture that dropped the field the
+// moment recordings arrived could not exercise the precedence `raceKm` is built on.
 const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
-    ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over}) as RaceEvent;
+    ({date: "2026-06-01", name: "Fixture", advertised_km: 10, sport: "cycling", country: "Nowhere", ...over}) as RaceEvent;
+
+/**
+ * THE LEDGER AS A READER MEETS IT: one entry per row, each carrying whose account it is and
+ * that account's own two figures. The heading row is deliberately NOT here — it is chrome,
+ * asserted separately, and folding it in would make every row-count assertion read one high.
+ *
+ * READ BY CLASS AND NOT BY POSITION. A row's three cells are `display: contents`, so the DOM
+ * still nests them under `.bib-ledger-row` while the GRID sees nine children — which means an
+ * nth-child reading would be measuring the markup and reporting on the drawing. Whether the
+ * columns actually line up is a rendered fact and belongs in the browser sweep, not here.
+ */
+const ledgerOf = (doc: {querySelectorAll: (s: string) => Iterable<Element>}) =>
+    [...doc.querySelectorAll(".bib-ledger-row")].map((row) => ({
+        who: row.querySelector(".bib-ledger-who")?.textContent?.trim() ?? "",
+        km: row.querySelector(".bib-ledger-km")?.textContent?.trim() ?? "",
+        time: row.querySelector(".bib-ledger-time")?.textContent?.trim() ?? "",
+    }));
 
 /**
  * THE DAY A BUILT PAGE WAS DRAWN FOR, read off the page rather than recomputed.
@@ -153,7 +174,7 @@ describe("every link out of the wall names a different destination", () => {
             for (const {bib, event} of wallBibs(page, key === "all" ? undefined : key as Sport)) {
                 const when = formatPatchDate(event);
                 if (when === null) continue;
-                for (const link of [...bib.querySelectorAll("a.bib-split"), ...(bib.matches("a.bib") ? [bib] : [])]) {
+                for (const link of [...bib.querySelectorAll("a.bib-stub-link"), ...(bib.matches("a.bib") ? [bib] : [])]) {
                     const name = (link.textContent ?? "").replace(/\s+/g, " ").trim();
                     expect(name, `${key}: "${event.name}" link must say which running it is`).toContain(when);
                     checked += 1;
@@ -177,7 +198,7 @@ describe("every link out of the wall names a different destination", () => {
     it("gives no two links on a page the same name", () => {
         for (const [key, page] of Object.entries(PAGES)) {
             const doc = parseHTML(read(page)).document;
-            const names = [...doc.querySelectorAll("a.bib, a.bib-split")]
+            const names = [...doc.querySelectorAll("a.bib, a.bib-stub-link")]
                 .map((a) => (a.textContent ?? "").replace(/\s+/g, " ").trim());
             const seen = new Map<string, number>();
             for (const name of names) seen.set(name, (seen.get(name) ?? 0) + 1);
@@ -252,7 +273,7 @@ describe("a bib's state is derived from the calendar, never stored", () => {
         // The comparison: the same race unrecorded carries the ADVERTISED distance — the only
         // one it can have — and is booked exactly as before. It is built rather than stripped
         // from `run`: a recorded race has no `km` to keep, which is the shape change.
-        const plain = ev({date: "2026-06-10", km: 10, sport: "running"});
+        const plain = ev({date: "2026-06-10", advertised_km: 10, sport: "running"});
         expect(bookedAhead("running", "2026-06-01", [plain]), "no recording, so the clock still books it").toBe(10);
     });
 
@@ -564,7 +585,7 @@ describe("a bib's date line", () => {
         const render = async (event: RaceEvent) =>
             parseHTML(await container.renderToString(Patch, {props: {event, state: "booked"}})).document;
 
-        const tour = await render(ev({date: "2026-11-07", end_date: "2026-11-15", km: 1022}));
+        const tour = await render(ev({date: "2026-11-07", end_date: "2026-11-15", advertised_km: 1022}));
         const times = [...tour.querySelectorAll("time")];
         expect(times.map((t) => t.getAttribute("datetime"))).toEqual(["2026-11-07", "2026-11-15"]);
         for (const t of times) {
@@ -729,9 +750,8 @@ describe("dist/patches", () => {
         expect(dnf.querySelector(".bib-tag"), "a DNF says its word in the hero, so it takes no tag").toBeNull();
         expect(dnf.querySelector(".bib-value")?.textContent?.trim()).toBe(PATCHES.dnf_result);
         expect(dnf.querySelector(".bib-unit"), "a verdict is not a quantity, so it takes no unit").toBeNull();
-        expect(dnf.querySelector(".bib-covered-label")?.textContent?.trim()).toBe(PATCHES.covered_label);
-        expect(dnf.querySelector(".bib-covered-value")?.textContent?.trim())
-            .toBe(`${raceKm(event).toFixed(2)} ${goalForSport(event.sport).measurable_unit}`);
+        expect(ledgerOf(dnf), "an abandoned race's own account is a ledger row like any other")
+            .toContainEqual({who: PATCHES.recorded_row, km: raceKm(event).toFixed(2), time: event.elapsed_time ?? ""});
         // The abbreviation is expanded for a listener and for nobody else — the repo's rule
         // is that the accessible name is a SUPERSET of the visible text, never a
         // replacement, so this must be present AND must not have leaked onto the bib.
@@ -740,60 +760,84 @@ describe("dist/patches", () => {
         expect(dnf.querySelector(".bib-value")?.textContent, "the expansion must stay outside the hero")
             .not.toContain(PATCHES.dnf_name);
 
-        // THE COVERED LABEL IS THE SAME WORD FOR EVERY SPORT, and this is the only form of
-        // that assertion that is not a tautology. Asserting the render matches
-        // `PATCHES.covered_label` proves the component reads the constant and says nothing
-        // about the constant's VALUE — it stays green with "Ridden" back in it, which is the
-        // defect. Comparing the two sports' rendered labels to EACH OTHER cannot: any
-        // per-sport lookup, and any sport-conditional branch in the component, separates
-        // them. `outcome` sits on the shared event shape, so a running DNF is data the type
-        // already permits and the wall would otherwise call a run a ride.
+        // THE ROW NAME IS THE SAME WORD FOR EVERY SPORT, and this is the only form of that
+        // assertion that is not a tautology. Asserting the render matches
+        // `PATCHES.recorded_row` proves the component reads the constant and says nothing
+        // about the constant's VALUE — it stays green with a cycling verb back in it, which
+        // is the defect that shipped once. Comparing the two sports' rendered labels to EACH
+        // OTHER cannot: any per-sport lookup, and any sport-conditional branch in the
+        // component, separates them. `outcome` sits on the shared event shape, so a running
+        // DNF is data the type already permits and the wall would otherwise call a run a ride.
         // WITH RECORDINGS, for the same reason the event above is chosen rather than taken:
-        // the covered row exists only when there is a distance to report, so a sport whose
-        // first race happens to be a DNF-with-nothing-recorded would compare a real label
-        // against `undefined` and read as two sports disagreeing about the word.
+        // the row exists only when there is something to report, so a sport whose first race
+        // happens to be a DNF-with-nothing-recorded would compare a real label against
+        // `undefined` and read as two sports disagreeing about the word.
         const bySport = await Promise.all(GOALS.map(async ({sport}) => {
             const one = EVENTS.find((e) => e.sport === sport && recordingsOf(e).length > 0);
             if (one === undefined) throw new Error(`no recorded ${sport} event to render`);
             const doc = parseHTML(await container.renderToString(Patch, {props: {event: one, state: "dnf"}})).document;
-            return doc.querySelector(".bib-covered-label")?.textContent?.trim();
+            return ledgerOf(doc).at(-1)?.who;
         }));
         expect(new Set(bySport).size, `every sport's DNF bib says the same word, got ${bySport.join(" / ")}`)
             .toBe(1);
-        expect(bySport[0]).toBe(PATCHES.covered_label);
+        expect(bySport[0]).toBe(PATCHES.recorded_row);
 
-        // AND THE ROW IS CONDITIONAL ON THE RECORDINGS, because `km` means the ADVERTISED
-        // distance on a row that has none — the Formosa tour carries 1022.00 having never
-        // been ridden. A DNF the owner remembers without a recording must not have its bib
-        // claim he covered the whole route: that is the one assertion this treatment exists
-        // to stop the bib making. Both directions, or the assertion cannot tell a component
-        // that drops the row from one that never had it.
-        const remembered = parseHTML(await container.renderToString(
-            Patch, {props: {event: ev({outcome: "dnf", recordings: undefined}), state: "dnf"}})).document;
+        /*
+         * AND THE ROW'S TWO CELLS ARE INDEPENDENTLY CONDITIONAL, which is the guard the
+         * ledger inherited from the row it replaced and then had to make finer.
+         *
+         * THE DISTANCE CELL NEEDS METRES. `raceKm` falls back to the ADVERTISED figure where
+         * there are none — the Formosa tour carries 1022.00 having never been ridden — so a
+         * DNF the owner remembers without a recording would otherwise have its bib claim he
+         * covered the whole route under a row headed `Recorded`. That is the one assertion
+         * this whole treatment exists to stop a bib making.
+         *
+         * THE CLOCK CELL NEEDS ONLY A TIME, and separating the two is what the ledger added.
+         * A race remembered with a finishing time and no file has a real clock and no honest
+         * distance, and the old pair of rows got that right by accident — they were two
+         * elements. Collapsing them into one row is exactly where a blanket
+         * `recordings.length > 0` guard would have silently deleted a true figure.
+         *
+         * ALL THREE COMBINATIONS, or the assertion cannot tell a component that drops a cell
+         * from one that never had it.
+         */
+        const dnfBib = async (over: Record<string, unknown>) => parseHTML(await container.renderToString(
+            Patch, {props: {event: ev({outcome: "dnf", ...over}), state: "dnf"}})).document;
+
+        const remembered = await dnfBib({recordings: undefined});
         expect(remembered.querySelector(".bib-value")?.textContent?.trim(),
             "a remembered DNF still prints the verdict").toBe(PATCHES.dnf_result);
-        expect(remembered.querySelector(".bib-covered"),
-            "a DNF with no recording has no evidence of a distance, so it prints none").toBeNull();
-        const recorded = parseHTML(await container.renderToString(Patch, {
-            props: {
-                event: ev({outcome: "dnf", recordings: [{id: "1", metres: 12500, elapsed_time: "1:00:00"}]}),
-                state: "dnf",
-            },
-        })).document;
-        expect(recorded.querySelector(".bib-covered-value")?.textContent?.trim(),
-            "a recorded DNF prints what was covered").toBe(`12.50 ${goalForSport("cycling").measurable_unit}`);
+        expect(remembered.querySelector(".bib-ledger"),
+            "a DNF with no recording and no time has no account to report, so it prints no ledger").toBeNull();
+
+        const timedOnly = await dnfBib({recordings: undefined, elapsed_time: "2:00:00"});
+        expect(ledgerOf(timedOnly), "a remembered time is real; the advertised distance beside it is not")
+            .toEqual([{who: PATCHES.recorded_row, km: "", time: "2:00:00"}]);
+
+        const recorded = await dnfBib({recordings: [{id: "1", metres: 12500, elapsed_time: "1:00:00"}], elapsed_time: "1:00:00"});
+        expect(ledgerOf(recorded), "a recorded DNF prints what was covered and how long it took")
+            .toEqual([{who: PATCHES.recorded_row, km: "12.50", time: "1:00:00"}]);
+
+        /*
+         * A BOOKED BIB HAS NO LEDGER AT ALL, and a finished one has the same row an abandoned
+         * one has. The state does not change the ledger's SHAPE — only the hero above it —
+         * which is the claim that let two of the four grid templates be deleted.
+         */
         for (const other of ["booked", "finished"] as const) {
             const doc = await rendered(other);
-            expect(doc.querySelector(".bib-covered"), `a ${other} bib has no covered row`).toBeNull();
             expect(doc.querySelector(".bib-value")?.textContent, `a ${other} bib prints no verdict`)
                 .not.toContain(PATCHES.dnf_result);
+            if (other === "booked") {
+                expect(doc.querySelector(".bib-ledger"), "a race that has not happened has nothing to report").toBeNull();
+            } else {
+                expect(ledgerOf(doc), "a finished bib's ledger is the DNF bib's, row for row")
+                    .toEqual(ledgerOf(dnf));
+            }
         }
 
-        // Selected by CLASS, not by element name. The bib is no longer the list item: a
-        // race with a verified Strava activity renders its bib as an anchor inside the
-        // cell, so `querySelector("li")` now finds the wrapper and reads none of the
-        // treatment classes. Everything else in this file was already class-based, which
-        // is what kept the change to one component and one assertion.
+        // Selected by CLASS, not by element name — the bib is not the list item, the cell
+        // wrapper is. Everything else in this file was already class-based, which is what
+        // kept the change that made the bib a plain `div` again to one component.
         const booked = await rendered("booked");
         expect(booked.querySelector(".bib-tag")?.textContent?.trim()).toBe(PATCHES.booked_label);
         expect(booked.querySelector(".bib")?.classList.contains("bib--booked")).toBe(true);
@@ -804,24 +848,28 @@ describe("dist/patches", () => {
     });
 
     /**
-     * A FINISHED BIB'S WHOLE BOX IS THE LINK, and this is asserted from the built page
-     * because the shape only exists there: the bib renders as an anchor inside its list
-     * item, and the previous structure was one element.
+     * EVERY DESTINATION IS A LINE ON THE STUB, AND THE BIB IS NEVER THE ANCHOR. Asserted from
+     * the built page because the shape only exists there.
      *
-     * CONDITIONAL ON THE RECORDINGS, NOT ON THE STATE. `recordings` is optional, so a
-     * finished race without one must render as an ordinary finished bib — the branches
-     * below are all real cases rather than a happy path and a guard. Driven from EVENTS, so
-     * a race added with or without a recording joins whichever branch it belongs to, and no
-     * branch is pinned to a named race: this note used to cite one that has since been
-     * recorded, and the branches resize as the data moves.
+     * THE BIB USED TO BE A LINK where a race had exactly one recording, and the assertion
+     * this replaces was a three-way split on how many there were: none, one (the whole box),
+     * more than one (the stub). What killed that is a second KIND of destination — a race can
+     * have a published results sheet as well as a file, anchors do not nest, and one of the
+     * two would have had to sit inside the other. So the count no longer chooses the shape,
+     * and the only remaining question is whether there is anywhere to go at all.
      *
-     * AND CONDITIONAL ON HOW MANY, WHICH IS THE THIRD BRANCH. A race recorded in parts has
-     * no single honest destination, so the bib stops being the anchor and holds one link per
-     * recording instead. The equivalence asserted is therefore three-way and exhaustive:
-     * none, exactly one, more than one. Each branch asserts the OTHERS' markup is absent, so
-     * a bib cannot satisfy this by wearing both shapes at once.
+     * CONDITIONAL ON THE DESTINATIONS, NOT ON THE STATE. `recordings` is optional, so a
+     * finished race without one must render as an ordinary finished bib — the branches below
+     * are all real cases rather than a happy path and a guard. Driven from EVENTS, so a race
+     * added with or without a recording joins whichever branch it belongs to, and no branch is
+     * pinned to a named race: this note used to cite one that has since been recorded.
+     *
+     * THE EXPECTED LINES ARE BUILT HERE FROM THE ROW'S OWN FIELDS rather than read back off
+     * the page, and the ORDER is asserted rather than the set. The results sheet goes first
+     * because it is the one a logged-out reader can follow; a check that accepted any order
+     * would be green on the arrangement this feature exists to avoid.
      */
-    it("makes the whole bib a link exactly where the race has a verified activity", () => {
+    it("puts every destination on the stub, in the order a stranger can use them", () => {
         // NO NON-VACUITY FLOOR ON THE FILTERED SUBSET, and this is the repo's own hardest-won
         // test lesson applied to code I wrote a few hours after re-reading it. A
         // `toBeGreaterThan(0)` over a subset of EVENTS is a hand-counted property of TODAY'S
@@ -842,77 +890,58 @@ describe("dist/patches", () => {
 
         for (const {bib, event} of wallBibs(PAGES.all)) {
             const parts = recordingsOf(event);
+            const url = event.official?.url;
 
-            if (parts.length === 0) {
-                expect(bib.tagName.toLowerCase(), `${event.name} has no recording, so its bib must not be a link`)
-                    .not.toBe("a");
-                expect(bib.querySelector(".bib-strava"), `${event.name} must wear no Strava mark`).toBeNull();
-                expect(bib.querySelector(".bib-splits"), `${event.name} has no recording, so it lists none`).toBeNull();
-                continue;
-            }
-
-            if (parts.length > 1) {
-                // THE SPLIT RACE. Anchors do not nest, so the bib cannot both be a link and
-                // contain them — and there is no URL that is the whole race, because Strava
-                // cannot merge two activities. The bib holds the links instead.
-                expect(bib.tagName.toLowerCase(),
-                    `${event.name} has ${parts.length} recordings, so the bib holds the links rather than being one`)
-                    .not.toBe("a");
-                expect(bib.querySelector(".bib-go"),
-                    `${event.name} lists its recordings, so it carries no single action row`).toBeNull();
-
-                const lines = [...bib.querySelectorAll(".bib-split")];
-                expect(lines.length, `${event.name} must draw one line per recording`).toBe(parts.length);
-
-                for (const [i, part] of parts.entries()) {
-                    const line = lines[i];
-                    expect(line.tagName.toLowerCase(), "each split line is its own link").toBe("a");
-                    expect(line.getAttribute("href"), `recording ${part.id} must point at its own activity`)
-                        .toBe(`https://www.strava.com/activities/${part.id}`);
-                    expect(line.getAttribute("href")).toBe(stravaActivityUrl(part));
-                    expect(line.getAttribute("target"), "matching the single-recording bib").toBe("_blank");
-                    expect(line.getAttribute("rel"), "a bare target, as everywhere else on this site").toBeNull();
-                    expect(line.getAttribute("aria-label"),
-                        "an aria-label would REPLACE the name; the sr-only spans EXTEND it").toBeNull();
-
-                    // THE LINE MUST PROMISE WHAT IT DELIVERS. The bib's hero is the SUMMED
-                    // distance and its time row the whole span, so a link that named neither
-                    // would send a reader to smaller figures than the bib showed them — the
-                    // mismatch this whole change exists to close. And the race must be in the
-                    // name, or a reader listing every link on the page cannot tell which wall
-                    // entry it belongs to.
-                    const name = (line.textContent ?? "").replace(/\s+/g, " ").trim();
-                    for (const said of [recordingKm(part).toFixed(2), part.elapsed_time, event.name, NEW_TAB_NOTICE]) {
-                        expect(name, `split line ${i + 1} of ${event.name} must announce "${said}"`).toContain(said);
-                    }
-                }
-                continue;
-            }
-
-            const only = parts[0];
-            const url = stravaActivityUrl(only);
-            expect(bib.tagName.toLowerCase(), `${event.name} has one recording, so the whole bib is the link`).toBe("a");
-            expect(bib.querySelector(".bib-splits"),
-                `${event.name} has one recording, so there is nothing to list`).toBeNull();
             // THE BASE URL IS WRITTEN OUT HERE, and the duplication is the point. Comparing the
-            // built href against `stravaActivityUrl(event)` alone compares the page to the very
+            // built href against `stravaActivityUrl(part)` alone compares the page to the very
             // function that produced it: mistype the constant and every bib ships a 404 with the
             // suite green and `pnpm check` silent — verified by mutating the base and watching
             // 256/256 pass. The literal is the only thing in the build that can disagree with it.
-            expect(url, `${event.name} must point at strava.com/activities/<id>`)
-                .toBe(`https://www.strava.com/activities/${only.id}`);
-            expect(bib.getAttribute("href")).toBe(url);
-            expect(bib.getAttribute("target"), "matching Now.astro and IntroCard.astro").toBe("_blank");
-            expect(bib.getAttribute("rel"), "this site uses a bare target and lets the browser imply noopener; "
-                + "introducing rel on one link out of three makes the convention look accidental").toBeNull();
-            expect(bib.getAttribute("aria-label"), "an aria-label would REPLACE the bib's text with a summary")
-                .toBeNull();
+            // A results URL takes no such treatment: it is stored whole, so there is no
+            // construction to disagree with.
+            const expected = [
+                ...(url === undefined ? [] : [{href: url, says: [PATCHES.official_link, event.name]}]),
+                ...(parts.length === 1
+                    ? [{href: stravaActivityUrl(parts[0]), says: [PATCHES.strava_name, event.name]}]
+                    : parts.map((part) => ({
+                        href: `https://www.strava.com/activities/${part.id}`,
+                        // THE LINE MUST PROMISE WHAT IT DELIVERS. A split bib's hero is the
+                        // SUMMED distance and its ledger row the whole span, so a link that
+                        // named neither would send a reader to smaller figures than the bib
+                        // showed them — the mismatch the stub exists to close.
+                        says: [recordingKm(part).toFixed(2), part.elapsed_time, event.name],
+                    }))),
+            ];
 
-            // The accessible name is name-from-content, so it must be a superset of what
-            // is on screen — including the transcription of the aria-hidden glyph.
-            const name = (bib.textContent ?? "").replace(/\s+/g, " ").trim();
-            for (const part of [event.name, event.country, String(raceKm(event)).split(".")[0], PATCHES.strava_name]) {
-                expect(name, `the announced name must carry "${part}"`).toContain(part);
+            expect(bib.tagName.toLowerCase(), `${event.name}: no bib is ever the anchor`).not.toBe("a");
+
+            if (expected.length === 0) {
+                expect(bib.querySelector(".bib-stub"),
+                    `${event.name} has nowhere to go, so it grows no stub`).toBeNull();
+                continue;
+            }
+
+            const lines = [...bib.querySelectorAll(".bib-stub-link")];
+            expect(lines.map((a) => a.getAttribute("href")),
+                `${event.name} must list every destination it has, sheet first`)
+                .toEqual(expected.map((e) => e.href));
+            if (parts.length === 1) expect(lines.at(-1)?.getAttribute("href")).toBe(stravaActivityUrl(parts[0]));
+
+            for (const [i, line] of lines.entries()) {
+                expect(line.tagName.toLowerCase(), "each stub line is its own link").toBe("a");
+                expect(line.getAttribute("target"), "matching Now.astro and IntroCard.astro").toBe("_blank");
+                expect(line.getAttribute("rel"), "this site uses a bare target and lets the browser imply noopener; "
+                    + "introducing rel on one link out of three makes the convention look accidental").toBeNull();
+                expect(line.getAttribute("aria-label"),
+                    "an aria-label would REPLACE the name; the sr-only spans EXTEND it").toBeNull();
+
+                // The accessible name is name-from-content, so it is a superset of what is on
+                // screen. The race has to be in it, or a reader listing every link on the page
+                // cannot tell which wall entry it belongs to.
+                const name = (line.textContent ?? "").replace(/\s+/g, " ").trim();
+                for (const said of [...expected[i].says, NEW_TAB_NOTICE]) {
+                    expect(name, `${event.name} stub line ${i + 1} must announce "${said}"`).toContain(said);
+                }
             }
         }
     });
@@ -942,8 +971,8 @@ describe("dist/patches", () => {
         // incidents rather than a gate on the property. Sweeping ORIGIN/MAIN as the baseline for
         // this change found `.bib-tag` — the word "Booked", the sole text carrier of a bib's
         // state — escaping the border box by 31.45px at a 44px root and 63.11px at 48, on a
-        // 320px viewport, and it had been doing so since it was written. `.bib-go` is the new
-        // action row and is the same shape ("Strava" does not break).
+        // 320px viewport, and it had been doing so since it was written. A stub line is the same shape
+        // again ("Strava" and "RESULT" do not break).
         //
         // Both are outside the WCAG 1.4.4 bracket, which tops out at a 32px root, so neither is
         // a conformance failure — which is presumably how two passes over that file walked past
@@ -957,12 +986,18 @@ describe("dist/patches", () => {
         // remedy is not free the way it is for the four above: `anywhere` on a three-letter sport
         // word breaks it mid-word ("Ri/de"), which is a legibility trade rather than a fix, and
         // that is the owner's call. Recorded, not smuggled in.
-        // `bib-split` joins them: its tokens are a distance and a clock, the same unbreakable
-        // shape as the elapsed row that was measured escaping from a 42px root.
-        // `bib-covered` is the same shape again — "COVERED" and "110.04" are each one token —
-        // and it is the row a DNF bib's distance moved into, so the ink at risk is the only
-        // figure that bib prints.
-        for (const cls of ["bib-time", "bib-place", "bib-tag", "bib-go", "bib-split", "bib-covered"]) {
+        // `bib-stub-link` joins them: its tokens are a label, a distance and a clock, the same
+        // unbreakable shape as the row measured escaping from a 42px root.
+        //
+        // `bib-ledger` REPLACES `bib-time` AND `bib-covered` AND IS CHECKED ONCE, which is a
+        // real narrowing of what this loop reads and is why it is written down. Those were two
+        // elements with a rule each; the ledger is one element whose CELLS carry the tokens —
+        // `OFFICIAL`, `21.10`, `3:30:59` — and `overflow-wrap` inherits, so declaring it on the
+        // container covers every cell including ones no fixture has produced yet. The risk this
+        // trades away is a future cell rule that overrides it locally, which no cell rule below
+        // does and which this loop could not see in any case: it reads the declaration, not the
+        // rendered box. The browser sweep is what measures the ink.
+        for (const cls of ["bib-ledger", "bib-place", "bib-tag", "bib-stub-link"]) {
             const owned = rules.filter((r) => r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel)));
             expect(owned.length, `no rule for .${cls} — this assertion would be vacuous`).toBeGreaterThan(0);
             const wrap = owned.map((r) => decl(r.body, "overflow-wrap") ?? decl(r.body, "word-wrap")).find((v) => v !== undefined);
@@ -1026,125 +1061,394 @@ describe("dist/patches", () => {
      * triggered by ordinary data entry. The loop covers every race on the wall and both
      * branches per race, so it is vacuous only if EVENTS is empty — the one guard that is safe.
      */
-    it("gives a linked bib a visible label saying what using it does", () => {
+    it("gives every stub line a label a reader can see, and a glyph with a real rule", () => {
         const doc = parseHTML(read(PAGES.all)).document;
         expect(EVENTS.length, "EVENTS is empty, so the loop below is vacuous").toBeGreaterThan(0);
 
         for (const {bib, event} of wallBibs(PAGES.all)) {
-            const row = bib.querySelector(".bib-go");
-
-            // THE ROW BELONGS TO A BIB WITH EXACTLY ONE PLACE TO GO. With none there is nothing
-            // to say; with several the bib lists them instead, and each line carries its own
-            // words — held by the split branch of the anchor test above.
-            if (recordingsOf(event).length !== 1) {
-                expect(row, `${event.name} does not have exactly one recording, so it offers no action row`)
-                    .toBeNull();
+            const lines = [...bib.querySelectorAll(".bib-stub-link")];
+            if (lines.length === 0) {
+                expect(bib.querySelector(".bib-stub"), `${event.name} has nowhere to go and grows no stub`).toBeNull();
                 continue;
             }
 
-            expect(row, `${event.name} links out, so it must say so in words`).toBeTruthy();
-            expect(bib.tagName.toLowerCase(), "a bib wearing the row must actually link").toBe("a");
+            for (const line of lines) {
+                // THE POINT OF THE WHOLE CHANGE THAT PRECEDED THIS ONE: the words are ON SCREEN,
+                // in their own span rather than behind an sr-only one. Read the way a reader
+                // gets it — clone, strip the hidden subtrees, and take what is left. Asserted
+                // this way because the arrangement that shipped once, and that two reviewers
+                // could not see, satisfied every clause of a check written the other way round.
+                const seen = line.cloneNode(true) as Element;
+                for (const hidden of [...seen.querySelectorAll(".sr-only")]) hidden.remove();
+                const visible = (seen.textContent ?? "").replace(/\s+/g, " ").trim();
+                expect(visible.length,
+                    `${event.name}: a stub line with no words a reader can see is a 7.5x10px glyph, which is `
+                    + "the affordance two reviewers could not find").toBeGreaterThan(0);
+                expect(line.querySelector(".bib-stub-label")?.textContent?.trim(),
+                    "the label is its own element, so the sweep can measure it").toBeTruthy();
 
-            expect(row!.textContent?.replace(/\s+/g, " ").trim(),
-                "the row's words are the configured label").toBe(PATCHES.strava_name);
+                // THE GLYPH NAMES THE DESTINATION AND MUST HAVE A RULE. An icon class UnoCSS
+                // never generated renders as a mask box at zero size — correct markup, no icon,
+                // nothing red — which is why `official_icon` had to become a PATCHES field.
+                const glyph = line.querySelector(".bib-stub-mark");
+                expect(glyph, `${event.name}: every stub line keeps its mark`).toBeTruthy();
+                expect(glyph?.getAttribute("aria-hidden"),
+                    "the glyph is decorative: the words say what the mark used to have to").toBe("true");
+                const token = [...(glyph?.classList ?? [])].find((c) => c.startsWith("i-"));
+                expect(token, "the mark must wear an icon class").toBeTruthy();
+                expect(pageCss(PAGES.all), `${token} has no rule, so it ships as a mask box at zero size`)
+                    .toContain(`.${token}`);
+            }
 
-            // THE POINT OF THE WHOLE CHANGE: the words are on screen, as a text node in the row
-            // rather than behind an sr-only span. Asserted as an absence, because that is the
-            // arrangement that shipped and that two reviewers could not see.
-            expect(row!.querySelector(".sr-only"),
-                "and nothing in the row may be visually hidden: the glyph is decorative and the words carry it")
-                .toBeNull();
-
-            const glyph = row!.querySelector(`span[class~="${iconClass(PATCHES.strava_icon)}"]`);
-            expect(glyph, "the row keeps the configured glyph, and it must have a rule — an icon class "
-                + "UnoCSS never generated renders as a mask box at zero size").toBeTruthy();
-            expect(glyph?.getAttribute("aria-hidden"),
-                "the glyph is decorative now: the visible words say what the mark used to have to")
-                .toBe("true");
+            // AND THE RESULTS SHEET IS FIRST WHERE THERE IS ONE. Asserted here as well as by
+            // href order above, because this is the half a reader actually meets: the visible
+            // words, in the order they are read.
+            if (event.official?.url !== undefined) {
+                expect(lines[0].querySelector(".bib-stub-label")?.textContent?.trim(),
+                    `${event.name} publishes a result, and it is the one link a logged-out reader can follow`)
+                    .toBe(PATCHES.official_link);
+            }
         }
 
-        // The mark that USED to carry this is gone, and so are its rules. Left behind, the
+        // The marks that USED to carry this are gone, and so are their rules. Left behind, the
         // orphan gate in build-output.test.ts would fail the build — but only if the rules went
         // too, and a stray element with no rule fails nothing at all. This is the half that
         // catches a half-finished revert.
-        expect(doc.querySelector(".bib-strava"),
-            "the old corner mark must not come back alongside the row — one affordance, one place")
-            .toBeNull();
+        for (const dead of [".bib-strava", ".bib-go"]) {
+            expect(doc.querySelector(dead),
+                `${dead} must not come back alongside the stub — one affordance, one place`).toBeNull();
+        }
     });
 
     /**
-     * THE ACTION ROW MUST NOT BE DRAWN LIKE THE CAPTIONS AROUND IT, and it must not be drawn like
-     * a web link either. Both halves are the assertion; the second was added after the first
+     * A STUB LINE MUST NOT BE DRAWN LIKE THE CAPTIONS AROUND IT, and it must not be drawn like a
+     * web link either. Both halves are the assertion; the second was added after the first
      * revision got it wrong.
      *
-     * `ELAPSED 9:41:31` sits immediately above the row in the same 10px uppercase letterspaced
-     * idiom, and four lines on the bib — the date, the tag, the elapsed label and the place —
-     * share `opacity: 0.8`. A row that joined that group would be a control drawn exactly like
-     * the captions around it, which is this whole change's defect re-committed one element down.
+     * The ledger sits immediately above the stub in the same 10px uppercase letterspaced idiom,
+     * and several lines on the bib — the date, the tag, the ledger's captions, the place —
+     * share `opacity: 0.8`. A line that joined that group would be a control drawn exactly like
+     * the captions around it, which is this change's defect re-committed one element down.
      *
      * The other way to get it wrong is to reach for the site's TEXT-LINK idiom. A bib is a
-     * printed artifact whose every row is undecorated, and the whole bib is the anchor — so a
-     * rule under 15px of ink inside a 260px target is both foreign vocabulary and a false
-     * statement about where to aim. That is asserted rather than merely commented, because it
-     * was shipped once and only caught by eye.
+     * printed artifact whose every row is undecorated, so a rule under the words is foreign
+     * vocabulary here. That is asserted rather than merely commented, because it was shipped
+     * once and only caught by eye.
      *
-     * So what this pins is the pair of properties that actually carry the row: full ink, and the
-     * bib's emphatic weight. Read from the shipped stylesheet.
+     * A STUB LINE IS DIMMED AS A WHOLE AND ITS LABEL IS NOT, WHICH IS NOT THE CAPTION CASE. The
+     * line carries `opacity: 0.8` on the anchor — where the retired action row carried full ink
+     * — and that is a deliberate difference recorded rather than smuggled: it is a run of small
+     * type inside an inverted face, and the composited-contrast sweep below holds it to the
+     * text floor in every state and both themes. What must NOT happen is the LABEL being dimmed
+     * again on top of that, which would composite twice.
      */
-    it("draws the action row as a bib annotation — not as a caption, and not as a web link", () => {
+    it("draws a stub line as a bib annotation — not as a caption, and not as a web link", () => {
         const rules = parseRules(pageCss(PAGES.all));
-        const owned = rules.filter((r) => r.selectors.some((s) => /\.bib-go\b/.test(s)));
-        expect(owned.length, "no .bib-go rules — this assertion would be vacuous").toBeGreaterThan(0);
+        const owned = rules.filter((r) => r.selectors.some((s) => /\.bib-stub-link\b/.test(s)));
+        expect(owned.length, "no .bib-stub-link rules — this assertion would be vacuous").toBeGreaterThan(0);
 
         const weight = owned.map((r) => decl(r.body, "font-weight")).find((v) => v !== undefined);
         expect(Number(weight ?? 400),
-            "the row must carry the bib's emphatic weight — it is what separates a control from the "
-            + "four captions once the decoration is (correctly) gone").toBeGreaterThanOrEqual(700);
+            "a stub line must carry the bib's emphatic weight — it is what separates a control from the "
+            + "captions once the decoration is (correctly) gone").toBeGreaterThanOrEqual(700);
 
-        for (const r of owned) {
+        for (const r of rules.filter((x) => x.selectors.some((s) => /\.bib-stub-label\b/.test(s)))) {
             const o = decl(r.body, "opacity");
             expect(o === undefined || Number(o) >= 1,
-                `${r.selectors.join(",")} dims the action row to ${o} — the four captions on this bib are `
-                + "the dimmed ones, and a control drawn like them is the defect being fixed").toBe(true);
+                `${r.selectors.join(",")} dims the label to ${o} on a line that is already dimmed — the `
+                + "two alphas composite and the control lands under the captions it sits beside").toBe(true);
         }
 
         // BOTH SPELLINGS, and that is not defensiveness: the minifier collapses a
         // `text-decoration` pair into the shorthand, while the `text-link` shortcut emits
         // `text-decoration-line`. A gate matching one spelling would miss the other.
-        for (const r of rules.filter((x) => x.selectors.some((s) => /\.bib-go(-label)?\b/.test(s)))) {
+        for (const r of rules.filter((x) => x.selectors.some((s) => /\.bib-stub(-link|-label)?\b/.test(s)))) {
             const v = decl(r.body, "text-decoration") ?? decl(r.body, "text-decoration-line");
             expect(v === undefined || !/underline/i.test(v),
-                `${r.selectors.join(",")} rules the action row's text. The bib is a printed artifact `
-                + "with no decorated rows, and the whole bib is the anchor — so a rule under the label "
-                + "imports web vocabulary AND advertises 15px of a 260px target").toBe(true);
+                `${r.selectors.join(",")} rules a stub line's text. The bib is a printed artifact `
+                + "with no decorated rows, so a rule here imports web vocabulary into a paper one").toBe(true);
         }
     });
 
     /**
-     * THE TIME IS LABELLED, and the label is the assertion rather than a nicety. Elapsed
-     * and moving are far apart on these rides — 8:32:05 against 5:03:55 over the same
-     * 140.49 km — so a bare time invites a reader to divide it into the distance above it
-     * and be 11 km/h wrong (16.5 against 27.7). See `elapsed_label` in constants.ts, which
-     * carries the same figure; it read 9 while the bib printed the EVENT's distance.
+     * EVERY ACCOUNT OF A RACE IS A LEDGER ROW, AND NO ROW MIXES TWO OF THEM. That is the whole
+     * property: a reader who divides the two figures on a line gets a speed the instrument that
+     * produced them would recognise.
+     *
+     * IT REPLACES A LABELLED ELAPSED ROW, and the reason the label existed is the reason the
+     * rows are named now. Elapsed and moving are far apart on these rides — 8:32:05 against
+     * 5:03:55 over the same 140.49 km — so a bare time invites a reader to divide it into
+     * whatever distance is nearest and be 11 km/h wrong (16.5 against 27.7). Naming the source
+     * is strictly stronger than naming the clock, because it also rules out dividing an
+     * organiser's distance into a watch's time.
+     *
+     * THE EXPECTED ROWS ARE BUILT FROM THE EVENT'S OWN FIELDS, in order, and compared whole. A
+     * per-row `toContain` would be green on a bib that printed the official time against the
+     * recorded distance, which is the single failure this device exists to prevent.
      */
-    it("prints a finished race's elapsed time, labelled, and only where there is one", () => {
+    it("gives each account of a race its own ledger row, and mixes none of them", () => {
         // Same reasoning as the link test above: no floor on the filtered subset. The loop
-        // below covers both branches per race and is vacuous only if EVENTS is.
+        // below covers every branch per race and is vacuous only if EVENTS is.
         expect(EVENTS.length, "EVENTS is empty, so the loop below is vacuous").toBeGreaterThan(0);
 
-        for (const {bib, event} of wallBibs(PAGES.all)) {
-            const row = bib.querySelector(".bib-time");
-            if (event.elapsed_time === undefined) {
-                expect(row, `${event.name} has no time, so its bib must print no time row`).toBeNull();
+        for (const {bib, event, state} of wallBibs(PAGES.all)) {
+            const official = event.official;
+            const clock = official?.net_time ?? official?.gun_time;
+            const expected = state === "booked" ? [] : [
+                ...(official === undefined ? [] : [{
+                    who: PATCHES.official_row,
+                    km: (event.advertised_km ?? NaN).toFixed(2),
+                    time: clock ?? "",
+                }]),
+                ...(recordingsOf(event).length > 0 || event.elapsed_time !== undefined ? [{
+                    who: PATCHES.recorded_row,
+                    km: recordingsOf(event).length > 0 ? raceKm(event).toFixed(2) : "",
+                    time: event.elapsed_time ?? "",
+                }] : []),
+            ];
+
+            expect(ledgerOf(bib), `${event.name} (${state}) ledger`).toEqual(expected);
+            if (expected.length === 0) {
+                expect(bib.querySelector(".bib-ledger"),
+                    `${event.name} has no account to report, so it prints no ledger at all`).toBeNull();
                 continue;
             }
-            expect(row, `${event.name} must print its time`).toBeTruthy();
-            expect(row!.querySelector(".bib-time-value")?.textContent?.trim()).toBe(event.elapsed_time);
-            expect(
-                row!.querySelector(".bib-time-label")?.textContent?.trim(),
-                "an unlabelled time does not say which clock it is",
-            ).toBe(PATCHES.elapsed_label);
+
+            // THE UNIT IS STATED ONCE, IN THE COLUMN IT GOVERNS. Repeating it on every figure
+            // was built first and does not fit — see `time_head` in constants.ts. The distance
+            // heading comes from the GOAL, so it cannot disagree with the hero's sideways unit.
+            const head = [...bib.querySelectorAll(".bib-ledger-head span")].map((s) => s.textContent?.trim());
+            expect(head, `${event.name} heading row`)
+                .toEqual(["", goalForSport(event.sport).measurable_unit, PATCHES.time_head]);
         }
+    });
+
+    /**
+     * THE LEDGER'S SLACK GOES AFTER THE ROW'S NAME, NEVER BETWEEN ITS TWO FIGURES.
+     *
+     * WRITTEN BECAUSE THE SUITE COULD NOT SEE THE DEFECT AND A READER COULD, IMMEDIATELY. The
+     * first build put the flexible track in the middle (`auto 1fr auto`), which strands the
+     * clock at the bib's right-hand edge on any bib wider than the ledger's content: measured
+     * on a 390px viewport, where the wall gives a bib the full 324px, the ink gap between
+     * `160.56` and `10:56:17` was **127.4px** against 5.5px everywhere else. Every assertion in
+     * this file was green. The owner spotted it on a phone.
+     *
+     * IT IS A CORRECTNESS PROPERTY AND NOT A TASTE ONE, which is why it is gated rather than
+     * left to review. The ledger's whole claim is that one row carries ONE source's distance
+     * beside that SAME source's clock — see `official_row` in constants.ts — and a 127px rift
+     * between exactly those two figures argues the opposite of the thing the row exists to say.
+     * A gap after the row's NAME has no such problem: a leader rail between a key and its
+     * figures is what a results sheet already does.
+     *
+     * AND THE FIGURE TRACKS MUST CARRY A ZERO MINIMUM. A bare `auto` minimum is the content's
+     * MIN-CONTENT size, which an unbreakable token like `10:09:34` cannot go below however the
+     * text is allowed to wrap — so the track holds the grid wider than the bib and the ink
+     * paints on the card at 1.045:1, unreadable rather than absent, and `.bib` does not clip so
+     * no sweep that walks clipping ancestors sees it. Measured at 320px: +3.52px past the
+     * border box from a 44px root and +4.61px at 48, against 39.39px INSIDE with the floor
+     * removed. `overflow-wrap` alone does not fix it; the two are a pair.
+     *
+     * READ FROM THE SHIPPED SHEET, because the source is not what the browser parses.
+     */
+    it("puts the ledger's slack after the row's name, and lets its figure tracks shrink", () => {
+        const rules = parseRules(pageCss(PAGES.all))
+            .filter((r) => r.selectors.some((s) => /\.bib-ledger\b/.test(s)));
+        const tracks = rules.map((r) => decl(r.body, "grid-template-columns")).find((v) => v !== undefined);
+        expect(tracks, "the ledger must declare its columns — without them there is no table").toBeTruthy();
+
+        // Split on top-level spaces: `minmax(0, auto)` carries one of its own.
+        const cols: string[] = [];
+        let depth = 0, cur = "";
+        for (const ch of tracks!) {
+            if (ch === "(") depth++;
+            if (ch === ")") depth--;
+            if (ch === " " && depth === 0) { if (cur) cols.push(cur); cur = ""; continue; }
+            cur += ch;
+        }
+        if (cur) cols.push(cur);
+        expect(cols.length, `three columns: source, distance, clock — got ${tracks}`).toBe(3);
+
+        const flexible = cols.map((c, i) => /(^|[(,\s])[\d.]*fr\b/.test(c) ? i : -1).filter((i) => i >= 0);
+        expect(flexible, `only the FIRST track may be flexible, or the slack lands between a source's `
+            + `distance and that source's own clock. Got "${tracks}"`).toEqual([0]);
+
+        for (const i of [1, 2]) {
+            expect(cols[i], `track ${i + 1} holds an unbreakable figure, so it needs a zero minimum — `
+                + `a bare "auto" cannot shrink below min-content and pushes the ink onto the card`)
+                .toMatch(/^minmax\(\s*0\s*,/);
+        }
+
+        /*
+         * AND THE CLOCK COLUMN MUST BE SEPARATED FROM THE DISTANCE BY MORE THAN THE GAP.
+         *
+         * Grouping the two figures fixed the rift and created its opposite: `160.56` and
+         * `10:56:17` are both tabular, both 800, both 10px, and at the ledger's own column gap
+         * they read as ONE run of digits. Reported by the owner within minutes of the first
+         * build. A distance and a clock are different fields and the drawing has to say so.
+         *
+         * ASSERTED AS "MORE THAN THE GAP", NOT AS A NUMBER, because the number is a rendered
+         * fact and this test reads a stylesheet. What is checkable here is the PROPERTY: the
+         * clock column carries separation of its own, on top of whatever the gap gives every
+         * column. Deleting the padding — the way this defect would return — makes the two
+         * quantities equal and reddens this.
+         */
+        // BOTH SPELLINGS, and it is not defensiveness — it is what the build actually emits.
+        // The source declares `row-gap` and `column-gap`; the minifier collapses the pair into
+        // the `gap` shorthand, ROW FIRST, so a gate reading only the longhand asks the built
+        // sheet for a property that is not in it and fails on correct code. This file records
+        // the same trap for `text-decoration`.
+        // UNCONDITIONAL RULES ONLY, on both sides of the comparison. The ledger's narrow arms
+        // set this same padding to zero (a clock alone on a line has no distance to be told
+        // apart from), and `parseRules` returns an at-rule's children as ordinary rules
+        // carrying an `at`. Source order happens to put the base rule first today, so a bare
+        // `.find()` reads 1.4em — but it would read the arm's 0 the moment the sheet is
+        // reordered, and fail on correct code. What this gate is about is the UNCONDITIONAL
+        // separation, so it asks for exactly that.
+        const gapDecl = rules.filter((r) => r.at === "")
+            .map((r) => decl(r.body, "column-gap") ?? decl(r.body, "gap"))
+            .find((v) => v !== undefined);
+        expect(gapDecl, "the ledger must declare a column gap").toBeTruthy();
+        const parts = gapDecl!.trim().split(/\s+/);
+        const gap = parts.length > 1 ? parts[1] : parts[0];
+        const padRules = parseRules(pageCss(PAGES.all))
+            .filter((r) => r.at === "" && r.selectors.some((s) => /\.bib-ledger-time\b/.test(s)));
+        const pad = padRules.map((r) => decl(r.body, "padding-left")).find((v) => v !== undefined);
+        const em = (v: string | undefined) => Number.parseFloat(v ?? "0");
+        expect(em(pad), `the clock column needs air of its own — at the gap alone (${gap}) a distance `
+            + "and a clock in the same weight, size and tabular figures read as one run of digits")
+            .toBeGreaterThan(em(gap));
+
+        // AND THE HEADING TAKES THE SAME PADDING, or it stops sitting over its column.
+        const headPad = parseRules(pageCss(PAGES.all))
+            .filter((r) => r.selectors.some((s) => /\.bib-ledger-time-head\b/.test(s)))
+            .map((r) => decl(r.body, "padding-left")).find((v) => v !== undefined);
+        expect(headPad, "the clock heading must move with its column").toBe(pad);
+
+        // AND THE HEADING'S OWN RULE IS READ UNCONDITIONALLY TOO, for the reason above.
+    });
+
+    /**
+     * THE LEDGER MUST REFLOW ON THE BIB'S OWN WIDTH, AND THE CONDITION MUST BE FONT-RELATIVE.
+     *
+     * WHAT THIS CATCHES. `overflow-wrap: anywhere` and `minmax(0, auto)` above are a pair that
+     * turns an overflow into a break — which is what keeps the clock off the card, and is also
+     * a licence for the leader track to be squeezed to nothing. Measured on the shipped wall at
+     * a 32px root, the size WCAG SC 1.4.4 requires the page to survive: a 390px phone gave the
+     * bib 260px and `RECORDED` rendered as EIGHT STACKED SINGLE LETTERS. 280 wrapped cells
+     * across ten viewports and five root sizes, with the whole suite green and no ink escaping
+     * any bib — because the failure is legibility, and the sweep that passed this design was
+     * measuring containment. A containment measurement cannot see this class at all.
+     *
+     * WHY `em` IS THE ASSERTION AND NOT A NUMBER. The broken widths STRADDLE the healthy ones
+     * in px — 320px at a 16px root is fine at 254px while 375px at 32px is broken at 245px, and
+     * a 490px tablet band is broken at 208px — so no pixel threshold separates them. Divided by
+     * the reader's own root size the two sets separate cleanly: everything at or under 13.08em
+     * wrapped, everything at or over 13.63em did not. A px-valued query would therefore be
+     * either a no-op or a false positive, and it would also stop moving when the reader
+     * enlarges the text, which is the one thing this rule exists to respond to.
+     *
+     * WHAT IS NOT ASSERTED HERE. The rendered result. This file reads a stylesheet, so what is
+     * checkable is the PROPERTY — the arms exist, they key on the bib's inline size, their
+     * thresholds are font-relative, and the row's name is what gives way. The figures are
+     * re-swept in a browser when this area changes; the numbers above are that sweep.
+     */
+    it("reflows the ledger on the bib's own width, in units that follow the reader's text", () => {
+        const rules = parseRules(pageCss(PAGES.all))
+            .filter((r) => r.selectors.some((s) => /\.bib-ledger/.test(s)) && r.at !== "");
+
+        const arms = [...new Set(rules.map((r) => r.at))].filter((a) => /@container/.test(a));
+        expect(arms.length, "the ledger must reflow on the bib's own inline size — at the "
+            + "reader's 200% the three-column form shatters `RECORDED` into single letters")
+            .toBeGreaterThan(0);
+
+        // BOTH SPELLINGS, and it is what the build actually emits rather than defensiveness.
+        // The source declares `(max-width: 14em)` and the minifier rewrites it to the range
+        // form `(width<=14em)`. A gate written against the source spelling asks the shipped
+        // sheet for text that is not in it and fails on correct code — the same trap this file
+        // records for the `gap` shorthand and for `text-decoration`.
+        for (const at of arms) {
+            expect(at, `"${at}" must key on the container's WIDTH`).toMatch(/max-width|width\s*<=/);
+            const value = /(?:max-width\s*:|width\s*<=)\s*([\d.]+)(\w+)/.exec(at);
+            expect(value, `"${at}" must carry a readable width threshold`).toBeTruthy();
+            expect(value![2], `"${at}" must be font-relative. A pixel threshold cannot express `
+                + "this condition — the broken bib widths straddle the healthy ones in px — and "
+                + "it would stop moving when the reader enlarges the text, which is the only "
+                + "thing this rule responds to")
+                .toMatch(/^r?em$/);
+        }
+
+        // THE ROW'S NAME IS WHAT GIVES WAY, and it must give way to a WHOLE row: spanning only
+        // part of the track list leaves it in a column narrow enough to break again.
+        const whoSpans = rules
+            .filter((r) => r.selectors.some((s) => /\.bib-ledger-who\b/.test(s)))
+            .map((r) => decl(r.body, "grid-column"))
+            .filter((v) => v !== undefined);
+        expect(whoSpans.length, "some arm must give the row's name a line of its own — it is the "
+            + "one cell here a reader can do without on its own row, and the figures' shared "
+            + "columns are what the ledger is FOR").toBeGreaterThan(0);
+        expect(whoSpans.some((v) => /1\s*\/\s*-1/.test(v!)), `the name must span every column, `
+            + `got ${JSON.stringify(whoSpans)}`).toBe(true);
+    });
+
+    /**
+     * A CLOCK MUST BE CALLED BY ITS RIGHT NAME, AND THE NAME IS THE ONLY PLACE THIS IS SAID.
+     *
+     * WHY IT MATTERS MORE THAN IT LOOKS. A gun time and a net time differ by however long the
+     * rider stood in the pen — 17 minutes and 5 seconds apart on the 2022 half marathon, where
+     * the sheet publishes both. Nothing on SCREEN states which one a bib is printing; the word
+     * lives in the results link's accessible name, so a reader using it is the one reader who
+     * is told, and the only one who can be MIStold.
+     *
+     * WHAT WAS UNPINNED. The word has TWO sources — the component's derivation and these two
+     * constants — and neither was held. Swapping either shipped `net time 2:19:11` for a race
+     * whose sheet publishes a gun time and nothing else, with 461 tests, `pnpm check` and
+     * `pnpm eslint` all green. The figure was already gated; the word naming it was not, which
+     * is exactly the asymmetry the component's own note warns about.
+     *
+     * THE TWO WORDS ARE WRITTEN OUT, and the duplication is the point — the same reason the
+     * Strava base URL is a literal a few tests above. Deriving the expectation from
+     * `PATCHES.net_clock` would compare the page against the very constant that drew it, and
+     * swapping the two VALUES would keep this green while every bib announced the wrong clock.
+     * These are the sport's own words, not configuration: a field whose whole job is to name
+     * the correct clock cannot also be free to say anything.
+     */
+    it("names the right clock on an official result, and prints the figure that word names", () => {
+        expect(PATCHES.net_clock, "a chip time is a NET time").toBe("net");
+        expect(PATCHES.gun_clock, "the starting gun to the finish mat is a GUN time").toBe("gun");
+
+        let net = 0, gun = 0;
+        for (const {bib, event} of wallBibs(PAGES.all)) {
+            const official = event.official;
+            if (official?.url === undefined) continue;
+
+            const line = [...bib.querySelectorAll("a.bib-stub-link")]
+                .find((a) => a.getAttribute("href") === official.url);
+            expect(line, `${event.name} publishes a results sheet, so its stub must link it`)
+                .toBeTruthy();
+
+            const said = (line!.textContent ?? "").replace(/\s+/g, " ").toLowerCase();
+            // DERIVED FROM THE EVENT, NOT FROM THE COMPONENT'S CHOICE. `net_time` is the
+            // rider's own race and wins where the sheet publishes one; where it does not, what
+            // is left is a gun time and must be called that. constants.ts refuses to derive a
+            // net time by subtraction for exactly this reason.
+            const right = official.net_time !== undefined ? "net" : "gun";
+            const wrong = right === "net" ? "gun" : "net";
+            if (right === "net") net++; else gun++;
+
+            expect(said, `${event.name}: the sheet publishes a ${right} time, so the link must `
+                + `say so — a reader is told this ONCE and nothing on screen contradicts it`)
+                .toContain(`${right} time`);
+            expect(said, `${event.name} must not announce a ${wrong} time; the two are `
+                + "17 minutes apart on the one race whose sheet publishes both")
+                .not.toContain(`${wrong} time`);
+            expect(said, `${event.name}: the word and the figure must be the SAME clock`)
+                .toContain((official.net_time ?? official.gun_time)!.toLowerCase());
+        }
+
+        // BOTH BRANCHES, or the gate covers one word and calls the other proven. The calendar
+        // holds one race of each kind; if that stops being true this must be told, not skipped.
+        expect(net, "a race whose sheet publishes a net time").toBeGreaterThan(0);
+        expect(gun, "a race whose sheet publishes only a gun time").toBeGreaterThan(0);
     });
 
     /**
@@ -1164,36 +1468,16 @@ describe("dist/patches", () => {
             const value = bib.querySelector(".bib-value")!;
             const km = raceKm(event).toFixed(2);
             // THE HERO IS NOT ALWAYS THE DISTANCE. On a bib for a race that was not
-            // finished the hero is the RESULT and the distance moves to its own labelled
-            // row — so this branch holds the same two-decimal rule against a different
-            // element, and holds the hero to NOT being a number, which is the whole
-            // reason the row exists. Both halves matter: printing 110.04 large again
-            // would put the bib back to claiming a result nobody got.
+            // finished the hero is the RESULT, and the kilometres are reported by the
+            // ledger like every other account of the race — held whole by the ledger test
+            // above, so this branch only holds the hero to NOT being a number. That half
+            // still matters on its own: printing 110.04 large again would put the bib back
+            // to claiming a result nobody got.
             if (bib.classList.contains("bib--dnf")) {
                 expect(value.textContent?.trim(), `${event.name} hero`).toBe(PATCHES.dnf_result);
                 expect(value.querySelector(".bib-fraction"), `${event.name} splits no fraction off a verdict`)
                     .toBeNull();
                 expect(bib.querySelector(".bib-unit"), `${event.name} puts no unit on a verdict`).toBeNull();
-                // BOTH DIRECTIONS OF THE COVERED ROW, because a DNF does not always have a
-                // distance to report. `recordings` is optional on every race, so a DNF the
-                // owner remembers without one is a SUPPORTED shape — and `Patch.astro` omits
-                // the row for it deliberately, since the only honest answer to "how far did
-                // he get" is then nothing at all. Asserting the row unconditionally made that
-                // supported shape turn the DEPLOY red against a component doing exactly what
-                // it is specified to do; the `else` is what stops the fix from trading the
-                // rule away instead, by holding the row absent when there is no evidence.
-                if (recordingsOf(event).length > 0) {
-                    expect(bib.querySelector(".bib-covered-value")?.textContent?.trim(),
-                        `${event.name} covered distance`)
-                        .toBe(`${km} ${goalForSport(event.sport).measurable_unit}`);
-                    expect(bib.querySelector(".bib-covered-label")?.textContent?.trim(),
-                        `${event.name} covered label`)
-                        .toBe(PATCHES.covered_label);
-                } else {
-                    expect(bib.querySelector(".bib-covered"),
-                        `${event.name} was abandoned with nothing recorded, so the bib has no distance to `
-                        + `report and must print no covered row rather than an invented figure`).toBeNull();
-                }
                 continue;
             }
             expect(value.textContent?.replace(/\s+/g, ""), `${event.name} distance`).toBe(km);
@@ -1940,7 +2224,7 @@ describe("a bib that opens a new tab says so, last", () => {
         recordings: [{id: "1234567890123", metres: 100000, elapsed_time: "5:00:00"}],
     };
     const unlinked: RaceEvent = {
-        date: `${GOAL_YEAR}-07-10`, name: "A Race With No Recording", km: 100, sport: "cycling",
+        date: `${GOAL_YEAR}-07-10`, name: "A Race With No Recording", advertised_km: 100, sport: "cycling",
         country: "Thailand", elapsed_time: "5:00:00",
     };
     const render = async (event: RaceEvent, state: PatchState = "finished") =>
@@ -1962,36 +2246,42 @@ describe("a bib that opens a new tab says so, last", () => {
         return text;
     };
 
-    it("puts the warning inside the anchor, as its LAST child", async () => {
-        const doc = await render(linked);
-        const anchor = doc.querySelector("a.bib");
-        expect(anchor, "a bib with a verified activity must render as an anchor").toBeTruthy();
-        expect(anchor!.getAttribute("target")).toBe("_blank");
+    it("puts the warning inside every stub link, as its LAST child", async () => {
+        // A RACE WITH BOTH KINDS OF DESTINATION, so this reads more than one link. Every stub
+        // line opens a new tab and every one of them owes the warning; a fixture with a single
+        // link would be green on a component that emitted it once for the whole stub.
+        const doc = await render({...linked, advertised_km: 99, official: {gun_time: "5:10:00", url: "https://example.test/r"}});
+        const anchors = [...doc.querySelectorAll("a.bib-stub-link")];
+        expect(anchors.length, "this fixture must produce a sheet link and a Strava link").toBe(2);
+        expect(doc.querySelector("a.bib"), "no bib is ever the anchor").toBeNull();
 
-        const notice = [...anchor!.querySelectorAll(".sr-only")]
-            .filter((el) => el.textContent?.includes(NEW_TAB_NOTICE));
-        expect(notice.length, "exactly one new-tab warning per link, or it is announced twice").toBe(1);
+        for (const anchor of anchors) {
+            expect(anchor.getAttribute("target")).toBe("_blank");
 
-        // THE POSITION, which is the whole assertion. `lastElementChild` is what makes
-        // appending to strava_name — the implementation this replaced — go red: that puts
-        // the warning in the meta row, third in the name, where it warns nobody.
-        expect(
-            anchor!.lastElementChild?.textContent?.trim(),
-            "the warning must be the anchor's last child so it lands at the END of the accessible name; "
-            + "inside the meta row it is announced third, before the reader knows what the link is",
-        ).toBe(NEW_TAB_NOTICE);
+            const notice = [...anchor.querySelectorAll(".sr-only")]
+                .filter((el) => el.textContent?.includes(NEW_TAB_NOTICE));
+            expect(notice.length, "exactly one new-tab warning per link, or it is announced twice").toBe(1);
 
-        // AND IT MUST REACH THE TREE. `aria-hidden="true"` here deletes the announcement
-        // from the accessibility tree with every assertion above still green — they read
-        // textContent and class tokens, neither of which `aria-hidden` touches. Measured:
-        // 0 of 17 links announce with the attribute, 3 without it.
-        expect(notice[0].getAttribute("aria-hidden"), "an aria-hidden warning announces nothing").toBeNull();
-        expect(notice[0].closest('[aria-hidden="true"]'), "and neither may an ancestor hide it").toBeNull();
+            // THE POSITION, which is the whole assertion. `lastElementChild` is what makes
+            // appending to the label — the implementation this replaced — go red: that puts the
+            // warning ahead of the race's own name, where it warns nobody about anything yet.
+            expect(
+                anchor.lastElementChild?.textContent?.trim(),
+                "the warning must be the link's last child so it lands at the END of the accessible name",
+            ).toBe(NEW_TAB_NOTICE);
+
+            // AND IT MUST REACH THE TREE. `aria-hidden="true"` here deletes the announcement
+            // from the accessibility tree with every assertion above still green — they read
+            // textContent and class tokens, neither of which `aria-hidden` touches. Measured:
+            // 0 of 17 links announce with the attribute, 3 without it.
+            expect(notice[0].getAttribute("aria-hidden"), "an aria-hidden warning announces nothing").toBeNull();
+            expect(notice[0].closest('[aria-hidden="true"]'), "and neither may an ancestor hide it").toBeNull();
+        }
     });
 
     it("says nothing on a bib that opens nothing", async () => {
         const doc = await render(unlinked);
-        expect(doc.querySelector("a.bib"), "no activity id means no link").toBeNull();
+        expect(doc.querySelector(".bib-stub"), "no activity id and no results sheet means no stub").toBeNull();
         expect(
             allText(doc).includes(NEW_TAB_NOTICE),
             "a bib with no recording is a plain div and navigates nowhere; warning about a tab it never opens is a lie",
@@ -2006,7 +2296,7 @@ describe("a bib that opens a new tab says so, last", () => {
         const finishedNoLink = await render(unlinked, "finished");
         const bookedNoLink = await render(unlinked, "booked");
         for (const doc of [finishedNoLink, bookedNoLink]) {
-            expect(doc.querySelector("a.bib")).toBeNull();
+            expect(doc.querySelector(".bib-stub")).toBeNull();
             expect(allText(doc).includes(NEW_TAB_NOTICE)).toBe(false);
         }
     });
@@ -2045,9 +2335,9 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
         const doc = await render(split(n));
 
         expect(doc.querySelector("a.bib"), "the bib itself must not be an anchor").toBeNull();
-        expect(doc.querySelector(".bib-go"), "a split bib has no single action row").toBeNull();
+        expect(doc.querySelector(".bib-go"), "the retired action row must not come back").toBeNull();
 
-        const lines = [...doc.querySelectorAll("a.bib-split")];
+        const lines = [...doc.querySelectorAll("a.bib-stub-link")];
         expect(lines.length, "one link per recording").toBe(n);
 
         for (const [i, part] of parts(n).entries()) {
@@ -2085,7 +2375,7 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
     /**
      * THE SPLIT LINE'S VISIBLE AFFORDANCE, ASSERTED — the companion this shape was missing.
      *
-     * `.bib--linked` has one ("gives a linked bib a visible label saying what using it does")
+     * The single-line stub has one ("gives every stub line a label a reader can see")
      * and it exists because this component ONCE SHIPPED the defect it now guards: a control
      * whose only visible cue was a 7.5x10px glyph, its words hidden behind `sr-only`, which
      * two readers could not find. The split line is the same kind of control and had no such
@@ -2100,7 +2390,7 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
      */
     it.each([2, 3])("says what a split line does in words a reader can SEE (%i parts)", async (n) => {
         const doc = await render(split(n));
-        const lines = [...doc.querySelectorAll("a.bib-split")];
+        const lines = [...doc.querySelectorAll("a.bib-stub-link")];
         expect(lines.length, "one link per recording").toBe(n);
 
         for (const [i, part] of parts(n).entries()) {
@@ -2118,7 +2408,7 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
             expect(visible, `line ${i + 1} must SHOW its own clock`).toContain(part.elapsed_time);
 
             // And the mark, which names the destination. aria-hidden because the words carry
-            // it — the same arrangement `.bib-go` is held to.
+            // it — the same arrangement every stub line is held to.
             const glyph = line.querySelector(`span[class~="${iconClass(PATCHES.strava_icon)}"]`);
             expect(glyph, `line ${i + 1} must keep the configured brand mark`).toBeTruthy();
             expect(glyph!.getAttribute("aria-hidden"), "the mark is decorative; the words carry the meaning")
@@ -2128,13 +2418,13 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
 
     /**
      * AND IT MUST NOT BE DRAWN AS A WEB LINK. The counterpart to the rule already enforced on
-     * `.bib-go`: a bib is a printed artifact, every row on it is uppercase, letterspaced and
+     * every stub line: a bib is a printed artifact, every row on it is uppercase, letterspaced and
      * undecorated, and a rule under 15px of ink would describe the wrong target anyway. The
      * split line replaced that row on a split bib, so it inherits the rule.
      */
     it("draws the split line in the bib's own idiom, not as a ruled web link", () => {
         const rules = parseRules(pageCss(PAGES.all))
-            .filter((r) => r.selectors.some((sel) => /\.bib-split\b/.test(sel)));
+            .filter((r) => r.selectors.some((sel) => /\.bib-stub-link\b/.test(sel)));
         expect(rules.length, "the split line must have rules at all").toBeGreaterThan(0);
         for (const rule of rules) {
             for (const prop of ["text-decoration", "text-decoration-line"] as const) {
@@ -2144,7 +2434,22 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
         }
     });
 
-    it("leaves a one-recording bib exactly as it was", async () => {
+    /**
+     * ONE RECORDING IS A STUB WITH ONE LINE, AND IT SAYS WHERE IT GOES RATHER THAN HOW FAR.
+     *
+     * This used to assert the opposite — one destination, so the whole bib was the anchor —
+     * and the difference between the two lines is the whole of what a stub costs and buys. It
+     * costs a 260px target, which becomes a 24px row. It buys one idiom instead of two: a
+     * reader no longer has to work out which KIND of bib they are looking at before they know
+     * where to aim, and a race that gains a published result gains a line rather than a
+     * redrawing.
+     *
+     * THE LABEL IS THE DESTINATION, NOT A FIGURE, and that is the one thing that separates
+     * this line from a split race's. There is only one place to go, so a distance would be the
+     * bib's own hero repeated four rows down; naming the destination is what a lone line has
+     * to do that a run of them does not.
+     */
+    it("gives a one-recording bib a stub with a single line naming its destination", async () => {
         const one: RaceEvent = {
             date: `${GOAL_YEAR}-07-10`, name: "A Race With One Recording", sport: "cycling",
             country: "Thailand", elapsed_time: "5:00:00",
@@ -2152,10 +2457,17 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
         };
         const doc = await render(one);
 
-        expect(doc.querySelector("a.bib"), "one destination, so the whole bib is still the link").toBeTruthy();
-        expect(doc.querySelector(".bib-splits"), "nothing to list").toBeNull();
-        expect(doc.querySelector(".bib-go")?.textContent?.trim(), "and it keeps the shipped action row")
+        expect(doc.querySelector("a.bib"), "no bib is ever the anchor").toBeNull();
+        const lines = [...doc.querySelectorAll(".bib-stub-link")];
+        expect(lines.length, "one destination, one line").toBe(1);
+
+        const shown = lines[0].cloneNode(true) as Element;
+        for (const hidden of [...shown.querySelectorAll(".sr-only")]) hidden.remove();
+        expect((shown.textContent ?? "").replace(/\s+/g, " ").trim(),
+            "a lone line names where it goes; a distance here would be the hero repeated")
             .toBe(PATCHES.strava_name);
+        expect(lines[0].querySelector(".bib-stub-time"),
+            "and it prints no clock: there is only one, and the ledger above already has it").toBeNull();
     });
 
     /**
@@ -2165,14 +2477,14 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
      */
     it("treats an empty recordings array as no recording at all", async () => {
         const empty: RaceEvent = {
-            date: `${GOAL_YEAR}-07-10`, name: "A Race With An Empty List", km: 100, sport: "cycling",
+            date: `${GOAL_YEAR}-07-10`, name: "A Race With An Empty List", advertised_km: 100, sport: "cycling",
             country: "Thailand", elapsed_time: "5:00:00", recordings: [],
         };
         const doc = await render(empty);
 
-        expect(doc.querySelector("a.bib"), "nothing to link to").toBeNull();
-        expect(doc.querySelector(".bib-splits"), "nothing to list").toBeNull();
-        expect(doc.querySelector(".bib-go"), "and nothing to say").toBeNull();
+        expect(doc.querySelector("a.bib"), "no bib is ever the anchor").toBeNull();
+        expect(doc.querySelector(".bib-stub"), "nothing to list").toBeNull();
+        expect(doc.querySelector(".bib-stub-link"), "and nothing to link to").toBeNull();
         expect((doc.documentElement?.textContent ?? "").includes(NEW_TAB_NOTICE), "no tab is opened").toBe(false);
     });
 });
@@ -2180,18 +2492,24 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
 /**
  * EVERY `grid-area` A BIB'S ROWS CLAIM MUST EXIST IN THE TEMPLATE THAT WINS FOR THAT BIB.
  *
- * The gap this closes: the only rule placing the DNF bib's covered row is a COMPOUND one,
- * `.bib--dnf.bib--split`, and deleting it from the sheet left the whole suite green while the
- * rendered bib grew from 240px to 328px and dropped its 110.04 km into the implicit grid,
- * below the action row and in the wrong column. Nothing in the repo asserted
- * `grid-template-areas` or `grid-area` at all — every existing assertion asks whether a row
- * EXISTS and what it says, never where it lands, which is blind to exactly this.
+ * The gap this closes: a row placed by a rule that gets deleted keeps rendering. It was
+ * written when the only rule placing a DNF bib's distance was a COMPOUND one, and deleting
+ * that rule left the whole suite green while the rendered bib grew from 240px to 328px and
+ * dropped its 110.04 km into the implicit grid, below the stub and in the wrong column.
+ * Nothing in the repo asserted `grid-template-areas` or `grid-area` at all — every other
+ * assertion asks whether a row EXISTS and what it says, never where it lands.
  *
- * IT RESOLVES BY SPECIFICITY, NOT BY SOURCE ORDER, and that is the part that had to change.
- * The `declared()` helper elsewhere in this file states its own precondition — "sheet order
- * decides, which is sound here because every rule involved is a single class" — and this
- * component now ships the first TWO-class rule the bib subtree has ever had, so that
- * precondition no longer holds. A source-order model reports a false RED on a sheet that has
+ * THE COMPOUND RULE IT WAS WRITTEN AGAINST IS GONE and this gate is kept anyway, which is a
+ * deliberate call rather than an oversight. The ledger collapsed four grid templates into
+ * one, so the bib subtree currently ships no two-class rule at all — but the failure this
+ * catches is "a row claims an area its winning template does not declare", which is a
+ * property of every template that will ever be added here, and the four-template arrangement
+ * is exactly what a future per-state hero would rebuild.
+ *
+ * IT RESOLVES BY SPECIFICITY, NOT BY SOURCE ORDER, and that stays for the same reason. The
+ * `declared()` helper elsewhere in this file states its own precondition — "sheet order
+ * decides, which is sound here because every rule involved is a single class" — which held
+ * only while that was true. A source-order model reports a false RED on a sheet that has
  * merely been reordered and still renders correctly; it was written that way first and
  * measured saying so.
  *

@@ -551,12 +551,35 @@ describe("raceKm", () => {
     const recorded = (...parts: [Recording, ...Recording[]]): RaceEvent => ({...base, recordings: parts});
 
     it("takes a booked race's advertised distance as it is written", () => {
-        expect(raceKm({...base, km: 21.10})).toBe(21.10);
-        expect(raceKm({...base, km: 1022.00})).toBe(1022.00);
+        expect(raceKm({...base, advertised_km: 21.10})).toBe(21.10);
+        expect(raceKm({...base, advertised_km: 1022.00})).toBe(1022.00);
     });
 
     it("derives a recorded race's distance from its metres", () => {
         expect(raceKm(recorded(part(22115.1)))).toBe(22.11);
+    });
+
+    /**
+     * THE METRES WIN WHEREVER BOTH FIGURES EXIST, AND THIS IS WHERE A DELETED TYPE GUARD WENT.
+     *
+     * A recorded race used to carry `km?: never`, so a stored distance beside stored metres was
+     * a COMPILE error and this function could not be handed the ambiguity at all. The ledger
+     * needs the organiser's own division printed beside the ride, so the pair is now legal and
+     * the invariant is a runtime one — which means it needs a test, and it needs this one
+     * rather than a stronger-sounding one.
+     *
+     * WHY THE ADVERTISED FIGURE IS DELIBERATELY THE MORE PLAUSIBLE OF THE TWO. 21.10 is what a
+     * half marathon IS; 22.45 is what a watch recorded running it. An implementation that
+     * reached for the advertised figure would look right on the page and be wrong about what
+     * the site claims to know, so the fixture is chosen to make the substitution invisible to
+     * anything but this assertion. Mutating the accessor to prefer `advertised_km` reddens
+     * three gates including llms.txt's independent oracle, but only this one names the rule.
+     */
+    it("prefers the recorded metres over an advertised distance on the same row", () => {
+        expect(raceKm({...recorded(part(22454.7)), advertised_km: 21.10}),
+            "a race that was ridden reports the ride, whatever the organiser advertised").toBe(22.45);
+        expect(raceKm({...base, advertised_km: 21.10, recordings: []}),
+            "and an EMPTY list is not a recording, so the advertised figure is all there is").toBe(21.10);
     });
 
     /**

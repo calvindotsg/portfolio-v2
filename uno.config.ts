@@ -25,6 +25,7 @@ export default defineConfig({
         iconClass(NOW.explainer_icon),
         iconClass(PATCHES.home_icon),
         iconClass(PATCHES.strava_icon),
+        iconClass(PATCHES.official_icon),
         iconClass(NEXT_RACE.icon),
         // Resolves to the same class as `PATCHES.home_icon` today, and is listed anyway
         // for the reason the comment on `strava_icon` gives: a constant that relies on

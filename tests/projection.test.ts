@@ -180,7 +180,7 @@ describe("the site's clock", () => {
 
     it("counts the days to the next race from the build day, not from the stamp", () => {
         const fixture: RaceEvent[] = [
-            {date: shift(BUILD_DATE, 10), name: "Ten Days Out", km: 10, sport: "running", country: "Nowhere"},
+            {date: shift(BUILD_DATE, 10), name: "Ten Days Out", advertised_km: 10, sport: "running", country: "Nowhere"},
         ];
         expect(
             nextRace("running", undefined, fixture)?.daysAway,
@@ -191,7 +191,7 @@ describe("the site's clock", () => {
 
     it("calls yesterday's race finished, however long the kilometres have sat still", () => {
         const yesterday: RaceEvent =
-            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", km: 10, sport: "running", country: "Nowhere"};
+            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", advertised_km: 10, sport: "running", country: "Nowhere"};
         const today: RaceEvent = {...yesterday, date: BUILD_DATE, name: "Running Now"};
         // No `iso` argument anywhere here: the default IS the subject.
         expect(patchState(yesterday), `${yesterday.date} is behind ${BUILD_DATE}`).toBe("finished");
@@ -201,7 +201,7 @@ describe("the site's clock", () => {
 
     it("counts the year's patches from the build day, so the card cannot lag the wall", () => {
         const yesterday: RaceEvent =
-            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", km: 10, sport: "running", country: "Nowhere"};
+            {date: shift(BUILD_DATE, -1), name: "Run Yesterday", advertised_km: 10, sport: "running", country: "Nowhere"};
         // Pinned separately from the test above because a GROUP mutation cannot tell
         // "all four defaults are gated" from "one is": reverting `patchesEarned` alone
         // was green until this existed. The card's count and the wall's bibs come out of
@@ -285,7 +285,7 @@ describe("booked race distance", () => {
         // union cannot be verified, and this fixture is deliberately used both ways.
         const tour = (over: Partial<RaceEvent> = {}): RaceEvent => ({
             date: "2026-11-07", end_date: "2026-11-15", name: "A Nine Day Tour",
-            km: 900.00, sport: "cycling", country: "Taiwan", ...over,
+            advertised_km: 900.00, sport: "cycling", country: "Taiwan", ...over,
         }) as RaceEvent;
         // The control: still booked, so the fixture is capable of producing a number.
         expect(bookedAhead("cycling", "2026-11-01", [tour()])).toBeCloseTo(900.00, 2);
@@ -578,6 +578,64 @@ describe("EVENTS", () => {
     });
 
     /**
+     * THE SAME GUARD FOR THE OTHER ACCOUNT. An official result is a finishing time too, and it
+     * arrived without either half of the protection its sibling above has had for months.
+     *
+     * A RACE THAT HAS NOT HAPPENED HAS NO RESULT. The ledger already refuses to draw for a
+     * booked bib, but the stub does not: an `official` block on a race still ahead publishes a
+     * link announcing a finishing time for a day that has not come. The type cannot say this —
+     * `booked` is derived from the CALENDAR, not from the row's shape — so it is said here,
+     * where the two other date-versus-result rules already live.
+     *
+     * AND THE CLOCKS MUST READ LIKE CLOCKS. `net_time` and `gun_time` are hand-typed and are
+     * printed verbatim into the ledger's Time column and into the link a reader is told the
+     * clock's name in. Every other clock in this file is held to `H:MM:SS`; these two escaped
+     * it purely because they were new.
+     *
+     * BOTH ARE OPTIONAL AND THE LOOP MUST SAY SO. A sheet can publish a gun time alone — one on
+     * this calendar does, and constants.ts refuses to derive its net time by subtraction — so
+     * asserting either field unconditionally would fail on correct data.
+     */
+    it("never carries an official result for a race that has not happened, and reads its clocks", () => {
+        // No `toBeGreaterThan(0)` on the subset, for the reason the sibling above gives: a
+        // calendar with no published sheet on it is a true state, not a broken test.
+        for (const e of EVENTS.filter((x) => x.official !== undefined)) {
+            const official = e.official!;
+            expect(
+                parseIsoDate(e.end_date ?? e.date) <= parseIsoDate(BUILD_DATE),
+                `${e.name} is not over until ${e.end_date ?? e.date}, which is after ${BUILD_DATE}, but it `
+                + "carries an official result — the stub would link a finishing time for a day that has "
+                + "not happened",
+            ).toBe(true);
+
+            // AT LEAST ONE CLOCK, or the row is a distance beside a blank on a bib whose whole
+            // argument is that a source's figures travel together.
+            expect(official.net_time ?? official.gun_time,
+                `${e.name} has an official result with no time on it at all`).toBeTruthy();
+
+            for (const [field, value] of [["net_time", official.net_time], ["gun_time", official.gun_time]] as const) {
+                if (value === undefined) continue;
+                expect(value, `${e.name} official ${field} must read H:MM:SS`)
+                    .toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
+            }
+
+            // A GUN TIME IS THE LONGER OF THE TWO, always — it starts at the gun and the net
+            // clock starts when the rider crosses the mat, which is never earlier. Reversed,
+            // the pair would be mislabelled rather than merely odd.
+            if (official.net_time !== undefined && official.gun_time !== undefined) {
+                const secs = (t: string) => t.split(":").reduce((a, n) => a * 60 + Number(n), 0);
+                expect(secs(official.gun_time), `${e.name}: a gun time cannot be shorter than its own net `
+                    + `time (${official.gun_time} against ${official.net_time}) — the pen is never negative`)
+                    .toBeGreaterThan(secs(official.net_time));
+            }
+
+            if (official.url !== undefined) {
+                expect(official.url, `${e.name} official url must be absolute`).toMatch(/^https:\/\//);
+            }
+        }
+    });
+
+    /**
      * THE OTHER HALF OF THE SAME GUARD. A recording is a finishing time AND an activity
      * id, and the id is the half the test above cannot see: an id alone earns no bib, so
      * a stray one is harmless — but an id beside a time is what makes `patchState` draw a
@@ -742,7 +800,7 @@ describe("EVENTS", () => {
  */
 describe("the next race for a sport", () => {
     const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
-        ({date: "2026-06-01", name: "Fixture", km: 10, sport: "cycling", country: "Nowhere", ...over}) as RaceEvent;
+        ({date: "2026-06-01", name: "Fixture", advertised_km: 10, sport: "cycling", country: "Nowhere", ...over}) as RaceEvent;
 
     const CALENDAR: readonly RaceEvent[] = [
         ev({name: "ride-past", date: "2026-01-10"}),
@@ -906,20 +964,20 @@ describe("the next race for a sport", () => {
  */
 describe("the scope split: a lifetime wall, a goal card that is one year", () => {
     const race = (over: Partial<RaceEvent> & {date: string, name: string}): RaceEvent => ({
-        km: 100, sport: "cycling", country: "Singapore", ...over,
+        advertised_km: 100, sport: "cycling", country: "Singapore", ...over,
     }) as RaceEvent;
 
     /** This year's races, owned by this block — not the maintainer's. */
     const THIS_YEAR: readonly RaceEvent[] = [
-        race({date: `${GOAL_YEAR}-03-01`, name: "in-year run", km: 21.1, sport: "running"}),
-        race({date: `${GOAL_YEAR}-04-01`, name: "in-year done", km: 60}),
-        race({date: `${GOAL_YEAR}-09-01`, name: "in-year ahead", km: 40}),
+        race({date: `${GOAL_YEAR}-03-01`, name: "in-year run", advertised_km: 21.1, sport: "running"}),
+        race({date: `${GOAL_YEAR}-04-01`, name: "in-year done", advertised_km: 60}),
+        race({date: `${GOAL_YEAR}-09-01`, name: "in-year ahead", advertised_km: 40}),
     ];
     /** Everything the goal cards must not see. 1,022 km of it, one tour, next November. */
     const OFF_YEAR: readonly RaceEvent[] = [
-        race({date: `${GOAL_YEAR - 2}-09-15`, name: "two years ago", km: 21.1, sport: "running"}),
-        race({date: `${GOAL_YEAR - 1}-05-05`, name: "last year", km: 100}),
-        race({date: `${GOAL_YEAR + 1}-11-07`, end_date: `${GOAL_YEAR + 1}-11-15`, name: "next year tour", km: 1022}),
+        race({date: `${GOAL_YEAR - 2}-09-15`, name: "two years ago", advertised_km: 21.1, sport: "running"}),
+        race({date: `${GOAL_YEAR - 1}-05-05`, name: "last year", advertised_km: 100}),
+        race({date: `${GOAL_YEAR + 1}-11-07`, end_date: `${GOAL_YEAR + 1}-11-15`, name: "next year tour", advertised_km: 1022}),
     ];
     /** Interleaved, so nothing here can pass by taking a prefix or a suffix. */
     const CALENDAR: readonly RaceEvent[] = [

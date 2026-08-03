@@ -24,6 +24,13 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
   by the events and only the earned bibs are patches; "patch wall" survives as the URL
   and the metaphor, not as anything the site calls itself. The goal cards stay scoped
   to the goal year while the wall keeps everything
+- **Two accounts of a race, side by side.** Where an organiser has published a result,
+  the bib carries a ledger: the official distance and time on one row, the recorded ride
+  on the next, each source's figures kept together so nothing invites a reader to divide
+  one source's distance into another's clock. A certified course and a GPS trace disagree
+  by design; the bib publishes the disagreement rather than picking a winner. The
+  results page is linked above the Strava activity, because it is the one a reader who
+  is not logged in can actually open
 - Fully responsive layout
 - Dark/Light mode support
 - Optimized for performance, accessibility, and SEO
@@ -172,12 +179,22 @@ One suite is OPT-IN and reaches the network, which is why it is listed apart:
   `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN` in the environment —
   the same names `scripts/fetch-strava-progress.mjs` reads. Deliberately not part of the
   default run: `pnpm test` gates both deploys, so a rate limit or an expired token would read
-  as a broken site. It is the ONLY thing that can catch a mistyped `metres`, and that is now
-  the single distance figure a human types: a row stores the API's metres and every kilometre a
-  reader sees is computed by `raceKm`, so the conversion is unit-tested offline and only the
-  stored input needs a witness. It also catches the older failure, a figure read off a
+  as a broken site. It is the ONLY thing that can catch a mistyped `metres`, which no offline
+  test can see: a row stores the API's own figure and the kilometres a reader sees for the ride
+  are computed from it by `raceKm`, so the conversion is unit-tested offline and the stored
+  input is what needs a witness. It also catches the older failure, a figure read off a
   screenshot before the activity was edited. The token needs `activity:read_all`; a detailed read answers 404,
   not 403, when the scope is missing, so an under-scoped token looks exactly like a wrong id.
+
+  **It is not the only hand-typed figure on a bib any more, and the others have no witness at
+  all.** A ledger prints the ORGANISER's account beside the rider's, and that side is
+  transcribed from a results sheet by hand: `advertised_km` goes to the page unconverted, and
+  `net_time` and `gun_time` with it. Nothing can check them — there is no API behind a timing
+  provider's page, and this suite deliberately does not compare a recorded race against its
+  advertised route, because for the ride the activity is the authority. What guards them is
+  shape and sense rather than truth (`H:MM:SS`, a gun time no shorter than its own net time, a
+  race that is actually over), so a transposed digit off the sheet ships. That is an accepted
+  hole, named here so it is not rediscovered as a surprise.
 
 One suite has the repository itself as its subject rather than the site:
 

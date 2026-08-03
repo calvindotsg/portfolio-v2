@@ -296,9 +296,15 @@ describe("dist/", () => {
         // so a row quoted away from its heading keeps the number and loses the meaning. The
         // second `expect` is what makes this discriminate rather than merely pass: without
         // it, labelling EVERY row is as green as labelling the right ones.
-        // `raceKm`, not `event.km`: a recorded race has no stored distance at all under the
-        // recorded|booked union, and reading the field gives `undefined km` for every one of
-        // them — which is what this assertion caught when the two changes met.
+        // THE ADVERTISED FIGURE IS REACHED ONLY WHERE THERE ARE NO METRES, and that guard is
+        // now the whole invariant rather than a convenience. A recorded race used to be unable
+        // to carry a stored distance at all — the type forbade it — so reading the field
+        // unconditionally gave `undefined km` for every one of them, which is what this
+        // assertion caught when the two changes met. A recorded race CAN carry one now (it is
+        // the organiser's own division, printed on the bib's ledger beside the ride), so
+        // reading it unconditionally would no longer be loudly wrong: it would quietly print
+        // 21.10 for a race that ran 22.45. The `parts.length > 0` branch is what keeps this
+        // oracle independent of that, mirroring the precedence `raceKm` documents.
         /*
          * AN INDEPENDENT ORACLE, NOT A SECOND CALL TO THE ENDPOINT'S OWN EXPRESSION.
          *
@@ -330,7 +336,7 @@ describe("dist/", () => {
             const metres = parts.reduce((m, r) => m + r.metres, 0);
             const km = parts.length > 0
                 ? Math.floor(Math.round(metres * 1e6) / 1e6 / 10) / 100
-                : (event as {km?: number}).km ?? NaN;
+                : (event as {advertised_km?: number}).advertised_km ?? NaN;
             return km.toFixed(2);
         };
 
@@ -378,7 +384,7 @@ describe("dist/", () => {
             patchState(event) === "dnf"
                 ? (recordingsOf(event).length === 0
                     ? ""
-                    : `${PATCHES.covered_label.toLowerCase()} ${expectedKm(event)} km`)
+                    : `${PATCHES.recorded_row.toLowerCase()} ${expectedKm(event)} km`)
                 : `${expectedKm(event)} km`;
         for (const event of EVENTS) {
             const state = patchState(event);
@@ -400,8 +406,8 @@ describe("dist/", () => {
                 expect(row, `${event.name} (${state}) must print "${clause}"`).toContain(clause);
             }
             if (state !== "dnf") {
-                expect(row, `${event.name} is ${state}, so its distance takes no "${PATCHES.covered_label}" label`)
-                    .not.toContain(PATCHES.covered_label.toLowerCase());
+                expect(row, `${event.name} is ${state}, so its distance takes no "${PATCHES.recorded_row}" label`)
+                    .not.toContain(PATCHES.recorded_row.toLowerCase());
             }
         }
     });
@@ -1205,11 +1211,13 @@ describe("dist/", () => {
  *   3. `.patch-filter a`   a bordered chip; the class is on the NAV, so this needs `closest`
  *   4. an icon-only control whose accessible name is carried by an `sr-only` span (the Now
  *      card's explainer, which is a 24px icon target and is legitimately not a text link)
- *   5. `.bib--linked`      the whole bib is the anchor, and its signifier is the visible action
- *      row inside it — required as a DESCENDANT, so wearing the class is not enough
+ *   5. `.bib-stub-link`    a line on a bib's stub, whose signifier is the stub itself — the
+ *      mark, the label at the bib's emphatic weight, and the perforation the list is drawn
+ *      with. Required to be INSIDE a `.bib-stub`, so wearing the class is not enough
  *
  * NO PER-CATEGORY FLOOR. Asserting that some link of each kind exists would be a hand-counted
- * property of today's content: zero bibs carry a Strava id every January after the rollover, and
+ * property of today's content: zero bibs carry any destination at all every January after the
+ * rollover, and
  * a red suite BLOCKS THE DEPLOY, so that failure is a failed production deploy caused by ordinary
  * data entry. The loop is vacuous only if a page has no links, which IS checked.
  *
@@ -1402,9 +1410,9 @@ describe("every link on every page says that it is one", () => {
             // "VISIBLE" MEANS WHAT A READER CAN SEE, NOT WHAT IS A DIRECT TEXT NODE, and the
             // difference is not academic — it was measured. This read `a.childNodes` filtered to
             // `nodeType === 3`, so a link whose words sit inside SPANS scored as having none and
-            // took this branch as though it were a bare glyph. The patch wall's split lines are
-            // exactly that shape (`<span class="bib-split-km">17.90 km</span>`): they carry two
-            // visible figures and were being exempted here as icon-only, so the affordance this
+            // took this branch as though it were a bare glyph. The patch wall's stub lines are
+            // exactly that shape (`<span class="bib-stub-label">17.90 km</span>`): they carry
+            // visible words and were being exempted here as icon-only, so the affordance this
             // gate exists to check was never checked for them. Excluding `.sr-only` subtrees and
             // reading the rest of `textContent` is what the branch always meant. The genuinely
             // icon-only controls are unaffected — they have no visible text under either reading,
@@ -1414,23 +1422,31 @@ describe("every link on every page says that it is one", () => {
             for (const hidden of [...seen.querySelectorAll(".sr-only")]) hidden.remove();
             const visibleText = (seen.textContent ?? "").trim();
             if (srOnly && !visibleText) return false;
-            // The whole bib is the anchor; its signifier is the row inside it, not the class.
-            if (a.classList.contains("bib--linked") && a.querySelector(".bib-go")) return false;
-            // AND WHERE A RACE HAS MORE THAN ONE DESTINATION THE BIB CANNOT BE THE ANCHOR, so the
-            // stub's split lines are. This is the same exemption one line up rather than a new
-            // kind: the line IS the bib's action row for a split race, drawn in the same idiom as
-            // the `.bib-go` row it replaces — the brand mark, the bib's emphatic weight, and the
-            // perforated stub it sits on — rather than as prose. It is keyed on the line being
-            // inside a split bib, so a `.bib-split` that ever escaped one would still be caught.
-            if (a.classList.contains("bib-split") && a.closest(".bib--split")) return false;
+            // A BIB'S LINKS ARE THE LINES ON ITS STUB, AND THE STUB IS THE SIGNIFIER. This used
+            // to be TWO exemptions — one for the whole bib as an anchor wrapping a visible action
+            // row, one for a split race's lines — because a bib was sometimes the control and
+            // sometimes held them. It is never the control now: a race can have a results sheet
+            // AND a recording, anchors do not nest, so every destination is a line. One exemption
+            // is what is left, and it is the narrower of the two.
+            //
+            // WHAT MAKES IT A SIGNIFIER IS NOT THE CLASS. The line is drawn in the bib's own
+            // idiom rather than as prose — a mark, an imperative label at the bib's emphatic
+            // weight, and the perforated stub it sits on, which is the material vocabulary for
+            // "this part comes away". A ruled link was built first and rejected: a bib is a
+            // printed artifact and a rule is a web convention imported into a paper one.
+            //
+            // KEYED ON THE LINE BEING INSIDE A STUB, so a `.bib-stub-link` that ever escaped one
+            // would still be caught — the perforation is on the list, so a line outside it has no
+            // signifier at all.
+            if (a.classList.contains("bib-stub-link") && a.closest(".bib-stub")) return false;
             return true;
         });
 
         expect(
             unsignified.map((a) => `${a.getAttribute("href")} "${(a.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 46)}"`),
             `${page} ships links drawn like static text. A link needs one of: .control, .control-cta, .text-link, `
-            + "a drawn .patch-filter chip, an sr-only-named icon control, or .bib--linked wrapping a "
-            + "visible .bib-go row. This is the gate whose absence let five links ship unreadable as links",
+            + "a drawn .patch-filter chip, an sr-only-named icon control, or a .bib-stub-link on a "
+            + "bib's .bib-stub. This is the gate whose absence let five links ship unreadable as links",
         ).toEqual([]);
     });
 });
@@ -2305,10 +2321,10 @@ describe("source hygiene", () => {
      * introducing silently does not exist.
      *
      * THIS SHIPPED. A spacer row was written `"."` among two-column rows, meaning to leave one
-     * flexible gap above the stub. It invalidated both bib templates, so `.bib--linked` computed
-     * the BASE five-row template with no `go` area at all and the action row auto-placed into
-     * implicit tracks. Measured before the fix: `grid-template-areas` computed as
-     * `"date date" "value unit" "name name" "place place" "time time"` — the two new rows absent
+     * flexible gap above the stub. It invalidated the bib templates that carried it, so the
+     * affected bibs computed the BASE five-row template with no stub area at all and the stub
+     * auto-placed into implicit tracks. Measured before the fix: `grid-template-areas` computed as
+     * the base template with the two new rows absent
      * — and the wall pages carried 125-446px of height nobody asked for. Nothing was red. The
      * correct spelling is one token PER COLUMN: `". ."`.
      *
@@ -2407,8 +2423,9 @@ describe("a press is acknowledged, and the acknowledgement outlives the finger",
      * than listed. A list would have to name the bib, and the bib's exclusion is not a fact
      * about bibs — it is a fact about `target="_blank"`, which is Patch.astro's to change.
      * Stating it as a universal over `:active` instead fails the deploy on today's correct
-     * code: `.bib--linked:active` is a press this change deliberately never twins, because a
-     * new tab means this page does not go anywhere.
+     * code: `.bib-stub-link:active` is a press this change deliberately never twins, because a
+     * new tab means this page does not go anywhere. (It said `.bib--linked` while the whole
+     * bib was the anchor; the class moved and the reason did not.)
      */
     const scriptWouldHold = (a: Element): boolean => {
         const target = a.getAttribute("target");
