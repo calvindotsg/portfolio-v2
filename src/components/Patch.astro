@@ -892,13 +892,15 @@ const Tag = only === null ? "div" : "a";
 
     /*
      * THE TIME IS LABELLED, and the label is the point rather than a caption. Elapsed and
-     * moving are far apart on a long ride — 8:32:05 against 5:03:55 on the 10 July bib —
+     * moving are far apart on a long ride — 8:32:05 against 5:03:55 on the 10 July ride —
      * so a bare time invites a reader to divide it into the distance printed above it and
-     * conclude 16.5 km/h, where that ride moved at 27.7. Both figures on the bib now come
-     * off one activity (140.50 km), so 16.5 is at least a real elapsed speed for a real
-     * ride rather than the 18.8 the old event-scope distance produced — which is why the
-     * label has to name which clock rather than trust the reader to. See `km` and
-     * `elapsed_time` in constants.ts for that whole day's arithmetic.
+     * conclude one speed where the rider held another. What makes the division HONEST is
+     * that both figures come off the same scope: on a single-recording bib that is the
+     * activity, and on a split bib it is the race, summed distance over the whole span. What
+     * it must never be is a mixture — a summed distance over one part's clock, which is the
+     * 18.8 the old event-scope distance produced and belonged to nothing. The label names
+     * which clock so the reader does not have to guess which. See `km` and `elapsed_time` in
+     * constants.ts, and `Recording` for why each split line prints its own pair.
      *
      * The label is dimmed with the date, the tag and the place, which puts it under the
      * same composited-contrast assertion as those three: the authored ink is `--background`
