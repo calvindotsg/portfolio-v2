@@ -588,6 +588,35 @@ const schema = {
     main > *:nth-child(8) { animation-delay: 0.56s; }
 
     /*
+     * THE WALL'S BIBS TAKE THE SAME ENTRANCE, AND THAT IS THE WHOLE POINT OF PUTTING IT
+     * HERE RATHER THAN IN Patch.astro.
+     *
+     * On a wall route `main` has exactly TWO children — the heading group and the card
+     * holding the grid — so the ladder above spent two rungs and every bib arrived on one
+     * frame. The site's most characteristic object got no entrance while the resume cards
+     * got six steps of one. The frontend-design brief's test is that an ORCHESTRATED
+     * moment lands harder than scattered effects, and the fix for "no orchestration here"
+     * is not a second mechanism with its own timing — that is how you get two cascades
+     * that disagree.
+     *
+     * So this reuses the ladder's own vocabulary exactly: the same `card-in` keyframe, the
+     * same 0.4s, the same easing, the same 0.08s step, and the same 0.56s ceiling the
+     * eighth rung sets. A bib is indexed by the render loop rather than by `nth-child`
+     * because the count moves with the calendar, and a hand-written ladder that has to be
+     * extended when data is added is the exact defect the gate above exists to catch.
+     *
+     * THE CEILING IS SHARED, NOT COPIED. `min(var(--i), 7)` makes bib 8 and every bib
+     * after it land on 0.56s — the same instant the home page's last card lands — so the
+     * two pages cannot drift into different total durations as races are added. Thirteen
+     * bibs at an uncapped 0.08s would run for 1.04s, which is a page loading slowly rather
+     * than a page arriving.
+     */
+    .bib-cell {
+        animation: card-in 0.4s ease-out backwards;
+        animation-delay: calc(min(var(--i), 7) * 0.08s);
+    }
+
+    /*
      * NO FADE, AND A SHORT FIXED RISE. Both halves are measured, and the second exists only
      * because of what the first exposed.
      *
@@ -625,7 +654,8 @@ const schema = {
     }
 
     @media (prefers-reduced-motion: reduce) {
-        main > * {
+        main > *,
+        .bib-cell {
             animation: none;
         }
     }

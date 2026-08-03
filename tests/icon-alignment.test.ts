@@ -278,8 +278,8 @@ describe("an inline icon is centred on its text's cap band", () => {
      * this count being fudged.
      *
      * Be careful quoting a number here, because two files legitimately count differently.
-     * This group TOTALS eleven — six social links, two chevrons, both toggle glyphs and
-     * this one — so there are ten others. Only ten are ever laid out at once, since the
+     * This group TOTALS twelve — six social links, two chevrons, both toggle glyphs, the
+     * hero's own way to the whole wall, and this one — so there are eleven others. Only ten are ever laid out at once, since the
      * toggle hides whichever glyph is not current. `Now.astro` says "nine other icons"
      * for a set that predates the chevrons; that sentence is about the ones relying on a
      * container to centre them and is counted separately there.
@@ -287,8 +287,14 @@ describe("an inline icon is centred on its text's cap band", () => {
     const TOGGLE_GLYPHS = 2;
     /** Per goal card: the events control's chevron, and nothing else since the bar lost its glyph. */
     const FLEX_ICONS_PER_GOAL = 1;
+    /**
+     * The hero's link to the whole wall carries the mirror of the wall's own way back. It is
+     * flex-hosted like every other mark on a control: the anchor is `inline-flex`, so the
+     * glyph is blockified and the inline cap-band correction must NOT reach it.
+     */
+    const HERO_WALL_LINK_ICONS = 1;
     const EXPECTED_FLEX_HOSTED = LINKS.length + GOALS.length * FLEX_ICONS_PER_GOAL + TOGGLE_GLYPHS
-        + [NOW.explainer_icon].length;
+        + HERO_WALL_LINK_ICONS + [NOW.explainer_icon].length;
     const EXPECTED_INLINE_HOSTED = [WELCOME.greeting_icon, ...CAREER.map((c) => c.icon), FOOTER.icon].length;
     const EXPECTED_ICONS = EXPECTED_FLEX_HOSTED + EXPECTED_INLINE_HOSTED;
 
