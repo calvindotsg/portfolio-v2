@@ -850,8 +850,8 @@ describe("the next race for a sport", () => {
                 // CARD'S LINE. That is correct and deliberate — it is not a patch and it is
                 // not still to come — but it means the partition is no longer earned+booked,
                 // and the two-term form would go red the first time a race in GOAL_YEAR is
-                // abandoned. Only the year scope is hiding that today: the one DNF on the
-                // calendar is from 2023, so this sweep never sees it.
+                // abandoned. Only the year scope is hiding that today: every DNF on the
+                // calendar predates GOAL_YEAR, so this sweep never sees one.
                 const dnf = wall.filter((p) => p.state === "dnf").length;
                 const earned = patchesEarned(goal.sport, iso);
                 if (earned + booked + dnf !== wall.length) {
