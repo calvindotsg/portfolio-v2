@@ -1391,6 +1391,67 @@ describe("dist/patches", () => {
     });
 
     /**
+     * A CLOCK MUST BE CALLED BY ITS RIGHT NAME, AND THE NAME IS THE ONLY PLACE THIS IS SAID.
+     *
+     * WHY IT MATTERS MORE THAN IT LOOKS. A gun time and a net time differ by however long the
+     * rider stood in the pen — 17 minutes and 5 seconds apart on the 2022 half marathon, where
+     * the sheet publishes both. Nothing on SCREEN states which one a bib is printing; the word
+     * lives in the results link's accessible name, so a reader using it is the one reader who
+     * is told, and the only one who can be MIStold.
+     *
+     * WHAT WAS UNPINNED. The word has TWO sources — the component's derivation and these two
+     * constants — and neither was held. Swapping either shipped `net time 2:19:11` for a race
+     * whose sheet publishes a gun time and nothing else, with 461 tests, `pnpm check` and
+     * `pnpm eslint` all green. The figure was already gated; the word naming it was not, which
+     * is exactly the asymmetry the component's own note warns about.
+     *
+     * THE TWO WORDS ARE WRITTEN OUT, and the duplication is the point — the same reason the
+     * Strava base URL is a literal a few tests above. Deriving the expectation from
+     * `PATCHES.net_clock` would compare the page against the very constant that drew it, and
+     * swapping the two VALUES would keep this green while every bib announced the wrong clock.
+     * These are the sport's own words, not configuration: a field whose whole job is to name
+     * the correct clock cannot also be free to say anything.
+     */
+    it("names the right clock on an official result, and prints the figure that word names", () => {
+        expect(PATCHES.net_clock, "a chip time is a NET time").toBe("net");
+        expect(PATCHES.gun_clock, "the starting gun to the finish mat is a GUN time").toBe("gun");
+
+        let net = 0, gun = 0;
+        for (const {bib, event} of wallBibs(PAGES.all)) {
+            const official = event.official;
+            if (official?.url === undefined) continue;
+
+            const line = [...bib.querySelectorAll("a.bib-stub-link")]
+                .find((a) => a.getAttribute("href") === official.url);
+            expect(line, `${event.name} publishes a results sheet, so its stub must link it`)
+                .toBeTruthy();
+
+            const said = (line!.textContent ?? "").replace(/\s+/g, " ").toLowerCase();
+            // DERIVED FROM THE EVENT, NOT FROM THE COMPONENT'S CHOICE. `net_time` is the
+            // rider's own race and wins where the sheet publishes one; where it does not, what
+            // is left is a gun time and must be called that. constants.ts refuses to derive a
+            // net time by subtraction for exactly this reason.
+            const right = official.net_time !== undefined ? "net" : "gun";
+            const wrong = right === "net" ? "gun" : "net";
+            if (right === "net") net++; else gun++;
+
+            expect(said, `${event.name}: the sheet publishes a ${right} time, so the link must `
+                + `say so — a reader is told this ONCE and nothing on screen contradicts it`)
+                .toContain(`${right} time`);
+            expect(said, `${event.name} must not announce a ${wrong} time; the two are `
+                + "17 minutes apart on the one race whose sheet publishes both")
+                .not.toContain(`${wrong} time`);
+            expect(said, `${event.name}: the word and the figure must be the SAME clock`)
+                .toContain((official.net_time ?? official.gun_time)!.toLowerCase());
+        }
+
+        // BOTH BRANCHES, or the gate covers one word and calls the other proven. The calendar
+        // holds one race of each kind; if that stops being true this must be told, not skipped.
+        expect(net, "a race whose sheet publishes a net time").toBeGreaterThan(0);
+        expect(gun, "a race whose sheet publishes only a gun time").toBeGreaterThan(0);
+    });
+
+    /**
      * Compared against {@link EVENTS} rather than against a list of countries written
      * here: `country` is human-edited, so a mismatch is wanted feedback, and a literal
      * would have to be updated in two places every time a race is added.
