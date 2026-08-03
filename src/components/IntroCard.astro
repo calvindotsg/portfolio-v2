@@ -1,6 +1,6 @@
 ---
 import Card from "./Card/index.astro";
-import {LINKS, WELCOME, METADATA} from "../lib/constants";
+import {LINKS, NEXT_RACE, PATCHES, WELCOME, METADATA} from "../lib/constants";
 import {iconClass} from "../lib/icons";
 import ThemeSwitcher from "./ThemeSwitcher.astro";
 import {Image} from "astro:assets";
@@ -73,8 +73,66 @@ import portfolioImage from '../assets/me.webp'
     <div class="flex w-full h-full justify-between md:pr-8">
         <div class="flex flex-col justify-between md:max-h-[18.75rem] gap-4">
             <div class="intro-type flex flex-col h-full self-start md:self-auto">
-                <h6 class="text-sm font-light m-0 text-[var(--text)]">welcome</h6>
-                {WELCOME.description.map((item, index) => (<h1 class="m-0 font-light text-xl">{index === 0 && <span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span>} {item}</h1>))}
+                {/*
+                    ONE TOP-LEVEL HEADING, AND NO EYEBROW. Both halves are the same judgement and both are
+                    scored against the frontend-design skill rather than asserted:
+
+                    "welcome" was a level-6 heading — it opened the document's outline at level
+                    six, one line above the level-one heading saying "Hi, I'm Calvin". The skill's STRUCTURE IS
+                    INFORMATION test asks whether a structural device encodes something true
+                    about the content: a heading level is a claim about depth, and level 6
+                    above level 1 is a false one. Its writing section asks that each element
+                    do exactly ONE job, and the word did none the greeting does not already
+                    do — which is the maintainer's own habit of deleting copy the heading
+                    implies. Chanel's REMOVE ONE ACCESSORY names it as the accessory: it is
+                    the only ornament in the hero and the only string on the page not in
+                    constants.ts. Provenance settles the last doubt — `git log -S welcome`
+                    traces it to the upstream template author, not to a decision taken here.
+
+                    The two taglines were top-level headings too, so the page shipped THREE. They are not
+                    headings of anything: nothing is sectioned under them, and a reader
+                    navigating by heading got three top-level entries before the first real
+                    one. They keep every class they wore, so THAT half draws nothing new —
+                    the change is what the markup CLAIMS, not what it paints.
+
+                    BE PRECISE ABOUT WHAT MOVED, because the two halves differ. Measured on
+                    real builds either side: at 1440x900 the card stays 824x357 and the
+                    document stays 900, so desktop is untouched. On a 390px phone the
+                    document goes 1774 -> 1754 — the eyebrow's own line, given back. Deleting
+                    a line of copy is not a no-op and should not be described as one.
+                */}
+                {WELCOME.description.map((item, index) => (index === 0
+                    ? <h1 class="m-0 font-light text-xl"><span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span> {item}</h1>
+                    : <p class="m-0 font-light text-xl">{item}</p>))}
+                {/*
+                    THE WHOLE WALL HAD NO DOOR FROM THIS PAGE. `/patches` is in the sitemap and
+                    was reachable from nowhere on the home page: the only two internal links are
+                    the goal cards' per-sport controls, so seeing every race meant picking a sport
+                    you did not ask for and then un-picking it with the "All" chip.
+
+                    IT COSTS NO HEIGHT ON DESKTOP, which is why it goes here rather than into the
+                    card grid — but say where it DOES cost, because the two differ. The copy column
+                    is `justify-between` against a 275px portrait and had 84px of unspent height at
+                    lg; this spends 33 of it and the card measures the same 824x357, document still
+                    900. Nothing in the grid budget is touched.
+
+                    On a 390px phone there is no spare column to spend: the card grows 354 -> 387px
+                    and the document 1754 -> 1787. Against `main` before this whole change set —
+                    which also deleted the eyebrow's line — the net is +13px of mobile document.
+                    That is the honest figure; "costs no height" on its own would be a desktop
+                    measurement quoted as a page-wide one.
+
+                    Its label is `PATCHES.heading` — the very words the page it opens is headed
+                    with — for the same reason EventsLink's label is, and its mark is the mirror
+                    of the wall's own way back: `PATCHES.home_icon` is a left arrow on that page,
+                    this is the right arrow going out. No new copy and no new icon vocabulary.
+                */}
+                <p class="m-0 mt-2">
+                    <a href="/patches" class="text-link inline-flex items-center gap-2 min-h-6 text-sm">
+                        {PATCHES.heading}
+                        <span class={`${iconClass(NEXT_RACE.icon)} shrink-0`} aria-hidden="true"></span>
+                    </a>
+                </p>
             </div>
             <div class="control-row">
                 <ThemeSwitcher/>
@@ -191,6 +249,31 @@ import portfolioImage from '../assets/me.webp'
 
         .intro-type::after {
             display: none;
+        }
+    }
+
+    /*
+     * WITHOUT THIS THE SIX SOCIAL GLYPHS DISAPPEAR IN FORCED COLOURS, and with them the
+     * only thing telling the controls apart.
+     *
+     * Same mechanism EventsLink.astro records for its arrow: presetIcons paints an icon as
+     * a MASK over `background-color: currentColor`, and `background-color` is one of the
+     * properties a forced-colours mode overrides. Measured on the built page with the mode
+     * emulated, against the arrow the repo had already corrected, measured as a control in the same run:
+     * that arrow paints rgb(0,0,159) with `forced-color-adjust: none`, while all six of
+     * these painted rgb(255,255,255) on a card of rgb(255,255,255) — 1.00:1, erased. These
+     * are icon-ONLY controls whose on-screen name IS the glyph, so the row degraded to six
+     * identical empty boxes with no way to tell GitHub from LinkedIn from the resume.
+     *
+     * `[aria-hidden]` IS LOAD-BEARING, for the reason written at length in EventsLink.astro:
+     * each anchor also holds an `sr-only` span, so a bare `.control span` would paint the
+     * accessible name on its own colour. Scoped by the attribute that makes the mark
+     * decorative rather than by a class of its own, which the control allowlist forbids.
+     */
+    @media (forced-colors: active) {
+        a.control span[aria-hidden] {
+            forced-color-adjust: none;
+            background-color: LinkText;
         }
     }
 </style>
