@@ -381,11 +381,37 @@ describe("strava progress wiring", () => {
         }
     });
 
-    it("converts meters to km rounded to 1 decimal, and rejects garbage", () => {
+    /**
+     * THE BOT'S CONVERSION, HELD TO THE SAME DIRECTION AS THE SITE'S. One decimal here against
+     * `kmFromMetres`'s two — a year's total against a four-figure target — but both round DOWN,
+     * so the goal card and the wall quote Strava the same way.
+     *
+     * THE FIRST INPUT DOES NOT DISCRIMINATE and is kept because it is the shipped figure's own
+     * value: 2246412.3 m is 2246.4 under either rule. The ones after it are the test — a
+     * half-up conversion answers 2246.5 to all three.
+     */
+    it("converts meters to km rounded DOWN to 1 decimal, and rejects garbage", () => {
         expect(kmFromMeters(2246412.3, "ride")).toBe(2246.4);
+        expect(kmFromMeters(2246450.0, "ride"), "exactly on the half-up midpoint").toBe(2246.4);
+        expect(kmFromMeters(2246480.0, "ride"), "above it, and still down").toBe(2246.4);
+        expect(kmFromMeters(2246400.0, "ride"), "a whole tenth must not fall to the tenth below")
+            .toBe(2246.4);
         expect(kmFromMeters(0, "ride")).toBe(0);
         for (const bad of [undefined, null, NaN, Infinity, -1, "138"]) {
             expect(() => kmFromMeters(bad, "ride"), String(bad)).toThrow();
+        }
+    });
+
+    /**
+     * NEITHER CONVERSION MAY EVER CLAIM A METRE THAT WAS NOT RIDDEN, which is the one property
+     * both sides of the repository share and the reason the rule is "down" rather than
+     * "nearest". Asserted over the same inputs for both functions, so a future edit that
+     * flips one of them in isolation is red here as well as in its own test.
+     */
+    it("never rounds either figure UP past the distance it was given", () => {
+        for (const metres of [0, 1, 99, 100, 2246412.3, 2246450, 78595, 22115.1, 160566]) {
+            expect(kmFromMeters(metres, "ride"), `bot, ${metres} m`).toBeLessThanOrEqual(metres / 1000);
+            expect(kmFromMetres(metres), `site, ${metres} m`).toBeLessThanOrEqual(metres / 1000);
         }
     });
 });
