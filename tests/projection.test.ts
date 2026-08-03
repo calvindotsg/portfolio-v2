@@ -440,9 +440,27 @@ describe("required rate", () => {
     });
 
     it("keeps the generated branches inside the worst case that was measured", () => {
-        // "1000 km/wk to go" = 99.31px, the widest the rate branch can produce, and
-        // it fits with 10.7px to spare. "1000 km to go" = 80.11px covers `final`.
-        const longest = "1000 km/wk to go";
+        // RE-MEASURED when the rate branch gained its booked clause. The old bound was
+        // "1000 km/wk to go" = 99.31px; the branch now emits e.g. "71 km/wk to go, 1022
+        // booked" and the bound is the widest form of THAT, measured in the page's own
+        // 300/12px face against the goal card's tightest text column — 182px, at exactly
+        // 1024px wide.
+        //
+        //   "71 km/wk to go, 1022 booked"       162.52px   ships today
+        //   "1000 km/wk to go, 9999 booked"     181.31px   the string bound below
+        //   "71 km/wk to go, 1022 km booked"    182.59px   REJECTED — overflows by 0.59px
+        //
+        // That last row is why the unit is not repeated: it wraps, and a wrapped line takes
+        // the cycling card to 273px against the running card's 257, which the reader sees
+        // because the two cards sit one directly above the other.
+        //
+        // THE BOUND IS NOT REACHABLE AND IS DELIBERATELY STILL THE BOUND. Booked kilometres
+        // are subtracted from the deficit before the rate is divided out, so the two figures
+        // move in opposite directions: 9999 booked would drive the rate to zero and hand the
+        // answer to the `covered` branch, which takes no clause. Pinning the unreachable
+        // product of both maxima is the conservative direction — it cannot pass a string the
+        // real worst case would fail.
+        const longest = "1000 km/wk to go, 9999 booked";
         for (const goal of GOALS) {
             for (const raw of [0, 1, goal.total_goal / 2, goal.total_goal - 1]) {
                 for (const iso of [AS_OF, "2026-12-25"]) {

@@ -372,9 +372,57 @@ export function goalStatusLine(goal: Goal, iso: string = UPDATED_AT, events: rea
         case "covered": return "Races cover it"
         case "closed": return null
         case "final": return `${s.km} ${goal.measurable_unit} to go`
-        case "rate": return `${s.kmPerWeek} ${goal.measurable_unit}/wk to go`
+        case "rate": return withBooked(`${s.kmPerWeek} ${goal.measurable_unit}/wk to go`, goal, iso, events)
         case "unknown": return null
     }
+}
+
+/**
+ * WHAT THE RATE IS ALREADY ASSUMING, SAID OUT LOUD.
+ *
+ * `bookedAhead` subtracts every booked race's kilometres from the deficit before the rate
+ * is divided out, and the comment at the head of this file prices it: booking races takes
+ * cycling from 118 km/wk to 71, a 40% reduction. So the card's one actionable number rests
+ * on an assumption the card never showed — that a race not yet ridden WILL be finished —
+ * and the wall two clicks away draws a DNF bib proving that assumption can fail.
+ *
+ * IT IS A CLAUSE, NOT A SECOND LINE, and that is a measured choice rather than a stylistic
+ * one. Five treatments were built as the real card in the real page: a second line costs
+ * 20px on each of two cards and 40px of mobile document, and putting the clause on the
+ * countdown row instead desynchronises the pair (257 vs 273px) because the cycling figure
+ * wraps — and the two cards sit one directly above the other. Extending this line costs
+ * nothing at all: cards stay 257 / 229px and the document stays 900 / 1754.
+ *
+ * A COMMA RATHER THAN A MIDDOT. Both were rendered and both fit. The middot is Garmin's
+ * separator and reads as an instrument row; this card is deliberately a sentence — the
+ * maintainer kept the prose lines when aligned label/value rows were offered and measured
+ * as fitting. Take the pattern from the reference apps, not the register.
+ *
+ * THE UNIT IS NOT REPEATED, AND THAT IS A MEASURED CONSTRAINT BEFORE IT IS A COPY ONE.
+ * `71 km/wk to go, 1022 km booked` measures 182.59px against the goal card's tightest text
+ * column — 182px, at exactly 1024px wide, which is the `lg` breakpoint itself. It overflows
+ * by 0.59px and wraps, and a wrapped line takes the cycling card to 273px against the
+ * running card's 257: the two cards sit one directly above the other, so they visibly stop
+ * matching. That is the same defect that ruled out putting the clause on the countdown row,
+ * and it is invisible at 1440 — where both forms fit — which is why the first sweep missed
+ * it. Dropping the second `km` measures 162.52px and clears the column by 19.5px.
+ *
+ * It is better copy for the same reason it is narrower: the unit is already in the clause
+ * before the comma, so printing it twice is a word doing no work.
+ *
+ * THE TWO FIGURES ARE ANTI-CORRELATED, so do not price the worst case as the product of
+ * their maxima. `1000 km/wk to go, 9999 booked` measures 181.31px and would clear 182 by
+ * 0.69px, but it is not reachable: kilometres booked are SUBTRACTED from the deficit before
+ * the rate is divided out, so a booked figure that large drives the rate to zero and the
+ * `covered` branch answers instead — and `covered` takes no clause at all.
+ *
+ * ONLY ON THE `rate` BRANCH. `met`, `covered` and `final` are answers, not forecasts:
+ * "Goal met" is not made truer or falser by what is booked, and `covered` already SAYS the
+ * booked races cover it, so appending this there would be the same fact twice.
+ */
+function withBooked(line: string, goal: Goal, iso: string, events: readonly RaceEvent[]): string {
+    const booked = Math.round(bookedAhead(goal.sport, iso, events))
+    return booked > 0 ? `${line}, ${booked} booked` : line
 }
 
 /**
