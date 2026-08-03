@@ -92,10 +92,23 @@ const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
  * nth-child reading would be measuring the markup and reporting on the drawing. Whether the
  * columns actually line up is a rendered fact and belongs in the browser sweep, not here.
  */
+/**
+ * THE FIGURES A LEDGER ROW HOLDS. The distance cell also carries the unit that travels with
+ * it at the narrowest widths — hidden at every other size, but always in the DOM — so it is
+ * removed here and asserted separately below. Reading it as part of the figure would compare
+ * `22.45 km` against `22.45` and redden every ledger assertion at once.
+ */
+const kmFigure = (row: Element) => {
+    const cell = row.querySelector(".bib-ledger-km");
+    if (cell === null) return "";
+    const unit = cell.querySelector(".bib-ledger-unit")?.textContent ?? "";
+    return (cell.textContent ?? "").replace(unit, "").trim();
+};
+
 const ledgerOf = (doc: {querySelectorAll: (s: string) => Iterable<Element>}) =>
     [...doc.querySelectorAll(".bib-ledger-row")].map((row) => ({
         who: row.querySelector(".bib-ledger-who")?.textContent?.trim() ?? "",
-        km: row.querySelector(".bib-ledger-km")?.textContent?.trim() ?? "",
+        km: kmFigure(row),
         time: row.querySelector(".bib-ledger-time")?.textContent?.trim() ?? "",
     }));
 
@@ -1388,6 +1401,53 @@ describe("dist/patches", () => {
             + "columns are what the ledger is FOR").toBeGreaterThan(0);
         expect(whoSpans.some((v) => /1\s*\/\s*-1/.test(v!)), `the name must span every column, `
             + `got ${JSON.stringify(whoSpans)}`).toBe(true);
+    });
+
+    /**
+     * THE UNIT IS STATED EXACTLY ONCE AT EVERY WIDTH, AND THE TWO CARRIERS SWAP.
+     *
+     * The heading row exists to say `KM` once instead of on every figure. The narrowest arm
+     * gives each figure its own line, and at that point the heading is standing over a stack
+     * holding a distance AND a clock — a reader following `KM` down arrives at `2:19:11`.
+     * Rendered and looked at; every measurement said that band was clean, and it was.
+     *
+     * So the unit moves onto the figure there and the heading goes away in the same arm. What
+     * this holds is the INVARIANT that makes the swap safe: the two are never both on, and
+     * never both off. It cannot be checked by reading one rule — it is a property of the pair.
+     */
+    it("states the ledger's unit exactly once, whichever carrier is showing", () => {
+        const rules = parseRules(pageCss(PAGES.all));
+
+        // The LAST `display` wins within one at-rule scope, which is what the cascade does.
+        // `undefined` means the arm says nothing about this class, which is distinct from
+        // saying it is hidden — conflating the two would read silence as a swap.
+        const isShown = (cls: string, at: string): boolean | undefined => {
+            const found = rules
+                .filter((r) => r.at === at && r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel)))
+                .map((r) => decl(r.body, "display"))
+                .filter((v): v is string => v !== undefined);
+            return found.length === 0 ? undefined : found.at(-1)!.trim() !== "none";
+        };
+
+        const doc = parseHTML(read(PAGES.all)).document;
+        expect([...doc.querySelectorAll(".bib-ledger-unit")].length,
+            "the ledger must carry a unit that can travel with its figure").toBeGreaterThan(0);
+        expect(isShown("bib-ledger-unit", ""),
+            "the unit is off by default — the heading row states it once, which is why it exists")
+            .toBe(false);
+
+        const arms = [...new Set(rules.map((r) => r.at))].filter((a) => /@container/.test(a));
+        let swapped = 0;
+        for (const at of arms) {
+            const headOff = isShown("bib-ledger-km-head", at) === false;
+            const unitOn = isShown("bib-ledger-unit", at) === true;
+            expect(headOff, `"${at}": the unit heading and the inline unit must not both be off — `
+                + "that leaves a distance with no unit anywhere in its own utterance — and not "
+                + "both on, which states it twice").toBe(unitOn);
+            if (headOff) swapped++;
+        }
+        expect(swapped, "some arm must perform the swap, or the heading outlives the column it heads")
+            .toBeGreaterThan(0);
     });
 
     /**

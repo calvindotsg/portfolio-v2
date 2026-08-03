@@ -330,7 +330,9 @@ if (recordings.length === 1) {
                 {ledger.map((row) => (
                         <div class="bib-ledger-row">
                             <span class="bib-ledger-who">{row.who}</span>
-                            <span class="bib-ledger-km">{row.km}</span>
+                            <span class="bib-ledger-km">{row.km}{row.km !== "" && (
+                                <span class="bib-ledger-unit">{goal.measurable_unit}</span>
+                            )}</span>
                             <span class="bib-ledger-time">{row.time}</span>
                         </div>
                 ))}
@@ -617,7 +619,8 @@ if (recordings.length === 1) {
     .bib-tag,
     .bib-ledger-who,
     .bib-ledger-km-head,
-    .bib-ledger-time-head {
+    .bib-ledger-time-head,
+    .bib-ledger-unit {
         opacity: 0.8;
     }
 
@@ -1133,8 +1136,20 @@ if (recordings.length === 1) {
      */
     .bib-ledger-who,
     .bib-ledger-km-head,
-    .bib-ledger-time-head {
+    .bib-ledger-time-head,
+    .bib-ledger-unit {
         font-weight: 700;
+    }
+
+    /*
+     * THE UNIT TRAVELS WITH ITS FIGURE ONLY WHERE THE COLUMN IT HEADED HAS GONE. Hidden by
+     * default because the heading row states it once, which is the whole reason that row
+     * exists; the narrowest arm below turns it on and takes the heading away in the same
+     * breath, so the unit is stated exactly once at every width.
+     */
+    .bib-ledger-unit {
+        display: none;
+        margin-left: 0.3em;
     }
 
     .bib-ledger-km,
@@ -1267,6 +1282,22 @@ if (recordings.length === 1) {
 
         .bib-ledger-time-head {
             display: none;
+        }
+
+        /*
+         * AND THE UNIT HEADING GOES WITH IT, because by here it is heading nothing. Once each
+         * figure has its own line there is no `KM` column left for `KM` to sit over — it ends
+         * up above a stack holding a distance AND a clock, so a reader following it down from
+         * the heading arrives at `2:19:11`. Rendered and looked at, which is the only way this
+         * was ever going to be caught: every measurement said the band was clean, and it was.
+         * The unit moves onto the figure instead, so `42.00 KM` says what it is on its own.
+         */
+        .bib-ledger-km-head {
+            display: none;
+        }
+
+        .bib-ledger-unit {
+            display: revert;
         }
     }
 
