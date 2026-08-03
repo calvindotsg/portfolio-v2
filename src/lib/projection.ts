@@ -226,14 +226,28 @@ export function bookedAhead(sport: Sport, iso: string, events: readonly RaceEven
     let km = 0
     for (const e of events) {
         if (e.sport !== sport) continue
-        // A race with a recording has been RIDDEN, whatever the day says — see
-        // `hasRecording`. Its kilometres are in the bot's total, or will be at the next
-        // fetch, so booking them here would count the race twice. Skipping is also the
-        // safe direction while the bot catches up: the deficit stays whole, so the rate
-        // reads high rather than flattering. The cross-consumer sweep in
-        // tests/patch-wall.test.ts forces this line — without it the wall calls a race
-        // finished while the card is still counting its kilometres as ahead.
-        if (hasRecording(e)) continue
+        // ONLY A RACE THE WALL CALLS `booked` HAS KILOMETRES AHEAD OF IT, and this asks
+        // the wall's own function rather than re-deriving the reasons — which is the
+        // whole point. This line used to read `if (hasRecording(e)) continue`, an
+        // enumeration of ONE reason to skip, and it was complete only while the wall had
+        // two states:
+        //
+        //   FINISHED — the race has been RIDDEN whatever the day says, so its kilometres
+        //   are in the bot's total or will be at the next fetch, and booking them here
+        //   would count the race twice.
+        //
+        //   DNF — the race will never be ridden, so booking it promises kilometres that
+        //   are not coming. `hasRecording` catches a DNF that was recorded and MISSES one
+        //   that was not: abandoning the 1,022 km Formosa tour mid-way books all 1,022 km
+        //   of it into the cycling card while the wall draws the bib as DNF.
+        //
+        // Skipping is also the safe direction while the bot catches up: the deficit stays
+        // whole, so the rate reads high rather than flattering. The cross-consumer sweep
+        // in tests/patch-wall.test.ts forces this line — without it the wall and the card
+        // contradict each other — and `books nothing for a race that was abandoned` below
+        // holds the DNF half, which the sweep cannot see while every DNF on the calendar
+        // happens to carry a recording.
+        if (patchState(e, iso) !== "booked") continue
         if (!Number.isFinite(e.km) || e.km < 0) continue
         const start = parseIsoDate(e.date)
         if (Number.isNaN(start)) continue

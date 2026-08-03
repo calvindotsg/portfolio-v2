@@ -180,8 +180,12 @@ block above it before giving either consumer the other's list.
   four at once only proves the union is covered, which is how `patchWall` stayed uncovered
 - **A race with BOTH `elapsed_time` and a `recordings` entry is finished because it
   was run**, whatever the clock says — that pair is the only way a race can be
-  recorded on the day it happened, and `bookedAhead` must skip the same races or the
-  wall and the goal cards contradict each other. Recording a race you have just run is a
+  recorded on the day it happened. **`bookedAhead` books ONLY what the wall calls
+  `booked`**, and it asks `patchState` to find out rather than re-deriving the reasons:
+  the two consumers have to agree about every race or the card promises kilometres the
+  wall says are not coming. Asking `hasRecording` instead was complete only while the
+  wall had two states — it skips an abandoned race that was recorded and books one that
+  was not. Recording a race you have just run is a
   two-step edit, and **which step goes first depends on whether the race is already in
   `EVENTS`**: a race not yet listed — fetch first (`gh workflow run strava-progress.yml`),
   then add it; a race already listed — add the recording first and let the cron follow.

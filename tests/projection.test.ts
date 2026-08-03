@@ -262,6 +262,46 @@ describe("booked race distance", () => {
         // `end_date` exists to prevent. 4 of 9 days ridden by the 11th leaves 5/9.
         expect(midway).toBeCloseTo(1022.00 * 5 / 9, 2);
     });
+
+    /**
+     * BOOKS NOTHING FOR A RACE THAT WAS ABANDONED, and the fixture below is chosen to be
+     * the one shape the live calendar cannot currently produce.
+     *
+     * `bookedAhead` used to skip a race by asking `hasRecording`, which is complete only
+     * while the wall has two states. A DNF that was RECORDED is skipped by that question
+     * as a side effect; a DNF that was NOT is booked in full. Every DNF on the calendar
+     * today carries a recording, so the cross-consumer sweep in patch-wall.test.ts — which
+     * reads the live `EVENTS` — is GREEN on the defect and on the fix alike. That is why
+     * this assertion pins its own fixture instead of leaning on the sweep.
+     *
+     * The reachable case is a multi-day tour abandoned part-way: the wall draws the bib as
+     * DNF while the goal card pro-rates the days still to come, so the two consumers state
+     * different things about the same race, and the card promises kilometres that are not
+     * coming. Both halves are asserted below, `today <= start` and mid-event, because the
+     * pro-rata branch is a second path to the same sum.
+     */
+    it("books nothing for a race that was abandoned, recorded or not", () => {
+        const tour = (over: Partial<RaceEvent> = {}): RaceEvent => ({
+            date: "2026-11-07", end_date: "2026-11-15", name: "A Nine Day Tour",
+            km: 900.00, sport: "cycling", country: "Taiwan", ...over,
+        });
+        // The control: still booked, so the fixture is capable of producing a number.
+        expect(bookedAhead("cycling", "2026-11-01", [tour()])).toBeCloseTo(900.00, 2);
+        expect(bookedAhead("cycling", "2026-11-11", [tour()])).toBeCloseTo(900.00 * 5 / 9, 2);
+
+        // Abandoned, with nothing recorded — the case `hasRecording` cannot see.
+        const abandoned = tour({outcome: "dnf"});
+        expect(patchState(abandoned, "2026-11-11")).toBe("dnf");
+        expect(bookedAhead("cycling", "2026-11-01", [abandoned])).toBe(0);
+        expect(bookedAhead("cycling", "2026-11-11", [abandoned])).toBe(0);
+
+        // Abandoned and recorded — same answer, by the state rather than by the recording.
+        const recorded = tour({
+            outcome: "dnf", elapsed_time: "9:00:00",
+            recordings: [{id: "1", km: 300.00, elapsed_time: "9:00:00"}],
+        });
+        expect(bookedAhead("cycling", "2026-11-01", [recorded])).toBe(0);
+    });
 });
 
 /**
