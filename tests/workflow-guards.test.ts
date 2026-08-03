@@ -122,15 +122,33 @@ const upstreamOf = (id: string): Set<string> => {
  */
 const NEUTERED = (v: boolean | string | undefined) => v === true || v === "true";
 
-const suiteSteps = (id: string): Step[] =>
+/*
+ * PARAMETERISED ON THE COMMAND, BECAUSE THE GATE IS THREE COMMANDS AND ONLY ONE WAS HELD.
+ *
+ * This pair used to hardcode `test`. CLAUDE.md states the invariant as "the `build` job runs
+ * all three (`check`, `eslint`, `test`) … so a red run of any of them blocks the deploy", and
+ * that sentence was true of the workflow and false of this file: deleting the `pnpm check` and
+ * `pnpm eslint` steps from ci.yml left the suite fully green, which silently removes the ONLY
+ * type gate on every `.ts` file in the repository — `pnpm eslint` globs only `.js` and
+ * `.astro` files under `src`, so `constants.ts`, `projection.ts` and every test file are
+ * checked by `astro check` and by nothing else. A gate that holds one third of a documented
+ * invariant reads, to anyone who greps for it, exactly like a gate that holds all of it.
+ *
+ * The semantics below are unchanged and are the point of reusing them rather than writing a
+ * second matcher: comments stripped, whole-line match, both the bare and the `run` spelling
+ * of the command, and anything that neuters the exit code disqualifies the step.
+ */
+const stepsRunning = (id: string, command: string): Step[] =>
     (CI.jobs[id]?.steps ?? []).filter((s) => (s.run ?? "")
         .split("\n")
         .filter((line) => !/^\s*#/.test(line))
-        .some((line) => /^pnpm (run )?test$/.test(line.trim())));
+        .some((line) => new RegExp(`^pnpm (run )?${command}$`).test(line.trim())));
 
-const runsTheSuite = (id: string): boolean =>
+const runsCommand = (id: string, command: string): boolean =>
     !NEUTERED(CI.jobs[id]?.["continue-on-error"])
-    && suiteSteps(id).some((s) => !NEUTERED(s["continue-on-error"]));
+    && stepsRunning(id, command).some((s) => !NEUTERED(s["continue-on-error"]));
+
+const runsTheSuite = (id: string): boolean => runsCommand(id, "test");
 
 /** `environment:` takes a bare string or a mapping; both spellings name the same thing. */
 const environmentNameOf = (id: string): string | undefined => {
@@ -157,6 +175,32 @@ describe("a red suite still blocks a deploy", () => {
                 + `block a deploy, and nothing else in this repository would notice.`).toBe(true);
         }
     });
+
+    /**
+     * THE OTHER TWO THIRDS OF THE SAME INVARIANT. `pnpm test` was gated above and these were
+     * not, so both could be deleted from ci.yml with all 446 assertions green.
+     *
+     * They are asserted with the SAME predicate rather than a looser one, because the ways to
+     * neuter a step do not depend on which command it runs — and `it.each` rather than one
+     * assertion over both, so a failure names the command that is no longer gating instead of
+     * making the reader diff two lists.
+     */
+    it.each(["check", "eslint"])(
+        "makes every job that can publish wait, transitively, on a job that runs pnpm %s",
+        (command) => {
+            expect(publishingJobs.length).toBeGreaterThan(0);
+            for (const id of publishingJobs) {
+                const upstream = [...upstreamOf(id)];
+                expect(upstream.some((j) => runsCommand(j, command)), `job "${id}" can read the Cloudflare `
+                    + `deploy token, so it publishes the site, but no job it needs runs \`pnpm ${command}\` in a `
+                    + `way that can FAIL — it reaches ${JSON.stringify(upstream)}. CLAUDE.md states that the `
+                    + `build job runs check, eslint and test and that a red run of ANY of them blocks the `
+                    + `deploy; deleting this step makes that sentence false. \`pnpm check\` is the only type `
+                    + `gate on the repository's .ts files, since \`pnpm eslint\` globs only .js and .astro files under src.`)
+                    .toBe(true);
+            }
+        },
+    );
 
     /**
      * `always()` IS THE ONE SPELLING THAT DECOUPLES A JOB FROM ITS `needs:`, and before this
@@ -212,6 +256,64 @@ describe("a red suite still blocks a deploy", () => {
     it("points each publishing job at its own environment, since only one carries the main-only policy", () => {
         expect(environmentNameOf("deploy-production")).toBe("production");
         expect(environmentNameOf("deploy-preview")).toBe("preview");
+    });
+
+    /*
+     * TWO GUARDS THAT LIVE ONLY IN THE WORKFLOW, AND SO HAD NOTHING HOLDING THEM.
+     *
+     * Everything above this point protects the EDGE between the suite and the deploy. These two
+     * steps are different: they are the checks that exist nowhere else, so deleting either one
+     * removed a production safety property with the whole suite green — including the one
+     * `ci.yml` describes in its own comment as the only thing standing between a stale artifact
+     * and production.
+     *
+     * ASSERTED AS A PROPERTY OF THE `run:` TEXT, NOT AS ITS PRESENCE. A step can be present and
+     * neutered, so each check below requires the step to contain the comparison it exists to
+     * make AND to be able to exit non-zero — and `exit 1` is looked for with comments stripped,
+     * the same discipline `stepsRunning` already uses, because a step whose only `exit 1` sits
+     * in a `#` comment cannot fail anything.
+     */
+    const failingRunSteps = (id: string, mustMention: RegExp[]): Step[] =>
+        (CI.jobs[id]?.steps ?? []).filter((s) => {
+            const live = (s.run ?? "").split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
+            return mustMention.every((re) => re.test(live))
+                && /(^|\s)exit\s+[1-9]/.test(live)
+                && !NEUTERED(s["continue-on-error"]);
+        });
+
+    it("keeps the stale-artifact stamp check on EVERY job that can publish, not just one of them", () => {
+        expect(publishingJobs.length).toBeGreaterThan(0);
+        for (const id of publishingJobs) {
+            expect(
+                failingRunSteps(id, [/build-date/, /TZ=Asia\/Singapore date \+%F/]).length,
+                `job "${id}" can publish the site but carries no step that compares the artifact's `
+                + `\`build-date\` stamp against today in Asia/Singapore and exits non-zero on a mismatch. `
+                + `ci.yml calls this the defence against "Re-run all jobs" on an OLD run — which rebuilds `
+                + `an older commit, stamps it today and publishes that tree over whatever is live. It is `
+                + `duplicated across both deploy jobs deliberately (a shared file would need a checkout), `
+                + `so dropping it from ONE job is the likely mistake and is what this asserts per job.`,
+            ).toBeGreaterThan(0);
+        }
+    });
+
+    /*
+     * TARGETED AT THE SUITE-RUNNING JOB RATHER THAN AT `publishingJobs`, and that distinction is
+     * the whole reason this is a second assertion instead of another loop above. The analytics
+     * check lives in `build`, which never touches the Cloudflare token and is therefore NEVER a
+     * member of `publishingJobs` — a loop over that set would inspect nothing and pass forever.
+     * `jobIds.filter(runsTheSuite)` is asserted to have length 1 further down this file, so it
+     * names the same job without hardcoding the string `build`.
+     */
+    it("keeps the analytics check on the job that runs the suite", () => {
+        const [suiteJob] = jobIds.filter(runsTheSuite);
+        expect(suiteJob).toBeDefined();
+        expect(
+            failingRunSteps(suiteJob, [/UMAMI_ID/, /data-website-id/]).length,
+            `job "${suiteJob}" runs the suite but carries no step that compares the built pages' `
+            + `\`data-website-id\` against $UMAMI_ID and exits non-zero when they disagree. Nothing in `
+            + `the suite can see this: the analytics tag comes from a repository VARIABLE, so a build `
+            + `with the tag silently dropped or the wrong id pasted in is green everywhere else.`,
+        ).toBeGreaterThan(0);
     });
 });
 
