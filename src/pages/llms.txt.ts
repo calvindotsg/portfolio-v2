@@ -57,7 +57,18 @@ export const GET: APIRoute = ({site}) => {
     const run = (event: typeof EVENTS[number]) => {
         const when = event.end_date ? `${event.date} to ${event.end_date}` : event.date
         const time = event.elapsed_time ? `, ${event.elapsed_time}` : ""
-        return `- ${when} — ${event.name}, ${event.km} km, ${event.country}${time}`
+        // A DNF's KILOMETRES ARE NOT THE RACE'S, AND THE ROW HAS TO SAY SO ITSELF. In every
+        // other bucket this figure is how long the race was; on an abandoned race it is how
+        // far he got, which is the distinction the bib draws by moving the number out of the
+        // hero into a labelled row. The section heading carries it for a reader of the whole
+        // file — but this file is written to be CHUNKED and quoted, and a row lifted out of
+        // its section takes the heading's context with it and none of its meaning. The label
+        // is the bib's own constant rather than a second string, so the page and this file
+        // cannot drift into describing the same number two ways.
+        const far = patchState(event) === "dnf"
+            ? `${PATCHES.covered_label.toLowerCase()} ${event.km} km`
+            : `${event.km} km`
+        return `- ${when} — ${event.name}, ${far}, ${event.country}${time}`
     }
     // "Has it happened" is `patchState`, NOT a date comparison — asking the site's own
     // predicate rather than restating it, which is the whole point of this endpoint.

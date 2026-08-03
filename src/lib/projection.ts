@@ -405,6 +405,14 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * Derivation cannot do that — the wall is rebuilt on every deploy and the bot
  * deploys whenever the kilometres move.
  *
+ * `RaceEvent.outcome` IS STORED AND IS NOT THAT FLAG, said here because this
+ * paragraph is where a reader meets the rule and the exception is 300 lines away in
+ * another file. The test is not "is it stored" but "does the calendar keep
+ * re-deriving the answer": it does for `done`, which is why that flag rots, and it
+ * cannot for an abandonment, which nothing in the data records at all. The argument
+ * is written out above `outcome` in constants.ts; satisfy it before storing a second
+ * one.
+ *
  * THERE ARE TWO WAYS TO BE `finished`, AND THE ORDER MATTERS. A race with a
  * recording is finished because it was run; a race without one is finished once the
  * whole event is behind the day. The first is asked first, and it is the only reason

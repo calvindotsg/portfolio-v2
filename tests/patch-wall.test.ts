@@ -128,6 +128,61 @@ const wallBibs = (page: string, sport?: Sport) => {
     return bibs.map((bib, i) => ({bib, event: wall[i].event, state: wall[i].state}));
 };
 
+describe("every link out of the wall names a different destination", () => {
+    /**
+     * SC 2.4.4: two links with the same name and different destinations are one defect, and
+     * this wall is built to produce them. The round-island ride is ANNUAL, so its name repeats
+     * down the page — and once a second running of it is recorded in parts, four links carry
+     * that one name. The visible text differs (each stub prints its own distance and clock),
+     * but a reader listing every link on the page gets the NAME, and the name is what has to
+     * disambiguate.
+     *
+     * READ AS THE READER GETS IT: the whole subtree's text, whitespace collapsed, which is what
+     * the accessible name computes to here — no `aria-label` appears anywhere on a bib, by the
+     * rule stated in `Patch.astro`. Both link forms are collected, because the two forms
+     * disagreeing about whether a date belongs in a name is exactly how this last regressed:
+     * the whole-bib anchor opens with the bib's date and the split stub did not.
+     */
+    it("names every link for the running of the race it belongs to", () => {
+        for (const [key, page] of Object.entries(PAGES)) {
+            let checked = 0;
+            for (const {bib, event} of wallBibs(page, key === "all" ? undefined : key as Sport)) {
+                const when = formatPatchDate(event);
+                if (when === null) continue;
+                for (const link of [...bib.querySelectorAll("a.bib-split"), ...(bib.matches("a.bib") ? [bib] : [])]) {
+                    const name = (link.textContent ?? "").replace(/\s+/g, " ").trim();
+                    expect(name, `${key}: "${event.name}" link must say which running it is`).toContain(when);
+                    checked += 1;
+                }
+            }
+            // NOT `toBeGreaterThan(0)` ON THE PAGE — the running wall holds no linked bib on a
+            // day nothing has been recorded, and a floor there is a deploy failure waiting for
+            // that day. The floor belongs to the ALL page, which is every race there is.
+            if (key === "all") expect(checked, "the wall must hold links to check").toBeGreaterThan(0);
+        }
+    });
+
+    /**
+     * The uniqueness check is kept SEPARATE and it is NOT what catches a missing date — each
+     * split stub already prints its own distance and clock, so the four round-island names
+     * differ whether or not they say which year. Written as one assertion first, it passed the
+     * mutation it was written for. It stays because it guards a different regression (a stub
+     * that stops printing its own figures, or a delegated name repeated across bibs), and it
+     * is recorded here so nobody reads it as covering the one above.
+     */
+    it("gives no two links on a page the same name", () => {
+        for (const [key, page] of Object.entries(PAGES)) {
+            const doc = parseHTML(read(page)).document;
+            const names = [...doc.querySelectorAll("a.bib, a.bib-split")]
+                .map((a) => (a.textContent ?? "").replace(/\s+/g, " ").trim());
+            const seen = new Map<string, number>();
+            for (const name of names) seen.set(name, (seen.get(name) ?? 0) + 1);
+            expect([...seen].filter(([, n]) => n > 1).map(([name]) => name),
+                `${key}: these link names are shared by more than one destination`).toEqual([]);
+        }
+    });
+});
+
 describe("a bib's state is derived from the calendar, never stored", () => {
     it("is finished only once the whole event is behind the build day", () => {
         const race = ev({date: "2026-06-10"});
@@ -598,9 +653,9 @@ describe("dist/patches", () => {
      * and only if the calendar calls it booked. The non-vacuity that remains is a
      * property of the fixture, not of the day — there are always events to render.
      *
-     * Proving the tag logic can DISTINGUISH the two states is a separate job, and it
-     * belongs to the component rather than to whatever today happens to look like. See
-     * the container-rendered test below.
+     * Proving that the treatment can DISTINGUISH one state from another is a separate
+     * job, and it belongs to the component rather than to whatever today happens to look
+     * like. See the container-rendered test below, which drives every state.
      */
     it("says 'booked' in words on exactly the bibs the calendar calls booked", () => {
         for (const {bib, event, state} of wallBibs(PAGES.all)) {
@@ -625,14 +680,15 @@ describe("dist/patches", () => {
     });
 
     /**
-     * THAT THE TAG DISTINGUISHES THE TWO STATES AT ALL, asked of the component instead
+     * THAT THE TREATMENTS DISTINGUISH THE STATES AT ALL, asked of the component instead
      * of the calendar.
      *
-     * Rendering `Patch` directly in both states is the only form of this assertion that
+     * Rendering `Patch` directly in every state is the only form of this assertion that
      * is date-independent. Reading it off the built page means the coverage silently
      * depends on the wall happening to hold one of each today — which is exactly the
      * coupling that turned the deploy red above, and it will be false again for the
-     * whole of any January before the year's first race.
+     * whole of any January before the year's first race, and was false for DNF from the
+     * day the state existed until the day a race was entered into it.
      */
     it("gives each of the three states its own words and its own class, whatever the date", async () => {
         const container = await AstroContainer.create();
@@ -659,8 +715,8 @@ describe("dist/patches", () => {
         expect(dnf.querySelector(".bib-tag"), "a DNF says its word in the hero, so it takes no tag").toBeNull();
         expect(dnf.querySelector(".bib-value")?.textContent?.trim()).toBe(PATCHES.dnf_result);
         expect(dnf.querySelector(".bib-unit"), "a verdict is not a quantity, so it takes no unit").toBeNull();
-        expect(dnf.querySelector(".bib-ridden-label")?.textContent?.trim()).toBe(PATCHES.ridden_label);
-        expect(dnf.querySelector(".bib-ridden-value")?.textContent?.trim())
+        expect(dnf.querySelector(".bib-covered-label")?.textContent?.trim()).toBe(PATCHES.covered_label);
+        expect(dnf.querySelector(".bib-covered-value")?.textContent?.trim())
             .toBe(`${event.km.toFixed(2)} ${goalForSport(event.sport).measurable_unit}`);
         // The abbreviation is expanded for a listener and for nobody else — the repo's rule
         // is that the accessible name is a SUPERSET of the visible text, never a
@@ -669,9 +725,48 @@ describe("dist/patches", () => {
             .toContain(PATCHES.dnf_name);
         expect(dnf.querySelector(".bib-value")?.textContent, "the expansion must stay outside the hero")
             .not.toContain(PATCHES.dnf_name);
+
+        // THE COVERED LABEL IS THE SAME WORD FOR EVERY SPORT, and this is the only form of
+        // that assertion that is not a tautology. Asserting the render matches
+        // `PATCHES.covered_label` proves the component reads the constant and says nothing
+        // about the constant's VALUE — it stays green with "Ridden" back in it, which is the
+        // defect. Comparing the two sports' rendered labels to EACH OTHER cannot: any
+        // per-sport lookup, and any sport-conditional branch in the component, separates
+        // them. `outcome` sits on the shared event shape, so a running DNF is data the type
+        // already permits and the wall would otherwise call a run a ride.
+        const bySport = await Promise.all(GOALS.map(async ({sport}) => {
+            const one = EVENTS.find((e) => e.sport === sport);
+            if (one === undefined) throw new Error(`no ${sport} event to render`);
+            const doc = parseHTML(await container.renderToString(Patch, {props: {event: one, state: "dnf"}})).document;
+            return doc.querySelector(".bib-covered-label")?.textContent?.trim();
+        }));
+        expect(new Set(bySport).size, `every sport's DNF bib says the same word, got ${bySport.join(" / ")}`)
+            .toBe(1);
+        expect(bySport[0]).toBe(PATCHES.covered_label);
+
+        // AND THE ROW IS CONDITIONAL ON THE RECORDINGS, because `km` means the ADVERTISED
+        // distance on a row that has none — the Formosa tour carries 1022.00 having never
+        // been ridden. A DNF the owner remembers without a recording must not have its bib
+        // claim he covered the whole route: that is the one assertion this treatment exists
+        // to stop the bib making. Both directions, or the assertion cannot tell a component
+        // that drops the row from one that never had it.
+        const remembered = parseHTML(await container.renderToString(
+            Patch, {props: {event: ev({outcome: "dnf", recordings: undefined}), state: "dnf"}})).document;
+        expect(remembered.querySelector(".bib-value")?.textContent?.trim(),
+            "a remembered DNF still prints the verdict").toBe(PATCHES.dnf_result);
+        expect(remembered.querySelector(".bib-covered"),
+            "a DNF with no recording has no evidence of a distance, so it prints none").toBeNull();
+        const recorded = parseHTML(await container.renderToString(Patch, {
+            props: {
+                event: ev({outcome: "dnf", km: 12.5, recordings: [{id: "1", km: 12.5, elapsed_time: "1:00:00"}]}),
+                state: "dnf",
+            },
+        })).document;
+        expect(recorded.querySelector(".bib-covered-value")?.textContent?.trim(),
+            "a recorded DNF prints what was covered").toBe(`12.50 ${goalForSport("cycling").measurable_unit}`);
         for (const other of ["booked", "finished"] as const) {
             const doc = await rendered(other);
-            expect(doc.querySelector(".bib-ridden"), `a ${other} bib has no ridden row`).toBeNull();
+            expect(doc.querySelector(".bib-covered"), `a ${other} bib has no covered row`).toBeNull();
             expect(doc.querySelector(".bib-value")?.textContent, `a ${other} bib prints no verdict`)
                 .not.toContain(PATCHES.dnf_result);
         }
@@ -846,10 +941,10 @@ describe("dist/patches", () => {
         // that is the owner's call. Recorded, not smuggled in.
         // `bib-split` joins them: its tokens are a distance and a clock, the same unbreakable
         // shape as the elapsed row that was measured escaping from a 42px root.
-        // `bib-ridden` is the same shape again — "RIDDEN" and "110.04" are each one token —
+        // `bib-covered` is the same shape again — "COVERED" and "110.04" are each one token —
         // and it is the row a DNF bib's distance moved into, so the ink at risk is the only
         // figure that bib prints.
-        for (const cls of ["bib-time", "bib-place", "bib-tag", "bib-go", "bib-split", "bib-ridden"]) {
+        for (const cls of ["bib-time", "bib-place", "bib-tag", "bib-go", "bib-split", "bib-covered"]) {
             const owned = rules.filter((r) => r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel)));
             expect(owned.length, `no rule for .${cls} — this assertion would be vacuous`).toBeGreaterThan(0);
             const wrap = owned.map((r) => decl(r.body, "overflow-wrap") ?? decl(r.body, "word-wrap")).find((v) => v !== undefined);
@@ -1054,10 +1149,10 @@ describe("dist/patches", () => {
                 expect(value.querySelector(".bib-fraction"), `${event.name} splits no fraction off a verdict`)
                     .toBeNull();
                 expect(bib.querySelector(".bib-unit"), `${event.name} puts no unit on a verdict`).toBeNull();
-                expect(bib.querySelector(".bib-ridden-value")?.textContent?.trim(), `${event.name} ridden distance`)
+                expect(bib.querySelector(".bib-covered-value")?.textContent?.trim(), `${event.name} covered distance`)
                     .toBe(`${km} ${goalForSport(event.sport).measurable_unit}`);
-                expect(bib.querySelector(".bib-ridden-label")?.textContent?.trim(), `${event.name} ridden label`)
-                    .toBe(PATCHES.ridden_label);
+                expect(bib.querySelector(".bib-covered-label")?.textContent?.trim(), `${event.name} covered label`)
+                    .toBe(PATCHES.covered_label);
                 continue;
             }
             expect(value.textContent?.replace(/\s+/g, ""), `${event.name} distance`).toBe(km);
@@ -2018,5 +2113,73 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
         expect(doc.querySelector(".bib-splits"), "nothing to list").toBeNull();
         expect(doc.querySelector(".bib-go"), "and nothing to say").toBeNull();
         expect((doc.documentElement?.textContent ?? "").includes(NEW_TAB_NOTICE), "no tab is opened").toBe(false);
+    });
+});
+
+/**
+ * EVERY `grid-area` A BIB'S ROWS CLAIM MUST EXIST IN THE TEMPLATE THAT WINS FOR THAT BIB.
+ *
+ * The gap this closes: the only rule placing the DNF bib's covered row is a COMPOUND one,
+ * `.bib--dnf.bib--split`, and deleting it from the sheet left the whole suite green while the
+ * rendered bib grew from 240px to 328px and dropped its 110.04 km into the implicit grid,
+ * below the action row and in the wrong column. Nothing in the repo asserted
+ * `grid-template-areas` or `grid-area` at all — every existing assertion asks whether a row
+ * EXISTS and what it says, never where it lands, which is blind to exactly this.
+ *
+ * IT RESOLVES BY SPECIFICITY, NOT BY SOURCE ORDER, and that is the part that had to change.
+ * The `declared()` helper elsewhere in this file states its own precondition — "sheet order
+ * decides, which is sound here because every rule involved is a single class" — and this
+ * component now ships the first TWO-class rule the bib subtree has ever had, so that
+ * precondition no longer holds. A source-order model reports a false RED on a sheet that has
+ * merely been reordered and still renders correctly; it was written that way first and
+ * measured saying so.
+ *
+ * The template is derived from the class set each bib ACTUALLY WEARS on the built page, so a
+ * fourth state, or a new combination of existing ones, joins this gate by existing rather
+ * than by being added to a list.
+ */
+describe("the bib's grid template holds every area its rows claim", () => {
+    /** Class-only selectors: this model cannot represent anything else, so it skips the rest. */
+    const modellable = (sel: string) =>
+        !/[\s>+~:[]/.test(sel.replace(/\\./g, "x").replace(/\[data-astro-cid-[\w-]+\]/g, "").trim());
+    const tokensOf = (sel: string) => [...sel.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\/g, ""));
+    /** Class + attribute count — enough to order the selectors this component ships. */
+    const spec = (sel: string) => tokensOf(sel).length + (sel.match(/\[[^\]]*\]/g) ?? []).length;
+
+    const winner = (rules: Rule[], tokens: string[], prop: string): string | undefined => {
+        let best: {s: number, i: number, v: string} | undefined;
+        rules.forEach((rule, i) => {
+            const v = decl(rule.body, prop);
+            if (v === undefined) return;
+            for (const sel of rule.selectors) {
+                if (!modellable(sel)) continue;
+                const need = tokensOf(sel);
+                if (need.length === 0 || !need.every((c) => tokens.includes(c))) continue;
+                const s = spec(sel);
+                if (!best || s > best.s || (s === best.s && i >= best.i)) best = {s, i, v};
+            }
+        });
+        return best?.v;
+    };
+
+    it.each(Object.entries(PAGES))("every bib on /%s places every row it renders", (_name, page) => {
+        const rules = parseRules(pageCss(page)).filter((r) => r.at === "");
+        const doc = parseHTML(read(page)).document;
+        const bibs = [...doc.querySelectorAll(".bib")];
+        expect(bibs.length, "no bibs — this assertion would be vacuous").toBeGreaterThan(0);
+        for (const bib of bibs) {
+            const tokens = (bib.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
+            const template = winner(rules, tokens, "grid-template-areas");
+            expect(template, `.${tokens.join(".")} declares no grid-template-areas`).toBeTruthy();
+            const areas = new Set(template!.match(/[\w-]+/g) ?? []);
+            for (const el of [...bib.querySelectorAll("*")]) {
+                const own = (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
+                if (own.length === 0) continue;
+                const area = winner(rules, [...tokens, ...own], "grid-area");
+                if (area === undefined || area === "auto") continue;
+                expect(areas.has(area.trim()), `.${own.join(".")} claims grid-area ${area} on .${tokens.join(".")}`)
+                    .toBe(true);
+            }
+        }
     });
 });

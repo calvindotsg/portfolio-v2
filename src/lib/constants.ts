@@ -571,7 +571,7 @@ export type RaceEvent = {
      * at 110 km.
      *
      * THE OBVIOUS OBJECTION, PRE-EMPTED, because otherwise this reads as a violation of the
-     * rule directly above {@link EVENTS} and the next reader deletes it. That rule forbids a
+     * rule in the {@link PATCHES} note below and the next reader deletes it. That rule forbids a
      * STORED `done` flag, because such a flag "goes stale in the one direction nobody
      * notices — a race that has been run still rendering as still-to-come". A DNF cannot go
      * stale in that direction or in any other: it is immutable history, settled the day the
@@ -702,9 +702,10 @@ export type Recording = {
      * the same conversion {@link RaceEvent.km} takes, and for the same reason.
      *
      * NOTE THE RACE'S `km` IS NOT THE SUM OF THESE. It is the summed METRES converted
-     * once, because two roundings can compound where one cannot. The two agree on both
-     * races currently in `EVENTS` and are not guaranteed to in general, so do not derive
-     * one from the other — `tests/strava-verify.test.ts` holds each against the API
+     * once, because two roundings can compound where one cannot. They happen to agree on
+     * every split race on the calendar today and are not guaranteed to in general — count
+     * the rows rather than trusting this sentence about how many there are, and do not
+     * derive one from the other. `tests/strava-verify.test.ts` holds each against the API
      * separately, which is the only check that can tell them apart.
      */
     km: number
@@ -725,9 +726,12 @@ export const EVENTS: readonly RaceEvent[] = [
      recordings: [{id: "9024119101", km: 22.12, elapsed_time: "1:53:15"}]},
     // THE RACE THAT WAS NOT FINISHED, and the only row carrying an `outcome`. It was ridden
     // in two parts — the split has nothing to do with the abandonment — so `km` is the summed
-    // metres converted ONCE (87422.6 + 22619.7 = 110042.3, which rounds to 110.04 where adding
-    // the two printed figures gives 110.03, a row that discriminates the rule) and
+    // metres converted ONCE (87422.6 + 22619.7 = 110042.3, which rounds to 110.04) and
     // `elapsed_time` is first start to last stop, 13:14:12, NOT the 13:07:06 the parts sum to.
+    // The two figures do NOT discriminate the rounding rule here — 87.42 + 22.62 is also
+    // 110.04 — so do not read this row as evidence for it; the 10 July row below is the one
+    // where rounding and truncating part company. The ELAPSED figures do discriminate, by
+    // seven minutes.
     // Nothing in the recordings says it ended early: Strava stores an abandoned ride exactly
     // like a completed one, which is the whole reason `outcome` is hand-entered.
     {date: "2023-08-06", name: "Pesta Sukan Round Island Bike Adventure", km: 110.04, sport: "cycling", country: "Singapore", outcome: "dnf", elapsed_time: "13:14:12",
@@ -974,7 +978,10 @@ export const NOW: {
  * "booked" flag either, on an event or in this block: whether a bib has been earned
  * is derived from the calendar every build (`patchState` in projection.ts), because
  * a stored flag goes stale in the one direction nobody notices — a race that has
- * been run still rendering as still-to-come. And there are no per-sport headings or
+ * been run still rendering as still-to-come. {@link RaceEvent.outcome} is the one
+ * stored fact about a race's result, and it passes that test rather than being
+ * excused from it: the calendar never re-derives an abandonment, so there is no
+ * answer for it to drift from. The argument is written out where it is declared. And there are no per-sport headings or
  * titles, because those are built from {@link Goal.goal_name}; adding them here
  * would let the wall call a sport something the goal card does not.
  *
@@ -1104,8 +1111,19 @@ export const PATCHES: {
      * "Distance" would name a quantity, where this names something that happened and
      * stopped. The pairing with {@link elapsed_label} is deliberate — two captions, same
      * grammar, one naming the clock and one the ground covered.
+     *
+     * AND IT IS SPORT-NEUTRAL, WHICH IS THE HALF THAT WAS WRONG FIRST. It read "Ridden",
+     * a cycling verb, on a field the type lets any sport reach — {@link RaceEvent.outcome}
+     * is on the shared event shape, so the first abandoned RUN would have shipped a bib
+     * reading "RIDDEN 21.10 KM" with nothing red anywhere. The per-sport fix is available
+     * ({@link goalForSport} is the join for exactly this) and is the wrong one here: the
+     * participle for running is "Run", which {@link Goal.short_name} already prints in the
+     * meta row two lines above, so the bib would read RUN … RUN 21.10 KM. One neutral word
+     * says what the paragraph above already argues for — the ground covered — for both.
+     * The gate is in tests/patch-wall.test.ts: it renders a DNF bib for each sport and
+     * holds the two labels EQUAL, which a per-sport lookup would fail.
      */
-    ridden_label: string
+    covered_label: string
     /**
      * The glyph on the bib's action row. It names the destination — it no longer has to
      * carry the affordance by itself, which is the correction below.
@@ -1161,6 +1179,15 @@ export const PATCHES: {
      *
      * It opens with a leading separator in `Patch.astro` rather than here, so the string
      * reads as a phrase rather than as punctuation with a fragment attached.
+     *
+     * `{race}` IS NOT ENOUGH ON ITS OWN, AND `{date}` IS HERE BECAUSE THE CALENDAR PROVED IT.
+     * The round-island ride is an ANNUAL event, so its name repeats down the wall — and two of
+     * its runnings are recorded in parts, which puts four links carrying one race name on a
+     * single page. A reader listing every link on the page (NVDA Insert+F7, the VoiceOver
+     * rotor) gets exactly these strings and no surrounding bib, so the name has to say WHICH
+     * running. The whole-bib link form already self-disambiguates — its name opens with the
+     * bib's date — so without this the two forms disagree about whether a date is part of a
+     * link's identity. Same source, {@link formatPatchDate}, so they cannot word it differently.
      */
     split_name: string
     /**
@@ -1199,7 +1226,7 @@ export const PATCHES: {
      * the site's name for the object rather than a description of the drawing. What this
      * replaced was "the solid bibs are the ones I have finished", which named the fill.
      *
-     * A rule, not a caption: "every one I do becomes" is true on a wall with nothing
+     * A rule, not a caption: "every one I finish becomes" is true on a wall with nothing
      * earned yet and on one with nothing left booked, where a sentence describing what is
      * currently on screen would be false half the year.
      *
@@ -1213,11 +1240,16 @@ export const PATCHES: {
      * DNF bib prints its own three letters in the largest type it has, so the sentence does
      * not have to tell them apart.
      *
-     * The two clauses are therefore no longer a pair of opposites — "not finished" and
-     * "every one I do" turn on the same verb, which is deliberate. Finishing is the axis the
-     * whole wall is sorted and drawn by.
+     * BOTH CLAUSES TURN ON THE SAME VERB, WRITTEN OUT BOTH TIMES. Finishing is the axis the
+     * whole wall is sorted and drawn by, so the sentence says it twice rather than eliding
+     * the second one. "every one I DO" was tried and reverted: `do` reads as VP-anaphora for
+     * `finish` to one reader and as "every race I take part in" to another, and the second
+     * reading is a promise the DNF bib beside it disproves — on a cycling site, where "I did
+     * the Round Island" is the ordinary way to say you rode it, that reading is the likelier
+     * one. A wall whose whole subject is the difference between finishing and not cannot
+     * afford a sentence with a reading that collapses it.
      */
-    lede: "The outlines are races I have not finished; every one I do becomes a Finisher Patch.",
+    lede: "The outlines are races I have not finished; every one I finish becomes a Finisher Patch.",
     description_all: "Every race Calvin has entered, finished or not, drawn as race bibs.",
     description_sport: "Every {sport} race Calvin has entered, finished or not, drawn as race bibs.",
     all_label: "All",
@@ -1228,10 +1260,10 @@ export const PATCHES: {
     home_icon: "ri:arrow-left-line",
     filter_label: "Filter by sport",
     elapsed_label: "Elapsed",
-    ridden_label: "Ridden",
+    covered_label: "Covered",
     strava_icon: "fa6-brands:strava",
     strava_name: "View on Strava",
-    split_name: "on Strava, {race}",
+    split_name: "on Strava, {race}, {date}",
     split_line: "View {distance}",
 }
 

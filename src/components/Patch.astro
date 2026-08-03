@@ -1,6 +1,6 @@
 ---
 import {goalForSport, NEW_TAB_NOTICE, PATCHES, type RaceEvent, recordingsOf, stravaActivityUrl} from "../lib/constants";
-import {patchDateSegments, type PatchState} from "../lib/projection";
+import {formatPatchDate, patchDateSegments, type PatchState} from "../lib/projection";
 import {iconClass} from "../lib/icons";
 
 interface Props {
@@ -188,10 +188,23 @@ const Tag = only === null ? "div" : "a";
             <Fragment>
                 <p class="bib-value">{PATCHES.dnf_result}</p>
                 <span class="sr-only">{PATCHES.dnf_name}</span>
-                <p class="bib-ridden">
-                    <span class="bib-ridden-label">{PATCHES.ridden_label}</span>
-                    <span class="bib-ridden-value">{`${event.km.toFixed(2)} ${goal.measurable_unit}`}</span>
-                </p>
+                {/* CONDITIONAL ON THE RECORDINGS, BECAUSE `km` MEANS TWO DIFFERENT THINGS.
+                    On a recorded row it is the distance that was covered; on a row with no
+                    recording it is the event's ADVERTISED distance — see `RaceEvent.km`, which
+                    says so, and the Formosa tour, which carries 1022.00 having never been
+                    ridden. Printing that figure under this caption would have the bib assert
+                    the rider covered the whole of a race he abandoned, which is the one claim
+                    this treatment exists to stop the bib making. A DNF the owner remembers
+                    without a recording therefore prints the verdict and no distance: the site
+                    holds no evidence of one, and saying nothing is the honest form of that.
+                    The row is not made mandatory instead, because a race remembered without a
+                    recording is still a complete bib — `hasRecording` in projection.ts. */}
+                {recordings.length > 0 && (
+                        <p class="bib-covered">
+                            <span class="bib-covered-label">{PATCHES.covered_label}</span>
+                            <span class="bib-covered-value">{`${event.km.toFixed(2)} ${goal.measurable_unit}`}</span>
+                        </p>
+                )}
             </Fragment>
     ) : (
             <Fragment>
@@ -234,7 +247,7 @@ const Tag = only === null ? "div" : "a";
                                 <span class="bib-split-km">{PATCHES.split_line.replace("{distance}", `${part.km.toFixed(2)} ${goal.measurable_unit}`)}</span>
                                 {" "}
                                 <span class="bib-split-time">{part.elapsed_time}</span>
-                                <span class="sr-only">{" " + PATCHES.split_name.replace("{race}", event.name) + " "}</span>
+                                <span class="sr-only">{" " + PATCHES.split_name.replace("{race}", event.name).replace("{date}", formatPatchDate(event) ?? "") + " "}</span>
                                 <span class="sr-only">{NEW_TAB_NOTICE}</span>
                             </a>
                         </li>
@@ -396,7 +409,7 @@ const Tag = only === null ? "div" : "a";
      * drawing of it being argued and measured. The two `border-width` lists further down are
      * joined rather than added to — a DNF is an outline and prints like one.
      *
-     * WHY THE ROW ORDER CHANGES HERE. `ridden` sits directly under `value`, so the two facts
+     * WHY THE ROW ORDER CHANGES HERE. `covered` sits directly under `value`, so the two facts
      * about the result are together — what it was, and what was covered getting there —
      * before the bib gets round to naming the race. The `unit` area is gone because no
      * element claims it: see the markup, which does not render `.bib-unit` on this branch.
@@ -407,7 +420,7 @@ const Tag = only === null ? "div" : "a";
         --sport: var(--sport-on-card);
         border-color: color-mix(in srgb, var(--text) 32%, transparent);
         background-image: none;
-        grid-template-areas: "date date" "value value" "ridden ridden" "name name" "place place" "time time";
+        grid-template-areas: "date date" "value value" "covered covered" "name name" "place place" "time time";
     }
 
     /*
@@ -511,7 +524,7 @@ const Tag = only === null ? "div" : "a";
     .bib-date,
     .bib-tag,
     .bib-time-label,
-    .bib-ridden-label {
+    .bib-covered-label {
         opacity: 0.8;
     }
 
@@ -619,7 +632,9 @@ const Tag = only === null ? "div" : "a";
      * The clearance is worth keeping: the composite runs against the FACE, and both
      * faces are near the extremes of the palette, so any future re-tone moves this
      * ratio. tests/patch-wall.test.ts composites every dimmed line on the bib and
-     * holds all of them to the text floor, in both states and both themes.
+     * holds all of them to the text floor, in every state and both themes — it takes
+     * the states from `PatchState` rather than naming them, so a fourth joins the
+     * sweep by existing.
      */
     .bib-unit {
         grid-area: unit;
@@ -851,7 +866,7 @@ const Tag = only === null ? "div" : "a";
 
     /*
      * A DNF THAT ALSO LINKS OUT NEEDS BOTH ADDED ROWS, and neither rule above can give it
-     * them: `.bib--dnf` has `ridden` and no `go`, the pair above has `go` and no `ridden`, and
+     * them: `.bib--dnf` has `covered` and no `go`, the pair above has `go` and no `covered`, and
      * both are single-class, so whichever is written last would simply win and delete the
      * other's row. Hence one compound rule holding the union.
      *
@@ -867,7 +882,7 @@ const Tag = only === null ? "div" : "a";
      */
     .bib--dnf.bib--linked,
     .bib--dnf.bib--split {
-        grid-template-areas: "date date" "value value" "ridden ridden" "name name" "place place" "time time" "go go";
+        grid-template-areas: "date date" "value value" "covered covered" "name name" "place place" "time time" "go go";
     }
 
     /*
@@ -1086,13 +1101,13 @@ const Tag = only === null ? "div" : "a";
      * corrects; the rig that settled this design did exactly that and it read as a slip.
      *
      * `flex-wrap` and `overflow-wrap` for the reason `.bib-time` has them, and it is the same
-     * trap, not a precaution: `RIDDEN` and `110.04` are single unbreakable tokens, and a bib
+     * trap, not a precaution: `COVERED` and `110.04` are single unbreakable tokens, and a bib
      * does not clip, so at a large enough text size each one paints OUTSIDE the border box onto
      * the card — where this ink sits at 1.045:1 and is simply gone. tests/patch-wall.test.ts
      * holds this class to that rule with the other four.
      */
-    .bib-ridden {
-        grid-area: ridden;
+    .bib-covered {
+        grid-area: covered;
         display: flex;
         flex-wrap: wrap;
         overflow-wrap: anywhere;
@@ -1105,12 +1120,12 @@ const Tag = only === null ? "div" : "a";
     }
 
     .bib-time-label,
-    .bib-ridden-label {
+    .bib-covered-label {
         font-weight: 700;
     }
 
     .bib-time-value,
-    .bib-ridden-value {
+    .bib-covered-value {
         font-weight: 800;
         font-variant-numeric: tabular-nums;
         letter-spacing: 0.08em;

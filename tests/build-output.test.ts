@@ -278,6 +278,16 @@ describe("dist/", () => {
         // cannot discriminate. Reconstructing the rendered line also means a change to the
         // endpoint's format goes red here instead of degrading this into a check on a
         // string nobody emits.
+        // AND THE DISTANCE CLAUSE, BECAUSE A DNF's KILOMETRES MEAN SOMETHING ELSE. In every
+        // other bucket the figure is how long the race WAS; on an abandoned one it is how far
+        // he got, and the row has to carry that itself — this file is written to be chunked,
+        // so a row quoted away from its heading keeps the number and loses the meaning. The
+        // second `expect` is what makes this discriminate rather than merely pass: without
+        // it, labelling EVERY row is as green as labelling the right ones.
+        const clauseFor = (event: typeof EVENTS[number]): string =>
+            patchState(event) === "dnf"
+                ? `${PATCHES.covered_label.toLowerCase()} ${event.km} km`
+                : `${event.km} km`;
         for (const event of EVENTS) {
             const state = patchState(event);
             const when = event.end_date ? `${event.date} to ${event.end_date}` : event.date;
@@ -286,6 +296,14 @@ describe("dist/", () => {
             for (const [bucket, text] of Object.entries(sections)) {
                 expect(text.includes(line), `"${line}" is ${state}: wrong side of the "${bucket}" list`)
                     .toBe(bucket === state);
+            }
+            const row = llms.split("\n").find((l) => l.includes(line));
+            expect(row, `"${line}" must be on a line of its own`).toBeDefined();
+            expect(row, `${event.name} (${state}) must print "${clauseFor(event)}"`)
+                .toContain(clauseFor(event));
+            if (state !== "dnf") {
+                expect(row, `${event.name} is ${state}, so its distance takes no "${PATCHES.covered_label}" label`)
+                    .not.toContain(PATCHES.covered_label.toLowerCase());
             }
         }
     });
@@ -1685,7 +1703,7 @@ describe("the stylesheet ships no rule nobody wears", () => {
      * WHY NOT WEAKEN THE GATE: it exists to catch a rule emitted by an ordinary English
      * word, and it still does. What is excused here is narrow and named, and the class
      * is not left uncovered — `tests/patch-wall.test.ts` renders `Patch` directly in
-     * both states, so an actually-dead `bib--booked` fails there, on a page and not on a
+     * every state, so an actually-dead state class fails there, on a page and not on a
      * date.
      */
     /**

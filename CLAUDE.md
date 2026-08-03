@@ -163,8 +163,12 @@ block above it before giving either consumer the other's list.
 - `src/pages/patches/[...sport].astro` — the patch wall. One rest-parameter route
   prerenders three pages (`/patches`, `/patches/cycling`, `/patches/running`), so
   filtering by sport is a real URL rather than client state. Whether a bib is
-  earned is DERIVED every build (`patchState` in `projection.ts`) and must never
-  become a stored flag
+  earned is DERIVED every build (`patchState` in `projection.ts`) **from facts the
+  build can see**, and must never become a stored `done` flag. The ONE fact no build
+  can see is an abandonment — no device models a DNF — so that one is TOLD, as
+  `RaceEvent.outcome`. It is immutable history rather than an answer the calendar
+  keeps re-deriving, which is the test the rule is actually made of; read the note on
+  the field before adding a second
 - **The site has TWO clocks and they answer different questions.** `UPDATED_AT` is
   the bot's stamp — "the day the kilometres last MOVED", frozen on purpose when they
   do not — and it stays on the dateline and the required rate, whose numerator and
