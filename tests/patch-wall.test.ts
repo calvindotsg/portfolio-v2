@@ -1448,6 +1448,21 @@ describe("dist/patches", () => {
         }
         expect(swapped, "some arm must perform the swap, or the heading outlives the column it heads")
             .toBeGreaterThan(0);
+
+        /*
+         * AND THE UNIT MUST BREAK AWAY WHOLE. The ledger sets `overflow-wrap: anywhere`, which
+         * is what keeps an unbreakable token off the card, and it reaches the unit too: at the
+         * narrowest bib it split `160.56km` after the `k`, leaving `160.56k` alone on a line.
+         * The figure was still correct and the pair still read as a different number — a
+         * hundred and sixty THOUSAND. Holding the two letters together moves the break in
+         * front of them. Measured: without this, six cells on the wall split that way at a
+         * 320px viewport and a 32px root.
+         */
+        const unitRules = rules.filter((r) => r.at === ""
+            && r.selectors.some((sel) => /\.bib-ledger-unit\b/.test(sel)));
+        const wrap = unitRules.map((r) => decl(r.body, "white-space")).find((v) => v !== undefined);
+        expect(wrap?.trim(), "the unit must not be breakable — `160.56k` reads as 160,560")
+            .toBe("nowrap");
     });
 
     /**

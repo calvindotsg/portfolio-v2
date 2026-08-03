@@ -1150,6 +1150,16 @@ if (recordings.length === 1) {
     .bib-ledger-unit {
         display: none;
         margin-left: 0.3em;
+        /*
+         * THE UNIT BREAKS AWAY WHOLE OR NOT AT ALL. `overflow-wrap: anywhere` on the ledger
+         * is what stops an unbreakable token painting on the card, and it applies here too —
+         * at the narrowest bib on the wall it split `160.56km` after the `k`, leaving
+         * `160.56k` alone on a line, which reads as a hundred and sixty THOUSAND. The figure
+         * itself was never wrong; the pair of them read as a different number. Holding the
+         * two letters together moves the break in front of them, so the line reads `160.56`
+         * and the unit follows on its own.
+         */
+        white-space: nowrap;
     }
 
     .bib-ledger-km,
