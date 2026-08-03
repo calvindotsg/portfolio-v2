@@ -464,11 +464,19 @@ export type RaceEvent = {
      * than the race, so ask what a day's other activities ARE before touching a row that looks
      * short — TWO DIFFERENT THINGS LOOK LIKE A SPLIT DAY and they take opposite answers.
      *
-     *   THE DAY HOLDS THE RACE PLUS SOMETHING ELSE, which is 10 July: one activity is the whole
-     *   race, and the 22.56 km escort out of Phuket is a separate ride that happens to share the
-     *   date. This row prints the 140.50 the link goes to; the day's 163.06 was never a
-     *   candidate, and there is no exception to make. See {@link elapsed_time} for that day's
-     *   whole arithmetic.
+     *   THE DAY HOLDS THE RACE PLUS SOMETHING ELSE. One activity is the whole race and the
+     *   others are separate outings that happen to share the date — a shake-out, a ride to the
+     *   start, dinner. Then this is the RACE's activity and the day's total was never a
+     *   candidate. NO EXAMPLE IS NAMED HERE ON PURPOSE, and the reason is the paragraph below.
+     *
+     *   THIS SHAPE AND THE NEXT ONE ARE NOT TOLD APART BY THE DATA, AND 10 JULY PROVES IT THE
+     *   EXPENSIVE WAY. That day held a 22.56 km "VIP escort through Phuket" and the 140.50 km
+     *   ride, 14:25 apart. It was recorded here as this first shape — the escort read as a
+     *   separate outing — and stood as the worked example of it for two revisions. **The rider
+     *   then said the escort is part 1 of the event and the ride is part 2**, which makes it
+     *   the second shape and moves 22.56 km into the race. Nothing in the API changed; the
+     *   titles never discriminated it, and neither did the gap. Only he can. So: ASK, do not
+     *   infer, and do not restore an example here from a reading of a day.
      *
      *   THE RACE ITSELF WAS RECORDED IN PARTS — the rider stopped and restarted, so no single
      *   activity holds the ride. Then this is the SUMMED METRES CONVERTED ONCE, not the sum of
@@ -562,13 +570,13 @@ export type RaceEvent = {
      * above {@link EVENTS} before adding either to a race you have just finished.
      *
      * IT IS ELAPSED, NOT MOVING, AND THE BIB SAYS SO. The two are far apart on these
-     * rides — 8:32:05 elapsed against 5:03:55 moving — so an unlabelled time invites a
-     * reader to divide it into the distance printed beside it and get 16.5 km/h, where
-     * the recorded ride actually moved at 27.7 (140.50 km / 5:03:55). The label is not
+     * rides — the 10 July ride is 8:32:05 elapsed against 5:03:55 moving — so an unlabelled
+     * time invites a reader to divide it into the distance printed beside it and get 16.5
+     * km/h, where that ride actually moved at 27.7 (140.50 km / 5:03:55). The label is not
      * decoration; it names which clock.
      *
      * BOTH FIGURES COME OFF THE SAME SCOPE, which is what {@link km} changed and it settled
-     * a long argument in this comment rather than continuing it. 16.5 is that activity's own
+     * a long argument in this comment rather than continuing it. 16.5 is that recording's own
      * 140.50 km over its own 8:32:05, and 27.7 is the same distance over its own moving time:
      * a reader dividing the two numbers on the bib gets a real elapsed speed for a real ride.
      * They used to be different scopes — the EVENT's 160.59 km over the ACTIVITY's clock, which
@@ -585,13 +593,17 @@ export type RaceEvent = {
      * on its own link for the same reason, so a reader who follows one is never dividing two
      * numbers that belong to different rides. See {@link Recording}.
      *
-     * WHICH ACTIVITY, WHERE A DAY HOLDS MORE THAN ONE: the ones in `recordings`, the
-     * ones these times came off, the ones the bib links to. 10 July is the case that names the
-     * rule — the day holds a 22.56 km escort out of Phuket AND the 140.50 km ride, 163.06
-     * together against the event's advertised 160.59, and whole-day elapsed would be 9:55
-     * rather than 8:32:05. The row prints 140.50, because that is the ride a reader who
-     * follows the link will see. Neither the day's total nor the event's figure is a number
-     * any single recording holds.
+     * WHICH ACTIVITIES, WHERE A DAY HOLDS MORE THAN ONE: the ones in `recordings`, the ones
+     * these times came off, the ones the bib links to — and which those are is the rider's
+     * call, not a reading of the data. 10 July is the case that names the rule, and it has
+     * been read BOTH ways: the day's 22.56 km escort and its 140.50 km ride are now parts 1
+     * and 2 of one event, so the row prints their summed 163.06 over a 10:09:34 span. It
+     * printed 140.50 over 8:32:05 while the escort counted as a separate outing.
+     *
+     * NOTE WHAT DID NOT CHANGE WITH IT: the event's ADVERTISED 160.59 km was never a candidate
+     * under either reading, and still is not. A bib prints what was recorded, so the only
+     * question a day like this asks is WHICH recordings belong to the race — never whether to
+     * reach for the route's figure instead.
      *
      * (That day is also why a 20km "silent disagreement" was once reported here and was
      * not one. A single Strava activity is not a day. Before concluding that a
@@ -691,8 +703,16 @@ export const EVENTS: readonly RaceEvent[] = [
      recordings: [{id: "16736512210", km: 78.60, elapsed_time: "7:40:25"}]},
     {date: "2026-05-09", name: "OCBC Cycle Singapore Virtual Ride", km: 130.03, sport: "cycling", country: "Malaysia", elapsed_time: "8:14:15",
      recordings: [{id: "18433212592", km: 130.03, elapsed_time: "8:14:15"}]},
-    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 140.50, sport: "cycling", country: "Thailand", elapsed_time: "8:32:05",
-     recordings: [{id: "19254155835", km: 140.50, elapsed_time: "8:32:05"}]},
+    // THE SECOND SPLIT RACE, and it was classified the other way first. The day holds a
+    // 22.56 km escort out of Phuket and the 140.50 km ride, and this row printed only the
+    // ride on the reading that the escort was a separate outing sharing the date. The rider
+    // says otherwise: the escort IS part of the event. `km` is the summed metres converted
+    // once (22558.8 + 140498.0 = 163056.8, which rounds to 163.06 and truncates to 163.05 —
+    // a second row that discriminates the rule), and `elapsed_time` is first start to last
+    // stop, 10:09:34, against 9:55:09 summed and a 14:25 gap between the two.
+    {date: "2026-07-10", name: "MBG DCR 2026 - Phuket to Krabi", km: 163.06, sport: "cycling", country: "Thailand", elapsed_time: "10:09:34",
+     recordings: [{id: "19250544118", km: 22.56, elapsed_time: "1:23:04"},
+                  {id: "19254155835", km: 140.50, elapsed_time: "8:32:05"}]},
     {date: "2026-07-12", name: "MBG DCR 2026 - Krabi to Phuket", km: 158.10, sport: "cycling", country: "Thailand", elapsed_time: "9:41:31",
      recordings: [{id: "19279762093", km: 158.10, elapsed_time: "9:41:31"}]},
     {date: "2026-07-29", name: "Garmin Run Virtual Challenge", km: 10.17, sport: "running", country: "Singapore", elapsed_time: "0:58:26",
