@@ -12,7 +12,7 @@ import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
 } from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
-import {decl, isKeyframeStep, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
+import {decl, isKeyframeStep, lastDecl, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * THE STATE A BIB WEARS, AS A MAP RATHER THAN A BOOLEAN, and it is `Record<PatchState, …>`
@@ -92,10 +92,23 @@ const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
  * nth-child reading would be measuring the markup and reporting on the drawing. Whether the
  * columns actually line up is a rendered fact and belongs in the browser sweep, not here.
  */
+/**
+ * THE FIGURES A LEDGER ROW HOLDS. The distance cell also carries the unit that travels with
+ * it at the narrowest widths — hidden at every other size, but always in the DOM — so it is
+ * removed here and asserted separately below. Reading it as part of the figure would compare
+ * `22.45 km` against `22.45` and redden every ledger assertion at once.
+ */
+const kmFigure = (row: Element) => {
+    const cell = row.querySelector(".bib-ledger-km");
+    if (cell === null) return "";
+    const unit = cell.querySelector(".bib-ledger-unit")?.textContent ?? "";
+    return (cell.textContent ?? "").replace(unit, "").trim();
+};
+
 const ledgerOf = (doc: {querySelectorAll: (s: string) => Iterable<Element>}) =>
     [...doc.querySelectorAll(".bib-ledger-row")].map((row) => ({
         who: row.querySelector(".bib-ledger-who")?.textContent?.trim() ?? "",
-        km: row.querySelector(".bib-ledger-km")?.textContent?.trim() ?? "",
+        km: kmFigure(row),
         time: row.querySelector(".bib-ledger-time")?.textContent?.trim() ?? "",
     }));
 
@@ -1388,6 +1401,109 @@ describe("dist/patches", () => {
             + "columns are what the ledger is FOR").toBeGreaterThan(0);
         expect(whoSpans.some((v) => /1\s*\/\s*-1/.test(v!)), `the name must span every column, `
             + `got ${JSON.stringify(whoSpans)}`).toBe(true);
+    });
+
+    /**
+     * THE UNIT IS STATED EXACTLY ONCE AT EVERY WIDTH, AND THE TWO CARRIERS SWAP.
+     *
+     * The heading row exists to say `KM` once instead of on every figure. The narrowest arm
+     * gives each figure its own line, and at that point the heading is standing over a stack
+     * holding a distance AND a clock — a reader following `KM` down arrives at `2:19:11`.
+     * Rendered and looked at; every measurement said that band was clean, and it was.
+     *
+     * So the unit moves onto the figure there and the heading goes away in the same arm. What
+     * this holds is the INVARIANT that makes the swap safe: the two are never both on, and
+     * never both off. It cannot be checked by reading one rule — it is a property of the pair.
+     */
+    it("states the ledger's unit exactly once, whichever carrier is showing", () => {
+        const rules = parseRules(pageCss(PAGES.all));
+
+        // `lastDecl`, NOT `decl`. The minifier merges two rules that share a selector AND a
+        // prelude into ONE body, so a second `display` for the same class arrives as
+        // `{display:revert;display:none}`. `decl` reads the FIRST — `revert` — while the browser
+        // paints `none`. Measured: 465 tests green with BOTH carriers of the unit hidden at the
+        // 200% text size this arm exists for. Reading the first value here proves nothing.
+        //
+        // `undefined` means the arm says nothing about this class, which is NOT the same as
+        // saying it is hidden.
+        const isShown = (cls: string, at: string): boolean | undefined => {
+            const found = rules
+                .filter((r) => r.at === at && r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel)))
+                .map((r) => lastDecl(r.body, "display"))
+                .filter((v): v is string => v !== undefined);
+            return found.length === 0 ? undefined : found.at(-1)!.trim() !== "none";
+        };
+
+        const doc = parseHTML(read(PAGES.all)).document;
+        expect([...doc.querySelectorAll(".bib-ledger-unit")].length,
+            "the ledger must carry a unit that can travel with its figure").toBeGreaterThan(0);
+        expect(isShown("bib-ledger-unit", ""),
+            "the unit is off by default — the heading row states it once, which is why it exists")
+            .toBe(false);
+
+        const arms = [...new Set(rules.map((r) => r.at))].filter((a) => /@container/.test(a));
+        let swapped = 0;
+        for (const at of arms) {
+            const headOff = isShown("bib-ledger-km-head", at) === false;
+            const unitOn = isShown("bib-ledger-unit", at) === true;
+            expect(headOff, `"${at}": the unit heading and the inline unit must not both be off — `
+                + "that leaves a distance with no unit anywhere in its own utterance — and not "
+                + "both on, which states it twice").toBe(unitOn);
+            if (headOff) swapped++;
+        }
+        expect(swapped, "some arm must perform the swap, or the heading outlives the column it heads")
+            .toBeGreaterThan(0);
+
+        /*
+         * AND THE SWAP LIVES IN EXACTLY ONE PLACE. The loop above compares the two carriers
+         * WITHIN a single at-rule prelude, so a THIRD arm with its own prelude — narrower, and
+         * therefore also in force — can hide the unit while saying nothing about the heading.
+         * `isShown` then answers `undefined` for the heading, the loop folds that to `false`,
+         * and silence is read as agreement: both carriers off, gate green, no unit on the bib.
+         *
+         * A stylesheet gate cannot fold a cascade without becoming a browser. What it CAN hold
+         * is the structure the design actually wants — each carrier is decided once, in the same
+         * breath as the other — which makes the multi-arm case unrepresentable rather than
+         * merely unchecked.
+         */
+        const armsNaming = (cls: string) => [...new Set(rules
+            .filter((r) => r.at !== "" && r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel))
+                && lastDecl(r.body, "display") !== undefined)
+            .map((r) => r.at))];
+        const unitArms = armsNaming("bib-ledger-unit");
+        const headArms = armsNaming("bib-ledger-km-head");
+        expect(unitArms.length, `the inline unit's visibility must be decided in ONE conditional `
+            + `rule, or a narrower arm can hide it behind the gate's back. Got ${JSON.stringify(unitArms)}`)
+            .toBe(1);
+        expect(headArms, "and the heading it swaps with must be decided in the SAME one")
+            .toEqual(unitArms);
+
+        /*
+         * AND THE UNIT MUST BREAK AWAY WHOLE. The ledger sets `overflow-wrap: anywhere`, which
+         * is what keeps an unbreakable token off the card, and it reaches the unit too: at the
+         * narrowest bib it split `160.56km` after the `k`, leaving `160.56k` alone on a line.
+         * The figure was still correct and the pair still read as a different number — a
+         * hundred and sixty THOUSAND. Holding the two letters together moves the break in
+         * front of them. Measured: without this, six cells on the wall split that way at a
+         * 320px viewport and a 32px root.
+         */
+        // EVERY rule that reaches the unit, not just the unconditional one. Scoping this to
+        // `at === ""` checked only the widths at which the unit is HIDDEN, and said nothing
+        // about the one arm where it actually renders — the only place the break can happen.
+        // A rule that does not mention `white-space` passes: `{opacity:.8}` and
+        // `{font-weight:700}` reach this class too, and requiring the property in all of them
+        // would redden correct code.
+        const unitRules = rules.filter((r) => r.selectors.some((sel) => /\.bib-ledger-unit\b/.test(sel)));
+        expect(unitRules.length, "no rule reaches the unit — this assertion would be vacuous")
+            .toBeGreaterThan(0);
+        for (const r of unitRules) {
+            const wrap = lastDecl(r.body, "white-space");
+            if (wrap === undefined) continue;
+            expect(wrap.trim(), `"${r.at || "unconditional"}" must not let the unit break — `
+                + "`160.56k` alone on a line reads as 160,560").toBe("nowrap");
+        }
+        expect(unitRules.some((r) => lastDecl(r.body, "white-space")?.trim() === "nowrap"),
+            "some rule must actually hold the unit together").toBe(true);
     });
 
     /**

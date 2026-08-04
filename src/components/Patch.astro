@@ -330,7 +330,9 @@ if (recordings.length === 1) {
                 {ledger.map((row) => (
                         <div class="bib-ledger-row">
                             <span class="bib-ledger-who">{row.who}</span>
-                            <span class="bib-ledger-km">{row.km}</span>
+                            <span class="bib-ledger-km">{row.km}{row.km !== "" && (
+                                <span class="bib-ledger-unit">{goal.measurable_unit}</span>
+                            )}</span>
                             <span class="bib-ledger-time">{row.time}</span>
                         </div>
                 ))}
@@ -617,7 +619,8 @@ if (recordings.length === 1) {
     .bib-tag,
     .bib-ledger-who,
     .bib-ledger-km-head,
-    .bib-ledger-time-head {
+    .bib-ledger-time-head,
+    .bib-ledger-unit {
         opacity: 0.8;
     }
 
@@ -1133,8 +1136,30 @@ if (recordings.length === 1) {
      */
     .bib-ledger-who,
     .bib-ledger-km-head,
-    .bib-ledger-time-head {
+    .bib-ledger-time-head,
+    .bib-ledger-unit {
         font-weight: 700;
+    }
+
+    /*
+     * THE UNIT TRAVELS WITH ITS FIGURE ONLY WHERE THE COLUMN IT HEADED HAS GONE. Hidden by
+     * default because the heading row states it once, which is the whole reason that row
+     * exists; the narrowest arm below turns it on and takes the heading away in the same
+     * breath, so the unit is stated exactly once at every width.
+     */
+    .bib-ledger-unit {
+        display: none;
+        margin-left: 0.3em;
+        /*
+         * THE UNIT BREAKS AWAY WHOLE OR NOT AT ALL. `overflow-wrap: anywhere` on the ledger
+         * is what stops an unbreakable token painting on the card, and it applies here too —
+         * at the narrowest bib on the wall it split `160.56km` after the `k`, leaving
+         * `160.56k` alone on a line, which reads as a hundred and sixty THOUSAND. The figure
+         * itself was never wrong; the pair of them read as a different number. Holding the
+         * two letters together moves the break in front of them, so the line reads `160.56`
+         * and the unit follows on its own.
+         */
+        white-space: nowrap;
     }
 
     .bib-ledger-km,
@@ -1254,10 +1279,13 @@ if (recordings.length === 1) {
      * on a line the distance is not on — see the clock-column note, which is about two figures
      * reading as one run of digits.
      *
-     * THE UNIT HEADING STAYS AND THE CLOCK'S DOES NOT, which is not symmetry but a judgement
-     * about what each figure can say for itself: `H:MM:SS` announces what it is to anyone who
-     * reads it, and `78.59` does not. The ledger's whole reason for a heading row was to state
-     * the unit ONCE rather than on every figure, so the unit is the one that has to survive.
+     * NEITHER HEADING SURVIVES HERE, AND THEY GO FOR DIFFERENT REASONS. The clock's goes
+     * because the clock needs none — `H:MM:SS` announces what it is to anyone who reads it. The
+     * unit's goes because at this width it heads NOTHING: once each figure has its own line
+     * there is no column under `KM` for it to sit over. But `78.59` cannot say what it is
+     * alone, so the unit does not disappear with its heading — it moves onto the figure, and
+     * the ledger's rule that the unit is stated ONCE holds at every width, in one carrier or
+     * the other.
      */
     @container (max-width: 9em) {
         .bib-ledger-time {
@@ -1267,6 +1295,36 @@ if (recordings.length === 1) {
 
         .bib-ledger-time-head {
             display: none;
+        }
+
+        /*
+         * AND THE UNIT HEADING GOES WITH IT, because by here it is heading nothing. Once each
+         * figure has its own line there is no `KM` column left for `KM` to sit over — it ends
+         * up above a stack holding a distance AND a clock, so a reader following it down from
+         * the heading arrives at `2:19:11`. Rendered and looked at, which is the only way this
+         * was ever going to be caught: every measurement said the band was clean, and it was.
+         * The unit moves onto the figure instead, so `42.00 KM` says what it is on its own.
+         */
+        .bib-ledger-km-head {
+            display: none;
+        }
+
+        .bib-ledger-unit {
+            display: revert;
+        }
+
+        /*
+         * AND THE DISTANCE TAKES THE WHOLE ROW, so the unit it now carries sits BESIDE it.
+         *
+         * Without this the distance keeps the narrow figure column it had when it shared a line
+         * with the clock, and ` KM` does not fit next to `160.56` — so the unit wraps onto its
+         * own line and lands between the figure and the clock, where it reads as a caption for
+         * the clock. That is the same mis-cue the heading was removed for, one line lower.
+         * Measured on the wall: 6 orphaned units at a 320px viewport and a 32px root, 0 with
+         * this rule, and no band above it changes.
+         */
+        .bib-ledger-km {
+            grid-column: 1 / -1;
         }
     }
 
