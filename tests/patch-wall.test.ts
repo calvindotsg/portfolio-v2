@@ -95,14 +95,29 @@ const ev = (over: Partial<RaceEvent> = {}): RaceEvent =>
 /**
  * THE FIGURES A LEDGER ROW HOLDS. The distance cell also carries the unit that travels with
  * it at the narrowest widths — hidden at every other size, but always in the DOM — so it is
- * removed here and asserted separately below. Reading it as part of the figure would compare
+ * left out here and asserted separately below. Reading it as part of the figure would compare
  * `22.45 km` against `22.45` and redden every ledger assertion at once.
+ *
+ * IT IS TAKEN OUT BY STRUCTURE, NOT BY STRING SURGERY, and the first version did the latter:
+ * `cell.textContent.replace(unitText, "")`. That is wrong in two directions at once. It removes
+ * the FIRST occurrence of whatever the unit happens to say — so a unit reading `2` would turn
+ * `22.45` into `2.45`, a corrupted figure that every ledger assertion then agrees with. And it
+ * treats the unit's text as an input rather than as a claim, so a unit saying the WRONG thing
+ * is stripped exactly as obediently as one saying the right thing, and disappears from the
+ * suite's view entirely.
+ *
+ * The figure is the cell's OWN text; the unit is a child element. Reading only the direct text
+ * nodes says precisely that, cannot corrupt a figure whatever the unit contains, and leaves the
+ * unit's text to be pinned on its own terms — which it now is, below.
  */
 const kmFigure = (row: Element) => {
     const cell = row.querySelector(".bib-ledger-km");
     if (cell === null) return "";
-    const unit = cell.querySelector(".bib-ledger-unit")?.textContent ?? "";
-    return (cell.textContent ?? "").replace(unit, "").trim();
+    return [...cell.childNodes]
+        .filter((node) => node.nodeType === 3)
+        .map((node) => node.textContent ?? "")
+        .join("")
+        .trim();
 };
 
 const ledgerOf = (doc: {querySelectorAll: (s: string) => Iterable<Element>}) =>
@@ -1233,6 +1248,32 @@ describe("dist/patches", () => {
             const head = [...bib.querySelectorAll(".bib-ledger-head span")].map((s) => s.textContent?.trim());
             expect(head, `${event.name} heading row`)
                 .toEqual(["", goalForSport(event.sport).measurable_unit, PATCHES.time_head]);
+
+            /*
+             * AND THE OTHER CARRIER SAYS THE SAME WORD. The heading above has been pinned since
+             * the ledger was built; the inline unit that REPLACES it at the narrowest widths was
+             * pinned to nothing at all — it could have said `mi`, or `2`, or nothing, on the one
+             * arm where it is the only statement of the unit a reader gets.
+             *
+             * IT WAS INVISIBLE FOR A REASON WORTH RECORDING: the helper that reads a ledger row
+             * used to strip the unit's text from the figure by string replacement, so whatever
+             * the unit said was removed before anything compared it to anything. A gate that
+             * consumes a value in order to ignore it will never be the gate that checks it.
+             *
+             * EVERY row that prints a distance carries one, and a row printing no distance
+             * carries none — a bare unit beside nothing is a caption for an absence.
+             */
+            const rows = [...bib.querySelectorAll(".bib-ledger-row")];
+            for (const [i, row] of rows.entries()) {
+                const unit = row.querySelector(".bib-ledger-unit");
+                if (expected[i].km === "") {
+                    expect(unit, `${event.name} row ${i} prints no distance, so it owes no unit`).toBeNull();
+                    continue;
+                }
+                expect(unit?.textContent?.trim(), `${event.name} row ${i}: the unit travelling with `
+                    + "the figure must say what the heading it stands in for says")
+                    .toBe(goalForSport(event.sport).measurable_unit);
+            }
         }
     });
 
@@ -1484,8 +1525,18 @@ describe("dist/patches", () => {
          * narrowest bib it split `160.56km` after the `k`, leaving `160.56k` alone on a line.
          * The figure was still correct and the pair still read as a different number — a
          * hundred and sixty THOUSAND. Holding the two letters together moves the break in
-         * front of them. Measured: without this, six cells on the wall split that way at a
-         * 320px viewport and a 32px root.
+         * front of them. Six cells on the wall split that way at a 320px viewport and a 32px
+         * root when it was written.
+         *
+         * THAT NUMBER IS NOW ZERO AND THE GATE STAYS, which is worth stating rather than
+         * quietly re-measuring. The arm that gives the distance a whole row landed afterwards
+         * and left a two-letter unit nothing to break against, so stripping the declaration
+         * today splits nothing anywhere in the bracket the site undertakes. What still rests
+         * on it is a unit LONGER than `km` — the word comes from the goal — and that was
+         * confirmed reachable rather than assumed: a twelve-character unit splits on 48 cells
+         * at the very widths that report zero for this one. A guard whose defect has been
+         * covered by a second guard is not a dead guard; it is the one holding the case the
+         * second does not.
          */
         // EVERY rule that reaches the unit, not just the unconditional one. Scoping this to
         // `at === ""` checked only the widths at which the unit is HIDDEN, and said nothing
@@ -1504,6 +1555,38 @@ describe("dist/patches", () => {
         }
         expect(unitRules.some((r) => lastDecl(r.body, "white-space")?.trim() === "nowrap"),
             "some rule must actually hold the unit together").toBe(true);
+
+        /*
+         * AND IT MUST BE TRACKED LIKE THE CAPTION IT STANDS IN FOR, WHICH IT CANNOT INHERIT.
+         *
+         * The unit was given the caption treatment by joining two selector lists — the dimming
+         * and the weight — and that reads, in the source, as settled. It is not: a list confers
+         * only the properties it NAMES, and the remaining ones arrive from the DOM parent. The
+         * other three captions are children of `.bib-ledger` and take its tracking; the unit sits
+         * inside the FIGURE cell, which tightens tracking for a run of tabular digits, so the
+         * unit was drawn at the figures' 0.06em while the caption beside it drew at 0.12em.
+         * Measured on the rendered page at a 32px root, both on screen together: 1.2px and 2.4px.
+         *
+         * WHY THIS IS A STYLESHEET GATE AND NOT A RENDERED ONE. The failure is a MISSING
+         * declaration, and what makes it missing is a fact about the DOM parent that no rule
+         * states — so there is nothing to read unless the restatement is required outright. The
+         * value is compared against the ledger's OWN, not against a literal, so moving the
+         * ledger's tracking moves both and this stays true; hard-coding `0.12em` here would gate
+         * a number instead of the property that number expresses.
+         */
+        // `.bib-ledger[data-astro-cid-…]` is how a scoped rule ships, so the anchor has to admit
+        // the attribute — and `(?![-\w])` is what stops `.bib-ledger-km` answering for the ledger.
+        const ledgerRule = rules.find((r) => r.at === ""
+            && r.selectors.some((s) => /^\.bib-ledger(?![-\w])/.test(s.trim())));
+        const ledgerTracking = ledgerRule && lastDecl(ledgerRule.body, "letter-spacing");
+        expect(ledgerTracking, "the ledger must set the tracking its captions inherit").toBeTruthy();
+        const unitTracking = unitRules
+            .map((r) => lastDecl(r.body, "letter-spacing"))
+            .filter((v): v is string => v !== undefined);
+        expect(unitTracking.at(-1)?.trim(), "the unit sits inside a figure cell, so it inherits the "
+            + "FIGURES' tracking unless it restates the ledger's — and a caption set at the "
+            + "figures' tracking is exactly the drift the caption lists exist to prevent")
+            .toBe(ledgerTracking?.trim());
     });
 
     /**
@@ -2602,6 +2685,90 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
         expect(doc.querySelector(".bib-stub"), "nothing to list").toBeNull();
         expect(doc.querySelector(".bib-stub-link"), "and nothing to link to").toBeNull();
         expect((doc.documentElement?.textContent ?? "").includes(NEW_TAB_NOTICE), "no tab is opened").toBe(false);
+    });
+});
+
+/**
+ * A ROW WITH A CLOCK AND NO DISTANCE — the one ledger shape the calendar does not currently hold.
+ *
+ * WHAT REACHES IT. A race remembered with a finishing time and no recording is `finished` once
+ * its day has passed, so it earns a `RECORDED` row; but there are no metres, and printing the
+ * ADVERTISED figure against `RECORDED` would have the bib claim he covered a course the site has
+ * no evidence he rode. So the distance cell is left empty and the clock cell is not — the two are
+ * conditional independently, which is what makes this shape reachable at all.
+ *
+ * WHY A FIXTURE. Every other assertion about the ledger reads the built wall, and the wall holds
+ * ZERO of these today — verified by EXECUTING the predicate over `EVENTS` rather than grepping
+ * for it, which is a distinction this repo has paid for: a line-oriented search of the source
+ * returned ten plausible candidates and running the condition returned none, because the records
+ * are multi-line and `recordings:` sits on a continuation line. A branch no data reaches is a
+ * branch no data-driven test can defend, and it will be reached the first time a race is
+ * remembered from a paper result.
+ *
+ * WHAT IT PROVES that the wall cannot: the unit belongs to the FIGURE, not to the ledger. The
+ * second fixture puts a row that has a distance beside a row that does not, in one ledger, so a
+ * component that emitted the unit once per ledger — or unconditionally — fails here and nowhere
+ * else.
+ */
+describe("a race remembered with a clock and no recording prints the clock alone", () => {
+    const render = async (event: RaceEvent, state: PatchState = "finished") =>
+        parseHTML(await (await AstroContainer.create()).renderToString(Patch, {props: {event, state}})).document;
+
+    const rowsOf = (doc: Document) => [...doc.querySelectorAll(".bib-ledger-row")].map((row) => ({
+        who: row.querySelector(".bib-ledger-who")?.textContent?.trim() ?? "",
+        km: kmFigure(row),
+        time: row.querySelector(".bib-ledger-time")?.textContent?.trim() ?? "",
+        unit: row.querySelector(".bib-ledger-unit")?.textContent?.trim() ?? null,
+    }));
+
+    /*
+     * REMEMBERED, NOT RECORDED. No `recordings`, so the type puts this in the booked shape and
+     * requires an advertised distance — which is exactly the figure that must NOT appear in the
+     * recorded row. Rendering it `finished` is what a past date does.
+     */
+    const remembered: RaceEvent = {
+        date: `${GOAL_YEAR}-03-15`, name: "A Race Remembered From Paper", advertised_km: 42.20,
+        sport: "running", country: "Singapore", elapsed_time: "4:12:33",
+    };
+
+    it("leaves the distance cell empty rather than borrowing the advertised figure", async () => {
+        const doc = await render(remembered);
+
+        expect(rowsOf(doc), "one row, a clock, and no distance the site can stand behind")
+            .toEqual([{who: PATCHES.recorded_row, km: "", time: "4:12:33", unit: null}]);
+
+        // AND THE ADVERTISED FIGURE IS NOWHERE IN THAT ROW. Asserting the cell is empty says
+        // nothing about a component that writes the number somewhere else in the same row.
+        const recorded = doc.querySelector(".bib-ledger-row");
+        expect(recorded?.textContent?.includes("42.20"), "the ledger's recorded row must not "
+            + "reach for the organiser's distance — the whole point of leaving the cell empty")
+            .toBe(false);
+    });
+
+    it("gives the unit to the row that has a figure and withholds it from the row that does not", async () => {
+        const doc = await render({
+            ...remembered,
+            official: {net_time: "4:10:02", url: "https://example.test/results"},
+        });
+
+        expect(rowsOf(doc), "the organiser's row carries a distance and therefore a unit; the "
+            + "recorded row carries neither, and a unit beside nothing is a caption for an absence")
+            .toEqual([
+                {who: PATCHES.official_row, km: "42.20", time: "4:10:02", unit: goalForSport("running").measurable_unit},
+                {who: PATCHES.recorded_row, km: "", time: "4:12:33", unit: null},
+            ]);
+
+        expect([...doc.querySelectorAll(".bib-ledger-unit")].length,
+            "exactly one unit on a two-row ledger where one row has no figure").toBe(1);
+    });
+
+    /*
+     * AND THE SHAPE IS STILL REACHED WHEN NOTHING ELSE IS. A booked bib prints no ledger at all,
+     * so the empty-distance row must not be what turns one on: this is the same event, unridden.
+     */
+    it("prints no ledger at all while the race is still ahead", async () => {
+        const doc = await render(remembered, "booked");
+        expect(doc.querySelector(".bib-ledger"), "a booked bib has no account to report").toBeNull();
     });
 });
 
