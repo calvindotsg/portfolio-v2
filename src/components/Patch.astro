@@ -1136,11 +1136,15 @@ if (recordings.length === 1) {
      *
      * AND A LIST ONLY PROTECTS WHAT IT DECLARES. This is the limit of the device above, learnt
      * the hard way on the inline unit: it was added to both caption lists and still did not
-     * render like one, because the property it differed on was named by NEITHER. Three of these
-     * captions are direct children of `.bib-ledger` and take its tracking by inheritance; the
-     * unit sits INSIDE a figure cell, so the same inheritance hands it the figure's tracking
-     * instead. Rendered and diffed at a 32px root, both on screen together: 1.2px against 2.4px,
-     * identical weight, identical opacity, rules that read as equivalent.
+     * render like one, because the property it differed on was named by NEITHER.
+     *
+     * INHERITANCE FOLLOWS THE DOM, NOT THE GRID, and that is what decides which cell gets what.
+     * The other three captions reach `.bib-ledger` through a row that declares nothing but
+     * `display: contents` — which flattens the row's BOX out of the layout while leaving it in
+     * the tree — so the ledger's tracking passes straight down to them. The unit is not in that
+     * position: it sits INSIDE a figure cell, so the same inheritance hands it the FIGURE's
+     * tracking. Rendered and diffed at a 32px root, both on screen together: 1.2px against
+     * 2.4px, identical weight, identical opacity, rules that read as equivalent.
      *
      * So a cell whose PARENT is not the ledger has to restate what the others inherit — and the
      * check that finds this is a diff of COMPUTED styles against a rendered sibling caption,
