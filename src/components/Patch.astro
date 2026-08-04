@@ -1123,16 +1123,28 @@ if (recordings.length === 1) {
     }
 
     /*
-     * FIVE CLASSES, THREE SELECTOR LISTS, AND THEY MUST STAY LISTS. Splitting one to "tidy up"
-     * is how a heading and the column under it drift a weight or an alignment apart, which
-     * nothing in the suite would catch and every reader would feel.
+     * THE SELECTOR LISTS BELOW MUST STAY LISTS. Splitting one to "tidy up" is how a heading and
+     * the column under it drift a weight or an alignment apart, which nothing in the suite would
+     * catch and every reader would feel.
      *
      * THE CROSSING IS THE POINT: a cell is drawn by what KIND it is and placed by which COLUMN
-     * it is in, and those two groupings are not the same partition. All three captions are
-     * dimmed and 700 — a heading is a caption — while both headings are aligned with the
-     * figures beneath them rather than with the caption beside them. Written as one class per
-     * cell rather than as combinators because the colour model in patch-wall.test.ts refuses
-     * any rule reaching a bib through one.
+     * it is in, and those two groupings are not the same partition. Every caption is dimmed and
+     * 700 — a heading is a caption — while both headings are aligned with the figures beneath
+     * them rather than with the caption beside them. Written as one class per cell rather than as
+     * combinators because the colour model in patch-wall.test.ts refuses any rule reaching a bib
+     * through one.
+     *
+     * AND A LIST ONLY PROTECTS WHAT IT DECLARES. This is the limit of the device above, learnt
+     * the hard way on the inline unit: it was added to both caption lists and still did not
+     * render like one, because the property it differed on was named by NEITHER. Three of these
+     * captions are direct children of `.bib-ledger` and take its tracking by inheritance; the
+     * unit sits INSIDE a figure cell, so the same inheritance hands it the figure's tracking
+     * instead. Rendered and diffed at a 32px root, both on screen together: 1.2px against 2.4px,
+     * identical weight, identical opacity, rules that read as equivalent.
+     *
+     * So a cell whose PARENT is not the ledger has to restate what the others inherit — and the
+     * check that finds this is a diff of COMPUTED styles against a rendered sibling caption,
+     * never a comparison of the rules, which agree.
      */
     .bib-ledger-who,
     .bib-ledger-km-head,
@@ -1151,6 +1163,19 @@ if (recordings.length === 1) {
         display: none;
         margin-left: 0.3em;
         /*
+         * THE TRACKING IS RESTATED, NOT INHERITED, and the note on the caption lists above says
+         * why: this is the ledger's own 0.12em, taken back from the 0.06em the figure cell hands
+         * down. The two are not interchangeable — 0.06em is the FIGURES' tracking, tightened so a
+         * run of tabular digits reads as one quantity, and lettering set that tight beside a
+         * caption set loose is the drift the lists were supposed to prevent.
+         *
+         * IT COSTS WIDTH IN THE ONE ARM THAT SHOWS IT, which is the arm with the least to spare:
+         * two letters gain 1.2px of tracking at a 32px root. Re-swept after the change — no unit
+         * orphaned onto its own line and no figure split — but re-sweep again rather than trust
+         * this sentence if the value moves.
+         */
+        letter-spacing: 0.12em;
+        /*
          * THE UNIT BREAKS AWAY WHOLE OR NOT AT ALL. `overflow-wrap: anywhere` on the ledger
          * is what stops an unbreakable token painting on the card, and it applies here too —
          * at the narrowest bib on the wall it split `160.56km` after the `k`, leaving
@@ -1158,6 +1183,20 @@ if (recordings.length === 1) {
          * itself was never wrong; the pair of them read as a different number. Holding the
          * two letters together moves the break in front of them, so the line reads `160.56`
          * and the unit follows on its own.
+         *
+         * IT IS CURRENTLY REDUNDANT, AND KEPT ANYWAY — say the second part before acting on
+         * the first. The paragraph above is what HAPPENED, and it was true when written; the
+         * arm below then gave the distance a whole row of its own for a different reason, and
+         * a two-letter unit on a whole row has nothing left to break against. Re-measured:
+         * strip this declaration today and 0 units split anywhere in the bracket the site
+         * undertakes — 30 bands, three pages, 16px to 32px root — where the same strip once
+         * produced six. Two guards came to overlap; neither is wrong.
+         *
+         * WHAT STILL RESTS ON IT is the unit that is not `km`. The word comes from the goal,
+         * so a sport measured in anything longer reaches the failure above immediately, and
+         * this is the only thing standing in front of it. Verified as reachable rather than
+         * assumed: with the declaration off, a twelve-character unit splits on 48 cells at
+         * the very widths that report zero for `km`.
          */
         white-space: nowrap;
     }
