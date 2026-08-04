@@ -12,7 +12,7 @@ import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
 } from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
-import {decl, isKeyframeStep, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
+import {decl, isKeyframeStep, lastDecl, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
 
 /**
  * THE STATE A BIB WEARS, AS A MAP RATHER THAN A BOOLEAN, and it is `Record<PatchState, …>`
@@ -1418,13 +1418,18 @@ describe("dist/patches", () => {
     it("states the ledger's unit exactly once, whichever carrier is showing", () => {
         const rules = parseRules(pageCss(PAGES.all));
 
-        // The LAST `display` wins within one at-rule scope, which is what the cascade does.
-        // `undefined` means the arm says nothing about this class, which is distinct from
-        // saying it is hidden — conflating the two would read silence as a swap.
+        // `lastDecl`, NOT `decl`. The minifier merges two rules that share a selector AND a
+        // prelude into ONE body, so a second `display` for the same class arrives as
+        // `{display:revert;display:none}`. `decl` reads the FIRST — `revert` — while the browser
+        // paints `none`. Measured: 465 tests green with BOTH carriers of the unit hidden at the
+        // 200% text size this arm exists for. Reading the first value here proves nothing.
+        //
+        // `undefined` means the arm says nothing about this class, which is NOT the same as
+        // saying it is hidden.
         const isShown = (cls: string, at: string): boolean | undefined => {
             const found = rules
                 .filter((r) => r.at === at && r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel)))
-                .map((r) => decl(r.body, "display"))
+                .map((r) => lastDecl(r.body, "display"))
                 .filter((v): v is string => v !== undefined);
             return found.length === 0 ? undefined : found.at(-1)!.trim() !== "none";
         };
@@ -1450,6 +1455,30 @@ describe("dist/patches", () => {
             .toBeGreaterThan(0);
 
         /*
+         * AND THE SWAP LIVES IN EXACTLY ONE PLACE. The loop above compares the two carriers
+         * WITHIN a single at-rule prelude, so a THIRD arm with its own prelude — narrower, and
+         * therefore also in force — can hide the unit while saying nothing about the heading.
+         * `isShown` then answers `undefined` for the heading, the loop folds that to `false`,
+         * and silence is read as agreement: both carriers off, gate green, no unit on the bib.
+         *
+         * A stylesheet gate cannot fold a cascade without becoming a browser. What it CAN hold
+         * is the structure the design actually wants — each carrier is decided once, in the same
+         * breath as the other — which makes the multi-arm case unrepresentable rather than
+         * merely unchecked.
+         */
+        const armsNaming = (cls: string) => [...new Set(rules
+            .filter((r) => r.at !== "" && r.selectors.some((sel) => new RegExp(`\\.${cls}\\b`).test(sel))
+                && lastDecl(r.body, "display") !== undefined)
+            .map((r) => r.at))];
+        const unitArms = armsNaming("bib-ledger-unit");
+        const headArms = armsNaming("bib-ledger-km-head");
+        expect(unitArms.length, `the inline unit's visibility must be decided in ONE conditional `
+            + `rule, or a narrower arm can hide it behind the gate's back. Got ${JSON.stringify(unitArms)}`)
+            .toBe(1);
+        expect(headArms, "and the heading it swaps with must be decided in the SAME one")
+            .toEqual(unitArms);
+
+        /*
          * AND THE UNIT MUST BREAK AWAY WHOLE. The ledger sets `overflow-wrap: anywhere`, which
          * is what keeps an unbreakable token off the card, and it reaches the unit too: at the
          * narrowest bib it split `160.56km` after the `k`, leaving `160.56k` alone on a line.
@@ -1458,11 +1487,23 @@ describe("dist/patches", () => {
          * front of them. Measured: without this, six cells on the wall split that way at a
          * 320px viewport and a 32px root.
          */
-        const unitRules = rules.filter((r) => r.at === ""
-            && r.selectors.some((sel) => /\.bib-ledger-unit\b/.test(sel)));
-        const wrap = unitRules.map((r) => decl(r.body, "white-space")).find((v) => v !== undefined);
-        expect(wrap?.trim(), "the unit must not be breakable — `160.56k` reads as 160,560")
-            .toBe("nowrap");
+        // EVERY rule that reaches the unit, not just the unconditional one. Scoping this to
+        // `at === ""` checked only the widths at which the unit is HIDDEN, and said nothing
+        // about the one arm where it actually renders — the only place the break can happen.
+        // A rule that does not mention `white-space` passes: `{opacity:.8}` and
+        // `{font-weight:700}` reach this class too, and requiring the property in all of them
+        // would redden correct code.
+        const unitRules = rules.filter((r) => r.selectors.some((sel) => /\.bib-ledger-unit\b/.test(sel)));
+        expect(unitRules.length, "no rule reaches the unit — this assertion would be vacuous")
+            .toBeGreaterThan(0);
+        for (const r of unitRules) {
+            const wrap = lastDecl(r.body, "white-space");
+            if (wrap === undefined) continue;
+            expect(wrap.trim(), `"${r.at || "unconditional"}" must not let the unit break — `
+                + "`160.56k` alone on a line reads as 160,560").toBe("nowrap");
+        }
+        expect(unitRules.some((r) => lastDecl(r.body, "white-space")?.trim() === "nowrap"),
+            "some rule must actually hold the unit together").toBe(true);
     });
 
     /**

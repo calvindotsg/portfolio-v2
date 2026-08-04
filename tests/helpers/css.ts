@@ -219,6 +219,26 @@ export function decl(body: string, prop: string): string | undefined {
 }
 
 /**
+ * THE EFFECTIVE VALUE OF A PROPERTY IN ONE RULE BODY — the LAST occurrence, which is what the
+ * cascade resolves to within a single declaration block.
+ *
+ * {@link decl} returns the FIRST, and that is right for its callers: they mostly assert a
+ * property is ABSENT, or read a body they wrote themselves. It is wrong wherever you are proving
+ * a value is what SHIPS, because **the minifier merges two rules with the same selector and
+ * prelude into one body**. Two `@container` arms that both name `.bib-ledger-unit` arrive as
+ * `{display:revert;display:none}` — `decl` reads `revert`, the browser paints `none`, and a gate
+ * built on `decl` passes a page whose unit has vanished. Measured on this repo: 465 tests green
+ * while both carriers of the ledger's unit were hidden at the 200% text size the arm exists for.
+ *
+ * Use this for any assertion whose meaning is "the value the reader gets". This file already
+ * records the same class for `grid-template` beating the longhand it read.
+ */
+export function lastDecl(body: string, prop: string): string | undefined {
+    const all = [...body.matchAll(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`, "g"))];
+    return all.at(-1)?.[1]?.trim();
+}
+
+/**
  * A length in px, or null when it is not an absolute length. Returning null for
  * `max-content`, `100vh` or `auto` is the point: callers assert on it, so a
  * content-sized or viewport-relative value can never be mistaken for a number.

@@ -1279,10 +1279,13 @@ if (recordings.length === 1) {
      * on a line the distance is not on — see the clock-column note, which is about two figures
      * reading as one run of digits.
      *
-     * THE UNIT HEADING STAYS AND THE CLOCK'S DOES NOT, which is not symmetry but a judgement
-     * about what each figure can say for itself: `H:MM:SS` announces what it is to anyone who
-     * reads it, and `78.59` does not. The ledger's whole reason for a heading row was to state
-     * the unit ONCE rather than on every figure, so the unit is the one that has to survive.
+     * NEITHER HEADING SURVIVES HERE, AND THEY GO FOR DIFFERENT REASONS. The clock's goes
+     * because the clock needs none — `H:MM:SS` announces what it is to anyone who reads it. The
+     * unit's goes because at this width it heads NOTHING: once each figure has its own line
+     * there is no column under `KM` for it to sit over. But `78.59` cannot say what it is
+     * alone, so the unit does not disappear with its heading — it moves onto the figure, and
+     * the ledger's rule that the unit is stated ONCE holds at every width, in one carrier or
+     * the other.
      */
     @container (max-width: 9em) {
         .bib-ledger-time {
@@ -1308,6 +1311,20 @@ if (recordings.length === 1) {
 
         .bib-ledger-unit {
             display: revert;
+        }
+
+        /*
+         * AND THE DISTANCE TAKES THE WHOLE ROW, so the unit it now carries sits BESIDE it.
+         *
+         * Without this the distance keeps the narrow figure column it had when it shared a line
+         * with the clock, and ` KM` does not fit next to `160.56` — so the unit wraps onto its
+         * own line and lands between the figure and the clock, where it reads as a caption for
+         * the clock. That is the same mis-cue the heading was removed for, one line lower.
+         * Measured on the wall: 6 orphaned units at a 320px viewport and a 32px root, 0 with
+         * this rule, and no band above it changes.
+         */
+        .bib-ledger-km {
+            grid-column: 1 / -1;
         }
     }
 
