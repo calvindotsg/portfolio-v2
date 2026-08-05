@@ -227,14 +227,17 @@ describe("the site's clock", () => {
 
 describe("booked race distance", () => {
     it("counts only future events, per sport", () => {
-        // At 2026-07-27 the November tour is the only cycling race this figure can still
-        // count, so 1022.00 is the whole of it. TWO DIFFERENT MECHANISMS get everything else
-        // out, and conflating them is easy: this year's ridden races (both July DCR legs, the
-        // May virtual ride, the August round-island) are excluded because they carry a
-        // RECORDING, while the earlier editions of the annual round-island ride never reach
-        // the arithmetic at all — `bookedAhead` defaults to `GOAL_YEAR_EVENTS`, so a 2024 race
-        // is out by YEAR and would be out even with no recording at all.
-        expect(bookedAhead("cycling", "2026-07-27")).toBeCloseTo(1022.00, 2);
+        // At 2026-07-27 the cycling races still ahead are the October city ride and the
+        // November tour, so 42.00 + 1022.00 is the whole of it. TWO DIFFERENT MECHANISMS get
+        // everything else out, and conflating them is easy: this year's ridden races (both
+        // July DCR legs, the May virtual ride, the August round-island) are excluded because
+        // they carry a RECORDING, while the earlier editions of the annual round-island ride
+        // never reach the arithmetic at all — `bookedAhead` defaults to `GOAL_YEAR_EVENTS`, so
+        // a 2024 race is out by YEAR and would be out even with no recording at all.
+        //
+        // THE SUM IS SPELLED OUT rather than folded to 1064, so that adding or removing a
+        // booked race shows up here as a term rather than as a digit.
+        expect(bookedAhead("cycling", "2026-07-27")).toBeCloseTo(42.00 + 1022.00, 2);
         expect(bookedAhead("running", "2026-07-27")).toBeCloseTo(63.30, 2);
     });
 
@@ -324,10 +327,12 @@ describe("booked race distance", () => {
  * CYCLE, not whatever change size the arithmetic makes look distant.
  *
  * The same holds for the cycling card: `cycling_km: 2309.7` — one 30 km ride — is already
- * enough, taking the required rate 76 → 74. A race being RECORDED moves it as surely as a
+ * enough, taking the required rate 74 → 73. A race being RECORDED moves it as surely as a
  * ride does, and in the opposite direction: adding the round-island ride's recording took
  * this same figure 70 → 76, because its kilometres left `bookedAhead` for the bot's total
- * in the same edit. Neither input is one this file may pin live.
+ * in the same edit. BOOKING one moves it down by the same mechanism read backwards: entering
+ * the October city ride took 76 → 74, which is the edit that last reddened the assertion
+ * below. Neither input is one this file may pin live.
  *
  * `EVENTS` is deliberately left live: it is human-edited, so a red test there is
  * wanted feedback rather than noise.
@@ -340,24 +345,27 @@ const at = (sport: string, raw: number): Goal => ({...goalBySport(sport), raw_pr
 describe("required rate", () => {
     it("produces the figures the page rendered when this was written", () => {
         expect(goalStatus(at("cycling", CYCLING_KM), AS_OF)).toEqual(
-            expect.objectContaining({kind: "rate", kmPerWeek: 76, days: 158}));
+            expect.objectContaining({kind: "rate", kmPerWeek: 74, days: 158}));
         expect(goalStatus(at("running", RUNNING_KM), AS_OF)).toEqual(
             expect.objectContaining({kind: "rate", kmPerWeek: 18, days: 158}));
     });
 
     it("rounds UP, because a rounded-down rate followed exactly MISSES the goal", () => {
         // TWO DATES, because one of them does not discriminate. At AS_OF the requirement is
-        // 75.2411 km/wk: round gives 75, delivering 1692.86 km against 1698.30 needed — the
-        // case that rules round out. One day later it is 75.7204 and round gives 76, the same
+        // 73.3804 km/wk: round gives 73, delivering 1647.71 km against 1656.30 needed — the
+        // case that rules round out. One day later it is 73.8478 and round gives 74, the same
         // answer as ceil, so that date alone cannot tell the two apart. Measured over the rest
-        // of the calendar, round under-states on 150 of the 290 remaining sport-days.
+        // of the calendar, round under-states on 146 of the 290 remaining sport-days.
         //
         // WHICH DATE PLAYS WHICH ROLE FLIPS WITH THE NUMERATOR, and these two have already
         // swapped once: the round-island ride's recording moved the kilometres owed, and with
         // them the fractional part of every rate on the calendar — AS_OF used to be the date
-        // that could not discriminate and 28 July the one that could. So if the assertion
-        // below goes red, re-measure the fraction and move the roles; do not relax it to an
-        // inequality, which is what the pair exists to rule out.
+        // that could not discriminate and 28 July the one that could. Booking the October
+        // city ride moved every rate again and this time the roles held, which is the reason
+        // to re-measure rather than to reason about it: the same size of edit did one thing
+        // once and the other thing next. So if the assertion below goes red, re-measure the
+        // fraction and move the roles; do not relax it to an inequality, which is what the
+        // pair exists to rule out.
         for (const iso of [AS_OF, "2026-07-28"]) {
             const cycling = goalStatus(at("cycling", CYCLING_KM), iso);
             if (cycling.kind !== "rate") throw new Error(`expected a rate at ${iso}`);
@@ -370,7 +378,7 @@ describe("required rate", () => {
         if (discriminating.kind !== "rate") throw new Error("expected a rate");
         const exact = discriminating.km / (discriminating.days / 7);
         expect(Math.round(exact)).toBeLessThan(exact);
-        expect(discriminating.kmPerWeek).toBe(76);
+        expect(discriminating.kmPerWeek).toBe(74);
     });
 
     it("reads raw_progress and IGNORES the display-clamped field", () => {
@@ -446,9 +454,16 @@ describe("required rate", () => {
         // 300/12px face against the goal card's tightest text column — 182px, at exactly
         // 1024px wide.
         //
-        //   "71 km/wk to go, 1022 booked"       162.52px   ships today
+        //   "71 km/wk to go, 1022 booked"       162.52px   the form that ships
         //   "1000 km/wk to go, 9999 booked"     181.31px   the string bound below
         //   "71 km/wk to go, 1022 km booked"    182.59px   REJECTED — overflows by 0.59px
+        //
+        // THE FIRST ROW IS A FORM, NOT THIS WEEK'S STRING, and it is deliberately not re-pinned
+        // to whatever the card says today — both of its figures move with the bot's total and
+        // with `EVENTS`, and a measurement re-quoted as a current value is how the pinned block
+        // at the head of projection.ts went stale. Its shape is what was measured, and the
+        // cycling card is on it: adding the October city ride took the line to
+        // "71 km/wk to go, 1064 booked", the same 27 characters against the same ceiling.
         //
         // That last row is why the unit is not repeated: it wraps, and a wrapped line takes
         // the cycling card to 273px against the running card's 257, which the reader sees

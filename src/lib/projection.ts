@@ -29,19 +29,26 @@ import {BUILD_DATE} from "./today"
  * remaining` extrapolates nothing. It contains no pace term, so the composition of
  * what is already banked cannot corrupt it, and it claims nothing about what the
  * owner will do. It still carries the point the owner cared about — counting his
- * booked races takes cycling from 118 km/wk to 71 km/wk, a 40% reduction — without
+ * booked races takes cycling from 121 km/wk to 71 km/wk, a 41% reduction — without
  * a forecast.
  *
  * THE COMPARATOR RULE, if a pace is ever displayed beside this. It must be the
  * DE-RACED pace, never the observed one. The required rate already has future race
  * km subtracted; setting it next to an observed pace that still contains past race
  * km reimports the double count by juxtaposition, and the reader does the wrong
- * subtraction themselves. The three figures are 60.55 (de-raced) < 70.82 (required)
- * < 79.82 (observed) — the requirement sits BETWEEN the two paces, which is exactly
+ * subtraction themselves. The three figures are 58.99 (de-raced) < 70.27 (required)
+ * < 78.72 (observed) — the requirement sits BETWEEN the two paces, which is exactly
  * why picking the wrong one flips the story. The ORDERING is the rule; the gaps move.
  *
+ * (THE DE-RACED PACE IS THE ONE THAT NEEDS SAYING OUT LOUD, because it is the only one
+ * of the six that reads `EVENTS` for a race already ridden: 2440.3 km less the 611.74 of
+ * this year's four recorded cycling races — 130.03 + 163.05 + 158.10 + 160.56 — over the
+ * same 31.0 weeks the observed pace divides by. It went stale once by exactly the term a
+ * reader would forget: 60.55 was this quantity computed while 10 July counted 140.49
+ * rather than the escort's 22.55 beside it.)
+ *
  * THE TWO PARAGRAPHS ABOVE ARE PINNED TO THE STAMP THE TREE ITSELF CARRIES — the
- * 2026-08-02 / 2440.3 km in `src/data/strava-progress.json` — so a reader can re-derive
+ * 2026-08-05 / 2440.3 km in `src/data/strava-progress.json` — so a reader can re-derive
  * all six figures from the checked-out repository and nothing else. That is the point of
  * choosing the current stamp over any other. They exist to carry rules that do not drift;
  * re-derive before quoting one as current. (The DOUBLE COUNT paragraph at the top is
@@ -314,21 +321,25 @@ export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonl
     if (days < FINAL_STRETCH_DAYS) return {kind: "final", km: Math.ceil(km), days}
 
     // CEIL, not round or floor, and this is a correctness choice rather than taste.
-    // At the 2026-07-27 stamp the requirement is 75.2411 km/wk; round gives 75, and a
-    // rider following 75 exactly delivers 1,692.86 km against the 1,698.30 needed — a
+    // At the 2026-07-27 stamp the requirement is 73.3804 km/wk; round gives 73, and a
+    // rider following 73 exactly delivers 1,647.71 km against the 1,656.30 needed — a
     // rate that MISSES the goal. Round is wrong on any date whose requirement has a
     // fractional part below .5, which is most of them: sweeping this function over the
-    // rest of the calendar gives 150 of the 290 remaining sport-days that land in this
+    // rest of the calendar gives 146 of the 290 remaining sport-days that land in this
     // branch. Ceil never under-states what is required. One km/wk is 22.57 km over the
     // 158 days left at that stamp — 0.45% of the cycling goal but 3.76% of the running
     // one, so the same rounding step is eight times as consequential on the smaller card.
     //
     // WHICH DATE DEMONSTRATES THIS MOVES WITH THE NUMERATOR, so re-derive it rather than
     // quoting the one above. Every rate's fractional part shifts when the kilometres owed
-    // change, and these figures have already moved once: recording the round-island ride
+    // change, and these figures have already moved twice: recording the round-island ride
     // took the requirement at this stamp from 70.2818 to 75.2411 and SWAPPED which of two
     // adjacent days can tell ceil from round — 2026-07-28 used to be the case that ruled
-    // round out, and now round and ceil agree there. A stale example here is worse than no
+    // round out, and now round and ceil agree there. BOOKING A RACE MOVES IT THE OTHER WAY
+    // and did: the October city ride took 75.2411 to the 73.3804 above, which left both
+    // roles where the recording had put them rather than swapping them back — so the two
+    // dates cannot be assumed to keep their roles either way. A stale example here is
+    // worse than no
     // example, because it invites a reader to re-derive it and conclude that round is fine.
     // tests/projection.test.ts pins the current pair and says how to move the roles.
     const kmPerWeek = Math.ceil(km / (days / DAYS_PER_WEEK))
@@ -382,7 +393,7 @@ export function goalStatusLine(goal: Goal, iso: string = UPDATED_AT, events: rea
  *
  * `bookedAhead` subtracts every booked race's kilometres from the deficit before the rate
  * is divided out, and the comment at the head of this file prices it: booking races takes
- * cycling from 118 km/wk to 71, a 40% reduction. So the card's one actionable number rests
+ * cycling from 121 km/wk to 71, a 41% reduction. So the card's one actionable number rests
  * on an assumption the card never showed — that a race not yet ridden WILL be finished —
  * and the wall two clicks away draws a DNF bib proving that assumption can fail.
  *
