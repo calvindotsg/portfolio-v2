@@ -171,7 +171,8 @@ verification is functional.
 - [ ] `pnpm check`, `pnpm eslint`, `pnpm test` all exit 0
 - [ ] `tests/data-contract.test.ts` holds 8 moved `it` blocks; `describe("the bot's write contract")` is still in `tests/projection.test.ts`
 - [ ] `tests/projection.test.ts:447`/`:456` still read live `GOALS`
-- [ ] `grep -c "no Strava activity id appears twice" tests/` — the assertion exists exactly once
+- [ ] the activity-id uniqueness assertion still appears exactly once across `tests/` — it was
+      not re-added alongside the one moved out of `tests/projection.test.ts`
 - [ ] a booked-race mutation leaves `tests/projection.test.ts` green and produces a derived-figures diff
 - [ ] no secret value appears in any diff
 - [ ] `README.md` names every suite in `tests/`

@@ -14,9 +14,9 @@ import unoConfig from "../uno.config";
  * generator config that counts two of something there are now three of — all of
  * them build, lint, type-check and deploy green.
  *
- * TWO KINDS OF DOCUMENT LIVE HERE, AND THEY NEED OPPOSITE GATES. Getting this wrong
- * is what the first version of this file did, so the distinction is the load-bearing
- * idea rather than a taxonomy:
+ * THREE KINDS OF DOCUMENT LIVE HERE, AND THE FIRST TWO NEED OPPOSITE GATES. Getting
+ * that wrong is what the first version of this file did, so the distinction is the
+ * load-bearing idea rather than a taxonomy:
  *
  *   A CURRENT-STATE DOCUMENT describes the repository as it is today. README.md,
  *   CLAUDE.md, plans/README.md's baseline table and every comment under src/ are
@@ -30,6 +30,11 @@ import unoConfig from "../uno.config";
  *   accuracy but DURABILITY — it must not contain the kind of claim that can go
  *   stale at all. Facts belong in the code, where they are true by construction;
  *   the instruction belongs here, and says where to read them.
+ *
+ *   A PROPOSAL describes a repository that does not exist yet. A numbered plan under
+ *   `plans/` is the one here. It needs neither gate, because its whole subject is the
+ *   tree it intends to create — the argument is beside `isProposal` below, and is not
+ *   repeated here.
  *
  * THE FIRST VERSION OF THIS FILE GATED THE WRONG PROPERTY, and the mistake is worth
  * recording because it is the more tempting of the two. `.devin/wiki.json` said the
@@ -140,7 +145,7 @@ const WIKI = ".devin/wiki.json";
  * name-versus-today gates skip it.
  *
  * MEASURED, on the six plans this landed with: the path gate reports 51 misses and the
- * script gate 5, every one of them a forward reference. The clearest of them is plan 019
+ * script gate 7, every one of them a forward reference. The clearest of them is plan 019
  * naming the two scripts CLAUDE.md already warns do not exist here — `typecheck` and
  * `lint` — inside a sentence whose entire purpose is to warn an executor about exactly
  * that. A document penalised for saying the true thing this suite exists to enforce.
@@ -267,17 +272,21 @@ describe("documentation, against the code it describes", () => {
      * ever widens is one nobody notices widening. So this checks that it catches what it is
      * for AND that it does not reach the index or the archive.
      *
-     * The count assertion is the part that matters. An exemption tested only in the negative
-     * passes perfectly on a repository with no plans in it at all, which is the state this
-     * one was in when the gap was found — and would have stayed green through the whole
-     * migration it exists to enable.
+     * NON-VACUITY COMES FROM THE PREDICATE, NOT FROM THE TREE, and the difference is the
+     * whole reason this note exists. The obvious form — assert that some live plan is
+     * currently exempted — reads as the stronger test and is the weaker one: it passes only
+     * while `plans/` happens to hold a live plan, so ARCHIVING THE LAST ONE turns this red.
+     * That is not a hypothetical, it is the first local rule this directory writes down
+     * ("completed plans move to `done/`"), so the gate would have punished someone for
+     * following the documented lifecycle, and blamed the exemption while doing it. Asking
+     * the predicate about a filename instead is unconditionally answerable and says the
+     * same thing.
      */
     it("exempts a numbered plan and nothing else", () => {
-        const proposals = liveDocs().filter(isProposal);
-        expect(proposals.length,
-            "no live numbered plan — the proposal exemption is exempting nothing and this gate is vacuous")
-            .toBeGreaterThan(0);
-        for (const file of proposals) expect(file).toMatch(/^plans\/\d{3}-[a-z0-9-]+\.md$/);
+        expect(isProposal("plans/024-a-plan-that-does-not-exist-yet.md"),
+            "the exemption no longer recognises a numbered plan, so every proposal is gated as ordinary prose")
+            .toBe(true);
+        for (const file of liveDocs().filter(isProposal)) expect(file).toMatch(/^plans\/\d{3}-[a-z0-9-]+\.md$/);
 
         for (const notAProposal of ["plans/README.md", "README.md", "CLAUDE.md",
             `${ARCHIVE}015-automate-goal-progress-from-strava.md`, "src/lib/projection.ts"]) {

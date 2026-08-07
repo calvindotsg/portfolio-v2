@@ -57,7 +57,10 @@ regenerates, so the next data edit produces a diff instead of an archaeology ses
 
   Its header (`:329-345`) explains why: the nightly bot rewrites `GOALS[].raw_progress` and a red
   suite blocks the deploy. **This fired in production six hours after that feature merged.**
-  Reuse these three by import; never declare a second triple.
+  **Move these three into `tests/helpers/reference.ts`** (the directory already holds shared test
+  material) and have both files import them. Do NOT import `tests/projection.test.ts` from another
+  test file: measured on vitest 4.1.10, that re-registers the imported file's suites under the
+  importer and runs its 54 cases twice. Never declare a second triple.
 
 **The definitions, reverse-engineered and not written down anywhere in the repo:**
 
@@ -111,7 +114,10 @@ first via `globalSetup`.
 Add to `package.json` scripts: `"test:update": "vitest run -u"`.
 
 Use `pnpm test -u` in all prose — **not** `pnpm vitest -u`. `vitest` is not a script name, and
-`tests/docs-drift.test.ts:238` reddens on a `pnpm <name>` that is not in `package.json`.
+`tests/docs-drift.test.ts`'s `names no pnpm script that is not in package.json` reddens on a
+`pnpm <name>` that is not in `package.json`. (Gates are cited by name rather than by line here:
+the path gate strips a `:NNN` anchor before resolving, so an anchor is the one citation form
+this suite cannot keep honest.)
 
 **Verify**: `pnpm test -u` → runs, exit 0.
 
@@ -119,12 +125,18 @@ Use `pnpm test -u` in all prose — **not** `pnpm vitest -u`. `vitest` is not a 
 
 Create `tests/derived-figures.test.ts`. It:
 
-1. Imports `AS_OF`, `CYCLING_KM`, `RUNNING_KM` from `tests/projection.test.ts` (export them if
-   they are not already exported — that is the only edit permitted to that file in this plan).
+1. Imports `AS_OF`, `CYCLING_KM`, `RUNNING_KM` from `tests/helpers/reference.ts`, which this step
+   creates by moving them out of `tests/projection.test.ts` — the only edit permitted to that file
+   in this plan.
 2. **Scopes `EVENTS` to the reference**, not just the clock:
    ```ts
    const AT_REF = EVENTS.filter((e) => parseIsoDate(e.end_date ?? e.date) <= parseIsoDate(AS_OF))
    ```
+   **`AT_REF` IS THE INPUT TO ONE FIGURE ONLY — the de-raced pace's numerator**, which sums
+   races already RIDDEN. `bookedAhead` and `goalStatus` must receive the live `GOAL_YEAR`
+   events, because their whole subject is races still AHEAD: hand them `AT_REF` and
+   `bookedAhead` returns 0, the required rate and the "ignoring races" comparator collapse to
+   the same number, and step 2's "non-zero and finite" check passes on all of it.
 3. **Asserts the precondition before computing anything**: no recorded `GOAL_YEAR` race post-dates
    `AS_OF`. If one does, the test **fails with a message saying to advance the reference** — it
    must not publish a figure that mixes two epochs.
@@ -134,7 +146,7 @@ Create `tests/derived-figures.test.ts`. It:
 
 **Why the scoping matters — this is the whole point of the plan.** Freezing the clock but leaving
 `EVENTS` live makes the de-raced pace subtract race kilometres that are not inside its own
-numerator: **56.40 km/wk published against a coherent 61.83**. A generated, gated, CI-blessed
+numerator, by roughly 5 km/wk at the reference. A generated, gated, CI-blessed
 wrong number is worse than the ungated wrong number it replaces, because a snapshot confers an
 authority hand-written prose does not.
 
@@ -142,8 +154,9 @@ The file's **first line** must state its reference date and say the figures illu
 at that reference, **not what the site publishes today**. Freezing re-bases the claim, and a
 reader who misses that has a confident permanently-past-tense document.
 
-**Verify**: `pnpm test -u` → `src/lib/derived-figures.md` exists and every figure in it is
-non-zero and finite.
+**Verify**: `pnpm test -u` → `src/lib/derived-figures.md` exists, every figure is non-zero and
+finite, **and the "ignoring races" comparator is strictly greater than the required rate**. That
+last one is the check that catches the `AT_REF` mistake above; "non-zero and finite" does not.
 
 ### Step 3: prove the gate can fail
 
@@ -173,7 +186,8 @@ that could go stale is to delete the claim and name its source.*
 
 ### Step 5: name the new suite in the README
 
-`tests/docs-drift.test.ts:339` asserts every file in `tests/` is listed in `README.md`. Add
+`tests/docs-drift.test.ts`'s `lists every test suite in the README` asserts every file in
+`tests/` is named in `README.md`. Add
 `tests/derived-figures.test.ts` to the Testing section.
 
 **Verify**: `pnpm test` → all pass.
@@ -193,7 +207,8 @@ that could go stale is to delete the claim and name its source.*
 - [ ] `pnpm test` exits 0
 - [ ] `src/lib/derived-figures.md` exists, is committed, and its first line states its reference date
 - [ ] `grep -c "test:update" package.json` returns 1
-- [ ] `grep -rn "pnpm vitest" . --include="*.md" --include="*.ts"` returns no matches
+- [ ] `grep -rn "pnpm vitest" src/ README.md CLAUDE.md` returns no matches (this plan and
+      `tests/strava-verify.test.ts` name it legitimately, so the sweep is scoped away from them)
 - [ ] Step 3's mutation reddens `tests/derived-figures.test.ts` (recorded in the PR body)
 - [ ] `README.md` names `tests/derived-figures.test.ts`
 - [ ] `git status --porcelain` lists only in-scope files
@@ -205,8 +220,11 @@ that could go stale is to delete the claim and name its source.*
 - Step 3's mutation does **not** redden the test. The gate is vacuous; do not proceed.
 - `toMatchFileSnapshot` writes silently under `CI=true` instead of failing. The gate cannot hold
   and the approach needs rethinking.
-- The de-raced pace you compute differs from 61.83 at the reference by more than 0.01 — you have
-  scoped `EVENTS` differently from this plan and one of us is wrong.
+- Your de-raced pace disagrees with the definitions table above. **Re-derive rather than trust any
+  digit in this plan** — an earlier draft pinned 61.83 here, computed on an EXCLUSIVE 1-Jan..stamp
+  denominator while the table specifies the INCLUSIVE one, which is a 0.3 km/wk disagreement that
+  reads as a real defect. Check the endpoint convention before concluding anything, and note that
+  the whole point of this plan is that a hand-written digit rots.
 
 ## Maintenance notes
 

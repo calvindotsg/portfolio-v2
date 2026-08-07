@@ -33,7 +33,8 @@ sizing honestly so nobody calls it free — an earlier draft of this work did, a
 
 **How much each mechanism actually catches** (measured, not estimated):
 
-- `tests/docs-drift.test.ts:201` — `if (!TOP_LEVEL.some((t) => token.startsWith(t))) continue;`
+- `tests/docs-drift.test.ts`, inside `names no file that is not there` —
+  `if (!TOP_LEVEL.some((t) => token.startsWith(t))) continue;`
   A bare backticked `` `constants.ts` `` never reaches `existsSync`. **10 of 62 references are
   gate-visible.**
 - The 26 import sites are a **disjoint** population, not a subset: an import specifier omits `.ts`

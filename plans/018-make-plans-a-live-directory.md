@@ -60,8 +60,10 @@ future run of the pipeline hits.
   | `it("names no pnpm script that is not in package.json")` | **5** |
   | `it("names no configured value that is declared nowhere")` | **0** — unexercised, exempted anyway |
 
-- `tests/docs-drift.test.ts:201-202` — the two filters that already exist, and which decide how
-  narrow the new one has to be:
+- Inside `names no file that is not there`, the two filters that already exist, and which decide
+  how narrow the new one has to be (cited by gate name rather than by line: the path gate strips a
+  `:NNN` anchor before resolving, so an anchor is the one citation form this suite cannot keep
+  honest — and these very anchors went stale in the commit that executed this plan):
   ```ts
   if (!TOP_LEVEL.some((t) => token.startsWith(t))) continue;
   if (/[*${}]/.test(token)) continue; // globs and interpolations are not paths
@@ -121,15 +123,19 @@ In `tests/docs-drift.test.ts`, add one predicate beside `ARCHIVE`:
 const isProposal = (file: string) => /^plans\/\d{3}-/.test(file);
 ```
 
-Skip proposals in the three gates at `:196`, `:238` and `:281` — and **only** those three. Record
+Skip proposals in `names no file that is not there`, `names no pnpm script that is not in
+package.json` and `names no configured value that is declared nowhere` — and **only** those three.
+Record
 the reason in place: a plan names the tree it intends to create, so gating its names against the
 tree that exists is a category error, and the document class is neither current-state nor a
 standing instruction. `plans/README.md` is **not** a proposal and stays fully gated: its baseline
 table is a claim about now.
 
-Assert the exemption in **both** directions, the way `NAMED_AS_ABSENT` already is at `:214` — a
-test that the predicate matches a numbered plan and does not match `plans/README.md`, so the
-exemption cannot silently widen.
+Assert the exemption in **both** directions, the way `keeps no excuse for a file that has come
+back` already does for `NAMED_AS_ABSENT` — the predicate must recognise a numbered plan and must
+not match `plans/README.md`, so it cannot silently widen. **Ask the predicate about a filename,
+never the tree about its current contents**: a floor shaped "some live plan is exempted right now"
+reddens the day the last plan is archived, which is the first rule this directory writes down.
 
 **Verify**: `pnpm test` → all pass.
 
