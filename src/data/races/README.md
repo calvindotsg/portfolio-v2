@@ -78,6 +78,9 @@ the checklist, and `tests/data-contract.test.ts` holds it against that file in b
   - `metres` — that activity's distance exactly as the API's `distance` reported it. Copy the
     number; do not convert it, round it, or read it off a page. Nothing offline can catch a
     mistyped one — only `tests/strava-verify.test.ts` can, and it is opt-in.
+  - `elapsed_time` — **required**, `H:MM:SS`. THIS ACTIVITY's clock, not the race's: the bib's
+    hero runs first start to last stop, and each link prints the part it actually opens, so a
+    reader who follows one is never promised the summed figure.
 - `official` — optional, and only beside an `advertised_km`. What the organiser's results
   sheet says, printed beside the ride rather than reconciled with it.
   - `net_time` — optional, `H:MM:SS`. Chip time: mat to mat.
