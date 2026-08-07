@@ -273,11 +273,15 @@ the file:
 
 `plans/` implements the **improve** skill pipeline from `github.com/shadcn/improve`;
 `plans/README.md` is the living index and the first thing to read before writing or
-executing one. **What is written down here and there is only what is local to this
-repo** — the archive convention, the numbering, and the fact that a plan is authored
-into `plans/` rather than a home directory. Everything about the pipeline itself
-— the template, the file naming, the advisor/executor split — is read from upstream,
-never restated, because a copied convention is one that goes stale in silence.
+executing one. Everything about the pipeline itself — the template, the file naming,
+the numbering rule, the advisor/executor split — is read from upstream and never
+restated, because a copied convention is one that goes stale in silence.
+
+**What this repo writes down is only what upstream cannot say**, and that list lives in
+`plans/README.md` rather than here, for the reason this whole section exists: an
+enumeration kept in two places is an enumeration that will disagree with itself, and no
+gate can see prose counting a set. This paragraph names where to read it, not what it
+says.
 
 ## Memories
 
