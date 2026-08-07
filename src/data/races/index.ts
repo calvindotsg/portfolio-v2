@@ -5,12 +5,12 @@ import type {RaceEvent} from "../../lib/race"
  * that gave the earned bib its name. Every race he has entered, in any year, stays
  * here: the wall draws all of it, because a Finisher Patch is a thing you keep. It
  * held one year until then, and the January checklist beside `GOAL_YEAR` in
- * `src/lib/constants.ts` said to delete the old races; that step is now the opposite
+ * `src/data/goals.ts` said to delete the old races; that step is now the opposite
  * instruction.
  *
  * ONE ARRAY, TWO SCOPES, AND THE SPLIT IS ENFORCED IN projection.ts RATHER THAN HERE.
  * The wall reads all of it; a goal card reads only the races that start in
- * `GOAL_YEAR` (`src/lib/constants.ts`), because its target, its kilometres, its day count
+ * `GOAL_YEAR` (`src/data/goals.ts`), because its target, its kilometres, its day count
  * and its own heading are all that year's. The rule and the failure it prevents are written
  * out above `eventsInYear`; the short version is that a race booked for next November
  * must not pay off this year's deficit.
@@ -73,10 +73,12 @@ import type {RaceEvent} from "../../lib/race"
  * `tests/data-contract.test.ts` holds the two in step from the other side, and holds this
  * array to date order so the sort cannot quietly be simplified away.
  *
- * THE GLOB IS WHY NOTHING MAY RE-EXPORT THIS MODULE FROM `src/lib/constants.ts`.
- * `uno.config.ts` imports that module through unconfig/jiti rather than Vite, and jiti has no
- * `import.meta.glob` — a re-export drags this line into that graph and kills `astro build`
- * and vitest itself, four lines of `glob is not a function` with no test executed.
+ * THE GLOB IS WHY NOTHING MAY RE-EXPORT THIS MODULE FROM ANYTHING `uno.config.ts` IMPORTS —
+ * today `src/content/site.ts`, `src/content/home.ts`, `src/content/races.ts` and
+ * `src/lib/goal.ts`, each of which carries the rule at its own head. Those are loaded through
+ * unconfig/jiti rather than Vite, and jiti has no `import.meta.glob` — a re-export drags this
+ * line into that graph and kills `astro build` and vitest itself, four lines of `glob is not a
+ * function` with no test executed.
  */
 const modules = import.meta.glob<{default: RaceEvent}>("./*.ts", {eager: true})
 

@@ -3,7 +3,8 @@ import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
-import {GOAL_YEAR, GOALS, type Goal} from "../src/lib/constants";
+import {GOAL_YEAR} from "../src/data/goals";
+import {type Goal, GOALS} from "../src/lib/goal";
 import {EVENTS} from "../src/data/races";
 import {raceKm, recordingsOf} from "../src/lib/race";
 import stravaProgress from "../src/data/strava-progress.json";
@@ -714,7 +715,7 @@ describe("EVENTS", () => {
      * its parts'. It used to compare a single-recording race's `km` against the part's, which
      * caught a real drift while both were hand-typed. Neither is typed now — `raceKm` converts
      * the same metres either way — so that assertion would be a test of arithmetic this file
-     * does not own. Its subject moved to `tests/constants.test.ts`, which exercises the
+     * does not own. Its subject moved to `tests/content.test.ts`, which exercises the
      * conversion itself, including the summing rule a split race depends on.
      *
      * THE ELAPSED PAIR IS STILL WORTH HOLDING, and the asymmetry is the point: that figure is
@@ -752,7 +753,7 @@ describe("EVENTS", () => {
      * green whatever the rule, which is the shape of assertion this file exists to avoid.
      *
      * WHERE THE COVERAGE WENT, so this is a move rather than a deletion: the conversion and
-     * the summing rule are exercised directly in `tests/constants.test.ts`, on inputs chosen
+     * the summing rule are exercised directly in `tests/content.test.ts`, on inputs chosen
      * to discriminate rounding down from half-up. What NEITHER can see is a mistyped `metres`
      * — only `tests/strava-verify.test.ts` reads the API, and it is opt-in.
      */

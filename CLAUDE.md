@@ -234,7 +234,7 @@ block above it before giving either consumer the other's list.
   when there is more than one — but a race can now have a published results sheet as well as
   a recording, so "more than one" is the ordinary case rather than the exception. Anchors do
   not nest, so one destination would have had to sit inside the other. What paid for it is
-  `race_name` in `constants.ts`: every stub link's accessible name carries the race and its
+  `race_name` in `src/content/races.ts`: every stub link's accessible name carries the race and its
   date, which is the disambiguation the whole-bib form used to get for free from announcing
   the bib's entire text. **The results link goes ABOVE the Strava one**, because both cited
   sheets render for a logged-out visitor and every Strava link on the wall is a login wall.
@@ -242,11 +242,23 @@ block above it before giving either consumer the other's list.
 
 ## Content Management
 
-All site content is managed through `src/lib/constants.ts`, EXCEPT THE RACES: those
-are one module each under `src/data/races/`, so adding one is writing a file rather
-than editing a list. The procedure and every field are in the README beside them. The
-entries below are the ones carrying non-obvious constraints; the rest are
-self-explanatory in the file:
+**Site content is split BY KIND, not by page**, so each piece is found by looking where
+its kind lives rather than by opening one file and scrolling. The copy is under
+`src/content/`, the authored goals and the races under `src/data/`, and `src/lib/goal.ts`
+is what the cards actually read — it derives `GOALS` from the authored figures and is the
+only thing that applies the clamp. **Each module's own head says what it holds; read that
+rather than a list here**, which is the enumeration-in-two-places failure the Plans
+section names.
+
+**`src/content/` IS A NAME ASTRO RESERVES, and this repo is using it because the reserved
+meaning is not switched on.** Astro treats that directory as the home of *content
+collections*; with no `src/content.config.ts` and no `src/content/config.ts` present, a
+plain `.ts` module there is ordinary source — measured before plan 021 shipped, build and
+`astro check` clean, including a load through unconfig/jiti. **The day anyone adds a
+collection config, that stops being true**, and these modules move rather than the
+collection. Do not add one without reading this first.
+
+The entries below are the ones carrying non-obvious constraints:
 - `NEXT_RACE`: the goal cards' countdown ladder and the control's label — width-budgeted,
   and the label is also the heading of the page it opens; see the note there
 - `EVENTS`: every race entered, in any year, collected from `src/data/races/` by the
@@ -265,7 +277,7 @@ self-explanatory in the file:
   one guard the ledger cost: that field was `km?: never` on a recorded race, so the compiler
   refused the pair. It cannot now, because the pair is the ledger's whole subject. What the
   type used to enforce is the PRECEDENCE, and that moved into `raceKm` — the metres win
-  wherever both exist — with a test in `tests/constants.test.ts` that names the rule and
+  wherever both exist — with a test in `tests/content.test.ts` that names the rule and
   three more gates that redden on the mutation. `official` may only appear beside an
   `advertised_km`; the `Documented | Undocumented` pairing is what says so
 - `PATCHES`: the wall's own prose, now one lede rather than a scope sentence plus a key.
@@ -289,6 +301,7 @@ says.
 ## Memories
 
 - Any user configurable variable belongs in one of exactly three places: a
-  GitHub repository secret, a GitHub repository variable, or
-  `src/lib/constants.ts`. Scripts and workflows hold no configuration of their
-  own — see README.md "Configuration".
+  GitHub repository secret, a GitHub repository variable, or the repository's own
+  content — `src/content/` and `src/data/`, which count as ONE home because the
+  split between them is by kind rather than by who may edit it. Scripts and
+  workflows hold no configuration of their own — see README.md "Configuration".

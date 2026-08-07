@@ -47,7 +47,7 @@ const DNF_NOTHING_RECORDED = {
 } as unknown as RaceEvent;
 
 // THE MOCK TARGETS THE MODULE THE ENDPOINT ACTUALLY IMPORTS `EVENTS` FROM, which is the
-// collector over `src/data/races/`, not `src/lib/constants.ts`. Mocking the wrong module
+// collector over `src/data/races/`, not `src/content/races.ts`. Mocking the wrong module
 // leaves every assertion below running against the real calendar and passing by never
 // being about anything — the calibration in the first test is what says so out loud.
 vi.mock("../src/data/races", async (importOriginal) => {
@@ -107,7 +107,7 @@ describe("llms.txt on a race abandoned with nothing recorded", () => {
         // The other side of the branch, so this file cannot be satisfied by an endpoint that
         // simply stopped printing distances for every DNF. The calendar's real abandoned race
         // carries recordings and its recorded distance is honest — it is how far he got.
-        const {PATCHES} = await import("../src/lib/constants");
+        const {PATCHES} = await import("../src/content/races");
         const {EVENTS} = await import("../src/data/races");
         const {raceKm, recordingsOf} = await import("../src/lib/race");
         const recordedDnf = EVENTS.find((e) => patchState(e) === "dnf" && recordingsOf(e).length > 0);

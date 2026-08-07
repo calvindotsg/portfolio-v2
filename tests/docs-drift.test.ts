@@ -58,7 +58,7 @@ import unoConfig from "../uno.config";
  *      real set from the code and require the document to name every member.
  *   3. COUNTS — "four shortcuts". Derive the number, then require the document to
  *      contain the phrase it belongs to, spelled out. This is the mechanism
- *      `tests/constants.test.ts` already uses to keep `METADATA.description` naming
+ *      `tests/content.test.ts` already uses to keep `METADATA.description` naming
  *      each goal's target figure: everything around the phrase is free prose, the
  *      number is not. Parsing prose instead invites a gate that is right about
  *      grammar and wrong about facts.
@@ -239,6 +239,8 @@ describe("documentation, against the code it describes", () => {
         "public/llms.txt": "replaced by the generated endpoint src/pages/llms.txt.ts in PR #108; named in several places precisely to record that the hand-written file is gone",
         "public/404.html": "the alternative src/pages/404.astro rejects in its own comment — a static copy of the shell outside the theme, the analytics tag and the build-date stamp",
         "public/.well-known/": "ci.yml names it as the ordinary way a dot-prefixed path would come to exist under dist/, where upload-artifact would silently drop it. There is no such file today, which is the point",
+        "src/content.config.ts": "CLAUDE.md names both spellings of Astro's content-collection config to say that NEITHER may be added: src/content/ is a directory Astro reserves, and the modules there are ordinary source only while no collection config exists. The absence IS the permission",
+        "src/content/config.ts": "the legacy spelling of the same config, named in the same sentence and absent for the same reason",
     };
 
     it("names no file that is not there", () => {
@@ -424,8 +426,24 @@ describe("documentation, against the code it describes", () => {
             .sort();
         expect(suites.length, "there are no suites — this gate is vacuous").toBeGreaterThan(5);
 
+        /*
+         * THE MENTION HAS TO BE OF THE SUITE, AND A BARE SUBSTRING IS NOT. This read
+         * `readme.includes(s)` against the stem alone, which any prose containing that word
+         * satisfies — and plan 021 walked straight into it: renaming `constants.test.ts` to
+         * `content.test.ts` moved the suite's identity onto the token `content`, which the
+         * same commit wrote into README seven times as `src/content/`. The suite could then
+         * have been deleted from the Testing section with this gate still green, and three
+         * others (`build-output`, `derived-figures`, `projection`) were already vouched for
+         * by prose about the code rather than about the suite.
+         *
+         * A FULL PATH IS THE STRONG FORM AND A BACKTICKED STEM IS THE WEAK ONE, and both
+         * are needed: requiring the path form alone reddens on ten suites this README
+         * describes perfectly well in its own voice, which would be a gate failing on
+         * correct code rather than a gate finding anything.
+         */
         const readme = read("README.md");
-        expect(suites.filter((s) => !readme.includes(s)),
+        const named = (s: string) => readme.includes(`tests/${s}.test.ts`) || readme.includes(`\`${s}\``);
+        expect(suites.filter((s) => !named(s)),
             "README.md's Testing section does not mention these suites").toEqual([]);
     });
 

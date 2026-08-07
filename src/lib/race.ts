@@ -11,7 +11,7 @@
  * `src/lib/projection.ts` from the build's own date; this module only says what a race IS
  * and what its figures mean.
  */
-import type {Sport} from "./constants"
+import type {Sport} from "./goal"
 
 /**
  * Where a finished bib's link points, with {@link Recording.id} appended.
@@ -66,7 +66,7 @@ export const recordingsOf = (event: RaceEvent): readonly Recording[] => event.re
  * double it is handed, which agrees with this on some rides and not others. And the division is
  * exact where it has to be: `metres / 10` can only land below an integer if that integer is not
  * representable, and every quotient here is far under 2^53, so a whole multiple of 10 m does not
- * fall to the hundredth beneath it. `tests/constants.test.ts` executes both claims.
+ * fall to the hundredth beneath it. `tests/content.test.ts` executes both claims.
  */
 export const kmFromMetres = (metres: number): number => Math.floor(metres / 10) / 100;
 
@@ -84,7 +84,7 @@ export const recordingKm = (recording: Recording): number => kmFromMetres(record
  * needs the organiser's own division printed beside the ride, so the two facts legitimately
  * coexist on one row and the type can no longer forbid the pair. What it forbade is enforced
  * here instead — this function reaches for the advertised figure only when there is nothing
- * recorded to convert — and `tests/constants.test.ts` holds that by handing a recorded race
+ * recorded to convert — and `tests/content.test.ts` holds that by handing a recorded race
  * an advertised distance and asserting the metres still decide.
  *
  * A SPLIT RACE SUMS THE METRES AND CONVERTS ONCE. Adding up what the parts print would convert
@@ -297,7 +297,7 @@ type RaceEventCommon = {
      * the site, and `tests/build-output.test.ts` gates against emoji shipping at all —
      * neither theme can tone one, and a screen reader announces it as a country name
      * anyway, which is exactly this string. `METADATA.address_country` in
-     * `src/lib/constants.ts` is an ISO code for the opposite reason: schema.org's
+     * `src/content/site.ts` is an ISO code for the opposite reason: schema.org's
      * `addressCountry` is consumed by a machine. Same fact, two audiences, so two
      * spellings is correct here rather than a duplication to unify.
      */
@@ -314,7 +314,7 @@ type RaceEventCommon = {
      * at 110 km.
      *
      * THE OBVIOUS OBJECTION, PRE-EMPTED, because otherwise this reads as a violation of the
-     * rule above `PATCHES` in `src/lib/constants.ts` and the next reader deletes it. That rule
+     * rule above `PATCHES` in `src/content/races.ts` and the next reader deletes it. That rule
      * forbids a STORED `done` flag, because such a flag "goes stale in the one direction nobody
      * notices — a race that has been run still rendering as still-to-come". A DNF cannot go
      * stale in that direction or in any other: it is immutable history, settled the day the

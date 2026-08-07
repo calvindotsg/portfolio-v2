@@ -263,7 +263,7 @@ describe("the race modules, against the contract they are written to", () => {
         "add the recording first": "the edit order for a race that already is one",
         "moves the required rate": "what a BOOKED race inside GOAL_YEAR does to the goal cards",
         "moves no figure on the home page": "and what a past one does not do, which is the half "
-            + "the old note in src/lib/constants.ts stated on its own",
+            + "the note this README replaced stated on its own",
     };
 
     it("keeps the procedure beside the data", () => {

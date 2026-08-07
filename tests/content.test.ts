@@ -1,18 +1,23 @@
 import {describe, expect, it} from "vitest";
 
-import {
-    ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, goalForSport, LINKS, METADATA,
-    NOW, type Sport, THEME_TOGGLE, WELCOME,
-} from "../src/lib/constants";
+import {ABOUT_ME, CAREER, NOW, WELCOME} from "../src/content/home";
+import {FOOTER, LINKS, METADATA, THEME_TOGGLE} from "../src/content/site";
+import {clampToGoal, GOALS, goalForSport, type Sport} from "../src/lib/goal";
 import {kmFromMetres, type RaceEvent, raceKm, type Recording, recordingKm} from "../src/lib/race";
 import stravaProgress from "../src/data/strava-progress.json";
 import {kmFromMeters} from "../scripts/fetch-strava-progress.mjs";
 import {arial20pxWidth} from "./helpers/arial-20px";
 
 /**
- * `src/lib/constants.ts` is the single source of truth for every piece of site
- * content, and nothing else validates it. A typo here reaches production. These
- * assertions encode the invariants the components silently rely on.
+ * THE SITE'S CONTENT, AGAINST THE INVARIANTS ITS COMPONENTS SILENTLY RELY ON. The copy is
+ * authored in `src/content/`, the goals in `src/data/goals.ts` and what a card reads is
+ * derived in `src/lib/goal.ts`; nothing else validates any of it, and a typo reaches
+ * production.
+ *
+ * IT SPANS THOSE MODULES ON PURPOSE rather than being split to match them, because the
+ * invariants do: the SEO title is assembled from a career entry, the description has to name
+ * every goal's target, and the sport join has to be total across the goals that exist. A
+ * suite per module could assert none of those.
  */
 
 const ICON_COLLECTIONS = ["fa6-brands", "ri"];

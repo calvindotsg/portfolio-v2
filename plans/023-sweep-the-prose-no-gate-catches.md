@@ -68,7 +68,13 @@ sizing honestly so nobody calls it free — an earlier draft of this work did, a
 | Purpose | Command | Expected on success |
 |---|---|---|
 | Tests | `pnpm test` | all pass |
-| Residue check | `grep -rn "constants" --include="*.md" --include="*.ts" --include="*.astro" src/ tests/ *.md .devin/ .github/` | only intended matches |
+| Residue check | `grep -rn "constants" --include="*.md" --include="*.ts" --include="*.astro" src/ tests/ *.md .devin/ .github/ uno.config.ts` | only intended matches |
+
+**`uno.config.ts` IS NAMED EXPLICITLY BECAUSE NO GLOB ABOVE REACHES IT.** It is a
+root-level `.ts`, so `--include="*.md"` skips it and `src/ tests/` do not contain it — and
+plan 021's sign-off forbade touching that file beyond its import lines, so its stale prose
+was left deliberately rather than missed. Three review agents found the same line
+independently and all three noted it was owned by nobody. It is owned here now.
 
 ## Scope
 
@@ -132,7 +138,7 @@ backticked filename that does not exist, and does **not** fire on one that does.
 ## Done criteria
 
 - [ ] `pnpm test` exits 0
-- [ ] `grep -rn "lib/constants\|constants\.ts" src/ tests/ scripts/ *.md .devin/ .github/` returns only intended matches
+- [ ] `grep -rn "lib/constants\|constants\.ts" src/ tests/ scripts/ *.md .devin/ .github/ uno.config.ts` returns only intended matches
 - [ ] each of the three class greps run and its hits resolved or explicitly judged fine
 - [ ] `.devin/wiki.json` names no new file, count or exported constant
 - [ ] the repo has fewer prose lines than before, not more (`git diff --stat` shows net deletion)

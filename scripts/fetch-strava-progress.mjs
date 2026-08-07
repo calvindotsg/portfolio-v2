@@ -7,12 +7,12 @@ import { pathToFileURL } from "node:url";
 
 // This script holds no configuration of its own: the athlete comes from the
 // STRAVA_ATHLETE_ID repository variable, and the goal targets live in
-// src/lib/constants.ts, which clamps the raw km written here. See README.md
-// "Configuration".
+// src/data/goals.ts, where src/lib/goal.ts clamps the raw km written here against
+// them. See README.md "Configuration".
 /**
  * A YEAR'S TOTAL, IN KILOMETRES TO ONE PLACE, ROUNDED DOWN.
  *
- * DOWN, NOT HALF-UP, AND IT IS THE SAME RULE `kmFromMetres` FOLLOWS IN src/lib/constants.ts —
+ * DOWN, NOT HALF-UP, AND IT IS THE SAME RULE `kmFromMetres` FOLLOWS IN src/lib/race.ts —
  * the site's other conversion, which turns a race's metres into the figure on its bib. Strava
  * displays what it received rounded down, so both figures agree with the source they quote, and
  * neither ever claims a metre nobody rode. Read the note above `kmFromMetres` for the argument;
