@@ -18,6 +18,14 @@
 - **Depends on**: plans/020
 - **Category**: migration
 - **Planned at**: commit `8ce7565`, 2026-08-07
+- **Maintainer sign-off**: **GRANTED 2026-08-07.** What was approved is the rule change
+  specifically: *"a GitHub repository secret, a GitHub repository variable, or
+  `src/lib/constants.ts`"* becomes *"…or `src/content/` and `src/data/`"*, counted as one home so
+  the sanctioned-homes count stays at three. The allocation table below is approved with it,
+  including `RAW_GOALS` and `GOAL_YEAR` living under `src/data/` rather than `src/lib/`.
+  **Sign-off does not extend past this plan's Scope**: it is not approval to change any copy
+  text, to touch `uno.config.ts` beyond its import lines, or to alter site output. The `dist/`
+  hash-compare in step 5 is what holds that boundary.
 
 ## Why this matters
 
@@ -26,8 +34,9 @@ goal configuration and derivation code behind one name. A reader looking for the
 reader looking for the goal target open the same 1,600-line file. Splitting it by kind means each
 is found by looking where its kind lives.
 
-**This plan needs the maintainer's sign-off before it starts**, because it makes a standing rule
-false and rewrites it. Do not begin without it.
+**The maintainer's sign-off is recorded in the Status block above** — granted 2026-08-07, scoped
+to the rule change and the allocation table. It was needed because this plan makes a standing rule
+false and rewrites it, and the rule is the maintainer's rather than the repository's.
 
 ## Current state
 
@@ -145,7 +154,9 @@ must be behaviour-free, and the comparison is what proves it rather than asserts
 
 ## STOP conditions
 
-- The maintainer has not signed off on the rule change. **Do not start.**
+- The Status block above does not record a maintainer sign-off, or the plan's Scope has grown
+  beyond what that sign-off names. **Do not start.** (Sign-off was granted 2026-08-07 for the rule
+  change and the allocation table, and for nothing wider.)
 - `pnpm build` fails with a jiti stack after step 2 — something in the four new roots reaches
   `import.meta.glob`. `src/content/races.ts` and `src/data/races/index.ts` sit either side of that
   line with names that do not distinguish them; check that one first.

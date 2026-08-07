@@ -691,3 +691,72 @@ cold visit, Lighthouse 0.95–1.00 across 3 runs × 3 URLs, TBT 0, both suspecte
 mechanisms refuted) is recorded in `plans/README.md` § Run 4. Nothing was
 deferred; the seven zero-finding categories each recorded their near-misses in
 the same section so run 5 does not re-derive them.
+
+# Plan 018 (2026-08-07): let a plan live in `plans/` again (maintainer-direct)
+
+Not from an audit run. The maintainer asked for the race data and site copy to be
+decoupled from the code that renders them; the resulting plans could not be written
+into `plans/` at all, and 018 is what fixed that before 019–023 could land.
+
+## What shipped (PR #130, squash `232f751`)
+
+`tests/docs-drift.test.ts` gained a **third document class**. It already split documents
+two ways — current-state, gated for accuracy; standing-instruction, gated for durability.
+A numbered plan is neither: it describes a repository that does not exist yet, so the
+three gates that hold a name against the tree that *does* — paths, `pnpm` scripts,
+configured values — were asking it the wrong question. `isProposal` skips those three and
+only those.
+
+**Measured on the six plans that landed together: 51 path misses, 7 script, 0 configured.**
+The clearest is plan 019 naming the two scripts CLAUDE.md warns do not exist, inside a
+sentence whose entire purpose is to warn an executor about exactly that — a document
+penalised for saying the true thing this suite exists to enforce.
+
+**A gap, not a regression.** Plans 016 and 017 sat at the top level of `plans/` until
+2026-07-29; this suite landed 2026-07-31. The two had never met.
+
+Alongside it, `plans/README.md` gained "What governs this directory" — the pipeline named
+as a pointer to `github.com/shadcn/improve`, with only the local deviations written down.
+
+## Verification log
+
+Five controls, because an exemption is the gate's new single point of failure:
+
+| stimulus | result |
+|---|---|
+| bad path + bad script name inside a proposal | green — the exemption works |
+| the same two tokens in `plans/README.md` | **red**, naming both |
+| the six plans with the exemption reverted | **red**, 51 + 7 |
+| `isProposal` broken so it never matches | **red**, with the intended message |
+| every plan archived to `done/` | green |
+
+The suite went 478 → 479. `dist/` was unchanged and calvin.sg served the same asset hash
+after deploy, which is the expected result for a change that touches no site output.
+
+## Review panel (13 agents, 24 findings, 6 blocking)
+
+**The blocking one was in the new test.** Its non-vacuity floor asserted that a live
+numbered plan is *currently* exempted — which reads as the stronger check and is the
+weaker one. It passes only while `plans/` happens to hold a live plan, so **archiving the
+last one turns it red**, and "completed plans move to `done/`" is the first rule this
+directory documents. The gate would have punished someone for following the documented
+lifecycle and blamed the exemption while doing it. It now asks the predicate about a
+filename, which is unconditionally answerable. The last row of the table above is that
+case, and this very archival exercised it.
+
+Also caught: a script-gate figure of 5 that was 7 for six plans and had already shipped
+into a code comment, a commit body and a PR body; the third document class needing saying
+in four places rather than one; and a monotonic-numbering bullet that was upstream's rule
+wearing a local label. A follow-up (PR #131, `f79e57f`) removed a second enumeration from
+CLAUDE.md that went wrong within one commit of being written — prose counting a set is a
+rot class no gate here can see, which is what plan 023 exists to sweep.
+
+Panel workings are in `.scratchpad/plan-018-panel/` while 019–023 are open.
+
+## Archived per the local convention, which is a deviation and is recorded as one
+
+Upstream marks a plan DONE in the index and keeps the file where it is
+(`skills/improve/references/closing-the-loop.md` — *"Update index status to DONE"*,
+*"Don't delete plan files — they're the record"*). It defines no archive directory, so
+moving satisfies it and the repo-owner convention wins. `plans/README.md` says so in
+place.
