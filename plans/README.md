@@ -1,10 +1,15 @@
 # Implementation Plans
 
-**Nothing is executable right now.** Four runs are complete: plans 001–014
-are all DONE, merged, and live on https://calvin.sg, as is plan **015**, which
-came from the maintainer resolving DIRECT-01 rather than from an audit run.
-Every plan file and the full evidence log are archived in
-[`done/`](done/README.md).
+**Plan 018 is executable.** Four runs are complete: plans 001–014 are all DONE,
+merged, and live on https://calvin.sg, as is plan **015**, which came from the
+maintainer resolving DIRECT-01 rather than from an audit run. Those plan files
+and the full evidence log are archived in [`done/`](done/README.md).
+
+Plan **018** is the first live plan since 2026-07-29, and it exists because a
+live plan had stopped being possible: three name gates in
+`tests/docs-drift.test.ts` check what a document names against the tree that
+exists, and a plan names the tree it intends to create. 018 closes that, and
+019–023 land behind it.
 
 Run 3 (2026-07-22, audited at `4e15674`, completed the same day) had two
 mandated items from the maintainer (emoji→icons migration,
@@ -25,12 +30,37 @@ is recorded below so it is not re-derived.
 This file is the **living index**: the state a new `improve` run needs before it
 audits anything. Read it first.
 
+## What governs this directory
+
+`plans/` implements the **improve** skill pipeline from `github.com/shadcn/improve`.
+Read it rather than this file for the pipeline itself — the plan template, the file
+naming, the numbering rule, the advisor/executor split and the audit workflow all
+live there and are deliberately **not** restated here. A copied convention goes stale
+in silence, which is the failure `.devin/wiki.json` exists to record.
+
+    pnpm dlx opensrc path shadcn/improve
+
+then read `skills/improve/SKILL.md` and `skills/improve/references/plan-template.md`.
+The closest in-tree exemplar of the template is [`done/015-automate-goal-progress-from-strava.md`](done/015-automate-goal-progress-from-strava.md).
+
+What follows is only what is **local**, and therefore cannot be derived from upstream:
+
+- **Completed plans move to [`done/`](done/README.md)** and are archived permanently.
+  Upstream leaves them in place carrying a DONE status; this repo does not. This file
+  stays the living index either way, and the archive is exempt from the prose gates.
+- **Numbering is monotonic across runs and never restarts** — the next number is the
+  one below the last row of the table above, not 001.
+- **This repository overrides the user-level plan lifecycle.** The global instruction
+  is that plans are drafted in a home directory; here a plan is written into `plans/`
+  and stamped with the commit it was planned against, because the drift check at the
+  top of every plan is what protects an executor from a tree that moved underneath it.
+- **A plan whose prerequisite has not landed is staged outside the tree**, in the
+  repository's gitignored scratch directory, and moved in by the plan that unblocks it.
+  Being gitignored, staged plans do not travel with a branch or a fresh clone.
+
 ## If you are starting a new run
 
-- **Numbering continues at `018`.** The improve skill requires monotonic
-  numbering across runs — do not restart at 001. (*"If `plans/` already exists
-  from a previous run, reconcile, don't duplicate: read `plans/README.md`, keep
-  numbering monotonic, skip findings already planned or listed as rejected."*)
+- **Numbering continues at `019`.** Do not restart at 001, and do not reuse 018.
 - **Do not re-audit the refuted findings or re-propose CI** — see below. Six
   findings were killed by an adversarial skeptic pass with evidence; re-deriving
   them wastes a full audit cycle that has already been paid for once.
@@ -71,6 +101,7 @@ recreated.
 | 015 | Automate goal progress from Strava | P2 | M | — | **DONE** (`a4b419b`) |
 | 016 | Stop shipping rationale comments in the built HTML | P2 | S | — | **DONE** (`c3734b1`) |
 | 017 | Clear the clearable brace-expansion HIGH with an in-range lockfile refresh | P2 | S | — | **DONE** (`6647c31`) |
+| 018 | Let a plan live in this directory again, and record what governs it | P1 | S | — | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

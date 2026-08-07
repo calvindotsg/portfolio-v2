@@ -264,6 +264,16 @@ the file:
   Its heading is `My events`; "patch wall" survives in the URL and the metaphor, not as a
   visible title
 
+## Plans
+
+`plans/` implements the **improve** skill pipeline from `github.com/shadcn/improve`;
+`plans/README.md` is the living index and the first thing to read before writing or
+executing one. **What is written down here and there is only what is local to this
+repo** — the archive convention, the numbering, and the fact that a plan is authored
+into `plans/` rather than a home directory. Everything about the pipeline itself
+— the template, the file naming, the advisor/executor split — is read from upstream,
+never restated, because a copied convention is one that goes stale in silence.
+
 ## Memories
 
 - Any user configurable variable belongs in one of exactly three places: a
