@@ -760,3 +760,85 @@ Upstream marks a plan DONE in the index and keeps the file where it is
 *"Don't delete plan files — they're the record"*). It defines no archive directory, so
 moving satisfies it and the repo-owner convention wins. `plans/README.md` says so in
 place.
+
+# Run 5 (2026-08-07): decouple the data and the copy from the code (plans 019–023)
+
+An autonomous run of the five plans authored at `8ce7565`, executed one at a time through
+the upstream `execute` shape — a dispatched executor in an isolated worktree, then a
+reviewer who re-runs the criteria rather than reading the report — with a fan-out review
+panel over each resulting PR before merge.
+
+## 019 — generate the projection's derived figures (PR #133, squash `14d652e`)
+
+**What the plan was for.** `src/lib/projection.ts`'s header carried six derived figures
+and instructed the reader, in bold, to re-derive them on a data edit. Nothing gated them
+and every figure in that block except the ceiled required rate was wrong on `main` with
+the suite green. The expensive part was never the wrong digits: not one of the six had its
+DEFINITION written anywhere, so a reader had to reverse-engineer "the de-raced pace" from
+a shipped value before they could tell whether it had rotted.
+
+**The plan contradicted itself, and that is the record's most useful entry.** Step 2 asks
+the generator to REFUSE — fail the suite — if any recorded `GOAL_YEAR` race post-dates the
+frozen reference. Two do (`2026-07-29 Garmin Run`, `2026-08-02 Pesta Sukan`), so a literal
+implementation makes the plan's own "`pnpm test` exits 0" criterion unsatisfiable, and the
+remedy it names (advance the reference) moves assertions the same plan's Scope assigns to
+plan 022. The executor converted the refusal into a **disclosure**: the scoping the plan
+calls "the whole point" is implemented exactly as written, and the races that sit in
+neither account are named — and, after review, PRICED — in the generated document. This is
+the fifth consecutive time a stopped-or-deviating executor turned out to be a plan defect
+rather than an execution failure.
+
+## Review panel (12 agents, 17 findings: 2 MAJOR + 8 MINOR + 7 NIT, 0 agent deaths)
+
+Both MAJORs were confirmed by a skeptic that reproduced them by execution, and **on both
+the skeptic rated the finder's suggested remedy UNSOUND and built a better one**. That is
+now the panel's most reliable yield.
+
+- **The document could publish the negation of the argument it exists to make.** The
+  ordering `de-raced < required < observed` had no assertion, and `render()` printed "the
+  requirement does not sit between the two paces" under a heading calling the ordering a
+  rule. The finder's fix — delete the honest arm — was measured to make the artifact print
+  `56` as sitting between `61.54` and `76.72`, trading a contradiction for a lie. Shipped
+  instead: the heading derives from the same predicate the lines do, so the file cannot
+  contradict itself and the flip is a loud snapshot diff rather than a red build.
+- **A non-vacuity floor that reddened on CORRECT data.** `expect(booked).toBeGreaterThan(0)`
+  per sport fails once the two remaining 2026 running races are recorded — legal, imminent,
+  and unclearable by `-u`. The gate now asks the wall's own `patchState` predicate instead
+  of counting the tree's current contents, compares exact rates rather than ceiled ones
+  (two 5 km booked races park both ceilings on the same integer), and asserts the inverse
+  in its exempt arm instead of skipping past it. Found independently by two dimensions.
+
+Also fixed: the epoch mix is priced on the required-rate cell itself, because prose two
+sections up does not travel with a copy-pasted table cell; a docblock promising "a future
+recording cannot quietly widen the gap" was measured false (4.43 km/wk, fully green) and
+now states what the code does; a test claiming to run "on a fixture" ran on the live
+calendar and compared two sets built by the predicate it then re-checked. Two REFUTED with
+evidence: `AS_OF` literals reported as unmigrated are identical on `origin/main`, and a
+disclosure counterfactual that is a definitional no-op.
+
+**Rejected deliberately**: a percentage bound on the epoch mix. Built, measured, and turned
+down because the threshold is arbitrary and its only remediation is out of this plan's scope.
+
+## Verification log
+
+Every gate re-run by the reviewer in the executor's worktree, never read from the report.
+
+| stimulus | expected | observed |
+|---|---|---|
+| one recording's `metres` changed by a digit | snapshot RED | RED, diff naming de-raced `61.54 → 61.53` |
+| de-raced numerator stops excluding post-reference races | RED, named | RED on 4 assertions |
+| disclosure list forced empty | RED, named | RED, named |
+| `bookedAhead` handed the reference-scoped list | RED, named | RED — survived the review fixes, so the old hole did not reopen |
+| every remaining running race recorded (**correct data**) | snapshot only | snapshot only; `-u` clears it |
+| inclusive boundary flipped to exclusive | RED | RED — was fully GREEN before the review added the on-the-day fixture race |
+
+`toMatchFileSnapshot` was confirmed to FAIL under `CI=true` rather than write silently, which
+the plan named as a STOP condition; `.github/workflows/ci.yml` runs bare `pnpm test`, so the
+gate reaches the deploy.
+
+## Post-merge activation
+
+`main` at `14d652e`; suite re-run in the primary checkout **after** confirming `git pull`
+moved HEAD to the merge commit — **486 passed / 7 skipped**, the predicted count, from 479.
+Containment proven by tree diff against `origin/main` (empty), not by ancestry, which a
+squash makes meaningless.
