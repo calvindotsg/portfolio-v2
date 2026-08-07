@@ -182,6 +182,64 @@ const wallBibs = (page: string, sport?: Sport) => {
     return bibs.map((bib, i) => ({bib, event: wall[i].event, state: wall[i].state}));
 };
 
+/** One bib rendered in isolation, for the assertions that need a race the wall is not holding. */
+const render = async (event: RaceEvent, state: PatchState = "finished") =>
+    parseHTML(await (await AstroContainer.create()).renderToString(Patch, {props: {event, state}})).document;
+
+/** The class tokens a selector mentions, unescaped. */
+const classTokensOf = (selector: string) =>
+    [...selector.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\(.)/g, "$1"));
+
+/**
+ * WHETHER THIS FILE'S MODEL CAN REPRESENT A SELECTOR AT ALL — and the answer has to
+ * be a refusal rather than a guess, because a guess is wrong in BOTH directions.
+ *
+ * The model is "a rule applies to an element when every class token in its selector is
+ * worn by that element". That is a subset test, and it silently discards combinators,
+ * pseudo-classes and structural pseudos. A review panel exploited it twice, and each
+ * exploit runs the opposite way:
+ *
+ *   - A rule the browser NEVER applies, taken as the answer:
+ *         .bib-sport { color: var(--hole) }        <- the resting rule, broken
+ *         .bib-sport:first-child { color: var(--sport) }
+ *     The mark is not its parent's first child (the date is), so the browser paints
+ *     the broken value and the words RIDE and RUN render at 1.01:1 — invisible on
+ *     every booked bib, in both themes. Every assertion in this file passed.
+ *
+ *   - A rule the browser DOES apply, missed entirely:
+ *         .bib--booked .bib-sport { opacity: .5 }
+ *     "bib-sport" is not in the <li>'s token set and "bib--booked" is not in the
+ *     <span>'s, so neither end of the walk sees it. 2.43:1 rendered, suite green.
+ *
+ * So a selector this model cannot represent is not skipped — it is REFUSED, and each
+ * consumer below turns a refusal touching the bib into a failure. That is the precedent
+ * `parseRules` and `widthPx` already set in helpers/css.ts: a reader that cannot read
+ * something must go red, because the alternative is a silent pass.
+ *
+ * IT IS ONE MODEL FOR BOTH RESOLVERS, and it was two. The grid-template gate carried its
+ * own copy that skipped an unrepresentable selector instead of refusing it, and unwrapped
+ * an escape by deleting backslashes rather than by unescaping — so the two disagreed on
+ * any escaped class token, and `.bib--dnf:first-child { grid-template-areas: … }` was
+ * refused loudly by one and silently certified by the other.
+ *
+ * The `\\.` neutralisation is load-bearing. UnoCSS arbitrary-value classes ship as
+ * `.bg-\[var\(--card-background\)\]`, whose escaped brackets would otherwise read as
+ * an attribute selector and reject a perfectly modellable rule. Astro's scoping
+ * attribute is stripped for the same reason — it is on every rule in the component
+ * and constrains nothing this model cares about.
+ */
+const unmodellable = (selector: string) => {
+    const bare = selector
+        .replace(/\\./g, "x")
+        .replace(/\[data-astro-cid-[\w-]+\]/g, "")
+        .trim();
+    return /[\s>+~:[]/.test(bare);
+};
+
+/** The class tokens a selector requires, or null when this model cannot represent it. */
+const required = (selector: string): string[] | null =>
+    unmodellable(selector) ? null : classTokensOf(selector);
+
 describe("every link out of the wall names a different destination", () => {
     /**
      * SC 2.4.4: two links with the same name and different destinations are one defect, and
@@ -610,11 +668,7 @@ describe("a bib's date line", () => {
      * event is on the wall is a property of the fixture, and the markup rule is not.
      */
     it("renders one <time> per endpoint, never one around the whole range", async () => {
-        const container = await AstroContainer.create();
-        const render = async (event: RaceEvent) =>
-            parseHTML(await container.renderToString(Patch, {props: {event, state: "booked"}})).document;
-
-        const tour = await render(ev({date: "2026-11-07", end_date: "2026-11-15", advertised_km: 1022}));
+        const tour = await render(ev({date: "2026-11-07", end_date: "2026-11-15", advertised_km: 1022}), "booked");
         const times = [...tour.querySelectorAll("time")];
         expect(times.map((t) => t.getAttribute("datetime"))).toEqual(["2026-11-07", "2026-11-15"]);
         for (const t of times) {
@@ -1912,56 +1966,6 @@ describe("the sport mark reads as text on the surface it lands on", () => {
     /** Every flat, unconditional rule — forced-colours overrides are not the sighted case. */
     const rules = parseRules(css).filter((r) => !r.nested && !isKeyframeStep(r));
 
-    /** The class tokens a selector mentions, unescaped. */
-    const classTokensOf = (selector: string) =>
-        [...selector.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\(.)/g, "$1"));
-
-    /**
-     * WHETHER THIS FILE'S MODEL CAN REPRESENT A SELECTOR AT ALL — and the answer has to
-     * be a refusal rather than a guess, because a guess is wrong in BOTH directions.
-     *
-     * The model below is "a rule applies to an element when every class token in its
-     * selector is worn by that element". That is a subset test, and it silently
-     * discards combinators, pseudo-classes and structural pseudos. A review panel
-     * exploited it twice, and each exploit runs the opposite way:
-     *
-     *   - A rule the browser NEVER applies, taken as the answer:
-     *         .bib-sport { color: var(--hole) }        <- the resting rule, broken
-     *         .bib-sport:first-child { color: var(--sport) }
-     *     The mark is not its parent's first child (the date is), so the browser paints
-     *     the broken value and the words RIDE and RUN render at 1.01:1 — invisible on
-     *     every booked bib, in both themes. Every one of this file's assertions passed.
-     *
-     *   - A rule the browser DOES apply, missed entirely:
-     *         .bib--booked .bib-sport { opacity: .5 }
-     *     "bib-sport" is not in the <li>'s token set and "bib--booked" is not in the
-     *     <span>'s, so neither end of the walk sees it. 2.43:1 rendered, suite green.
-     *
-     * Both are the defect the header comment above says this file exists to prevent.
-     *
-     * So a selector this model cannot represent is not skipped — it is REFUSED, and the
-     * assertion below turns any refusal touching the bib into a failure. That is the
-     * precedent `parseRules` and `widthPx` already set in helpers/css.ts: a parser that
-     * cannot read something must go red, because the alternative is a silent pass.
-     *
-     * The `\\.` neutralisation is load-bearing. UnoCSS arbitrary-value classes ship as
-     * `.bg-\[var\(--card-background\)\]`, whose escaped brackets would otherwise read as
-     * an attribute selector and reject a perfectly modellable rule. Astro's scoping
-     * attribute is stripped for the same reason — it is on every rule in the component
-     * and constrains nothing this model cares about.
-     */
-    const unmodellable = (selector: string) => {
-        const bare = selector
-            .replace(/\\./g, "x")
-            .replace(/\[data-astro-cid-[\w-]+\]/g, "")
-            .trim();
-        return /[\s>+~:[]/.test(bare);
-    };
-
-    /** The class tokens a selector requires, or null when this model cannot represent it. */
-    const required = (selector: string): string[] | null =>
-        unmodellable(selector) ? null : classTokensOf(selector);
-
     /**
      * The last value declared for `prop` by any rule every one of whose class tokens
      * is worn by `tokens`. Sheet order decides, which is sound here because every
@@ -2404,8 +2408,6 @@ describe("a bib that opens a new tab says so, last", () => {
         date: `${GOAL_YEAR}-07-10`, name: "A Race With No Recording", advertised_km: 100, sport: "cycling",
         country: "Thailand", elapsed_time: "5:00:00",
     };
-    const render = async (event: RaceEvent, state: PatchState = "finished") =>
-        parseHTML(await (await AstroContainer.create()).renderToString(Patch, {props: {event, state}})).document;
 
     /**
      * ALL the rendered text, and it must not be read off `document.body`.
@@ -2505,8 +2507,6 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
         country: "Thailand", elapsed_time: "9:00:00", recordings: parts(n),
     });
 
-    const render = async (event: RaceEvent, state: PatchState = "finished") =>
-        parseHTML(await (await AstroContainer.create()).renderToString(Patch, {props: {event, state}})).document;
 
     it.each([2, 3, 4])("draws one link per recording and none for the bib (%i parts)", async (n) => {
         const doc = await render(split(n));
@@ -2689,8 +2689,6 @@ describe("a race recorded in parts lists them, and the bib stops being the link"
  * else.
  */
 describe("a race remembered with a clock and no recording prints the clock alone", () => {
-    const render = async (event: RaceEvent, state: PatchState = "finished") =>
-        parseHTML(await (await AstroContainer.create()).renderToString(Patch, {props: {event, state}})).document;
 
     const rowsOf = (doc: Document) => [...doc.querySelectorAll(".bib-ledger-row")].map((row) => ({
         who: row.querySelector(".bib-ledger-who")?.textContent?.trim() ?? "",
@@ -2779,21 +2777,28 @@ describe("a race remembered with a clock and no recording prints the clock alone
  * than by being added to a list.
  */
 describe("the bib's grid template holds every area its rows claim", () => {
-    /** Class-only selectors: this model cannot represent anything else, so it skips the rest. */
-    const modellable = (sel: string) =>
-        !/[\s>+~:[]/.test(sel.replace(/\\./g, "x").replace(/\[data-astro-cid-[\w-]+\]/g, "").trim());
-    const tokensOf = (sel: string) => [...sel.matchAll(/\.((?:[\w-]|\\.)+)/g)].map((m) => m[1].replace(/\\/g, ""));
     /** Class + attribute count — enough to order the selectors this component ships. */
-    const spec = (sel: string) => tokensOf(sel).length + (sel.match(/\[[^\]]*\]/g) ?? []).length;
+    const spec = (sel: string) => classTokensOf(sel).length + (sel.match(/\[[^\]]*\]/g) ?? []).length;
 
-    const winner = (rules: Rule[], tokens: string[], prop: string): string | undefined => {
+    /**
+     * A REFUSAL IS COLLECTED, NOT SKIPPED — the same rule `required()` is written for.
+     * This resolver used to drop an unrepresentable selector on the floor, which meant
+     * `.bib--dnf:first-child { grid-template-areas: … }` was certified against the BASE
+     * template while the browser laid the bib out from the compound one. Anything the
+     * model cannot read that also mentions a token this bib wears goes in `refused`, and
+     * the caller fails on it.
+     */
+    const winner = (rules: Rule[], tokens: string[], prop: string, refused: string[]): string | undefined => {
         let best: {s: number, i: number, v: string} | undefined;
         rules.forEach((rule, i) => {
             const v = decl(rule.body, prop);
             if (v === undefined) return;
             for (const sel of rule.selectors) {
-                if (!modellable(sel)) continue;
-                const need = tokensOf(sel);
+                const need = required(sel);
+                if (need === null) {
+                    if (classTokensOf(sel).some((c) => tokens.includes(c))) refused.push(`${sel} { ${prop}:${v} }`);
+                    continue;
+                }
                 if (need.length === 0 || !need.every((c) => tokens.includes(c))) continue;
                 const s = spec(sel);
                 if (!best || s > best.s || (s === best.s && i >= best.i)) best = {s, i, v};
@@ -2807,19 +2812,26 @@ describe("the bib's grid template holds every area its rows claim", () => {
         const doc = parseHTML(read(page)).document;
         const bibs = [...doc.querySelectorAll(".bib")];
         expect(bibs.length, "no bibs — this assertion would be vacuous").toBeGreaterThan(0);
+        const refused: string[] = [];
         for (const bib of bibs) {
             const tokens = (bib.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
-            const template = winner(rules, tokens, "grid-template-areas");
+            const template = winner(rules, tokens, "grid-template-areas", refused);
             expect(template, `.${tokens.join(".")} declares no grid-template-areas`).toBeTruthy();
             const areas = new Set(template!.match(/[\w-]+/g) ?? []);
             for (const el of [...bib.querySelectorAll("*")]) {
                 const own = (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
                 if (own.length === 0) continue;
-                const area = winner(rules, [...tokens, ...own], "grid-area");
+                const area = winner(rules, [...tokens, ...own], "grid-area", refused);
                 if (area === undefined || area === "auto") continue;
                 expect(areas.has(area.trim()), `.${own.join(".")} claims grid-area ${area} on .${tokens.join(".")}`)
                     .toBe(true);
             }
         }
+        expect(
+            [...new Set(refused)],
+            "this rule places part of the bib through a combinator or a pseudo-class, which the"
+            + " class-subset resolver cannot represent — the template it certifies is not the one the"
+            + " browser resolves. Make it a single-class rule, or teach the resolver.",
+        ).toEqual([]);
     });
 });
