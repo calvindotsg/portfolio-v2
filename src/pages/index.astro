@@ -25,6 +25,17 @@ import {iconClass} from "../lib/icons";
 const dateline = formatDateline();
 
 /*
+ * THE HEART STANDS IN FOR A WORD, so losing it loses meaning rather than decoration — the
+ * sentence reads "Built with <heart>", and the `sr-only` "love" beside it is what a listener
+ * gets. In forced colours it was painting rgb(255,255,255) on a card of rgb(255,255,255):
+ * measured 1.00:1, the glyph simply absent, leaving "Built with , more love to Astro template
+ * by Gianmarco" on screen. The shared rule in BasicLayout.astro paints it, and paints it
+ * `CanvasText` — neither a link nor a control but body copy, which is what the mode reserves
+ * that colour for. It takes that by being inside neither an anchor nor a button, so this page
+ * declares nothing for it and needs no class hook to be found by.
+ */
+
+/*
  * The footer heart is toned from a theme token, and the token sits on a WRAPPER
  * around the glyph rather than on the glyph itself. That is not decoration — it is
  * the only arrangement that does not depend on the order UnoCSS happens to emit
@@ -239,7 +250,7 @@ const dateline = formatDateline();
              tests/projection.test.ts pins that bound. */}
         <Card colSpan="md:col-span-1" rowSpan="md:row-span-1 lg:row-span-3">
             <p class="text-xs">
-                {FOOTER.prefix} <span class="footer-heart text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}
+                {FOOTER.prefix} <span class="text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}
             </p>
             {dateline && (
                     <p class="text-xs mt-2">Updated <time datetime={UPDATED_AT}>{dateline}</time></p>
@@ -248,28 +259,3 @@ const dateline = formatDateline();
     </main>
 </Layout>
 
-<style>
-    /*
-     * THE HEART STANDS IN FOR A WORD, so losing it loses meaning rather than decoration —
-     * the sentence reads "Built with <heart>", and the `sr-only` "love" beside it is what a
-     * listener gets. In forced colours it was painting rgb(255,255,255) on a card of
-     * rgb(255,255,255): measured 1.00:1, the glyph simply absent, leaving "Built with ,
-     * more love to Astro template by Gianmarco" on screen.
-     *
-     * Mechanism and technique are EventsLink.astro's, written up there in full: presetIcons
-     * paints the artwork as a mask over `background-color`, which the mode overrides.
-     *
-     * `CanvasText` rather than LinkText or ButtonText — this one is neither a link nor a
-     * control, it is body copy, and the mode reserves CanvasText for exactly that. The hook
-     * is a real class on the wrapper: the wrapper is the element that carries the colour
-     * token (see the note above on why the token sits on a wrapper and not on the glyph),
-     * and its only other selector is a generated utility whose escaped form is not
-     * something a stylesheet should be asked to match.
-     */
-    @media (forced-colors: active) {
-        .footer-heart span[aria-hidden] {
-            forced-color-adjust: none;
-            background-color: CanvasText;
-        }
-    }
-</style>

@@ -256,43 +256,10 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
      * instead of among the themes.
      */
     @media (forced-colors: active) {
+        /* The arrow beside these words is repainted by the shared rule in BasicLayout.astro,
+           which carries the mechanism and the reason it is scoped the way it is. */
         .events-link {
             color: LinkText;
-        }
-
-        /*
-         * WITHOUT THIS THE ARROW DISAPPEARS IN FORCED COLOURS.
-         *
-         * The mechanism is presetIcons': an icon class paints its artwork as a MASK over
-         * `background-color: currentColor`, and `background-color` is one of the properties a
-         * forced-colours mode overrides. The glyph therefore paints Canvas on Canvas and
-         * vanishes. Measured on the built page with the mode emulated, back when this was a
-         * chevron on an unboxed link: glyph `rgb(255,255,255)` on a card of `rgb(255,255,255)`
-         * — a ratio of exactly 1.
-         *
-         * `forced-color-adjust: none` opts the glyph out of the override; the explicit
-         * LinkText is what it paints instead. Same technique as ProgressBar.astro's fill.
-         *
-         * `[aria-hidden]` IS LOAD-BEARING AND WAS PAID FOR. This selector was `.events-link
-         * span` for one revision, written when the anchor had one child. Wrapping the label
-         * in an element gave it a second, and the label then took the glyph's treatment:
-         * `background-color: LinkText` under the anchor's inherited `color: LinkText`, i.e.
-         * the words painted on their own colour. Measured with the mode emulated: label ink
-         * rgb(0,0,159) on background rgb(0,0,159) across 102.95 x 16px — a ratio of exactly
-         * 1.00:1, the whole of the control's on-screen name replaced by a solid block, on both goal
-         * cards, on the home page. Four independent reviewers found it and none of the
-         * eleven mutations run against this file could: they all delete or alter a
-         * DECLARATION, and the defect was in the SELECTOR's reach.
-         *
-         * So the rule is scoped to the decorative mark by the attribute that makes it
-         * decorative, rather than by a class of its own — a styling class on an icon span is
-         * what tests/control-geometry.test.ts's allowlist forbids. If the glyph ever stops
-         * being `aria-hidden` it stops being decorative, and this rule correctly stops
-         * applying to it.
-         */
-        .events-link span[aria-hidden] {
-            forced-color-adjust: none;
-            background-color: LinkText;
         }
     }
 </style>

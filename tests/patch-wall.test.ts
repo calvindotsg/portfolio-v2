@@ -1173,10 +1173,15 @@ describe("dist/patches", () => {
                 // THE GLYPH NAMES THE DESTINATION AND MUST HAVE A RULE. An icon class UnoCSS
                 // never generated renders as a mask box at zero size — correct markup, no icon,
                 // nothing red — which is why `official_icon` had to become a PATCHES field.
-                const glyph = line.querySelector(".bib-stub-mark");
+                //
+                // FOUND STRUCTURALLY, by the attribute that makes it decorative, rather than by a
+                // class of its own. It carried `.bib-stub-mark` while this component declared its
+                // own forced-colours rule for it; that rule is BasicLayout.astro's now and names
+                // no component, so the class had nothing left to do and the orphan gate in
+                // build-output.test.ts said so. A class kept alive only for a test to select is
+                // the same dead weight in a different pocket.
+                const glyph = line.querySelector("span[aria-hidden]");
                 expect(glyph, `${event.name}: every stub line keeps its mark`).toBeTruthy();
-                expect(glyph?.getAttribute("aria-hidden"),
-                    "the glyph is decorative: the words say what the mark used to have to").toBe("true");
                 const token = [...(glyph?.classList ?? [])].find((c) => c.startsWith("i-"));
                 expect(token, "the mark must wear an icon class").toBeTruthy();
                 expect(pageCss(PAGES.all), `${token} has no rule, so it ships as a mask box at zero size`)

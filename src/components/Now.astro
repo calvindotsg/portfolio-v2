@@ -52,7 +52,7 @@ import {iconClass} from "../lib/icons";
         <a
                 href={NOW.explainer_url}
                 target="_blank"
-                class="now-explainer inline-flex items-center justify-center w-6 h-6 text-base text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out"
+                class="inline-flex items-center justify-center w-6 h-6 text-base text-[var(--text)] hover:text-[var(--accent)] transition-colors duration-300 ease-in-out"
         >
             <span class={`${iconClass(NOW.explainer_icon)} shrink-0`} aria-hidden="true"></span>
             <span class="sr-only">{NOW.explainer_name}</span>
@@ -67,33 +67,3 @@ import {iconClass} from "../lib/icons";
     <p class="text-sm">{NOW.description}</p>
 </Card>
 
-<style>
-    /*
-     * THE EIGHTH ICON-ONLY CONTROL, MISSED BY THE SWEEP THAT REPAIRED THE OTHER SEVEN.
-     *
-     * presetIcons paints a glyph as a MASK over `background-color`, and a forced-colours mode
-     * overrides `background-color` — so an icon whose control has no words on screen becomes an
-     * empty box the size of the icon. The six social links, the theme toggle and the footer
-     * heart were all repainted for that; this link was not, because it wears no shared class.
-     * Its whole on-screen name is the glyph — both other spans are `sr-only` — so erased, it
-     * is a 24x24 hole in the corner of the Now card with no way to tell it is a link at all.
-     *
-     * WHY A CLASS HOOK RATHER THAN A SELECTOR OVER THE UTILITIES IT ALREADY WEARS: the same
-     * reason written out in index.astro for `.footer-heart`. Its other selectors are generated
-     * utilities whose escaped forms are not something a stylesheet should be asked to match.
-     *
-     * `[aria-hidden]` IS LOAD-BEARING, as everywhere else this pattern appears: the anchor also
-     * holds two `sr-only` spans, and a bare descendant selector would paint the accessible name
-     * on its own colour.
-     *
-     * LinkText, not ButtonText — it navigates. `tests/build-output.test.ts` now derives the set
-     * of icon-only controls from the built markup and requires each to be covered, so a ninth
-     * cannot ship uncovered the way this eighth did.
-     */
-    @media (forced-colors: active) {
-        .now-explainer span[aria-hidden] {
-            forced-color-adjust: none;
-            background-color: LinkText;
-        }
-    }
-</style>

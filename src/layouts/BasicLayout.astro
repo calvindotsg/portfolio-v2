@@ -659,4 +659,72 @@ const schema = {
             animation: none;
         }
     }
+
+    /*
+     * EVERY DECORATIVE MARK ON THE SITE, KEPT IN FORCED COLOURS — once, here, instead of
+     * eight times in eight components.
+     *
+     * THE MECHANISM, which every copy used to restate: presetIcons paints an icon's artwork
+     * as a MASK over `background-color: currentColor`, and `background-color` is one of the
+     * properties a forced-colours mode overrides. So the glyph paints Canvas on Canvas and
+     * vanishes. Measured with the mode emulated, on more than one of them: glyph
+     * rgb(255,255,255) on a surface of rgb(255,255,255), a ratio of exactly 1.00:1. Where the
+     * mark stands in for a word ("Built with <heart>") that is meaning lost, and where the
+     * control has no words on screen at all — the six social links, the theme toggle, the Now
+     * explainer — it is the whole control.
+     *
+     * SAID ONCE RATHER THAN PER COMPONENT. The eight copies each carried the note "said again
+     * here, because Astro scopes a component's styles to that component", which is true and is
+     * not the end of it: `is:global` is the escape, this layout wraps every page, and the
+     * block is already global. What that bought, besides 211 lines: the card headings' marks
+     * and the bibs' sport marks, which no copy reached, so they were vanishing.
+     *
+     * AND THE COUNTING IS THE ARGUMENT. The Now card's explainer was the EIGHTH icon-only
+     * control, missed by the sweep that repaired the other seven, because it wore no shared
+     * class — and it was repaired by giving it one, which is the shape that lets a ninth be
+     * missed the same way. A mark is covered here by being a mark, so nothing has to be
+     * remembered. (Two components kept a class hook for this and no longer need one; the
+     * class-token gate in tests/build-output.test.ts is what says so.)
+     *
+     * WHICH SYSTEM COLOUR IS DECIDED BY WHAT CONTAINS THE MARK, because the mode reserves a
+     * different one for each kind of thing and a glyph must agree with the words beside it —
+     * an anchor's own text is forced to LinkText whatever the author says.
+     *
+     * SCOPED TO THE ICON MASKS RATHER THAN TO EVERY `aria-hidden` SPAN, and that narrowing is
+     * deliberate: `forced-color-adjust: none` lets ALL author colour through on the element it
+     * names, not just the system colour put back beside it, so a rule carrying it is a
+     * standing invitation for some later author colour to reach a mode that exists to remove
+     * them. The advice is to keep it infrequent and tightly scoped and never at a higher level
+     * than needed (Sarah Higley, "forced-color-adjust: none is an unavoidable foot gun"), and
+     * the level actually needed is "an element whose ink IS a background-color" — which on
+     * this site is exactly a presetIcons mask, and is what the `i-` class prefix names. A
+     * decorative span that is not an icon needs nothing here and must not silently get it.
+     *
+     * `[aria-hidden]` IS LOAD-BEARING, and it was paid for. One of these rules was `.events-link
+     * span` for a revision, written when the anchor had one child; wrapping the label in an
+     * element gave it a second, and the label took the glyph's treatment — `background-color:
+     * LinkText` under the anchor's inherited `color: LinkText`, the words painted on their own
+     * colour. Measured with the mode emulated: rgb(0,0,159) on rgb(0,0,159) across 102.95x16px,
+     * a ratio of exactly 1.00:1, the control's whole on-screen name replaced by a solid block.
+     * Four reviewers found it and none of eleven mutations could, because they all altered a
+     * DECLARATION and the defect was in the SELECTOR's reach. If a glyph ever stops being
+     * `aria-hidden` it stops being decorative, and these rules correctly stop applying to it.
+     */
+    @media (forced-colors: active) {
+        span[aria-hidden][class^="i-"],
+        span[aria-hidden][class*=" i-"] {
+            forced-color-adjust: none;
+            background-color: CanvasText;
+        }
+
+        a span[aria-hidden][class^="i-"],
+        a span[aria-hidden][class*=" i-"] {
+            background-color: LinkText;
+        }
+
+        button span[aria-hidden][class^="i-"],
+        button span[aria-hidden][class*=" i-"] {
+            background-color: ButtonText;
+        }
+    }
 </style>

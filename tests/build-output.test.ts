@@ -1254,26 +1254,26 @@ describe("forced colours never paint a system colour on top of itself", () => {
     /**
      * THIS IS AN ADDITION, NOT A REPLACEMENT, AND THE DIFFERENCE WAS A REAL DEFECT.
      *
-     * The 404 page legitimately ships no `forced-colors` rule — it wears the shared layout and
-     * no component that declares one — so the per-page floor below had to stop applying to it.
-     * The first attempt relaxed that floor BUILD-WIDE, to "some page has such rules", and
-     * claimed in this comment that nothing was weakened. That claim was false, and a review
+     * The per-page floor below was once relaxed BUILD-WIDE, to "some page has such rules",
+     * with this comment claiming nothing was weakened. That claim was false, and a review
      * caught it by measurement: with the floor relaxed, every forced-colours rule can be
      * deleted from all three patch-wall pages and the full suite still passes 327/327. Because
-     * `pageCss()` resolves per page, the per-page floor was the ONLY assertion reaching the
+     * `pageCss()` resolves per page, the per-page floor is the ONLY assertion reaching the
      * wall's forced-colours rules at all.
      *
-     * So the floor is restored and the 404 is exempted BY NAME — the idiom this file already
-     * uses twice for the sitemap and reachability gates, twenty lines up. A named exemption
-     * loses exactly one page; a relaxed rule loses every page but one, which is the opposite
-     * trade and the easy mistake.
-     *
      * What survives from that attempt is genuinely worth keeping, which is why it is still
-     * here: a build-wide check that the `at` filter matches SOMETHING. The old spelling could
+     * here: a build-wide check that the `at` filter matches SOMETHING. The floor alone could
      * not catch a filter that stopped recognising `forced-colors` — every page would fail
      * identically and the failure would read as a site-wide styling regression rather than as
-     * a broken test. And `rules.length > 0` per page is the question the old floor was
-     * standing in for: did `pageCss()` resolve this page's CSS at all.
+     * a broken test. And `rules.length > 0` per page is the question the floor is standing in
+     * for: did `pageCss()` resolve this page's CSS at all.
+     *
+     * THE 404 USED TO BE EXEMPT FROM THE FLOOR BY NAME, and it is not any more. The exemption's
+     * reason was that the page wears the shared layout and no component that declares a
+     * forced-colours rule — which stopped being true when the eight per-component rules for
+     * decorative marks became one rule in that layout. Every page ships them now, so the floor
+     * reaches every page, and a carve-out with a spent reason is worth less than the page it
+     * used to buy.
      */
     it("ships forced-colors rules somewhere, so the per-page assertion below can bite", () => {
         const pagesWithRules = builtPages()
@@ -1289,12 +1289,9 @@ describe("forced colours never paint a system colour on top of itself", () => {
         expect(rules.length, `${page} resolved to no CSS at all — pageCss() found nothing, so every assertion `
             + "in this test would pass by having nothing to look at").toBeGreaterThan(0);
         const forced = rules.filter((r) => (r.at ?? "").includes("forced-colors"));
-        // The per-page floor, kept, with the one page that cannot meet it named rather than
-        // the rule relaxed for everybody. See the note above this test.
-        if (page !== NOT_FOUND_PAGE) {
-            expect(forced.length, `${page} ships no forced-colors rules — this assertion would be vacuous`)
-                .toBeGreaterThan(0);
-        }
+        // The per-page floor, on every page including the 404. See the note above this test.
+        expect(forced.length, `${page} ships no forced-colors rules — this assertion would be vacuous`)
+            .toBeGreaterThan(0);
 
         const matches = (sel: string, el: Element) => {
             try {

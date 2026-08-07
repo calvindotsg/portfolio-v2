@@ -356,7 +356,7 @@ if (recordings.length === 1) {
                 {stub.map((line) => (
                         <li>
                             <a class="bib-stub-link" href={line.href} target="_blank">
-                                <span class={`${iconClass(line.icon)} bib-icon bib-stub-mark`} aria-hidden="true"></span>
+                                <span class={`${iconClass(line.icon)} bib-icon`} aria-hidden="true"></span>
                                 <span class="bib-stub-label">{line.label}</span>
                                 {line.time && <Fragment>{" "}<span class="bib-stub-time">{line.time}</span></Fragment>}
                                 <span class="sr-only">{", " + line.name + " "}</span>
@@ -1417,22 +1417,13 @@ if (recordings.length === 1) {
     @media (forced-colors: active) {
 
         /*
-         * The mark is an icon class, so its artwork is a MASK over
-         * `background-color: currentColor` — and background-color is a forced property, so
-         * without this the glyph paints Canvas on Canvas and vanishes. Measured on the previous
-         * revision with the mode emulated: glyph rgb(255,255,255) on a bib face of
-         * rgb(255,255,255), a ratio of exactly 1. Same fix as EventsLink.astro's chevron.
-         *
-         * IT MOVED HERE WITH THE GLYPH rather than being deleted alongside the row that used to
-         * carry it. What it protects is smaller than it was — the row's WORDS survive forced
-         * colours whatever happens to the glyph, so the label is no longer identified by a mark
-         * that can disappear — but a brand mark that paints nothing is still a defect, and this
-         * is one declaration.
+         * The stub's own mark needs nothing here, and needs no class of its own to be found by:
+         * it is an icon mask inside an anchor, so the shared rule in BasicLayout.astro paints it
+         * LinkText, which is exactly what the rule that used to sit here declared. What that
+         * protects is smaller than it once was — the row's WORDS survive forced colours whatever
+         * happens to the glyph, so the label is not identified by a mark that can disappear —
+         * but a brand mark that paints nothing is still a defect.
          */
-        .bib-stub-mark {
-            forced-color-adjust: none;
-            background-color: LinkText;
-        }
 
         /*
          * `LinkText` on each line, so it is coloured as a link rather than as body text — and
