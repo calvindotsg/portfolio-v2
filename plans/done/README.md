@@ -930,3 +930,110 @@ declaration; the count is the wrong instrument, not the comment.
 `main` at `46119ae`; suite re-run in the primary checkout after confirming the fast-forward moved
 HEAD — **493 passed / 7 skipped**, the predicted count. Predicted `dist/` facts asserted rather
 than trusting the gate: 14 `bib-cell` elements on the wall and 14 dated race lines in `llms.txt`.
+
+# Plan 021 — split the copy out of `constants.ts` and delete the file
+
+Merged as `4bf156d` (PR #138), archived here in the same run. Executed by a dispatched executor in
+an isolated worktree; reviewed, fixed and merged by the chair. `main` was `fd8b5cf` throughout.
+
+**The result: `src/lib/constants.ts` is gone**, and the 1,195 lines it held are five modules split
+by kind — `src/content/{site,home,races}.ts`, `src/data/goals.ts`, `src/lib/goal.ts`. No barrel.
+`uno.config.ts`'s one nine-name import became four lines, which SHRINKS the jiti-pinned surface.
+
+## What the plan was wrong about, measured against `fd8b5cf` before dispatch
+
+Every one of these was handed to the executor as a correction rather than left to be discovered:
+
+| the plan said | the tree said |
+|---|---|
+| "~1,600 lines", "the 116 KB read path" | **1,195 lines / 68,835 bytes** — plan 020 had already taken 753 lines out |
+| "~25 import sites" | **26 static, plus one dynamic** `await import()` in `tests/llms-dnf-fixture.test.ts` |
+| the allocation table, as the whole allocation | it names only the EXPORTS. **Four module-private declarations had to travel with them and the table is silent about all four**: `STRAVA_PROFILE_URL`, `FULL_NAME`, `type GoalSource`, and the `strava-progress.json` import |
+| `README.md:145` and `:106` | six README lines go false, not two |
+
+**`src/content/` was PROBED, not assumed.** Astro reserves that directory for content collections,
+which reads like a blocker for an allocation the maintainer had already signed off. A throwaway
+worktree at `fd8b5cf` settled it in five minutes: a plain `.ts` module there builds, renders, passes
+`astro check` 0/0/2, and — the load-bearing half — **loads through unconfig/jiti from
+`uno.config.ts`**. With no collection config in the repo it is ordinary source. The hazard is now
+written into CLAUDE.md with both config spellings in `NAMED_AS_ABSENT`, so the absence that makes it
+safe is asserted rather than assumed.
+
+**The executor overruled one of the corrections and was right.** The delta put the
+`strava-progress.json` import in `src/lib/goal.ts`; the consumer is `RAW_GOALS`, which lives in
+`src/data/goals.ts`. The compiler settled it.
+
+## The review panel: 20 agents, 5 lenses, 29 findings, 0 deaths
+
+5 of 5 lenses passed calibration. Both planted controls were correctly REFUTED — including the
+false one, killed by a skeptic that reversed the first six safelist entries itself, rebuilt, and got
+back a byte-identical `icons.BUUAjZ16.css`.
+
+**Two real defects, both introduced by this branch, both invisible to the whole suite:**
+
+1. **18 `{@link}`s stopped resolving.** Splitting one module into five turned the unresolved set
+   from a strict subset of the base's into a SUPERSET. Fixed with six `import type` lines across
+   four files; the unresolved set is now an exact EQUALITY with `fd8b5cf`'s — 18 names either side,
+   zero regressed. **They must stay `import type`**: `verbatimModuleSyntax` is on, so a value import
+   would close real `site↔home` and `goal↔races` cycles inside the jiti graph, whose failure names
+   no source file. Four lenses found this independently and three built their own compiler-API
+   resolvers that agreed site-for-site — but all three used the SAME instrument, which every one of
+   them flagged in its own `harnessDoubt`.
+2. **The rename opened a gate.** `docs-drift`'s "lists every test suite in the README" matched the
+   bare stem, so `constants.test.ts` → `content.test.ts` moved the suite's identity onto the token
+   `content`, which the same commit wrote into README seven times as `src/content/`. Proven both
+   ways: with the whole `tests/content.test.ts` bullet deleted, the OLD predicate reports **zero
+   misses** and the new one catches it. Three further suites (`build-output`, `derived-figures`,
+   `projection`) were already vouched for by prose about the code rather than about the suite.
+
+## The mutation table
+
+| edit | result |
+|---|---|
+| a broken URL in the moved `site.ts` | RED — `tests/content.test.ts` and `tests/rendered-html.test.ts` |
+| a backticked path that does not exist | RED — docs-drift's path gate, naming the line |
+| the `tests/content.test.ts` bullet deleted from README, OLD predicate | **GREEN — the hole** |
+| the same, NEW predicate | RED — `[ 'content' ]` |
+| `total_goal` edited in its new home | RED — the same four assertions as before the split |
+| `dist/` vs a `fd8b5cf` build | **byte-identical**, 17 files each side, identical filename sets, verified three times |
+
+**A `pnpm test` dist and a `pnpm build` dist DIFFER, and comparing them reports a false failure.**
+vitest exports `NODE_ENV=test`, which `tests/setup/build.ts` inherits, and that adds
+`data-image-component="true"` to the portrait `<img>`. Rebuilding the UNCHANGED base with
+`NODE_ENV=test` reproduces it. It cost one false "index.html differs" during the review-fix pass.
+**Control the build mode on both sides.** Related: the plan specified the compare as "normalise the
+build-date meta", which two lenses independently showed is insufficient — `llms.txt` carries a date
+outside that meta, and a `sed`-based normaliser silently reports identical on binaries under a
+non-C locale. Normalise content-hashed FILENAMES; read the meta from one HTML on each side and abort
+if they differ.
+
+## Scope: six forced, three elective, each measured
+
+Nine files outside the plan's Scope were edited. The panel's two lenses disagreed on which were
+forced (2 elective vs 3) and produced different lists of the forced six. Settled by reverting each
+file individually and re-running the suite:
+
+- **Forced** (red when reverted): `src/lib/icons.ts`, `src/lib/race.ts`, `src/data/races/index.ts`,
+  `src/data/races/README.md`, `tests/strava-verify.test.ts`, `tests/llms-dnf-fixture.test.ts`.
+- **Elective** (green when reverted, kept with reason): `.devin/wiki.json`,
+  `scripts/fetch-strava-progress.mjs`, `tests/data-contract.test.ts`.
+
+The measurement has a trap worth naming: `git checkout <sha> -- <file>` stages as well as writes, so
+`git diff --quiet -- <file>` compares base against base and reports **NO-OP for every file**. Assert
+against `HEAD` (`git diff --quiet HEAD -- <file>`) or the whole census is silently vacuous.
+
+**The plan contradicted itself and the executor was right to deviate.** Its preamble says *"your
+reviewer maintains `plans/README.md` — do not edit it"*, and its own step 2 makes that file's
+docs-drift gate red, leaving no green branch. The reviewer made the two-line retarget in its own
+commit; the general rule is now a local convention in `plans/README.md`.
+
+**Left for plan 023, deliberately:** 33 prose references to `constants.ts` survive, and
+`uno.config.ts:16` is one of them — a root-level file that neither of 023's residue greps reached.
+Three agents found that line independently and all three noted it was owned by nobody. It is named
+in 023's grep paths and its table now.
+
+## Post-merge activation
+
+`main` at `4bf156d`; suite re-run in the primary checkout after confirming the fast-forward moved
+HEAD — **493 passed / 7 skipped across 18 suites**, the baseline exactly, which is the point of a
+behaviour-free change. Containment proved by tree diff against the branch head: empty.
