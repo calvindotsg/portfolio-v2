@@ -842,3 +842,82 @@ gate reaches the deploy.
 moved HEAD to the merge commit — **486 passed / 7 skipped**, the predicted count, from 479.
 Containment proven by tree diff against `origin/main` (empty), not by ancestry, which a
 squash makes meaningless.
+
+## 020 — one module per race (PR #135, squash `46119ae`)
+
+**What the plan was for.** Adding a race meant a unique-match edit into a 1,900-line file in
+which three rows share the name `Pesta Sukan Round Island Bike Adventure` and two share
+`OCBC Cycle Johor Bahru`. The failure mode is a silently wrong edit. It is now a `Write` to a
+new path, with every compile-time guarantee kept — which is why this is TypeScript modules
+rather than Markdown with a schema.
+
+**The plan's importer list was already stale when it ran.** It names nine; there are eleven.
+`tests/derived-figures.test.ts` arrived with plan 019 four hours earlier and
+`tests/clock-split.test.ts` was simply missed. `pnpm check` is the census — a plan's file list
+is a lead.
+
+## Review panel (14 agents, 20 findings: 4 MAJOR + 12 MINOR + 4 NIT, 0 agent deaths)
+
+**The panel found the defect this migration introduces, and it was inside the gate written to
+prevent it.** Two dimensions found it independently.
+
+`tests/data-contract.test.ts`'s glob-drop gate read
+`readdirSync(DIR).filter((f) => f.endsWith(".ts"))`, and its own comment claimed it read the
+directory rather than globbing a second time *"because a second glob shares the mechanism it is
+checking"*. **That reason was false of its own implementation.** Measured on full builds, twice:
+
+| stimulus | suite | shipped site |
+|---|---|---|
+| `git mv <race>.ts <race>.mts` | 491 passed, exit 0 | race absent from `dist/llms.txt` and the wall |
+| `git mv <race>.ts races/2023/` | 491 passed, exit 0 | same |
+
+A whole race deleted from production with the deploy gate green. The gate now enumerates every
+file under `src/data/races/` **recursively with no extension filter**, imports each, and requires
+it to have put its default export into `EVENTS` by identity; an import that throws is reported
+with its error rather than skipped.
+
+Three more holes, each reproduced by execution:
+
+- **`pnpm check` stopped type-checking a race module.** `import.meta.glob<{default: RaceEvent}>`
+  ASSERTS the shape. A module with `sport: "runing"` and no `satisfies` gave 0 errors — against a
+  plan whose stated rationale is that every compile-time guarantee is kept. A gate now requires
+  the phrase in every module.
+- **The README field gate compared a FLAT set of names**, so a nested field is documented by a
+  top-level namesake. `recordings.elapsed_time` already was. Adding a required `date` to
+  `Recording` left the suite green while making all 14 modules a compile error. It now compares
+  field PATHS, deriving nesting from the type on one side and bullet indentation on the other.
+- **Nothing asserted `EVENTS` was in date order**, and `llms.txt` renders in array order. A
+  *partial* reorder shipped a misordered artifact green; a full reversal only reddened another
+  file's snapshot by luck.
+
+Plus the prose the move falsified and the commit did not sweep: `README.md`'s Configuration step
+still sent race edits to `constants.ts`, four "read the note above X in `constants.ts`" pointers
+were false, and **7 `{@link}` identifiers across 16 sites** stopped resolving — found with a
+compiler-API resolver rather than grep, and the head set is now a strict subset of the base set.
+
+**Deliberately not done**: `.devin/wiki.json` is stale the same way and was left for plan 023,
+which owns it. It is gated for durability rather than accuracy, and adding a fact there is the
+mistake that file exists to record.
+
+## Verification log
+
+Every gate and every stimulus re-run by the reviewer, in the executor's worktree.
+
+| check | result |
+|---|---|
+| `.mts` rename, after the fix | RED — `puts every file in the directory into the array, whatever it is called` |
+| subdirectory move, after the fix | RED — same named assertion |
+| partial reorder, **in isolation** | RED — the date-order gate alone |
+| module without `satisfies` | RED — named |
+| required `date` added to `Recording` | RED — `expected [ 'recordings.date' ] to deeply equal []` |
+| field added to the type, not the README | RED — the direction that matters most |
+| `dist/` vs the `86f9a15` build | **byte-for-byte identical**, 17 files each side, content-hashed names included, `build-date` 2026-08-08 on both |
+
+The baseline was built from a clean `git archive` extraction, never `git stash` — the stash stack
+is shared across every worktree of this repo and held nine entries from other sessions throughout.
+
+## Post-merge activation
+
+`main` at `46119ae`; suite re-run in the primary checkout after confirming the fast-forward moved
+HEAD — **493 passed / 7 skipped**, the predicted count. Predicted `dist/` facts asserted rather
+than trusting the gate: 14 `bib-cell` elements on the wall and 14 dated race lines in `llms.txt`.
