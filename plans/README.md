@@ -178,7 +178,7 @@ comments beside the code it changed — rather than re-narrated here.
 | deploy gate | **Changed after run 4.** `.github/workflows/ci.yml` — a `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test`, uploads `dist/`, and two `wrangler pages deploy` jobs sit behind `needs: build` and publish that same artifact without rebuilding. It replaced `netlify.toml` running `pnpm check && pnpm test`; that file and the Netlify project are both deleted. `tests/workflow-guards.test.ts` is what holds the `needs:` edge |
 | host | **Cloudflare Pages** (project `calvindotsg`), zone on Cloudflare DNS. Was Netlify until 2026-07-30 |
 | DNS | **In git since 2026-07-31** — `dns/zones/calvin.sg.yaml` (octoDNS), planned and applied by `.github/workflows/dns.yml`. Ten of the zone's fifteen records; the three Email Routing `MX`, the `read_only` DKIM key and `_dmarc` are each excluded for a different reason, stated in `dns/config.yaml` beside the exclusion. **Live since 2026-07-31**: the first plan against the real zone reported *"No changes were planned"* (11 records returned, 3 rejected, 8 matched). Two zone-scoped tokens, read-only for planning and edit-only for applying — see `dns/README.md`; nothing in this repository can mint them |
-| content source | copy and goals in `src/lib/constants.ts`; the races are one module each under `src/data/races/`, collected by the `index.ts` beside them (plan 020). Plan 021 splits what is left and deletes `constants.ts` |
+| content source | split by kind (plan 021): `src/content/` holds the copy, `src/data/goals.ts` the two goals as authored, and the races are one module each under `src/data/races/`, collected by the `index.ts` beside them (plan 020). There is no single content file and deliberately no barrel |
 
 The obvious simplifications were taken. A new run should expect *fewer and
 smaller* wins than the first one found, and should say so plainly when a finding
@@ -582,10 +582,10 @@ their resolutions rather than deleted.
   first crop was called out and fixed). The README hero, `og:image` and
   `twitter:image` all resolve from this one filename — a future refresh is a
   new screenshot through this same recipe.
-- ~~**`public/llms.txt` duplicates facts from `src/lib/constants.ts` by hand**,
+- ~~**`public/llms.txt` duplicates the site's content by hand**,
   with nothing keeping them in sync.~~ **Resolved 2026-07-30 (PR #108).** Both
   `llms.txt` and `robots.txt` are now generated endpoints — `src/pages/llms.txt.ts`
-  and `src/pages/robots.txt.ts` — deriving every fact from `constants.ts`, and
+  and `src/pages/robots.txt.ts` — deriving every fact from the content modules, and
   `tests/build-output.test.ts` asserts the association row by row rather than
   token by token. `public/` holds no text file at all now. The checklist item this
   used to add is gone: nothing about the current role can go stale there any more,
