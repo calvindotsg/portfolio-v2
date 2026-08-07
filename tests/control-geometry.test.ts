@@ -1619,6 +1619,31 @@ describe("parseRules reads a nested block or refuses it, and never folds one awa
         ]);
     });
 
+    /**
+     * THE MIRROR ARRANGEMENT, and it is the one that was wrong. Pinning only the shape above
+     * reads as though source order were proved in general; it is not, because a declaration
+     * written AFTER a nested at-rule is the case a parent-first emitter inverts. The resolved
+     * value is asserted as well as the array, because that is the property a reader has: at
+     * 320px this control is 3rem, which is what Chromium paints and what the array order has
+     * to produce.
+     */
+    it("keeps a declaration that FOLLOWS a nested at-rule after it, so the cascade resolves", () => {
+        const css = ".control{@media (max-width:40rem){width:7rem}width:3rem}";
+        expect(parseRules(css)).toEqual([
+            {selectors: [".control"], body: "width:7rem", nested: true, at: "@media (max-width:40rem)"},
+            {selectors: [".control"], body: "width:3rem", nested: false, at: ""},
+        ]);
+        expect(effectiveDecl(parseRules(css), "width", 320)).toMatchObject({value: "3rem"});
+    });
+
+    it("still yields exactly one empty Rule for a selector that declares nothing itself", () => {
+        expect(parseRules(".control{}")).toEqual([{selectors: [".control"], body: "", nested: false, at: ""}]);
+        expect(parseRules(".control{@media print{width:1rem}}")).toEqual([
+            {selectors: [".control"], body: "width:1rem", nested: true, at: "@media print"},
+            {selectors: [".control"], body: "", nested: false, at: ""},
+        ]);
+    });
+
     it("refuses a nested style rule rather than mis-attributing it", () => {
         expect(() => parseRules(".control{color:red;& span{width:2px}}")).toThrow(/nested style rule/);
     });

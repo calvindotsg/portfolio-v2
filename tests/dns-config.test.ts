@@ -210,6 +210,17 @@ describe("the drift decision is delegated, so that it can be executed", () => {
     it("does not go back to reading the checksum line as the only drift signal", () => {
         expect(runCommands("plan")).not.toMatch(/grep[^\n]*checksum=/);
     });
+
+    /**
+     * THE SAME SYMMETRY, FOR THE PROOF THAT CANNOT MOVE HERE. `dns/test_filters.py` needs Python
+     * and octoDNS, so it stays in the workflow — and CLAUDE.md calls it the only evidence a DNS
+     * change is safe. Nothing else in this repository reads the `semantics` job's commands, so
+     * without this the job can be emptied of every offline proof while `plan` and `apply` keep
+     * their `needs:` edge and go on presenting a green gate.
+     */
+    it("the semantics job still executes the reject-list proof", () => {
+        expect(runCommands("semantics")).toMatch(/dns\/test_filters\.py/);
+    });
 });
 
 /**

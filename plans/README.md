@@ -125,12 +125,12 @@ comments beside the code it changed — rather than re-narrated here.
 |---|---|
 | output mode | `static` — no adapter, no SSR function, no middleware |
 | astro integrations | `sitemap()`, `UnoCSS({injectReset: true})` — that is all |
-| direct dependencies | **18** |
+| direct dependencies | derive: `jq '(.dependencies + .devDependencies) | length' package.json` (**21** at 2026-08-07) |
 | client JavaScript | **zero external files**, which is not the same as none. **Three first-party scripts, all inline**: the pre-paint theme resolver and the press-hold (`data-leaving`) listener, both in `BasicLayout.astro` and on every page, plus `ThemeSwitcher`'s toggle listener, inlined as a module on the home page only. The ~525 B figure quoted here before was the theme resolver alone, and it was labelled as the total. **Nothing gates this row** — a census gate was written and then deliberately deleted, because pinning a count is what puts a rotting fact somewhere nobody revisits. Re-derive it from the script elements in `dist/` when you touch it |
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
 | components | 15 `.astro` files (11 components, 1 layout, 3 page routes → **5 prerendered pages**: `/`, `/patches`, `/patches/cycling`, `/patches/running` and `/404`, plus the `robots.txt` and `llms.txt` endpoints); **no UI framework**, no `.svelte`, no islands |
-| `uno.config.ts` | 726 lines — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale |
-| tests | **475** assertions across 16 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, measured 2026-08-07; a further 7 in `tests/strava-verify.test.ts` are opt-in and skip by default. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it by kind — a current-state document (this table included) is gated for accuracy, while `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*: forbidden from stating a count, a component filename or an exported constant at all, and required to say where each is derived instead. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
+| `uno.config.ts` | derive: `wc -l uno.config.ts` (**719** at 2026-08-07) — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale |
+| tests | **477** assertions across **15** files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, measured 2026-08-07. A 16th file, `tests/strava-verify.test.ts`, holds 7 more and is opt-in — it skips by default, so it contributes none of the 477. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it by kind — a current-state document (this table included) is gated for accuracy, while `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*: forbidden from stating a count, a component filename or an exported constant at all, and required to say where each is derived instead. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
 | `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up. **Run 4: now 1 moderate + 2 high** — both highs are brace-expansion GHSA-mh99-v99m-4gvg on dev-only lint paths; plan 017 clears one in-range and documents the other as a second deliberate residual (no patched 1.x exists; the override is measured-broken). **`@netlify/otel` survived the cutover and always would have**: it arrives as `astro` → `unstorage` → `@netlify/blobs`, so it is an Astro dependency and has nothing to do with where the site is hosted — leaving Netlify does not clear it |
 | deploy gate | **Changed after run 4.** `.github/workflows/ci.yml` — a `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test`, uploads `dist/`, and two `wrangler pages deploy` jobs sit behind `needs: build` and publish that same artifact without rebuilding. It replaced `netlify.toml` running `pnpm check && pnpm test`; that file and the Netlify project are both deleted. `tests/workflow-guards.test.ts` is what holds the `needs:` edge |
@@ -143,6 +143,49 @@ smaller* wins than the first one found, and should say so plainly when a finding
 is cosmetic.
 
 ## Findings considered and rejected
+
+### The ponytail-audit review panel (2026-08-07, 13 agents over the audit-application branch)
+
+18 findings; 8 verified by an adversarial skeptic each, 4 more verified by hand out of
+the unverified passthrough. The confirmed ones were fixed in the branch. **These five
+were real and deliberately NOT fixed** — each is recorded with what makes it real, so a
+future run neither re-derives it nor "fixes" a non-defect.
+
+- **`CanvasText` and `ButtonText` in `BasicLayout.astro`'s shared mark block are ungated.**
+  The pairing walk in `tests/build-output.test.ts` drops every wordless mask
+  (`if (!textContent.trim()) continue`), so only `LinkText` is held, and only by the
+  chevron assertion in `rendered-html.test.ts`. Mutating `CanvasText` to `Canvas` ships
+  invisible marks with the suite green. **Not fixed because the hole is INHERITED, not
+  created**: on the revision before the consolidation, 31 of those 32 mark instances had
+  no forced-colours rule at all and were already painting Canvas-on-Canvas — measured. The
+  branch's net effect on a forced-colours reader is +31 marks correctly painted, 0 lost,
+  and the same mutation is equally green on the base revision. What the consolidation does
+  change is BLAST RADIUS: one literal now decides 32 instances where seven literals decided
+  one each. Worth one assertion; not worth +67 lines of new gate inside a cleanup.
+- **The grid-template refusal collector is blind to an unmodellable selector with zero
+  class tokens** (`tests/patch-wall.test.ts`, `winner()`'s `classTokensOf(sel).some(...)`).
+  An element- or attribute-only rule still mis-attributes silently. Downgraded to NIT: the
+  component ships no such rule, and the skeptic showed the obvious repair is a no-op whose
+  natural fix measurably reopens the hole it closes.
+- **The same collector can redden a CORRECT build**: a variant-scoped descendant rule that
+  places its element in an area the template does declare fails all three wall pages.
+  Reproduced, and genuinely new to this branch. Not fixed because the trigger does not
+  exist (`grep -E '^\s+\.bib[\w-]*\s+\.bib' src/components/Patch.astro` returns 0), the
+  failure names its own two remedies, and erring strict is the safer side — a false GREEN
+  here shipped an invisible sport mark to production once.
+- **The icon-only forced-colours gate accepts a rule that paints without opting out**
+  (`build-output.test.ts`'s `covered` checks only that a selector matches, not what the
+  matching rule declares). REFUTED as a finding against this branch: the skeptic showed the
+  gate's contract is "is this glyph named by any forced-colours rule", which the split
+  opt-out still satisfies, and the paint/opt-out pairing is held elsewhere.
+- **Four prose figures** in commit bodies and comments: "211 lines" is above the ceiling of
+  what that commit could have removed from the eight named files; commit 3's "the two
+  disagreed on any escaped class token" does not reproduce against the shipped sheet; a
+  rewritten `BasicLayout.astro` paragraph attributes "seven" to the eight-root clipping
+  sweep; `plans/README.md` points at `plans/done/` for four changes not archived there.
+  Ungated by construction — `docs-drift` resolves names that must exist and is blind to a
+  quoted VALUE. Recorded rather than corrected one at a time, because the class is the
+  finding: **a figure in a commit body is unreviewable after the fact.**
 
 ### Two review panels over PR #122 (2026-08-03, merged at `ea6fa8f`)
 

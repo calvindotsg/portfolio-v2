@@ -34,6 +34,14 @@ const read = (p: string) => readFileSync(p, "utf8");
  */
 const NOT_FOUND_PAGE = "dist/404.html";
 
+/**
+ * The shared decorative-mark rules in `BasicLayout.astro` — an `[aria-hidden]` presetIcons mask,
+ * matched by the attribute pair that scopes them (`[class^="i-"]` / `[class*=" i-"]`) rather than
+ * by a class name, because the whole point of those rules is that they name no component. Every
+ * page wears them, so a per-page forced-colours count that includes them cannot discriminate.
+ */
+const SHARED_MARK_SELECTOR = /\[aria-hidden\]\[class[\^*]=/;
+
 describe("dist/", () => {
     it("emits a robots.txt that points crawlers at the sitemap", () => {
         expect(existsSync("dist/robots.txt")).toBe(true);
@@ -1270,12 +1278,24 @@ describe("forced colours never paint a system colour on top of itself", () => {
      * a broken test. And `rules.length > 0` per page is the question the floor is standing in
      * for: did `pageCss()` resolve this page's CSS at all.
      *
-     * THE 404 USED TO BE EXEMPT FROM THE FLOOR BY NAME, and it is not any more. The exemption's
-     * reason was that the page wears the shared layout and no component that declares a
-     * forced-colours rule — which stopped being true when the eight per-component rules for
-     * decorative marks became one rule in that layout. Every page ships them now, so the floor
-     * reaches every page, and a carve-out with a spent reason is worth less than the page it
-     * used to buy.
+     * THE FLOOR COUNTS RULES THE PAGE OWNS, NOT RULES THE LAYOUT GIVES IT, and that distinction
+     * IS the assertion. When the eight per-component rules for decorative marks became one block
+     * in `BasicLayout.astro`, every page started shipping forced-colours rules for free — so a
+     * floor counting ALL of them is satisfied everywhere by three rules no page owns, and the
+     * patch wall's own rules go back to being reachable by nothing. Measured: with the shared
+     * block in place, every forced-colours rule the wall owns (`.bib`'s border-width pair —
+     * which `Patch.astro` argues is the ONLY channel separating an earned bib from an outline in
+     * this mode — `.bib-stub-link`'s LinkText, `.bib-stub`'s perforation, the focus ring, and the
+     * sport chip's Highlight pin) can be deleted and the suite stays green at 475. Against the
+     * revision before the consolidation the same deletion is RED on all three wall pages.
+     *
+     * So the count excludes the shared mark rules by selector, and THE 404 IS EXEMPT BY NAME
+     * AGAIN — but asserted rather than skipped. `toBe(0)` on the page that owns none is what
+     * proves `SHARED_MARK_SELECTOR` still matches the layout's rules: mutate that regex to match
+     * nothing and, without this arm, the floor silently goes back to counting the shared block
+     * and the hole reopens green. A named exemption loses exactly one page; a predicate nobody
+     * checks loses every page, which is the same trade this comment already calls the easy
+     * mistake.
      */
     it("ships forced-colors rules somewhere, so the per-page assertion below can bite", () => {
         const pagesWithRules = builtPages()
@@ -1291,9 +1311,17 @@ describe("forced colours never paint a system colour on top of itself", () => {
         expect(rules.length, `${page} resolved to no CSS at all — pageCss() found nothing, so every assertion `
             + "in this test would pass by having nothing to look at").toBeGreaterThan(0);
         const forced = rules.filter((r) => (r.at ?? "").includes("forced-colors"));
-        // The per-page floor, on every page including the 404. See the note above this test.
-        expect(forced.length, `${page} ships no forced-colors rules — this assertion would be vacuous`)
-            .toBeGreaterThan(0);
+        // The per-page floor, counting only what the PAGE owns. See the note above this test.
+        const pageOwned = forced.filter((r) => !r.selectors.every((s) => SHARED_MARK_SELECTOR.test(s)));
+        if (page === NOT_FOUND_PAGE) {
+            expect(pageOwned.length, `${NOT_FOUND_PAGE} now owns a forced-colors rule, or `
+                + "SHARED_MARK_SELECTOR stopped matching the layout's shared mark rules — either way the "
+                + "floor below has gone back to counting rules no page owns").toBe(0);
+        } else {
+            expect(pageOwned.length, `${page} ships no forced-colors rules of its OWN — the shared mark `
+                + "block in BasicLayout.astro does not count, so this assertion would be vacuous")
+                .toBeGreaterThan(0);
+        }
 
         const matches = (sel: string, el: Element) => {
             try {

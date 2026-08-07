@@ -143,9 +143,25 @@ const preludeOf = (at: AtRule): string => `@${at.name}${at.raws.afterName ?? " "
  * "", which makes every "no at-rule may decide this" guard skip the rule entirely.
  * Measured before this file could read nesting: four lines of nested
  * `@media (max-width:40rem){flex-wrap:nowrap}` on the control row shear 266px of control
- * box at 320 wide and the DEFAULT text size, with the whole suite green. Those
- * declarations now arrive as their own Rule, carrying the parent's selectors and the
- * accumulated prelude, so both readings are the browser's.
+ * box at 320 wide and the DEFAULT text size, with the whole suite green.
+ *
+ * **ONE STYLE RULE CAN THEREFORE PRODUCE SEVERAL, AND THEIR ORDER IS THE SOURCE'S.** That is
+ * the whole contract, and getting it wrong is worse than refusing. A first version emitted the
+ * container's entire declaration set up front and then descended, which reads
+ *
+ *     .control { @media (max-width:40rem) { width: 7rem } width: 3rem }
+ *
+ * back as `width:3rem` FOLLOWED BY `width:7rem` — so `effectiveDecl`, which resolves by array
+ * position because that is what the cascade does at equal specificity, answered `7rem` at 320px
+ * where the browser paints `3rem` (verified in Chromium). A parser that cannot read something
+ * must go red; one that quietly answers the opposite of the browser is the silent pass this
+ * whole file exists to prevent. So declarations are flushed in RUNS: every declaration since
+ * the last nested at-rule becomes one Rule, at the position it occupies in the source.
+ *
+ * The empty-run guard is load-bearing in both directions. A style rule with no declarations of
+ * its own must still yield exactly one Rule with an empty body — callers ask "is this selector
+ * in the sheet at all" — and a container that already flushed must not append a spurious empty
+ * one, which would break the exact-output assertions in control-geometry.test.ts.
  *
  * A nested STYLE rule is still refused, because THAT one the model cannot represent: its
  * subject is the descendant `&` names, and a `Rule` here carries a selector list and
@@ -155,21 +171,22 @@ const preludeOf = (at: AtRule): string => `@${at.name}${at.raws.afterName ?? " "
 export function parseRules(css: string): Rule[] {
     const rules: Rule[] = [];
 
-    /** A container's own declarations, under the selectors and at-rules that reach it. */
-    const emit = (node: Container, selectors: string[], at: string[]) => {
-        const decls = (node.nodes ?? []).filter((n) => n.type === "decl");
-        rules.push({
-            selectors,
-            body: decls.map((d) => d.toString()).join(";"),
-            nested: at.length > 0,
-            at: at.join(" "),
-        });
-    };
-
     const descend = (node: Container, selectors: string[] | null, at: string[]) => {
-        if (selectors) emit(node, selectors, at);
+        let run: string[] = [];
+        let flushed = false;
+        /** One run of consecutive declarations, at the position the source puts it. */
+        const flush = () => {
+            if (!selectors) return;
+            if (run.length === 0 && flushed) return;
+            rules.push({selectors, body: run.join(";"), nested: at.length > 0, at: at.join(" ")});
+            run = [];
+            flushed = true;
+        };
+
         for (const child of node.nodes ?? []) {
-            if (child.type === "rule") {
+            if (child.type === "decl") {
+                if (selectors) run.push(child.toString());
+            } else if (child.type === "rule") {
                 if (selectors) {
                     throw new Error(
                         `nested style rule "${(child as CssRule).selector}" inside "${selectors.join(", ")}" — `
@@ -180,9 +197,11 @@ export function parseRules(css: string): Rule[] {
                 }
                 descend(child as CssRule, (child as CssRule).selectors, at);
             } else if (child.type === "atrule" && (child as AtRule).nodes) {
+                if (run.length > 0) flush();
                 descend(child as AtRule, selectors, [...at, preludeOf(child as AtRule)]);
             }
         }
+        flush();
     };
 
     descend(postcss.parse(css), null, []);

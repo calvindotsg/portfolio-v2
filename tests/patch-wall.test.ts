@@ -676,7 +676,10 @@ describe("a bib's date line", () => {
         }
         expect(tour.querySelector(".bib-date")?.textContent?.replace(/\s+/g, " ").trim()).toBe("7–15 NOV 2026");
 
-        const day = await render(ev({date: "2026-08-02"}));
+        // `"booked"` is explicit for the same reason `tour` above carries it: the local helper
+        // this replaced hard-coded that state, and the module-scope one defaults to `finished`.
+        // The pair is about multi-day vs single-day, so both halves have to hold state constant.
+        const day = await render(ev({date: "2026-08-02"}), "booked");
         expect([...day.querySelectorAll("time")].map((t) => t.getAttribute("datetime"))).toEqual(["2026-08-02"]);
     });
 });
