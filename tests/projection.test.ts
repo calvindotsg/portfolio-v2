@@ -12,6 +12,7 @@ import {
 import type {RaceEvent} from "../src/lib/constants";
 import {BUILD_DATE, singaporeDate as siteSingaporeDate} from "../src/lib/today";
 import {nextProgress, serialise, singaporeDate} from "../scripts/fetch-strava-progress.mjs";
+import {AS_OF, CYCLING_KM, RUNNING_KM} from "./helpers/reference";
 
 /**
  * What this file exists to catch, since NOTHING else can.
@@ -316,36 +317,11 @@ describe("booked race distance", () => {
 });
 
 /**
- * EVERY ASSERTION BELOW PINS ITS OWN INPUTS, and that is a deploy-safety rule
- * rather than a style preference.
- *
- * `GOALS[].raw_progress` and `UPDATED_AT` are rewritten by the nightly Strava bot,
- * and A RED SUITE BLOCKS THE DEPLOY. So an assertion against the live values
- * turns an ordinary ride into a failed production deploy, pushed by a bot with
- * no human in the loop — and the failure
- * freezes the very "Updated …" dateline this feature adds, because the deploy that
- * would refresh it is the one being blocked.
- *
- * Not theoretical, not distant, and no longer hypothetical: this fired in production
- * six hours after the feature merged. The bot's own push took running 152.7 → 158.6,
- * which moves the required rate 18 → 17, and the merged assertion had the literal 18
- * in it. The honest expectancy for a test coupled to bot-written data is ONE BOT
- * CYCLE, not whatever change size the arithmetic makes look distant.
- *
- * The same holds for the cycling card: `cycling_km: 2309.7` — one 30 km ride — is already
- * enough, taking the required rate 74 → 73. A race being RECORDED moves it as surely as a
- * ride does, and in the opposite direction: adding the round-island ride's recording took
- * this same figure 70 → 76, because its kilometres left `bookedAhead` for the bot's total
- * in the same edit. BOOKING one moves it down by the same mechanism read backwards: entering
- * the October city ride took 76 → 74, which is the edit that last reddened the assertion
- * below. Neither input is one this file may pin live.
- *
- * `EVENTS` is deliberately left live: it is human-edited, so a red test there is
- * wanted feedback rather than noise.
+ * EVERY ASSERTION BELOW PINS ITS OWN INPUTS, and the three literals that do the pinning
+ * moved to tests/helpers/reference.ts when a second reader needed them — the argument for
+ * freezing them at all, and the measured production failure that settled it, is written
+ * out there rather than restated here.
  */
-const AS_OF = "2026-07-27";
-const CYCLING_KM = 2279.7;
-const RUNNING_KM = 152.7;
 const at = (sport: string, raw: number): Goal => ({...goalBySport(sport), raw_progress: raw});
 
 describe("required rate", () => {

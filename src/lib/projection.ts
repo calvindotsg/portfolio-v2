@@ -29,38 +29,34 @@ import {BUILD_DATE} from "./today"
  * remaining` extrapolates nothing. It contains no pace term, so the composition of
  * what is already banked cannot corrupt it, and it claims nothing about what the
  * owner will do. It still carries the point the owner cared about — counting his
- * booked races takes cycling from 121 km/wk to 71 km/wk, a 41% reduction — without
- * a forecast.
+ * booked races is worth a large share of the rate the cycling card would otherwise
+ * ask for — without a forecast.
  *
  * THE COMPARATOR RULE, if a pace is ever displayed beside this. It must be the
  * DE-RACED pace, never the observed one. The required rate already has future race
  * km subtracted; setting it next to an observed pace that still contains past race
  * km reimports the double count by juxtaposition, and the reader does the wrong
- * subtraction themselves. The three figures are 58.99 (de-raced) < 70.27 (required)
- * < 78.72 (observed) — the requirement sits BETWEEN the two paces, which is exactly
- * why picking the wrong one flips the story. The ORDERING is the rule; the gaps move.
+ * subtraction themselves. The requirement sits BETWEEN the two paces, which is exactly
+ * why picking the wrong one flips the story. THE ORDERING IS THE RULE; THE GAPS MOVE.
  *
- * (THE DE-RACED PACE IS THE ONE THAT NEEDS SAYING OUT LOUD, because it is the only one
- * of the six that reads `EVENTS` for a race already ridden: 2440.3 km less the 611.74 of
- * this year's four recorded cycling races — 130.03 + 163.05 + 158.10 + 160.56 — over the
- * same 31.0 weeks the observed pace divides by. It went stale once by exactly the term a
- * reader would forget: 60.55 was this quantity computed while 10 July counted 140.49
- * rather than the escort's 22.55 beside it.)
+ * THE DE-RACED PACE IS THE ONE THAT NEEDS SAYING OUT LOUD, because it is the only figure
+ * in the set that reads `EVENTS` for a race already RIDDEN: the banked kilometres less
+ * this year's recorded races of that sport, over the same weeks the observed pace divides
+ * by. It went stale once by exactly the term a reader would forget — a race recorded in
+ * two parts, counted as one of them.
  *
- * THE TWO PARAGRAPHS ABOVE ARE PINNED TO THE STAMP THE TREE ITSELF CARRIES — the
- * 2026-08-05 / 2440.3 km in `src/data/strava-progress.json` — so a reader can re-derive
- * all six figures from the checked-out repository and nothing else. That is the point of
- * choosing the current stamp over any other. They exist to carry rules that do not drift;
- * re-derive before quoting one as current. (The DOUBLE COUNT paragraph at the top is
- * different: it says "when this was written" and its 318.72 / 1,143.98 / +144 / −96 are
- * that moment's, kept as the measurement that settled the design.)
+ * NOT ONE OF THOSE FIGURES IS WRITTEN DOWN HERE ANY MORE, AND THAT IS THE FIX RATHER THAN
+ * AN OMISSION. Each is a pure function of the bot's stamp and of `EVENTS`, so they rot on
+ * a push that moves only the date and on any race edit at all — six of them were wrong at
+ * once, with the suite green, because nothing can check a digit typed into a comment. They
+ * are generated instead, WITH THEIR DEFINITIONS, into `src/lib/derived-figures.md` by
+ * `tests/derived-figures.test.ts`; change a race and `pnpm test -u` turns the re-derivation
+ * into a diff. Read that file rather than quoting anything here as current — it states the
+ * reference it is computed at, and what it therefore cannot claim about today.
  *
- * THEY DRIFT WITH `EVENTS`, NOT ONLY WITH THE BOT. That second half is how they went stale
- * in silence once: adding races moved four of them while the stamp they were pinned to
- * stayed put, so a disclaimer naming only the bot went on reading as though it still
- * covered them, and a reader following its own re-derive instruction would have got
- * different numbers. **If you change a race, re-derive this block** — and note that it is
- * ungated, like every measurement in this repo.
+ * (The DOUBLE COUNT paragraph at the top keeps its numbers, and that is not special
+ * pleading. It says "when this was written", and its figures are that moment's — the
+ * measurement that settled the design, not a description of the calendar.)
  *
  * ---
  *
@@ -323,28 +319,24 @@ export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonl
     if (days <= 0) return {kind: "closed"}
     if (days < FINAL_STRETCH_DAYS) return {kind: "final", km: Math.ceil(km), days}
 
-    // CEIL, not round or floor, and this is a correctness choice rather than taste.
-    // At the 2026-07-27 stamp the requirement is 73.3804 km/wk; round gives 73, and a
-    // rider following 73 exactly delivers 1,647.71 km against the 1,656.30 needed — a
-    // rate that MISSES the goal. Round is wrong on any date whose requirement has a
-    // fractional part below .5, which is most of them: sweeping this function over the
-    // rest of the calendar gives 146 of the 290 remaining sport-days that land in this
-    // branch. Ceil never under-states what is required. One km/wk is 22.57 km over the
-    // 158 days left at that stamp — 0.45% of the cycling goal but 3.76% of the running
-    // one, so the same rounding step is eight times as consequential on the smaller card.
+    // CEIL, not round or floor, and this is a correctness choice rather than taste. Round
+    // UNDER-STATES wherever the exact requirement has a fractional part below .5, which is
+    // most days on the calendar: a rider following a rounded-down rate exactly delivers
+    // less than the goal needs and MISSES it. Ceil never under-states. One km/wk is the
+    // same absolute distance on both cards and a far larger fraction of the smaller goal,
+    // so the identical rounding step is the more consequential one on the running card.
     //
-    // WHICH DATE DEMONSTRATES THIS MOVES WITH THE NUMERATOR, so re-derive it rather than
-    // quoting the one above. Every rate's fractional part shifts when the kilometres owed
-    // change, and these figures have already moved twice: recording the round-island ride
-    // took the requirement at this stamp from 70.2818 to 75.2411 and SWAPPED which of two
-    // adjacent days can tell ceil from round — 2026-07-28 used to be the case that ruled
-    // round out, and now round and ceil agree there. BOOKING A RACE MOVES IT THE OTHER WAY
-    // and did: the October city ride took 75.2411 to the 73.3804 above, which left both
-    // roles where the recording had put them rather than swapping them back — so the two
-    // dates cannot be assumed to keep their roles either way. A stale example here is
-    // worse than no
-    // example, because it invites a reader to re-derive it and conclude that round is fine.
-    // tests/projection.test.ts pins the current pair and says how to move the roles.
+    // NO WORKED EXAMPLE HERE, DELIBERATELY, AND THAT IS THE SECOND TIME THIS PARAGRAPH HAS
+    // BEEN WRONG. Which dates discriminate moves with the numerator: every rate's
+    // fractional part shifts when the kilometres owed change, and recording a race and
+    // booking one move it in opposite directions — measured twice, once SWAPPING the roles
+    // of two adjacent days and once leaving them exactly where they were, so the roles
+    // cannot be reasoned about either. A stale example is worse than none, because it
+    // invites a reader to re-derive it and conclude that round is fine. The census that
+    // replaces it — how many of the remaining sport-days round would under-state — is swept
+    // over the whole calendar and generated into `src/lib/derived-figures.md`, and
+    // tests/projection.test.ts pins the current discriminating pair and says how to move
+    // the roles.
     const kmPerWeek = Math.ceil(km / (days / DAYS_PER_WEEK))
     return {kind: "rate", kmPerWeek, km, days}
 }
@@ -395,8 +387,8 @@ export function goalStatusLine(goal: Goal, iso: string = UPDATED_AT, events: rea
  * WHAT THE RATE IS ALREADY ASSUMING, SAID OUT LOUD.
  *
  * `bookedAhead` subtracts every booked race's kilometres from the deficit before the rate
- * is divided out, and the comment at the head of this file prices it: booking races takes
- * cycling from 121 km/wk to 71, a 41% reduction. So the card's one actionable number rests
+ * is divided out, and `src/lib/derived-figures.md` prices it: booking races is worth a large
+ * share of the rate the cycling card would otherwise ask for. So the card's one actionable number rests
  * on an assumption the card never showed — that a race not yet ridden WILL be finished —
  * and the wall two clicks away draws a DNF bib proving that assumption can fail.
  *

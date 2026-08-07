@@ -13,7 +13,8 @@
     "check": "astro check",
     "prepare": "husky",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:update": "vitest run -u"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
