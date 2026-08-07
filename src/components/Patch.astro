@@ -481,43 +481,37 @@ if (recordings.length === 1) {
      * the token names in BasicLayout.astro exist to make legible; getting it backwards
      * is how a mark ends up at 2.77:1 with every structural assertion still green.
      */
-    .bib--booked {
-        --face: transparent;
-        --ink: var(--text);
-        --sport: var(--sport-on-card);
-        border-color: color-mix(in srgb, var(--text) 32%, transparent);
-        background-image: none;
-    }
-
     /*
-     * DNF: A BIB YOU WILL NEVER EARN. The face is withheld for the same reason a booked
-     * bib's is — the inverted face is what an earned patch looks like and this is not one —
-     * and the four values below are IDENTICAL to `.bib--booked`'s, character for character.
+     * DNF: A BIB YOU WILL NEVER EARN — and it is drawn by the SAME RULE, which is the design
+     * rather than a shortcut. The face is withheld for the reason a booked bib's is: the
+     * inverted face is what an earned patch looks like and neither of these is one.
      *
-     * THAT IDENTITY IS THE DESIGN, NOT A SHORTCUT, and it is what a third face would have
-     * cost. A mid-tone "ghosted" ground was drawn and rejected: it needs its own token in
+     * A THIRD FACE WAS DRAWN AND REJECTED. A mid-tone "ghosted" ground needs its own token in
      * both themes, its own `--sport-on-*` pair so the mark stays legible on it, and four more
      * contrast pairs held forever by tests/patch-wall.test.ts — for a distinction the bib
-     * already draws in words. Repeating a value is cheap; a new ground is not.
+     * already draws in words. Sharing a value is cheap; a new ground is not. The two states
+     * shared these five declarations character for character in two blocks for a while, which
+     * is the same fact written twice and one edit away from being two different faces.
      *
      * SO WHAT SEPARATES THE TWO OUTLINES IS TEXT, AND DELIBERATELY ONLY TEXT. A booked bib
-     * wears `booked_label` in the meta row; this one prints `dnf_result` in the hero slot the
-     * distance would have had. That choice is what makes this state cost ZERO mode overrides
-     * below: a hatch or a perforation is `background-image`, which print discards; a heavier
-     * border or a knockout chip is colour, which forced colours replaces. Text is the one
-     * channel no rendering mode takes away, so the state survives every mode without a second
-     * drawing of it being argued and measured. The two `border-width` lists further down are
-     * joined rather than added to — a DNF is an outline and prints like one.
+     * wears `booked_label` in the meta row; a DNF prints `dnf_result` in the hero slot the
+     * distance would have had. That choice is what makes the second state cost ZERO mode
+     * overrides below: a hatch or a perforation is `background-image`, which print discards;
+     * a heavier border or a knockout chip is colour, which forced colours replaces. Text is
+     * the one channel no rendering mode takes away, so the state survives every mode without
+     * a second drawing of it being argued and measured. The two `border-width` lists further
+     * down are joined for the same reason — a DNF is an outline and prints like one.
      *
-     * IT DECLARES NO TEMPLATE OF ITS OWN, AND THAT IS LOAD-BEARING RATHER THAN TIDY. The base
-     * template's second column is `auto` and the ONLY thing that ever sits in it is
-     * `.bib-unit`, which this branch does not render (see the markup, and the note there for
-     * why a unit beside three letters would be reading as a unit of DNF). An `auto` track with
-     * no item in it resolves to zero, and nothing declares a `column-gap` — so `"value unit"`
-     * lays out identically to the `"value value"` this rule used to restate. Re-declaring it
-     * would be a second copy of the base layout that has to be edited in step with it, which
-     * is the drift the four locals above exist to prevent.
+     * NEITHER DECLARES A TEMPLATE OF ITS OWN, AND THAT IS LOAD-BEARING RATHER THAN TIDY. The
+     * base template's second column is `auto` and the ONLY thing that ever sits in it is
+     * `.bib-unit`, which a DNF does not render (see the markup, and the note there for why a
+     * unit beside three letters would read as a unit of DNF). An `auto` track with no item in
+     * it resolves to zero, and nothing declares a `column-gap` — so `"value unit"` lays out
+     * identically to the `"value value"` this rule used to restate. Re-declaring it would be a
+     * second copy of the base layout that has to be edited in step with it, which is the drift
+     * the four locals above exist to prevent.
      */
+    .bib--booked,
     .bib--dnf {
         --face: transparent;
         --ink: var(--text);
@@ -1004,11 +998,7 @@ if (recordings.length === 1) {
      * the platform's own tap flash is `--accent` at 18% and composites to 1.09:1 on an
      * inverted face, which is nothing at all.
      */
-    .bib-stub-link:focus-visible {
-        outline: 2px solid currentColor;
-        outline-offset: -1px;
-    }
-
+    .bib-stub-link:focus-visible,
     .bib-stub-link:active {
         outline: 2px solid currentColor;
         outline-offset: -1px;
@@ -1450,16 +1440,14 @@ if (recordings.length === 1) {
             background-image: none;
             border-top: 1px dashed CanvasText;
         }
-    }
 
-    @media (forced-colors: active) and (hover: hover) {
-        .bib-stub-link:hover {
+        .bib-stub-link:focus-visible {
             outline-color: LinkText;
         }
     }
 
-    @media (forced-colors: active) {
-        .bib-stub-link:focus-visible {
+    @media (forced-colors: active) and (hover: hover) {
+        .bib-stub-link:hover {
             outline-color: LinkText;
         }
     }
@@ -1480,16 +1468,14 @@ if (recordings.length === 1) {
             background-image: none;
             border-top: 1px dashed #000;
         }
-    }
 
-    @media print and (hover: hover) {
-        .bib-stub-link:hover {
+        .bib-stub-link:focus-visible {
             outline: none;
         }
     }
 
-    @media print {
-        .bib-stub-link:focus-visible {
+    @media print and (hover: hover) {
+        .bib-stub-link:hover {
             outline: none;
         }
     }
