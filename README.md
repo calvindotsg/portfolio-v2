@@ -159,6 +159,19 @@ those workflows' `if:` guards in GitHub's own expression evaluator: the deploy
 gate and the DNS apply gate respectively. Deliberately no counts in prose, of
 suites or of assertions: read them from `pnpm test`.
 
+One suite WRITES a document rather than only asserting against one:
+
+- `tests/derived-figures.test.ts` — computes the projection's derived figures at the
+  frozen reference in `tests/helpers/reference.ts` (the required rate, the rate that
+  ignores races, the observed and de-raced paces, and a census of the days where
+  rounding to nearest would under-state the requirement) and holds
+  `src/lib/derived-figures.md` against them. Those figures used to be typed into a
+  comment where nothing could check them, and every one of them except the ceiled required
+  rate was wrong at once with the suite green; regenerate with `pnpm test -u`, spelled
+  `pnpm test:update` in `package.json`, and read the diff. It also writes down what each
+  figure MEANS, which is what a reader reverse-engineering one from a shipped value has
+  no way to recover.
+
 A suite that MOCKS A MODULE gets a file of its own, and `clock-split` and
 `llms-dnf-fixture` are why that rule is written down rather than assumed. Both
 forge a fact the live data does not currently hold — a bot stamp lagging the build
