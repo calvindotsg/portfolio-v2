@@ -1,6 +1,7 @@
 import {describe, expect, it, vi} from "vitest";
 
-import type {Goal, RaceEvent} from "../src/lib/constants";
+import type {Goal} from "../src/lib/constants";
+import type {RaceEvent} from "../src/lib/race";
 
 /**
  * THE GATE ON THE CLOCK SPLIT ITSELF, AND IT LIVES IN ITS OWN FILE BECAUSE IT HAS TO MOCK

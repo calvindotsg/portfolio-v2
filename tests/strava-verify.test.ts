@@ -1,6 +1,7 @@
 import {beforeAll, describe, expect, it} from "vitest";
 
-import {EVENTS, raceKm, type RaceEvent, type Recording, recordingsOf} from "../src/lib/constants";
+import {EVENTS} from "../src/data/races";
+import {raceKm, type RaceEvent, type Recording, recordingsOf} from "../src/lib/race";
 
 /**
  * EVERY RECORDED ROW IN `EVENTS`, HELD AGAINST THE ACTIVITY IT NAMES.

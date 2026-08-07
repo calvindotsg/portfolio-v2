@@ -5,9 +5,12 @@ import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
 import {
-    EVENTS, GOAL_YEAR, goalForSport, GOALS, NEW_TAB_NOTICE, PATCHES, raceKm, type RaceEvent,
-    type Recording, recordingKm, recordingsOf, type Sport, stravaActivityUrl,
+    GOAL_YEAR, goalForSport, GOALS, NEW_TAB_NOTICE, PATCHES, type Sport,
 } from "../src/lib/constants";
+import {EVENTS} from "../src/data/races";
+import {
+    raceKm, type RaceEvent, type Recording, recordingKm, recordingsOf, stravaActivityUrl,
+} from "../src/lib/race";
 import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
 } from "../src/lib/projection";
