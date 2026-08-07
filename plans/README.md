@@ -99,139 +99,27 @@ hand-managed records. They are in git. What the plan did *not* anticipate is the
 redirect rules WP5 had created the day before; `dns/config.yaml` turns it off and
 `dns/test_filters.py` executes both settings to show the difference.
 
-## Baseline: what this repo is now (verified at `f129245`, updated after run 2 at `1f06c27`, re-verified for run 3 at `4e15674`, re-measured for run 4 at `45e286f`)
+## Baseline: what this repo is now
 
-Run-3 corrections to the table below (audit at `4e15674`, final state after
-plan 014's merge `b7439e7`): **tests are now 64 assertions** (still 3 files:
-58 at audit time after PRs #41/#42, +6 across plans 011–014), `GOALS` has two
-entries (cycling + running), and `<main>` renders 8 direct children.
-Everything else in the table still holds — spot-checked: `pnpm check` 0
-errors/2 hints, `pnpm eslint` clean, build green, 18 direct dependencies,
-zero external JS files, zero `<svg>`, and now zero emoji (test-locked).
-Post-run-3 correction (plan 015, merged `a4b419b`): the suite is now **67
-assertions**, and the two `GOALS[].current_progress` values are bot-owned — a
-daily workflow writes `src/data/strava-progress.json`, so they are no longer
-hand-edited in `constants.ts` (`total_goal` and `progress_last_year` still are).
-Later maintainer-direct fixes (PRs #57–#60 and the control-geometry fix) have
-landed without updating the numbers above, so treat **every assertion count AND
-every page-weight figure in this file as unverified** — including the run-3
-stylesheet figures in the paragraph below, which no longer match a build of the
-revision they claim to describe. Read counts from `pnpm test`: **109** as of the
-control-geometry, page-fit and Strava-naming fixes, across **6** files
-(`tests/control-geometry.test.ts` and `tests/page-fit.test.ts` are new;
-`tests/helpers/css.ts` is a shared non-test module and is not counted). It was
-already 91 before those fixes, i.e. the "67" above went stale independently of
-them. Neither consumed a plan number — both came straight from the maintainer and
-were implemented and verified in one session, so numbering still continues at
-`016`. What they changed: the nine styled controls are one declared 64x48 box and
-the second `control` variant is gone; `<body>`'s viewport height became a
-*minimum* rather than an exact height, which had been compressing the two-column
-grid between 768px and 1023px until four of the eight cards clipped content that
-no scrollbar could reach (98.45px off the intro card at 768x900, measured against
-each card's padding box; pre-existing since before the control work). The same
-lock broke the large breakpoint too, which the first pass missed: `main` carries a
-736px floor, so on a shorter viewport the exact-height body could not contain it
-and the centring pushed the overflow above the scroll origin — 44px of the first
-card unreachable at 1024x600, 94px at 1024x500, at every width up to 1920. Both
-ranges are clean now. Also in this change: the Strava URL, which had been written
-out three times in
-`constants.ts` with three different accessible names attached, is now one
-`STRAVA` constant, so the three controls pointing at it announce one name; and
-`public/preview.jpg` was regenerated from the current build (it had still been
-showing the pre-icon-migration emoji greeting). The 64x48 control box was
-deliberately left as it is rather than squared off to 48x48 — both clear WCAG
-2.5.5 AAA, so that choice is aesthetic and the reasoning is recorded in
-`uno.config.ts`. Page weight **over the wire**, deploy
-preview 61 against production, both served `content-encoding: br` (confirmed, not
-assumed), five samples each and all five identical on both origins: stylesheet
-6,842 → 6,738 B (**−104**), markup 3,244 → 3,360 B (**+116**), net **+12 B**.
-Read that net as *neutral rather than a cost*, because production's compressed
-markup measured **3,277 B** earlier the same day and 3,244 B later for
-byte-identical content on an unchanged `main` — a 33 B cross-session swing in the
-stored artifact, wider than the delta being reported. The stylesheet's −104 B is
-outside that band and is attributable: the sheet lost five selectors and gained
-one. Local `gzip -9` of the same builds disagrees in both magnitude and, on the
-markup component, direction — brotli compresses the added class tokens far worse
-than gzip — which is why only the transfer number is quoted here, and why a
-single sample of it is not enough.
+Re-measured at `45e286f` (2026-07-29) and updated in place since. **Read every
+figure below as of that measurement and re-derive anything you intend to rely on**
+— this section has gone stale under its own heading four times, once carrying a
+chain of four superseded assertion counts (277 → 362 → 402 → 410) against a real
+451. Nothing here is gated for its VALUES: `tests/docs-drift.test.ts` resolves the
+names in backticks and is structurally blind to a quoted number.
 
-Page weight after run 3: `dist/index.html` 15,735 B raw / **3,533 B gzip**;
-the single stylesheet 24,138 B raw / **7,055 B gzip** (up ~1.1 KB gzip from
-run 2 — the 8 migrated icons each embed an SVG mask data-URI; the emoji they
-replaced were "free" glyphs from system fonts; accepted as the cost of the
-mandated migration).
+The commands are one line each: `pnpm test` for the suite, `pnpm check` and
+`pnpm eslint` for the gates, `wc` and a local `gzip -9` or a production `curl`
+with `content-encoding: br` confirmed for weight. What is worth recording here is
+the SHAPE — one test file per gated concern, all of them run by that one command
+— not the integer. **Do not add the next figure to a running list; replace it.**
 
-**One Strava link, brand-ink heart, toggle state (2026-07-26, maintainer-direct,
-no plan number — numbering still continues at `016`).** Four changes, suite
-**109 → 122** across the same 6 files:
-
-1. **The two goal cards' calls to action are gone**, leaving the intro card's
-   social link as the site's only Strava control. Both pointed at the same profile
-   that link already reaches, and a logged-out visitor meets a login wall at it
-   either way — verified: 25 sport-scoped path shapes all 404 or redirect to
-   `/login`, and `?activity_type=Run` and `=Ride` serve the same page. `GOALS[]`
-   lost `website_url`, `cta_label` and `cta_logo` with them. This partly supersedes
-   the Strava-naming work described above: that made three controls announce one
-   name, and there is now one control to name. The paragraph above is left as
-   written because it records what that change did at the time.
-2. **The footer heart takes a new `--brand-ink` token** instead of inheriting the
-   body text colour — `#A82334` on light at 6.519:1, `#F3A3AA` on dark at 9.075:1,
-   both measured against the card background the glyph actually sits on. The token
-   sits on a wrapper around the glyph, not on the glyph: an icon's own rule sets
-   `color: inherit` at the same specificity as a colour utility, so on the same
-   element the winner is decided by emission order alone. `ProgressBar.astro`
-   already colours its icon from an ancestor for the same reason.
-3. **The theme toggle reports its state** via `aria-pressed`, kept in step by the
-   script that already existed, with one state-independent name in `constants.ts`.
-   The inert `aria-live` and the duplicate `aria-label` are gone. A per-theme
-   changing name was built first and rejected on measurement, not taste: WAI-ARIA
-   sanctions either but forbids both together, and Sarah Higley's screen-reader
-   survey found a name change announced in roughly half of reader/browser
-   combinations against `aria-pressed` in all of them. **Residual, deliberate:**
-   nothing announces at the moment of the press beyond what `aria-pressed` gives —
-   a real live region would need JS and an extra element, out of proportion here.
-4. **The athlete-id coupling note now lives in one place**, `README.md`'s
-   Configuration section, with a pointer beside the constant rather than a second
-   copy of the explanation.
-
-Two assertions changed shape rather than being deleted. The name↔destination
-bijection tests had non-vacuity guards satisfied *by* the three Strava anchors, so
-removing two of them made both guards unsatisfiable. Deleting the tests would have
-dropped the invariant; keeping the guards would have gone red for a reason
-unrelated to the rule. They now assert against the rendered page and take their
-evidence-of-working from a two-anchor fixture instead — a positive control rather
-than a coverage claim. A separate assertion pins the decision itself: the page
-links to Strava exactly once.
-
-A fresh audit should start from these facts rather than re-deriving them, and
-should re-check any it intends to rely on.
-
-**Run-4 re-baseline (2026-07-29, measured at `45e286f`).** Every count in the
-history above had gone stale again by run 4 — the `/patches` patch wall, the
-projection model, and the SC 1.4.12 work all landed maintainer-direct after
-run 3 with no plan numbers. Measured fresh (`pnpm test`; `wc`; local
-`gzip -9`; production `curl` with `content-encoding: br` confirmed, three
-identical samples per URL):
-
-- Suite: **277 assertions, 10 test files** plus `tests/helpers/{css,pages}.ts`
-  and `tests/setup/build.ts`; `pnpm test` builds `dist/` first and runs in ~3 s.
-- Pages: **4 prerendered** — `/`, `/patches`, `/patches/cycling`,
-  `/patches/running` (one rest-parameter route builds the three patch pages).
-  *(`/404` landed after this measurement; the table below carries the current
-  figure, as it does for every row here.)*
-- Source: 14 `.astro` files; `src/lib/{constants,projection,icons}.ts` at
-  839/587/9 lines; `uno.config.ts` **506 lines**, most of it measured rationale.
-- Page weight, local gzip -9 / production brotli: `/` 6,575 / 6,167 B;
-  `/patches` 4,011 / 3,717 B; `/patches/cycling` 3,912 / 3,642 B;
-  `/patches/running` 3,620 / 3,359 B; shared stylesheet `projection.*.css`
-  7,198 / 6,798 B; patches-only stylesheet 1,488 / 1,392 B. A cold `/patches`
-  visit is ~11.9 KB brotli total, zero external first-party JS.
-- Gates at `45e286f`: `pnpm check` 0 errors / 2 hints; `pnpm eslint` clean;
-  `pnpm audit` **1 moderate + 2 high** (movement since run 3 — see the table
-  row below and plan 017).
-
-The table below is updated in place to these values; the run-2/3 prose above
-is left as written because it records what was true when it was measured.
+Four maintainer-direct changes landed between runs with no plan number, and the
+numbering still continues at `018`: the control-geometry and page-fit fixes, one
+Strava link with a brand-ink heart and a toggle reporting `aria-pressed`, the
+`/patches` wall with its projection model, and the SC 1.4.12 text-resize work.
+Each is written up where it can be checked — in `plans/done/` and in the source
+comments beside the code it changed — rather than re-narrated here.
 
 | | value |
 |---|---|
@@ -242,7 +130,7 @@ is left as written because it records what was true when it was measured.
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
 | components | 15 `.astro` files (11 components, 1 layout, 3 page routes → **5 prerendered pages**: `/`, `/patches`, `/patches/cycling`, `/patches/running` and `/404`, plus the `robots.txt` and `llms.txt` endpoints); **no UI framework**, no `.svelte`, no islands |
 | `uno.config.ts` | 726 lines — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale |
-| tests | **277** assertions, 10 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`. **Now 362 in 12 files** — measured 2026-07-30 on the commit that deleted `netlify.toml` (`git log --diff-filter=D -- netlify.toml`), read off `pnpm test` rather than counted. The two new files are `clock-split` (the `BUILD_DATE`/`UPDATED_AT` split) and `workflow-guards` (the deploy gate, executed rather than read). **Now 402 in 13 files** — measured 2026-07-31 off `pnpm test` after rebasing onto #113, whose three new assertions are included; the new file is `dns-config` (the DNS workflow's guards, also executed). **Now 410 in 14 files** — the new file is `docs-drift`, which asserts this repository's prose against its code. It splits the documentation by kind: a current-state document (this table included) is gated for accuracy, while `.devin/wiki.json` — a standing instruction read on every future generation — is gated for *durability*, i.e. forbidden from stating a count, a component filename or an exported constant at all, and required to say where each is derived instead. That file is where the rot was worst, and the fix was to delete the facts rather than to pin them. **DO NOT ADD THE NEXT FIGURE TO THIS RUNNING LIST — DERIVE IT.** The chain above went stale again (it read "410 in 14 files" against a real 451), and it will rot on every PR that adds an assertion, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The count is one command: `pnpm test`. What is worth recording here is the SHAPE — one file per gated concern, all of them run by that one command — not the integer. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
+| tests | **475** assertions across 16 files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, measured 2026-08-07; a further 7 in `tests/strava-verify.test.ts` are opt-in and skip by default. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it by kind — a current-state document (this table included) is gated for accuracy, while `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*: forbidden from stating a count, a component filename or an exported constant at all, and required to say where each is derived instead. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
 | `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up. **Run 4: now 1 moderate + 2 high** — both highs are brace-expansion GHSA-mh99-v99m-4gvg on dev-only lint paths; plan 017 clears one in-range and documents the other as a second deliberate residual (no patched 1.x exists; the override is measured-broken). **`@netlify/otel` survived the cutover and always would have**: it arrives as `astro` → `unstorage` → `@netlify/blobs`, so it is an Astro dependency and has nothing to do with where the site is hosted — leaving Netlify does not clear it |
 | deploy gate | **Changed after run 4.** `.github/workflows/ci.yml` — a `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test`, uploads `dist/`, and two `wrangler pages deploy` jobs sit behind `needs: build` and publish that same artifact without rebuilding. It replaced `netlify.toml` running `pnpm check && pnpm test`; that file and the Netlify project are both deleted. `tests/workflow-guards.test.ts` is what holds the `needs:` edge |

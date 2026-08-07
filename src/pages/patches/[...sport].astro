@@ -375,9 +375,8 @@ const description = goal === undefined
      * not appear to reproduce Chromium's actual forced-colors PAINTING; with it on, the
      * rendering is identical whether this line is present or absent, and a probe that
      * deliberately sets the ink to the surface colour still reports the label visible.
-     * So the one measurement quoted in an earlier draft of this comment (1586 pixels of
-     * a single colour) came from a probe that was sampling a rectangle the viewport
-     * resize had moved, and it is withdrawn rather than repeated.
+     * A measurement of 1586 pixels of a single colour has been quoted for this and is
+     * WITHDRAWN: the probe was sampling a rectangle the viewport resize had moved.
      *
      * The line stays anyway, and that is a deliberate call rather than deference: it is
      * the documented way to keep a colour pair you have chosen on purpose, it costs one

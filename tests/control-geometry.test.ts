@@ -362,9 +362,8 @@ describe("every styled control declares its box", () => {
         // anchors already shipped 46px tall. 48 also lands exactly on Android's and
         // Material's 48dp recommendation and above Apple's 44pt.
         //
-        // CORRECTION to an earlier version of this comment, which claimed 48px
-        // "clears the 48-CSS-px finger Lighthouse's tap-target audit uses": that
-        // audit no longer exists. `tap-targets`, with its `FINGER_SIZE_PX = 48`,
+        // DO NOT JUSTIFY 48 WITH "the 48-CSS-px finger Lighthouse's tap-target audit
+        // uses": that audit no longer exists. `tap-targets`, with its `FINGER_SIZE_PX = 48`,
         // was deleted in Lighthouse v12.0.0 (commit acfd1fb5ea, 2024-04-01) and
         // replaced by the axe-backed `target-size` audit, which measures bounding
         // rects against 24px. So no shipping tool checks 48 — the AAA number 44 is
@@ -447,11 +446,11 @@ describe("every styled control declares its box", () => {
             // only to decide whether a further assertion applied, so deleting the token would
             // have made that assertion vanish rather than fail.
             //
-            // (An earlier draft of this comment said "the cycling label measured 418px". Both
-            // halves were wrong: 418 does not reproduce by any route, and the number is a
-            // CONTROL height, not a label height. It came from EventsLink.astro on origin/main,
-            // where it was written as "the same label" without naming a card, and restating it
-            // here newly pinned it to the one card it does not match.)
+            // (418px is NOT "the cycling label" and is not a label at all: it does not
+            // reproduce by any route as one, it is a CONTROL height, and it comes from
+            // EventsLink.astro on origin/main where it was written as "the same label"
+            // without naming a card. Restating it here pins it to the one card it does not
+            // match.)
             expect(
                 box.wraps,
                 `.${box.cls} must let its children wrap. A label comes from data and grows with the `
@@ -992,8 +991,8 @@ describe("every styled control declares its box", () => {
      * TWO THINGS THIS DELIBERATELY NO LONGER ASSERTS, both consequences of the change
      * rather than omissions.
      *
-     * The GAP, and READ THE WHOLE OF THIS before concluding the gap is now harmless — an
-     * earlier draft of this paragraph concluded exactly that and was wrong.
+     * The GAP, and READ THE WHOLE OF THIS before concluding the gap is now harmless. It is
+     * the conclusion the first half invites, and it is wrong.
      *
      * A column gap only separates items that SHARE a line, and a wrapping row's minimum is
      * one item on a line by itself, so the gap can make this row taller and never WIDER.
@@ -1466,9 +1465,9 @@ describe("every styled control declares its box", () => {
      * i.e. under the heading. The controls are a card's primary affordances in a grid of
      * their own and have the room; this is a supplementary link beside a heading.
      *
-     * The vertical direction is NOT a reason, and an earlier version of this note claimed
-     * it was: "at 44px the box would run down into the first line of the body copy". It
-     * would not. Measured with a 44px override injected, the heading box runs 25->53px, the
+     * THE VERTICAL DIRECTION IS NOT A REASON. "At 44px the box would run down into the
+     * first line of the body copy" is the plausible objection and it is false. Measured with
+     * a 44px override injected, the heading box runs 25->53px, the
      * 16px heading margin puts the paragraph's first line box at 69, and a 44px mark
      * starting at 25 ends at exactly 69 — it abuts the line box and clears its first ink by
      * 1px. Structurally that is not a coincidence: the mark starts at the heading's top and

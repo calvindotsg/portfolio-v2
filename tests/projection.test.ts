@@ -434,9 +434,9 @@ describe("required rate", () => {
      * character ceiling for the generated branches — and between them they force a
      * re-measurement rather than allowing a silent widening.
      *
-     * CORRECTED: an earlier revision of this comment claimed the budget was 110.02px
-     * and that `Booked races cover it` "wrapped at every viewport". Both are false,
-     * and the second was never measured — it was inferred from the first. 110.02px is
+     * 110.02px IS NOT THE BUDGET, and `Booked races cover it` does not "wrap at every
+     * viewport" — that second claim is what the first one produces when it is inferred
+     * from rather than measured. 110.02px is
      * the running card's inner `max-content` column, which is not a budget at all: it
      * WIDENS with its content (to 121.06 under that very string), and the cycling
      * card's is 125.89. Measured on the built page, `Booked races cover it` renders as

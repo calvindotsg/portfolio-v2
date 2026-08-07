@@ -61,9 +61,9 @@ import {appliesAt, decl, effectiveDecl, isKeyframeStep, maxWidthOf, minWidthOf, 
  * the second half of the fix: shared rows mean the right-hand column's row heights
  * are decided by the intro and role cards beside it, so content-sized cards inside
  * a shared row template sat 70px and 70px apart — the page gap is 16px, so the
- * problem is that they are four times too wide, not that they are unequal (an
- * earlier draft claimed 74px and 53px; reproduced on the previous revision with
- * the fix injected and no wrapper, both gaps measure 70px). That column is
+ * problem is that they are four times too wide, not that they are unequal (74px and 53px
+ * has been reported for that pair and does not reproduce: on the previous revision with the
+ * fix injected and no wrapper, both gaps measure 70px). That column is
  * therefore wrapped in its own stack (index.astro), and the three cards there sit
  * at the page gap with the leftover collecting once beneath the last of them.
  * Measured after: gaps of 16px and 16px, and 106px beneath the last card. The
@@ -237,8 +237,8 @@ describe("a card sizes to its content, not to its grid area", () => {
         // reclaim: at 1440x900 its deepest painted box ends exactly on its inner
         // edge, 0px, on both revisions. (The last-line metric the other seven
         // figures use says nothing about this card — its last line of type sits
-        // above the control row, 173px up — which is why an earlier draft's "1.5px"
-        // for it could not be reproduced by any instrument.)
+        // above the control row, 173px up — which is why a "1.5px" figure for it cannot be
+        // reproduced by any instrument.)
         expect(introCard.length, "expected exactly one card to hold the page headline").toBe(1);
         expect(cards.length, "no non-exempt cards left to assert about — the exemption has swallowed the page").toBeGreaterThan(5);
 

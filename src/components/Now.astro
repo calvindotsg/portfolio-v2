@@ -39,11 +39,10 @@ import {iconClass} from "../lib/icons";
  *
  * The token says `inline-flex`, and what the browser computes here is `flex` — the marks
  * group around it is itself a flex container, so this anchor is a flex item and is
- * blockified like its neighbours. An earlier version of this note justified the token by
- * saying a padded INLINE anchor would report a 24px target while overlapping the line
- * above it. That is true of an inline box in general and cannot happen where this anchor
- * sits, so it was the wrong reason for the right token; the token is kept because it is
- * what the box means when read on its own.
+ * blockified like its neighbours. DO NOT JUSTIFY IT with "a padded inline anchor would
+ * report a 24px target while overlapping the line above": true of an inline box in general,
+ * and it cannot happen where this anchor sits. The token is kept because it is what the box
+ * means when read on its own.
  */
 ---
 

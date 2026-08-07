@@ -136,8 +136,8 @@ const dateline = formatDateline();
  * 5px and eating the footer card's bottom padding. BE PRECISE ABOUT WHAT SCROLLS:
  * measured at both of those viewports, the text ink below the fold is ZERO. The 29px
  * is 5px of the footer card's own box plus `main`'s bottom padding, so the cost is a
- * scrollbar, not a line of copy. An earlier draft of this paragraph said only that the
- * page stops fitting, which reads as content going under the fold and overstates it. Rect-diffed against a build of the
+ * scrollbar, not a line of copy. "The page stops fitting" is the wrong summary of that —
+ * it reads as content going under the fold, and overstates it. Rect-diffed against a build of the
  * previous revision across ten lg viewports: no card moves horizontally or changes
  * width, the intro card gains 5px, the footer 14px — that is its own padding coming
  * back — and everything below the first row shifts down 5px.
@@ -222,8 +222,8 @@ const dateline = formatDateline();
              this row-span it loses actual glyphs at the DEFAULT 16px text size —
              5px at 1440x900, and 13px at every viewport whose height puts `main`
              on its 46rem floor. Those two figures belong to different
-             configurations; an earlier draft attached the 1440x900 number to the
-             floor configs and so understated this fix by 8px.
+             configurations and must not be swapped: attaching the 1440x900 number to the
+             floor configs understates this fix by 8px.
 
              The rows cost nothing because the grid already computes TEN row tracks —
              the eight explicit ones plus two implicit zero-height rows created by

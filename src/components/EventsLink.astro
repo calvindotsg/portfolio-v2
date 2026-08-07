@@ -47,10 +47,10 @@ const {goal} = Astro.props;
  * header beside a heading and a row of sport chips. Giving that one a plate too would put a 48px
  * control in a place that has no action to offer.
  *
- * FULL WIDTH IS THE HIT BOX ARGUMENT INVERTED. The old note here recorded that a column
- * flex container stretches its items, so an unpinned anchor's box was the full 182px of the
- * card for 115px of ink — 67px of blank card that navigated when clicked — and it closed
- * that with `align-self: start`. The box is deliberately the full width again, and the
+ * FULL WIDTH IS THE HIT BOX ARGUMENT INVERTED, so read the old defect before restoring the
+ * old fix. A column flex container stretches its items, so an unpinned anchor's box was the
+ * full 182px of the card for 115px of ink — 67px of blank card that navigated when clicked —
+ * and `align-self: start` closed it. The box is deliberately the full width again and the
  * defect does not return, because the box is now DRAWN: a reader can see exactly where the
  * target begins and ends. That is the bib's own idiom (Patch.astro) — the whole object is
  * the anchor and it looks like one.
@@ -94,9 +94,9 @@ const {goal} = Astro.props;
  * control's own type and the pin is the utility the allowlist names. The difference on
  * screen is 13.2px of arrow against 12; the gate is worth more than 1.2px.
  *
- * (An earlier draft of this paragraph said 1.15em and 13.8px. Neither number ever existed in
- * this repository — `1.15em` was the value in the throwaway variant rig, and a reviewer
- * caught it with `git log -S`. The shipped value on origin/main was 1.1em.)
+ * (Check a quoted value against `git log -S` before repeating it. `1.15em` and 13.8px have
+ * been attributed to this file and never existed in it — that was the throwaway variant
+ * rig's value, not what shipped on origin/main.)
  *
  * WHAT IS AUTHORED HERE AND WHY. The height, the surface and the box all come from the
  * shortcut, so what is left below is only the two things a shortcut cannot say: the
@@ -138,8 +138,8 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
      * because its own padding is font-relative too. At a 32px root the card leaves 110px and
      * the chrome wants 90 of them — 48px of horizontal padding, a 16px gap, a 24px arrow and
      * 2px of border — so 20px is left for words that want 163. A run of words spent nothing on
-     * chrome and always had the full 110. (An earlier draft of this sentence said 40px, which
-     * is not the sum of the four things the same sentence lists.)
+     * chrome and always had the full 110. (Add the four figures up rather than quoting a
+     * remembered total; 40px has been written here and is not their sum.)
      *
      * THREE THINGS FIX IT AND EACH ONE IS NECESSARY:
      *
@@ -230,8 +230,8 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
      * business would change the drawing of seven other controls in a change that was asked
      * to alter two, and that is the owner's call to make separately.
      *
-     * THE OFFSET IS 3px BECAUSE 2px IS EXACTLY FLUSH, which is the opposite of what an
-     * earlier version of this sentence claimed. The plate sits 2px down and right of the box,
+     * THE OFFSET IS 3px BECAUSE 2px IS EXACTLY FLUSH — the opposite of the intuitive reading,
+     * which is that 2px matches the plate. The plate sits 2px down and right of the box,
      * so at `outline-offset: 2px` the outline's right and bottom edges land ON the plate rather
      * than clear of it: measured in light theme, outline rgb(168,35,52) against plate
      * rgb(168,35,52) — 1.00:1, no perceivable boundary on two of the four edges. 3px leaves a
@@ -240,7 +240,7 @@ const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())
      * SO THE CONTRAST CLAIM IS A PAIR, not one number. Left and top edges sit on the card
      * (`--card-background`); right and bottom sit beside the plate (`--shadow`). Both are
      * measured in the browser sweep and both clear SC 1.4.11's 3:1 — see the PR. Quoting only
-     * the card figure, as the first draft did, certifies half the indicator.
+     * the card figure certifies half the indicator.
      */
     .events-link:focus-visible {
         outline: 2px solid var(--accent);

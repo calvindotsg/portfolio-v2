@@ -45,12 +45,10 @@ const {event, state, index} = Astro.props;
  * `toFixed(2)` IS WHAT MAKES THAT A COLUMN OF ONE KIND OF NUMBER, and the races on the
  * wall print in THREE different shapes without it: 22.45, 130.03 and 160.56
  * already carry two places, 158.10, 21.10 and 42.20 lose their trailing zero to `158.1`,
- * `21.1` and `42.2`, and 1022.00 loses the point entirely to `1022`. (An earlier revision
- * of this comment claimed all but the tour were already two-place — worth the correction
- * because it is the SINGLE-place ones that make the case: a lone bare integer reads as an
- * approximation, and a mix of one and two places reads as inconsistent precision. Which
- * races fall in which group moves with the data, so re-read the array rather than this
- * list.) The bibs do not form a column — each sits in its own grid
+ * `21.1` and `42.2`, and 1022.00 loses the point entirely to `1022`. (It is the SINGLE-place
+ * ones that make the case, not the tour alone: a lone bare integer reads as an approximation,
+ * and a mix of one and two places reads as inconsistent precision. Which races fall in which
+ * group moves with the data, so re-read the array rather than this list.) The bibs do not form a column — each sits in its own grid
  * cell at its own width — so this is not about digit alignment; it is that every bib
  * should claim the same precision about its distance.
  *
@@ -144,10 +142,9 @@ const {event, state, index} = Astro.props;
  * NO `aria-label`, ANYWHERE ON THIS BIB. Each stub link's name is the words on screen plus an
  * `sr-only` run that EXTENDS them — the race, its date, and for the results link which clock
  * its figure is. That is a true superset of what is on screen, this repo's rule; an aria-label
- * would REPLACE it with a summary. Read a name off the accessibility tree rather than
- * assembling it from this file: an earlier revision of this comment quoted one it had built by
- * hand and got the order wrong, and no assertion could see that (the guard uses `toContain`,
- * which is order-blind by construction).
+ * would REPLACE it with a summary. READ A NAME OFF THE ACCESSIBILITY TREE rather than
+ * assembling it from this file: a hand-built one gets the order wrong and no assertion can
+ * see that, because the guard uses `toContain`, which is order-blind by construction.
  *
  * THE CALL TO ACTION IS THE LAST THING ON THE BIB, which is the position it should always have
  * had. It used to sit in the meta row as an `sr-only` transcription of a glyph, so a listener
@@ -469,10 +466,9 @@ if (recordings.length === 1) {
      *
      * The holes are removed explicitly rather than left to disappear on their own.
      * They would: --hole is --card-background and the face is transparent, so they
-     * paint card-on-card and vanish. Note the hazard that is NOT the reason — an
-     * earlier revision of this comment claimed re-toning --card-background would put
-     * grey dots on a booked bib, and it cannot: the hole and the surface behind the
-     * bib are the SAME token, so they re-tone together. The real reason is that the
+     * paint card-on-card and vanish. Note the hazard that is NOT the reason — re-toning
+     * --card-background CANNOT put grey dots on a booked bib, because the hole and the
+     * surface behind the bib are the SAME token and re-tone together. The real reason is that
      * coincidence holds only while a bib sits on a card. Put one on any other surface
      * — the page background, a tinted panel — and four dots appear on a bib that is
      * meant to have none, with nothing in the source saying they were ever drawn.
@@ -666,10 +662,9 @@ if (recordings.length === 1) {
      * the viewport: `30cqi` reads the bib's own inline size, so what the number is
      * proportional to is the box it is printed on and not the window.
      *
-     * WHICH OF THE TWO TERMS ACTUALLY BINDS — measured, because an earlier revision of
-     * this comment guessed and guessed wrong. It advertised a phone's one-column bib
-     * and "a four-column wall on a desktop" printing at the same proportion; neither
-     * half survives measurement.
+     * WHICH OF THE TWO TERMS ACTUALLY BINDS — measure it, do not reason about it. The
+     * plausible reading, that a phone's one-column bib and a four-column desktop wall print
+     * at the same proportion, is wrong in both halves.
      *
      *   at a 16px root   the 3rem cap binds at EVERY width from 320 to 3840, so the hero
      *                    is a constant 48px across the whole range. (It used to carve out

@@ -55,12 +55,12 @@ import {BUILD_DATE} from "./today"
  * different: it says "when this was written" and its 318.72 / 1,143.98 / +144 / −96 are
  * that moment's, kept as the measurement that settled the design.)
  *
- * THEY DRIFT WITH `EVENTS`, NOT ONLY WITH THE BOT, and an earlier revision of this warning
- * said only "the bot". That is exactly how they went stale in silence: adding races moved
- * four of them while the stamp they were pinned to stayed put, so the disclaimer went on
- * reading as though it still covered them, and a reader following its own re-derive
- * instruction would have got different numbers. **If you change a race, re-derive this
- * block** — and note that it is ungated, like every measurement in this repo.
+ * THEY DRIFT WITH `EVENTS`, NOT ONLY WITH THE BOT. That second half is how they went stale
+ * in silence once: adding races moved four of them while the stamp they were pinned to
+ * stayed put, so a disclaimer naming only the bot went on reading as though it still
+ * covered them, and a reader following its own re-derive instruction would have got
+ * different numbers. **If you change a race, re-derive this block** — and note that it is
+ * ungated, like every measurement in this repo.
  *
  * ---
  *
@@ -264,8 +264,8 @@ export function bookedAhead(sport: Sport, iso: string, events: readonly RaceEven
         // unrecorded: a row carrying `recordings` without an `elapsed_time` is booked too
         // (`hasRecording` needs both), and there `raceKm` returns the distance derived from
         // the metres. Both are the best figure that row holds, which is why one reader of
-        // the distance beats two. An earlier revision of this comment claimed every race
-        // reaching here is unrecorded; a review panel found that false twice over.
+        // the distance beats two. NOT every race reaching here is unrecorded — that reading
+        // was found false twice over, and it is what a single-reader shortcut rests on.
         const booked = raceKm(e)
         if (!Number.isFinite(booked) || booked < 0) continue
         const start = parseIsoDate(e.date)
@@ -363,10 +363,10 @@ export function goalStatus(goal: Goal, iso: string = UPDATED_AT, events: readonl
  *     Races cover it          78.78
  *     Goal met                50.22
  *
- * BE CAREFUL WHICH BOX YOU MEASURE — an earlier revision of this comment got it
- * wrong and stated the budget as 110.02px. That figure is the RUNNING card's inner
- * `max-content` column, which is not a budget at all: it widens with its own
- * content, and the cycling card's is 125.89px. The same error carried a claim that
+ * BE CAREFUL WHICH BOX YOU MEASURE. 110.02px is NOT the budget, though it is the
+ * figure most easily reached for: it is the RUNNING card's inner `max-content` column,
+ * which is not a budget at all — it widens with its own content, and the cycling card's
+ * is 125.89px. Reading that box also supports a claim that
  * `Booked races cover it` "wraps at every viewport"; it does not — measured on the
  * built page it is ONE line at 1024/1100/1152/1440 with the card height unchanged
  * at 226 and no overflow. The shorter wording below ships because it is plainer,
@@ -497,7 +497,7 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * ask the recording, and keep the clock for races that have none.
  *
  * BOTH WAYS STAY IN STEP WITH THE PROJECTION *GIVEN ONE DAY*, and the qualifier is
- * load-bearing — an earlier draft of this paragraph left it out and was simply false.
+ * load-bearing: the sentence is simply false without it.
  * `bookedAhead` answers the same "has this happened yet" for the goal cards, one click
  * away, so it skips a race with a recording and shares the `today > end` comparison for
  * every other. A wall that calls the Formosa tour finished while the cycling card still
