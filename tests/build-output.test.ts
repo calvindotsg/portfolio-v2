@@ -3,9 +3,10 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {
-    CAREER, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, WELCOME,
-} from "../src/lib/constants";
+import {CAREER, PROJECTS, WELCOME} from "../src/content/home";
+import {PATCHES} from "../src/content/races";
+import {FOOTER, LINKS, METADATA} from "../src/content/site";
+import {GOALS} from "../src/lib/goal";
 import {EVENTS} from "../src/data/races";
 import {raceKm, recordingsOf} from "../src/lib/race";
 import stravaProgress from "../src/data/strava-progress.json";
@@ -369,7 +370,7 @@ describe("dist/", () => {
          * care either way: if such a race is entered, this simply stops being the ONLY thing
          * exercising the snap.
          *
-         * `tests/constants.test.ts` guards the snap inside `raceKm` with a synthetic fixture for
+         * `tests/content.test.ts` guards the snap inside `raceKm` with a synthetic fixture for
          * exactly this reason. This is the mirror's half, and it has to be a HAND-COMPUTED
          * figure rather than a second call to `raceKm` — the moment this asks `raceKm` what the
          * answer is, the oracle stops being independent and the gate below means nothing.

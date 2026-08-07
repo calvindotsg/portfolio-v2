@@ -2,7 +2,9 @@
 import Layout from "../../layouts/BasicLayout.astro";
 import Card from "../../components/Card/index.astro";
 import Patch from "../../components/Patch.astro";
-import {GOALS, goalForSport, METADATA, NEXT_RACE, PATCHES, type Sport} from "../../lib/constants";
+import {NEXT_RACE, PATCHES} from "../../content/races";
+import {METADATA} from "../../content/site";
+import {GOALS, goalForSport, type Sport} from "../../lib/goal";
 import {patchWall} from "../../lib/projection";
 import {iconClass} from "../../lib/icons";
 

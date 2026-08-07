@@ -1,5 +1,5 @@
 /**
- * Maps an Iconify id (`collection:name`, as stored in `src/lib/constants.ts`) to
+ * Maps an Iconify id (`collection:name`, as stored in `src/content/`) to
  * the UnoCSS `presetIcons` utility class that renders it.
  *
  * Both the `safelist` in `uno.config.ts` and the components that render icons

@@ -1,7 +1,7 @@
 import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
-import {WELCOME} from "../src/lib/constants";
+import {WELCOME} from "../src/content/home";
 import {contrast, over} from "./helpers/contrast";
 import {pageCss} from "./helpers/css";
 

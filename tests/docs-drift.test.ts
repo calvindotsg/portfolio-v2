@@ -58,7 +58,7 @@ import unoConfig from "../uno.config";
  *      real set from the code and require the document to name every member.
  *   3. COUNTS — "four shortcuts". Derive the number, then require the document to
  *      contain the phrase it belongs to, spelled out. This is the mechanism
- *      `tests/constants.test.ts` already uses to keep `METADATA.description` naming
+ *      `tests/content.test.ts` already uses to keep `METADATA.description` naming
  *      each goal's target figure: everything around the phrase is free prose, the
  *      number is not. Parsing prose instead invites a gate that is right about
  *      grammar and wrong about facts.

@@ -29,8 +29,8 @@ Adding one is a change to what the home page claims, not a quiet data edit.
 **A past race moves no figure on the home page.** `eventsInYear` in `src/lib/projection.ts`
 hands a goal card only the races that start in `GOAL_YEAR`, and a finished race's kilometres
 are already inside the bot's total, so filling in the back catalogue only draws bibs on the
-wall. That is the half of this rule the old note in `src/lib/constants.ts` stated on its own,
-which is why it read as though a race were always just a data edit.
+wall. That is the half of this rule the note this replaced stated on its own, which is why it
+read as though a race were always just a data edit.
 
 ## Recording a race you have just run is TWO steps, and the order depends
 

@@ -4,9 +4,10 @@ import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
-import {
-    GOAL_YEAR, goalForSport, GOALS, NEW_TAB_NOTICE, PATCHES, type Sport,
-} from "../src/lib/constants";
+import {PATCHES} from "../src/content/races";
+import {NEW_TAB_NOTICE} from "../src/content/site";
+import {GOAL_YEAR} from "../src/data/goals";
+import {goalForSport, GOALS, type Sport} from "../src/lib/goal";
 import {EVENTS} from "../src/data/races";
 import {
     raceKm, type RaceEvent, type Recording, recordingKm, recordingsOf, stravaActivityUrl,

@@ -1,5 +1,7 @@
 import stravaProgress from "../data/strava-progress.json"
-import {GOAL_YEAR, type Goal, NEXT_RACE, type Sport} from "./constants"
+import {NEXT_RACE} from "../content/races"
+import {GOAL_YEAR} from "../data/goals"
+import type {Goal, Sport} from "./goal"
 import {EVENTS} from "../data/races"
 import {type RaceEvent, raceKm, recordingsOf} from "./race"
 import {BUILD_DATE} from "./today"

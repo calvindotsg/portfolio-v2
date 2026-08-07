@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest";
 
-import type {Goal} from "../src/lib/constants";
+import type {Goal} from "../src/lib/goal";
 import type {RaceEvent} from "../src/lib/race";
 
 /**

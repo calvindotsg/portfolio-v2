@@ -45,7 +45,7 @@ import {raceKm, type RaceEvent, type Recording, recordingsOf} from "../src/lib/r
  *
  * Credentials come from the environment, never from this file and never from a secret
  * store read in here: the repo's rule is that a configurable value lives in a GitHub
- * secret, a GitHub variable or `src/lib/constants.ts`, and `scripts/fetch-strava-progress.mjs`
+ * secret, a GitHub variable or the repository's own content, and `scripts/fetch-strava-progress.mjs`
  * reads the same four names. Locally they can come out of 1Password —
  * `op read 'op://Personal/calvindotsg-strava/refresh_token'` and its siblings — which is
  * where the workflow's own comment says the durable copies are.

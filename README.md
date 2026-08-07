@@ -79,24 +79,33 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 
 ## Configuration
 
-1. Update your personal details in `src/lib/constants.ts` — links, career,
-   projects, about, both goals (cycling and running), the next-race countdown,
-   the patch wall's and the 404 page's copy, footer and SEO metadata.
-   The races are not in that file: they are one module each under
-   `src/data/races/`, so adding one is writing a file rather than editing a list.
-   The procedure for adding a race, and every field a race may carry, are in
-   `src/data/races/README.md` — read that rather than this, because it sits beside
-   the data and is gated against `src/lib/race.ts` in both directions.
+1. Update your personal details under `src/content/` and `src/data/`, which are
+   split by KIND rather than by page, so each is found by looking where its kind
+   lives:
+   - `src/content/home.ts` — the home page's cards: the welcome lines, the about
+     bullets, the career entries and the open-source list.
+   - `src/content/site.ts` — the copy every page wears plus the 404 page: the
+     social links, the theme toggle's name, the footer and the SEO metadata.
+   - `src/content/races.ts` — the racing copy: the patch wall's prose and the
+     next-race countdown with the control beneath it.
+   - `src/data/goals.ts` — both goals (cycling and running): the targets, the
+     names, the icons and the units. `src/lib/goal.ts` is what the cards read,
+     and it derives everything there from this.
+   - `src/data/races/` — one module per race, so adding one is writing a file
+     rather than editing a list. The procedure for adding a race, and every field
+     a race may carry, are in `src/data/races/README.md` — read that rather than
+     this, because it sits beside the data and is gated against `src/lib/race.ts`
+     in both directions.
 2. Modify the `site` and other relevant properties in `astro.config.mjs`.
 3. The goals' `current_progress` figures are the one exception: they are
    bot-owned. A daily GitHub Actions run
    (`.github/workflows/strava-progress.yml`) writes Strava's year-to-date ride
-   and run totals to `src/data/strava-progress.json`, which `constants.ts`
+   and run totals to `src/data/strava-progress.json`, which `src/data/goals.ts`
    imports. Its only inputs are the `STRAVA_ATHLETE_ID` and `STRAVA_CLIENT_ID`
    repository *variables* and the `STRAVA_CLIENT_SECRET` and
    `STRAVA_REFRESH_TOKEN` repository *secrets* — the script holds no
    configuration of its own. To bump a figure by hand, edit that JSON rather
-   than `constants.ts`; `total_goal` stays in `constants.ts` and caps the
+   than the goal; `total_goal` stays in `src/data/goals.ts` and caps the
    displayed figure.
 
    The variable/secret split follows the one test: **does the value ship
@@ -109,8 +118,8 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
 
    Note that the athlete id appears in two of the three sanctioned homes, for two
    different jobs: the `STRAVA_ATHLETE_ID` variable decides *whose kilometres* are
-   fetched, and the `STRAVA_PROFILE_URL` constant in `constants.ts` decides *where
-   the site's Strava link goes*. Changing accounts means editing both. Updating only
+   fetched, and the `STRAVA_PROFILE_URL` constant in `src/content/site.ts` decides
+   *where the site's Strava link goes*. Changing accounts means editing both. Updating only
    the variable publishes the new athlete's distances while the link still points at
    the old profile, and nothing in the build or the suite can catch that.
 4. Analytics is the `UMAMI_ID` repository *variable*, read at build time by
@@ -143,14 +152,15 @@ that carry most of the weight:
 
 - `tests/rendered-html.test.ts` — renders `src/pages/index.astro` in-process with
   Astro's Container API and asserts on the result: page title, meta description,
-  canonical link, the JSON-LD block, and that every entry in
-  `src/lib/constants.ts` (welcome lines, about bullets, career entries and dates,
-  links, goal figures, the Now card, footer) reaches the page.
-- `tests/constants.test.ts` — data invariants for `src/lib/constants.ts`: link
-  URLs are absolute or root-relative, icon names come from an installed Iconify
-  collection, each goal's figures are finite and within range, and the SEO title
-  and description stay within useful lengths — the description has to name every
-  goal's target, which is the gate a 3000km-vs-5000km drift bought.
+  canonical link, the JSON-LD block, and that every entry under `src/content/`
+  (welcome lines, about bullets, career entries and dates, links, the Now card,
+  footer) and every goal figure reaches the page.
+- `tests/content.test.ts` — data invariants for the copy under `src/content/`,
+  the goals in `src/data/goals.ts` and what `src/lib/goal.ts` derives from them:
+  link URLs are absolute or root-relative, icon names come from an installed
+  Iconify collection, each goal's figures are finite and within range, and the SEO
+  title and description stay within useful lengths — the description has to name
+  every goal's target, which is the gate a 3000km-vs-5000km drift bought.
 - `tests/build-output.test.ts` — asserts on what `pnpm build` actually emits into
   `dist/`: `robots.txt` pointing at the sitemap, the sitemap index, zero external
   JavaScript, no serverless function, and the public assets the page links to.

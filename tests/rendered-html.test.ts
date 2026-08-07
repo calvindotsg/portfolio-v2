@@ -3,7 +3,10 @@ import {parseHTML} from "linkedom";
 import {beforeAll, describe, expect, it} from "vitest";
 
 import Index from "../src/pages/index.astro";
-import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NEW_TAB_NOTICE, NEXT_RACE, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
+import {ABOUT_ME, CAREER, NOW, WELCOME} from "../src/content/home";
+import {NEXT_RACE} from "../src/content/races";
+import {FOOTER, LINKS, METADATA, NEW_TAB_NOTICE, THEME_TOGGLE} from "../src/content/site";
+import {GOALS} from "../src/lib/goal";
 import {nextRace, nextRaceLine, patchesEarned} from "../src/lib/projection";
 import {decl, isStateful, pageCss, parseRules, structuralSelector} from "./helpers/css";
 import {iconClass} from "../src/lib/icons";

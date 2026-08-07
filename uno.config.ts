@@ -1,6 +1,9 @@
 import {defineConfig, presetIcons, presetWind3} from "unocss";
 
-import {CAREER, FOOTER, GOALS, LINKS, NEXT_RACE, NOT_FOUND, NOW, PATCHES, WELCOME} from "./src/lib/constants";
+import {CAREER, NOW, WELCOME} from "./src/content/home";
+import {NEXT_RACE, PATCHES} from "./src/content/races";
+import {FOOTER, LINKS, NOT_FOUND} from "./src/content/site";
+import {GOALS} from "./src/lib/goal";
 import {iconClass} from "./src/lib/icons";
 
 export default defineConfig({
