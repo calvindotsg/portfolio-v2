@@ -331,9 +331,9 @@ const schema = {
      *
      * That is not a hypothetical trap. It is exactly how --brand-ink came to sit at
      * 2.77:1 on a dark face earlier in this project: a token chosen against the card
-     * and then painted on ink. The convention that surfaces it is the one
-     * --on-brand already established — a `-on-` name states the surface it was chosen
-     * against, and a token without one is for the card.
+     * and then painted on ink. The convention that surfaces it is the one the retired
+     * progress-bar ink token established — a `-on-` name states the surface a token was
+     * chosen against, and a token without one is for the card.
      *
      * Held to the 4.5:1 TEXT floor — text, not the 3:1 graphics floor, because the mark
      * is an icon AND the word beside it. Two instruments agree on all eight
@@ -374,18 +374,15 @@ const schema = {
      * light mode: that makes the *unfilled* remainder the strongest mark on the
      * card and inverts what the bar reports.
      *
-     * --on-brand is the ink for content sitting ON --progress-fill, so it flips
-     * with the fill. It is not a fixed dark: a dark icon on the light-mode fill
-     * would be 2.77:1, the same class of failure it was introduced to fix.
-     *
-     * NOTHING WEARS IT TODAY. The progress bar became a 2px rule and its sport glyph went
-     * with the capsule, so as of that change --on-brand has no consumer — it is KEPT rather
-     * than deleted because the obligation it encodes returns the moment any ink is put back
-     * on the fill, and the ratio above is the whole reason the token exists rather than a
-     * literal. Read this paragraph in the conditional: it describes what the token is FOR,
-     * not what the page currently does. See ProgressBar.astro, whose own note says the same
-     * from the other side, and tests/build-output.test.ts, which fails if the bar regrows a
-     * child without the ink check being restored.
+     * THERE IS NO INK ON THE FILL, so there is no token for it. The bar carried one —
+     * an --on-brand, the ink for content sitting ON --progress-fill, flipping with the fill
+     * because a fixed dark on the light-mode fill measures 2.77:1 — and it lost its consumer
+     * when the bar became a 2px rule and its sport glyph went with the capsule. It was kept
+     * for a while against the ink coming back, which is the wrong keeper for that obligation:
+     * the check in tests/build-output.test.ts fires if the bar regrows a child without an ink
+     * ratio being asserted, whether or not a token is sitting here waiting, and the 2.77:1
+     * that decided its value is recorded in ProgressBar.astro. A token nothing wears is read
+     * as a colour the design uses.
      */
     :root[data-theme='light'] {
         --background: #FAFAFA; /* grey-50 */
@@ -399,7 +396,6 @@ const schema = {
         --status-live: #A82334; /* primary-600 */
         --status-halo: #A82334; /* primary-600 */
         --brand-ink: #A82334; /* primary-600 — 6.52:1 on the card */
-        --on-brand: #FAFAFA; /* grey-50 — light ink, the fill is deep here */
         --sport-ride: #A82334; /* primary-600 — deep, for the card */
         --sport-ride-on-ink: #F3A3AA; /* primary-200 — pale, for the inverted bib face */
         --sport-run: #1F4E9C; /* marine-600 */
@@ -418,7 +414,6 @@ const schema = {
         --status-live: #F3A3AA; /* primary-200 */
         --status-halo: #F9CDD3; /* primary-100 */
         --brand-ink: #F3A3AA; /* primary-200 — 9.08:1 on the card */
-        --on-brand: #0B0B0B; /* darkslate-900 — dark ink, the fill is pale here */
         --sport-ride: #F3A3AA; /* primary-200 — pale, for the card */
         --sport-ride-on-ink: #A82334; /* primary-600 — deep, for the inverted bib face */
         --sport-run: #9FC0F0; /* marine-200 */

@@ -980,7 +980,9 @@ describe("dist/", () => {
      * now and carries no ink at all, so that pair no longer exists — but the assertion is
      * kept in this inverted form rather than deleted, because the defect it caught is one
      * step away at all times. The icon inherited --text, near-white in dark mode, and sat
-     * at 1.89:1 on the fill; --on-brand exists because of it.
+     * at 1.89:1 on the fill; an ink token was introduced for it, and has been deleted with
+     * the glyph, because THIS assertion is the keeper of that obligation rather than the
+     * token was.
      *
      * So: the bar must stay a pure graphic. Put a glyph back and this goes red with the
      * instruction to restore the ratio check, instead of the ratio check silently passing
@@ -1001,7 +1003,7 @@ describe("dist/", () => {
             expect(
                 bar.querySelectorAll("*").length,
                 "the bar is the track and the fill and nothing else; a third element means ink is back on it "
-                + "and SC 1.4.11 needs measuring against --on-brand again (it was 1.89:1 in dark mode once)",
+                + "and SC 1.4.11 needs measuring against whatever ink it carries (it was 1.89:1 in dark mode once)",
             ).toBe(1);
         }
     });

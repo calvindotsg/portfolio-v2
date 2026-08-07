@@ -73,7 +73,10 @@ import {BUILD_DATE} from "./today"
  *
  *   `UPDATED_AT` — the bot's stamp — answers HOW FRESH THE KILOMETRES ARE, and every
  *   function whose arithmetic touches them keeps it: {@link goalStatus},
- *   {@link goalStatusLine}, {@link formatDateline}, {@link stampYearMatchesGoalYear}.
+ *   {@link goalStatusLine}, {@link formatDateline}. The suite adds one more reader of
+ *   the stamp — the assertion that its YEAR matches `GOAL_YEAR`, which lives in
+ *   tests/projection.test.ts rather than here because it is a claim ABOUT the data
+ *   rather than a step in rendering it.
  *   The reason is unchanged and still load-bearing: the required rate divides a
  *   deficit by the days left, and a fresh clock divided into stale distance
  *   over-states the rate. Numerator and denominator must age together.
@@ -443,17 +446,6 @@ export function goalStatusLine(goal: Goal, iso: string = UPDATED_AT, events: rea
 function withBooked(line: string, goal: Goal, iso: string, events: readonly RaceEvent[]): string {
     const booked = Math.round(bookedAhead(goal.sport, iso, events))
     return booked > 0 ? `${line}, ${booked} booked` : line
-}
-
-/**
- * Guards the one silent-wrongness mode this data has: the bot's stamp belonging to
- * a different year than the goals are measured against. It would leave a fresh
- * year's near-zero kilometres divided by last year's day count, with nothing
- * failing. Asserted in the test suite rather than thrown at build time — a
- * mis-stamped JSON should fail CI, not blank the page.
- */
-export function stampYearMatchesGoalYear(iso: string = UPDATED_AT, year: number = GOAL_YEAR): boolean {
-    return !Number.isNaN(parseIsoDate(iso)) && Number(iso.slice(0, 4)) === year
 }
 
 /** "2026-07-27" -> "27 July 2026". Full month name: it fits the footer's tightest
