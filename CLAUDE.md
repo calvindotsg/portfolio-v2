@@ -23,7 +23,7 @@ holding that source's own distance beside that source's own clock —
 rests on is that **nothing a reader can divide crosses two sources**, which is
 strictly stronger than the `Elapsed` label it replaced. A certified course and a GPS
 trace disagree by design, and so do a chip time and a watch; publishing the
-disagreement is the point. `OfficialResult` in `constants.ts` has the argument, and
+disagreement is the point. `OfficialResult` in `src/lib/race.ts` has the argument, and
 `.bib-ledger` in `Patch.astro` has the drawing — **including the two container arms
 that restack it as the reader enlarges the text**, without which the three-column
 form shatters a row's name into single letters at the 200% WCAG requires.
@@ -215,7 +215,7 @@ block above it before giving either consumer the other's list.
   then add it; a race already listed — add the recording first and let the cron follow.
   Fetching first on an already-listed race counts its distance twice, measured at 66 km/wk
   against an honest 71. There is no order that is right at both moments; read the note
-  above `EVENTS` in `constants.ts` before doing either, and `hasRecording` in
+  above `EVENTS` in `src/data/races/index.ts` before doing either, and `hasRecording` in
   `projection.ts` for why the pair means "run"
 - **A race can be recorded as MORE THAN ONE Strava activity, and the bib's shape follows
   the count.** `recordings` is a list — a mechanical, a lost signal or a watch that died
@@ -227,7 +227,7 @@ block above it before giving either consumer the other's list.
   the race's own — never above it) and its `elapsed_time` is first start to last stop,
   never the sum of the parts: elapsed already contains stops, so it must not depend on
   where the rider pressed the button. Each part's own figures are printed on its own link
-  so no link promises the bib's summed hero; see `Recording` in `constants.ts` for why they
+  so no link promises the bib's summed hero; see `Recording` in `src/lib/race.ts` for why they
   are stored
 - **NO BIB IS EVER THE ANCHOR. Every destination is a line on the stub.** The rule it comes
   from is unchanged — a bib is the link when there is one place to go, and HOLDS the links
@@ -242,13 +242,16 @@ block above it before giving either consumer the other's list.
 
 ## Content Management
 
-All site content is managed through `src/lib/constants.ts`. The entries below
-are the ones carrying non-obvious constraints; the rest are self-explanatory in
-the file:
+All site content is managed through `src/lib/constants.ts`, EXCEPT THE RACES: those
+are one module each under `src/data/races/`, so adding one is writing a file rather
+than editing a list. The procedure and every field are in the README beside them. The
+entries below are the ones carrying non-obvious constraints; the rest are
+self-explanatory in the file:
 - `NEXT_RACE`: the goal cards' countdown ladder and the control's label — width-budgeted,
   and the label is also the heading of the page it opens; see the note there
-- `EVENTS`: every race entered, in any year — read by both the projection and the patch
-  wall, at two different scopes (see the rule above). Adding a past race is a data edit:
+- `EVENTS`: every race entered, in any year, collected from `src/data/races/` by the
+  `index.ts` beside them — read by both the projection and the patch wall, at two
+  different scopes (see the rule above). Adding a past race is writing one module:
   `elapsed_time` and `recordings` are optional, so a race remembered without a
   recording is still a complete bib. **A race is one of TWO SHAPES and the type enforces it:**
   recorded, carrying each activity's `metres` exactly as the API reported them, or booked,

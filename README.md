@@ -150,6 +150,17 @@ that carry most of the weight:
 - `tests/build-output.test.ts` — asserts on what `pnpm build` actually emits into
   `dist/`: `robots.txt` pointing at the sitemap, the sitemap index, zero external
   JavaScript, no serverless function, and the public assets the page links to.
+- `tests/data-contract.test.ts` — holds the one module per race under
+  `src/data/races/` to the three things an array used to say for free. That every
+  module is in the array: the collector globs its siblings, and a file the pattern
+  misses is an absence rather than an error, invisible to every other assertion here.
+  That each filename's date is the `date` inside it, so the name stays a convenience
+  and never becomes a second, unchecked copy of the field the collector sorts on. And
+  that `src/data/races/README.md` names every field the type declares and no field it
+  does not — derived from `src/lib/race.ts` through the TypeScript checker rather than
+  from the data, so an optional field no current race carries cannot drop out of the
+  set. It also holds that README's two edit orders and its booked-race rule by
+  canonical phrase, in the shape `docs-drift` holds `CLAUDE.md`'s shortcut count.
 
 The rest are geometry and content gates — `page-fit`, `card-fill`,
 `control-geometry`, `icon-alignment`, `mobile-hero-contrast`, `patch-wall`,

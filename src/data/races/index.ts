@@ -4,8 +4,9 @@ import type {RaceEvent} from "../../lib/race"
  * THIS IS THE WHOLE CALENDAR, NOT THIS YEAR'S, and that changed in the same revision
  * that gave the earned bib its name. Every race he has entered, in any year, stays
  * here: the wall draws all of it, because a Finisher Patch is a thing you keep. It
- * held one year until then, and the January checklist above said to delete the old
- * races — see {@link GOAL_YEAR}, where that step is now the opposite instruction.
+ * held one year until then, and the January checklist beside `GOAL_YEAR` in
+ * `src/lib/constants.ts` said to delete the old races; that step is now the opposite
+ * instruction.
  *
  * ONE ARRAY, TWO SCOPES, AND THE SPLIT IS ENFORCED IN projection.ts RATHER THAN HERE.
  * The wall reads all of it; a goal card reads only the races that start in
@@ -34,15 +35,15 @@ import type {RaceEvent} from "../../lib/race"
  *
  *   A RACE NOT YET ON THIS LIST — a one-off, or a back-catalogue entry. FETCH FIRST:
  *   `gh workflow run strava-progress.yml` (or the Run workflow button; it has always
- *   taken `workflow_dispatch`), then add it here. Exact for the whole window, because a
- *   race that is not in `EVENTS` was never booked, so banking its kilometres first can
- *   double nothing. This is the Garmin Run case.
+ *   taken `workflow_dispatch`), then write its module here. Exact for the whole window,
+ *   because a race that is not in `EVENTS` was never booked, so banking its kilometres
+ *   first can double nothing. This is the Garmin Run case.
  *
  *   A RACE ALREADY ON THIS LIST — every planned race, which is the common case. ADD THE
  *   RECORDING FIRST, then let the 05:13 cron move the kilometres. Fetching first puts the
  *   distance in BOTH places while the race sits here without its recording: measured on
  *   the 2 August ride, 66 km/wk against an honest 71 — the deficit subtracted twice, in
- *   the FLATTERING direction this file guards against everywhere else. Recording-first
+ *   the FLATTERING direction this repository guards against everywhere else. Recording-first
  *   errs the other way (79) until the next push, and the push is guaranteed here because
  *   the race itself moved the kilometres, so `git diff --quiet` cannot suppress it.
  *
