@@ -58,7 +58,7 @@ export const recordingsOf = (event: RaceEvent): readonly Recording[] => event.re
  * outlived the rule it was written for, with correct rows rewritten underneath them twice. A
  * rule with a persuasive rationale attached is harder to re-examine than a bare one, so this one
  * is kept bare: reverse it on his say-so, not on a paragraph, and never on a reading of a page.
- * The cost of doing so is now this line rather than every row in {@link EVENTS}.
+ * The cost of doing so is now this line rather than every module under `src/data/races/`.
  *
  * `Math.floor` OVER `Math.trunc` is only a spelling — a distance is never negative — but it is
  * the one that keeps saying "drop the third decimal" if a signed value ever reaches it. Scaling
@@ -142,7 +142,7 @@ export const raceKm = (event: RaceEvent): number => {
  *
  * AND THE 200 IS NOT UNIVERSAL EITHER, which the paragraph above used to imply. That code
  * belongs to an activity whose visibility is `everyone`. A `followers_only` one answers 307
- * with a 14-byte body: no page, no title, nothing to read. Both kinds are in {@link EVENTS},
+ * with a 14-byte body: no page, no title, nothing to read. Both kinds are on the wall,
  * so the wall is partial for some of these links and total for others — and the ones a
  * reader can learn least from are the ones the owner shared least widely, which is the
  * expected direction rather than a defect.
@@ -296,10 +296,10 @@ type RaceEventCommon = {
      * read, so "SG" would make them expand it; a flag emoji would be the only emoji on
      * the site, and `tests/build-output.test.ts` gates against emoji shipping at all —
      * neither theme can tone one, and a screen reader announces it as a country name
-     * anyway, which is exactly this string. {@link METADATA.address_country} is an ISO
-     * code for the opposite reason: schema.org's `addressCountry` is consumed by a
-     * machine. Same fact, two audiences, so two spellings is correct here rather than a
-     * duplication to unify.
+     * anyway, which is exactly this string. `METADATA.address_country` in
+     * `src/lib/constants.ts` is an ISO code for the opposite reason: schema.org's
+     * `addressCountry` is consumed by a machine. Same fact, two audiences, so two
+     * spellings is correct here rather than a duplication to unify.
      */
     country: string
     /**
@@ -314,11 +314,11 @@ type RaceEventCommon = {
      * at 110 km.
      *
      * THE OBVIOUS OBJECTION, PRE-EMPTED, because otherwise this reads as a violation of the
-     * rule in the {@link PATCHES} note below and the next reader deletes it. That rule forbids a
-     * STORED `done` flag, because such a flag "goes stale in the one direction nobody
+     * rule above `PATCHES` in `src/lib/constants.ts` and the next reader deletes it. That rule
+     * forbids a STORED `done` flag, because such a flag "goes stale in the one direction nobody
      * notices — a race that has been run still rendering as still-to-come". A DNF cannot go
      * stale in that direction or in any other: it is immutable history, settled the day the
-     * rider stopped, exactly like the {@link elapsed_time} beside it. Storing a fact that
+     * rider stopped, exactly like the `elapsed_time` beside it. Storing a fact that
      * stopped changing is what this file already does everywhere; the forbidden thing is
      * storing an answer the calendar keeps re-deriving.
      *

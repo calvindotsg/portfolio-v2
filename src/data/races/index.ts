@@ -10,9 +10,9 @@ import type {RaceEvent} from "../../lib/race"
  *
  * ONE ARRAY, TWO SCOPES, AND THE SPLIT IS ENFORCED IN projection.ts RATHER THAN HERE.
  * The wall reads all of it; a goal card reads only the races that start in
- * {@link GOAL_YEAR}, because its target, its kilometres, its day count and its own
- * heading are all that year's. The rule and the failure it prevents are written out
- * above `eventsInYear`; the short version is that a race booked for next November
+ * `GOAL_YEAR` (`src/lib/constants.ts`), because its target, its kilometres, its day count
+ * and its own heading are all that year's. The rule and the failure it prevents are written
+ * out above `eventsInYear`; the short version is that a race booked for next November
  * must not pay off this year's deficit.
  *
  * SO A PAST RACE NEEDS NOTHING BUT ITS FACTS. `elapsed_time` and
@@ -61,13 +61,17 @@ import type {RaceEvent} from "../../lib/race"
  * reading the page". A hand-dispatched run after a race names a day whose riding is partly
  * done. That is why fetch-first double-counts at all.
  *
- * ONE MODULE PER RACE, AND THE FILENAME CARRIES NO LOAD. Every sibling of this file is one
- * race, named `YYYY-MM-DD-slug.ts` so a directory listing reads as a calendar — but the sort
- * below keys on the `date` FIELD, never on the glob key. Sorting by the key would make the
- * filename a second, unchecked copy of a fact the row already states, and
- * `src/pages/llms.txt.ts` renders this array in order into a shipped artifact, so the two
- * disagreeing would silently misorder it. `tests/data-contract.test.ts` holds the two in
- * step from the other side.
+ * ONE MODULE PER RACE, AND THE FILENAME CARRIES NO LOAD THE FIELD DOES NOT ALREADY CARRY.
+ * Every sibling of this file is one race, named `YYYY-MM-DD-slug.ts` so a directory listing
+ * reads as a calendar — and the sort below asks the `date` FIELD first, falling back to the
+ * glob key only to settle two races on the SAME DAY. That tiebreak is the whole of what the
+ * filename decides: it makes the order total, so `src/pages/llms.txt.ts`, which renders this
+ * array in order into a shipped artifact, cannot print two same-day races in whichever order
+ * the glob happened to hand them over. Ordering on the key ALONE is the thing to refuse —
+ * that would make the name a second, unchecked copy of a fact the row already states, and a
+ * row renamed without being re-dated would silently misorder the artifact.
+ * `tests/data-contract.test.ts` holds the two in step from the other side, and holds this
+ * array to date order so the sort cannot quietly be simplified away.
  *
  * THE GLOB IS WHY NOTHING MAY RE-EXPORT THIS MODULE FROM `src/lib/constants.ts`.
  * `uno.config.ts` imports that module through unconfig/jiti rather than Vite, and jiti has no

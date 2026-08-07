@@ -132,9 +132,9 @@ const {event, state, index} = Astro.props;
  *
  * THE STUB IS CONDITIONAL ON THERE BEING SOMEWHERE TO GO, NOT ON THE STATE. `recordings` is
  * optional and a finished race without one must still render as an ordinary finished bib —
- * the rule above `EVENTS` in constants.ts, and what makes filling in a back catalogue a data
- * edit. Whether any race on the wall is in that state right now is not the point and changes
- * with the data; the fixtures in patch-wall.test.ts hold the case either way.
+ * the rule above `EVENTS` in `src/data/races/index.ts`, and what makes filling in a back
+ * catalogue writing a file. Whether any race on the wall is in that state right now is not the
+ * point and changes with the data; the fixtures in patch-wall.test.ts hold the case either way.
  *
  * `target="_blank"` and NO `rel`, matching this site's existing convention — Now.astro and
  * IntroCard.astro both use a bare `target="_blank"` and browsers imply `noopener`.

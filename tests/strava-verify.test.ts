@@ -13,10 +13,11 @@ import {raceKm, type RaceEvent, type Recording, recordingsOf} from "../src/lib/r
  *   SAME one or a race's figure is off by 0.01. It is the API's metres rounded DOWN to two
  *   places — the maintainer's rule, and the input to it is `distance` off this endpoint, never
  *   a figure read off a Strava page. That rule has been set three times, so read the note above
- *   `kmFromMetres` in constants.ts before concluding a row is wrong. NOTE WHICH FIELD THAT RULE
- *   IS ABOUT: it is the stored `metres`, never `advertised_km`, which is the organiser's own
- *   figure and is rounded by nobody. A recorded race MAY carry both — the ledger prints the two
- *   accounts side by side — so a sentence here about "the km rule" would point at the wrong one.
+ *   `kmFromMetres` in `src/lib/race.ts` before concluding a row is wrong. NOTE WHICH FIELD
+ *   THAT RULE IS ABOUT: it is the stored `metres`, never `advertised_km`, which is the
+ *   organiser's own figure and is rounded by nobody. A recorded race MAY carry both — the
+ *   ledger prints the two accounts side by side — so a sentence here about "the km rule" would
+ *   point at the wrong one.
  *
  *   AN ACTIVITY CAN BE EDITED AFTER YOU READ IT, so a screenshot is a reading of a MUTABLE
  *   record. One row was authored from a screenshot showing 13:36:10 elapsed, 6:31:11 moving

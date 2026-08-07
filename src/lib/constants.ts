@@ -1,5 +1,14 @@
 import stravaProgress from "../data/strava-progress.json"
 
+// TYPE-ONLY, AND ONLY SO THE `{@link}`s BELOW RESOLVE. The race shapes moved to `./race` and
+// took nothing with them but their names, which left a dozen references in this file's prose
+// pointing at identifiers no editor could follow — a link that does not resolve is worse than a
+// backticked name, because it looks navigable. `import type` is erased before anything runs, so
+// this adds no edge to the graph `uno.config.ts` drags through jiti and no byte to `dist/`; the
+// rule it must not break is the one above `EVENTS` in `src/data/races/index.ts`, which is about
+// re-exporting the COLLECTOR from here and is untouched by naming a type.
+import type {OfficialResult, RaceEvent} from "./race"
+
 /**
  * The one Strava destination, reached from exactly one control — the social link
  * below. It is a named constant rather than a literal in that entry because the
@@ -628,8 +637,8 @@ export const PATCHES: {
      * Naming the SOURCE instead makes every cell in the row true of the same thing: the
      * organiser says 42.00 km in 2:19:11, the watch says 78.59 km in 7:40:25. A reader
      * dividing either row gets a speed that source would recognise, which is the invariant
-     * {@link RaceEventCommon.elapsed_time} spends four paragraphs protecting on a bib that
-     * only had one account to protect.
+     * the note above `elapsed_time` in `src/lib/race.ts` spends four paragraphs protecting on
+     * a bib that only had one account to protect.
      *
      * WHAT THAT COSTS IS THE CLOCK KIND, AND IT IS PAID BACK IN THE LINK'S NAME. Which of
      * the two clocks an official row prints is said in {@link official_name}, where it costs
@@ -640,7 +649,7 @@ export const PATCHES: {
      * DNF's distance was a lone labelled line arguing it was not a result; inside a ledger
      * the row name already says it is one account among two, so the participle has nothing
      * left to do. Note what is NOT lost with it: `Covered` was deliberately sport-neutral,
-     * because {@link RaceEventCommon.outcome} is on the shared event shape and a cycling verb
+     * because `outcome` in `src/lib/race.ts` is on the shared event shape and a cycling verb
      * would have shipped `RIDDEN 21.10 KM` on the first abandoned run. `Recorded` is neutral
      * for the same reason and by the same rule — do not replace either of these with a
      * per-sport lookup, however available {@link goalForSport} makes one.
