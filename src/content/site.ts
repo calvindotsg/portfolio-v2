@@ -19,6 +19,8 @@
  * written out.
  */
 import type {RaceEvent} from "../lib/race"
+import type {ABOUT_ME, WELCOME} from "./home"
+import type {PATCHES} from "./races"
 
 import {CAREER} from "./home"
 

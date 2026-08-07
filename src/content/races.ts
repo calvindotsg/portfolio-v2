@@ -21,6 +21,8 @@
 // `src/data/races/index.ts`, which is about re-exporting the COLLECTOR and is untouched by
 // naming a type.
 import type {OfficialResult, RaceEvent} from "../lib/race"
+import type {NEW_TAB_NOTICE} from "./site"
+import type {Goal, goalForSport} from "../lib/goal"
 
 /**
  * The patch wall at `/patches`, and the two per-sport pages beside it.

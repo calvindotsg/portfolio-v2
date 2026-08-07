@@ -13,6 +13,17 @@
  */
 
 /**
+ * TYPE-ONLY, AND ONLY SO THE `{@link}`s BELOW RESOLVE — the same device, for the same
+ * reason, as the import at the head of `src/content/races.ts`, where the argument is
+ * written out. `import type` MUST STAY `import type`: `verbatimModuleSyntax` is on, so a
+ * value import here would be emitted, and `src/content/site.ts` already imports this
+ * module for real — the pair would become a cycle inside the graph `uno.config.ts` drags
+ * through jiti, whose failure names no source file.
+ */
+import type {METADATA, NEW_TAB_NOTICE} from "./site"
+import type {GOALS} from "../lib/goal"
+
+/**
  * `CAREER[0].job_name` IS THE SITE'S ONLY RECORD OF THE CURRENT JOB, and five surfaces derive from
  * it: the JSON-LD `jobTitle` in `BasicLayout.astro`, the `/llms.txt` blockquote and career line,
  * the intro card's h1 ({@link WELCOME}), and the page title ({@link METADATA.title}) — which also

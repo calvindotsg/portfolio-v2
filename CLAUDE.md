@@ -243,14 +243,22 @@ block above it before giving either consumer the other's list.
 ## Content Management
 
 **Site content is split BY KIND, not by page**, so each piece is found by looking where
-its kind lives rather than by opening one file and scrolling. `src/content/home.ts` is
-the home page's cards, `src/content/site.ts` the copy every page wears plus the 404 page,
-`src/content/races.ts` the racing copy, `src/data/goals.ts` the two goals as authored —
-and THE RACES are one module each under `src/data/races/`, so adding one is writing a
-file rather than editing a list. The procedure and every field are in the README beside
-them. Each module's own head says what it holds; read that rather than a list here, which
-is the enumeration-in-two-places failure the Plans section names. The entries below are
-the ones carrying non-obvious constraints:
+its kind lives rather than by opening one file and scrolling. The copy is under
+`src/content/`, the authored goals and the races under `src/data/`, and `src/lib/goal.ts`
+is what the cards actually read — it derives `GOALS` from the authored figures and is the
+only thing that applies the clamp. **Each module's own head says what it holds; read that
+rather than a list here**, which is the enumeration-in-two-places failure the Plans
+section names.
+
+**`src/content/` IS A NAME ASTRO RESERVES, and this repo is using it because the reserved
+meaning is not switched on.** Astro treats that directory as the home of *content
+collections*; with no `src/content.config.ts` and no `src/content/config.ts` present, a
+plain `.ts` module there is ordinary source — measured before plan 021 shipped, build and
+`astro check` clean, including a load through unconfig/jiti. **The day anyone adds a
+collection config, that stops being true**, and these modules move rather than the
+collection. Do not add one without reading this first.
+
+The entries below are the ones carrying non-obvious constraints:
 - `NEXT_RACE`: the goal cards' countdown ladder and the control's label — width-budgeted,
   and the label is also the heading of the page it opens; see the note there
 - `EVENTS`: every race entered, in any year, collected from `src/data/races/` by the

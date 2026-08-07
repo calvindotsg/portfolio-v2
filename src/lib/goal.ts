@@ -12,6 +12,14 @@
  * about; the rule and the failure are written out above `EVENTS` in `src/data/races/index.ts`.
  */
 
+/**
+ * TYPE-ONLY, AND ONLY SO THE `{@link}`s BELOW RESOLVE — the same device, for the same
+ * reason, as the import at the head of `src/content/races.ts`, where the argument is
+ * written out. It MUST STAY `import type`: that module imports this one for real, so a
+ * value import would close a cycle inside the graph `uno.config.ts` drags through jiti.
+ */
+import type {NEXT_RACE} from "../content/races"
+
 import {RAW_GOALS} from "../data/goals"
 
 /**
@@ -19,7 +27,8 @@ import {RAW_GOALS} from "../data/goals"
  * from — and the absence of `website_url`, `cta_label` and `cta_logo` here is what that
  * decision looks like in the data.
  *
- * Each card used to carry a call to action pointing at {@link STRAVA_PROFILE_URL}, the
+ * Each card used to carry a call to action pointing at `STRAVA_PROFILE_URL`, which is
+ * module-private in `src/content/site.ts` and stays that way — the
  * same place the intro card's social link reaches, so the page spent three of its nine
  * controls on one destination a logged-out visitor cannot see. Both were removed. The
  * link that replaced them is a component rather than three fields on this type

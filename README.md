@@ -83,14 +83,16 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
    split by KIND rather than by page, so each is found by looking where its kind
    lives:
    - `src/content/home.ts` — the home page's cards: the welcome lines, the about
-     bullets, the career entries and the open-source list.
+     bullets, the career entries, the open-source list and the Now card.
    - `src/content/site.ts` — the copy every page wears plus the 404 page: the
      social links, the theme toggle's name, the footer and the SEO metadata.
    - `src/content/races.ts` — the racing copy: the patch wall's prose and the
      next-race countdown with the control beneath it.
    - `src/data/goals.ts` — both goals (cycling and running): the targets, the
-     names, the icons and the units. `src/lib/goal.ts` is what the cards read,
-     and it derives everything there from this.
+     names, the icons, the units, and `GOAL_YEAR`, the one year a goal card is
+     about. `src/lib/goal.ts` is what the cards read, and it derives everything
+     there from this — including the clamp, so read a figure through it rather
+     than from here.
    - `src/data/races/` — one module per race, so adding one is writing a file
      rather than editing a list. The procedure for adding a race, and every field
      a race may carry, are in `src/data/races/README.md` — read that rather than

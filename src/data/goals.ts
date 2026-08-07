@@ -63,8 +63,14 @@ type GoalSource = {
  *
  * EXPORTED SO `src/lib/goal.ts` CAN READ IT TWICE: once to derive `GOALS`, and once for
  * `Sport`, which is `typeof RAW_GOALS[number]["sport"]`. That second read is why the `as
- * const satisfies` above is load-bearing rather than a style choice — the note on `Sport`
- * has the argument.
+ * const satisfies` this literal carries is load-bearing rather than a style choice — the
+ * note on `Sport` in `src/lib/goal.ts` has the argument.
+ *
+ * IT IS EXPORTED FOR THAT ONE READER AND NOTHING ELSE READS IT. `current_progress` here is
+ * the bot's RAW figure; what a card shows is `GOALS`, which puts it through `clampToGoal`
+ * so a goal that has been beaten renders as met rather than as 104%. Reading this module
+ * directly gets the unclamped number and compiles — the module boundary is the only thing
+ * saying not to, so anything new that imports it owes a reason.
  */
 export const RAW_GOALS = [{
     total_goal: 600,
