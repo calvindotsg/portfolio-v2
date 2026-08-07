@@ -1,6 +1,6 @@
 # Implementation Plans
 
-**Plans 021–023 are executable; 021 is next.** Four runs are complete: plans 001–014 are all DONE,
+**Plans 022–023 are executable; 022 is next.** Four runs are complete: plans 001–014 are all DONE,
 merged, and live on https://calvin.sg, as is plan **015**, which came from the
 maintainer resolving DIRECT-01 rather than from an audit run. Those plan files
 and the full evidence log are archived in [`done/`](done/README.md).
@@ -61,6 +61,15 @@ What follows is only what is **local**, and therefore cannot be derived from ups
   gitignored, where it would not travel with a branch, appear in a PR, or survive a fresh
   clone. That was tried while closing this very gap and it is what the exemption above
   replaced.
+- **"Your reviewer maintains `plans/README.md` — do not edit it" has ONE condition-triggered
+  carve-out, and plan 021 is why.** This file is gated in full, so a plan that renames or
+  deletes something this file names in backticks makes it red *as part of the change*, and
+  the executor then has no green branch: obeying the instruction fails the plan's own "all
+  pass" criterion. Where that happens the executor still leaves the file alone and says so;
+  the **reviewer** makes the smallest edit that retargets the reference, in its own commit,
+  named in the PR body. The status table and the archive stay the reviewer's alone either
+  way. A plan whose steps redden this file without saying who fixes it is a plan defect,
+  not an execution one.
 
 ## If you are starting a new run
 
@@ -110,7 +119,7 @@ recreated.
 | 018 | Let a plan live in this directory again, and record what governs it | P1 | S | — | **DONE** (`232f751`) |
 | 019 | Generate the projection's derived figures instead of writing them by hand | P1 | M | 018 | **DONE** (`14d652e`) |
 | 020 | Make each race its own module, so adding one is adding a file | P1 | L | 019 | **DONE** (`46119ae`) |
-| 021 | Split the copy out of `constants.ts` and delete the file | P2 | L | 020 | **TODO** |
+| 021 | Split the copy out of `constants.ts` and delete the file | P2 | L | 020 | **DONE** (`4bf156d`) |
 | 022 | Separate the data contract from behaviour, and promote the Strava tooling | P2 | L | 020 | **TODO** |
 | 023 | Sweep the prose references no gate catches | P2 | M | 019, 020, 021, 022 | **TODO** |
 
