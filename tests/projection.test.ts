@@ -333,11 +333,14 @@ describe("required rate", () => {
     });
 
     it("rounds UP, because a rounded-down rate followed exactly MISSES the goal", () => {
-        // TWO DATES, because one of them does not discriminate. At AS_OF the requirement is
-        // 73.3804 km/wk: round gives 73, delivering 1647.71 km against 1656.30 needed — the
-        // case that rules round out. One day later it is 73.8478 and round gives 74, the same
-        // answer as ceil, so that date alone cannot tell the two apart. Measured over the rest
-        // of the calendar, round under-states on 146 of the 290 remaining sport-days.
+        // TWO DATES, because one of them does not discriminate. At AS_OF the exact requirement
+        // has a fractional part below .5, so rounding to nearest asks for a rate that delivers
+        // LESS than the goal needs — the case that rules round out. One day later the fraction
+        // is above .5 and round gives the same answer as ceil, so that date alone cannot tell
+        // the two apart. The figures, and a census of how many of the remaining sport-days
+        // discriminate at all, are derived and published in `src/lib/derived-figures.md`; read
+        // them there rather than copying them back into this comment, which is the mistake that
+        // file exists to end.
         //
         // WHICH DATE PLAYS WHICH ROLE FLIPS WITH THE NUMERATOR, and these two have already
         // swapped once: the round-island ride's recording moved the kilometres owed, and with

@@ -33,6 +33,13 @@ thing the pinned assertions in `tests/projection.test.ts` mean by the same refer
 - 2026-07-29 · running · Garmin Run Virtual Challenge · 10.16 km
 - 2026-08-02 · cycling · Pesta Sukan Round Island Bike Adventure · 160.56 km
 
+WHAT THE MIX IS WORTH, which is the half a list of names leaves out. Those kilometres
+were ridden and are not in the frozen totals, so the required rate below asks for them a
+second time — by this much:
+
+- cycling: the required rate is overstated by 7.11 km/wk (160.56 km / 22.57 weeks), 9.7% of the 73.3804 published below
+- running: the required rate is overstated by 0.45 km/wk (10.16 km / 22.57 weeks), 2.6% of the 17.0127 published below
+
 The de-raced pace is NOT affected: its numerator subtracts only races that ended on or
 before the reference, which is the one scoping rule this generator applies.
 
@@ -41,7 +48,7 @@ before the reference, which is the one scoping rule this generator applies.
 | figure | cycling | running |
 |---|---|---|
 | booked ahead | 1064.00 km | 63.30 km |
-| required rate | 74 km/wk (exactly 73.3804) | 18 km/wk (exactly 17.0127) |
+| required rate | 74 km/wk (exactly 73.3804; 7.11 of that is the epoch mix) | 18 km/wk (exactly 17.0127; 0.45 of that is the epoch mix) |
 | ignoring races | 121 km/wk (exactly 120.5196) | 20 km/wk (exactly 19.8171) |
 | what booking races is worth | 121 → 74 km/wk, 38.8% | 20 → 18 km/wk, 10.0% |
 | observed pace | 76.72 km/wk | 5.14 km/wk |
@@ -52,8 +59,9 @@ before the reference, which is the one scoping rule this generator applies.
 
 A pace displayed beside the required rate must be the DE-RACED one. The required rate
 already has future race kilometres subtracted; setting it beside an observed pace that
-still contains past race kilometres reimports the double count by juxtaposition. The
-ORDERING is the rule and the gaps move:
+still contains past race kilometres reimports the double count by juxtaposition.
+
+The ORDERING is the rule and the gaps move:
 
 - cycling: 61.54 de-raced · 74 required · 76.72 observed — de-raced < required < observed, the requirement sitting BETWEEN the two paces
 - running: 5.14 de-raced · 18 required · 5.14 observed — nothing was recorded for this sport by the reference, so the two paces are the same figure and this sport cannot demonstrate the rule
@@ -75,8 +83,10 @@ moves with the numerator, so no single worked example survives a data edit.
 | booked ahead | the distance of every race of that sport the patch wall still calls booked |
 | required rate | `ceil((total goal − banked − booked ahead) / weeks remaining)` |
 | ignoring races | the same with nothing booked, also rounded up |
+| what booking races is worth | the reduction from the second of those rates to the first, taken between them AS ROUNDED UP rather than between their exact values — both operands are printed in the cell |
 | observed pace | banked / weeks elapsed |
 | de-raced pace | the same denominator; the numerator less this year's races RIDDEN BY THE REFERENCE |
+| races ridden by the reference | this year's races of that sport carrying BOTH a finishing time and a recording — the pair the projection reads as "run" — and ending on or before the reference day; the count, and the distance they add up to |
 | ceil against round | every day from the reference to 31 December × both sports, counting the days in the rate branch and then those where rounding to nearest under-states |
 
 Every argument these figures serve is written out in `src/lib/projection.ts`: the double

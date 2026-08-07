@@ -36,8 +36,12 @@ import {BUILD_DATE} from "./today"
  * DE-RACED pace, never the observed one. The required rate already has future race
  * km subtracted; setting it next to an observed pace that still contains past race
  * km reimports the double count by juxtaposition, and the reader does the wrong
- * subtraction themselves. The requirement sits BETWEEN the two paces, which is exactly
- * why picking the wrong one flips the story. THE ORDERING IS THE RULE; THE GAPS MOVE.
+ * subtraction themselves. THE ORDERING IS THE RULE; THE GAPS MOVE — and the durable half
+ * of it is that the DE-RACED pace is always the LOWER of the two, because it is the same
+ * numerator less this year's races over the same weeks. Where the REQUIREMENT falls
+ * relative to them is a fact about the year rather than a rule, and it is the class of
+ * fact this file no longer states: `src/lib/derived-figures.md` states it at its
+ * reference, and flips its own heading when a year stops demonstrating it.
  *
  * THE DE-RACED PACE IS THE ONE THAT NEEDS SAYING OUT LOUD, because it is the only figure
  * in the set that reads `EVENTS` for a race already RIDDEN: the banked kilometres less
@@ -47,8 +51,9 @@ import {BUILD_DATE} from "./today"
  *
  * NOT ONE OF THOSE FIGURES IS WRITTEN DOWN HERE ANY MORE, AND THAT IS THE FIX RATHER THAN
  * AN OMISSION. Each is a pure function of the bot's stamp and of `EVENTS`, so they rot on
- * a push that moves only the date and on any race edit at all — six of them were wrong at
- * once, with the suite green, because nothing can check a digit typed into a comment. They
+ * a push that moves only the date and on any race edit at all — every figure in that block
+ * except the ceiled required rate was wrong at once, with the suite green, because nothing
+ * can check a digit typed into a comment. They
  * are generated instead, WITH THEIR DEFINITIONS, into `src/lib/derived-figures.md` by
  * `tests/derived-figures.test.ts`; change a race and `pnpm test -u` turns the re-derivation
  * into a diff. Read that file rather than quoting anything here as current — it states the

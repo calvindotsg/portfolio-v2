@@ -166,8 +166,9 @@ One suite WRITES a document rather than only asserting against one:
   ignores races, the observed and de-raced paces, and a census of the days where
   rounding to nearest would under-state the requirement) and holds
   `src/lib/derived-figures.md` against them. Those figures used to be typed into a
-  comment where nothing could check them, and six were wrong at once with the suite
-  green; regenerate with `pnpm test -u` and read the diff. It also writes down what each
+  comment where nothing could check them, and every one of them except the ceiled required
+  rate was wrong at once with the suite green; regenerate with `pnpm test -u`, spelled
+  `pnpm test:update` in `package.json`, and read the diff. It also writes down what each
   figure MEANS, which is what a reader reverse-engineering one from a shipped value has
   no way to recover.
 
