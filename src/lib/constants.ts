@@ -229,12 +229,12 @@ export const CAREER: {
  *
  * THE SOURCE IS CALVIN'S OWN PROFILE README (github.com/calvindotsg/calvindotsg), read
  * 2026-07-30 — his selection, in his wording, because `llms.txt` is a self-description
- * and the alternative is me summarising a summary. An earlier draft of this list was
- * built from the GitHub repos API instead and got the membership WRONG in both
- * directions: it invented an inclusion rule ("public, not a fork, has a description"),
- * which pulled in tools he does not lead with and dropped `portfolio-v2` and
- * `homebrew-tap`, which he does. A curated list is not a stale API — it is the answer to
- * a different question, and it is the question `llms.txt` asks.
+ * and the alternative is me summarising a summary. DO NOT REBUILD IT FROM THE GITHUB
+ * REPOS API: that gets the membership wrong in both directions, because it needs an
+ * invented inclusion rule ("public, not a fork, has a description") which pulls in tools
+ * he does not lead with and drops `portfolio-v2` and `homebrew-tap`, which he does. A
+ * curated list is not a stale API — it is the answer to a different question, and it is
+ * the question `llms.txt` asks.
  *
  * TWO PUBLIC REPOS ARE DELIBERATELY ABSENT because the README omits them:
  * `granola-to-minutes` (3 stars, his most-starred) and `cc-menubar`. That is his editorial
@@ -364,8 +364,8 @@ export type Goal = {
  * closing kilometres, with every test still green. Pinned, the January rollover is
  * a deliberate edit.
  *
- * THE JANUARY CHECKLIST LIVES HERE, not in README.md — an earlier draft pointed
- * there and the section did not exist. Three steps, and only the first is gated:
+ * THE JANUARY CHECKLIST LIVES HERE, not in README.md, which has no section for it.
+ * Three steps, and only the first is gated:
  *
  *   1. Bump this constant. `tests/projection.test.ts` asserts it matches the year
  *      in the bot's `updated_at`, so forgetting it fails the suite, which is the
@@ -429,10 +429,10 @@ export type Sport = typeof RAW_GOALS[number]["sport"]
  * RECORDING A RACE YOU HAVE JUST RUN IS A TWO-STEP EDIT, AND WHICH STEP GOES FIRST
  * DEPENDS ON WHETHER THE RACE IS ALREADY ON THIS LIST. There is no order that is right at
  * both moments — the page is out by the length of the race until the second step lands,
- * and the only choice is which way it is out. An earlier draft of this note gave one
- * unconditional order and claimed "no figure on the page is ever wrong"; that was false,
- * and measured wrong by 5 km/wk in the case it got backwards — 66 against the honest 71
- * below, which is where that figure comes from and why it moves when they do.
+ * and the only choice is which way it is out. THERE IS NO UNCONDITIONAL ORDER, and one
+ * that claims "no figure on the page is ever wrong" measures wrong by 5 km/wk in the case
+ * it gets backwards — 66 against the honest 71 below, which is where that figure comes
+ * from and why it moves when they do.
  *
  * The two fields together are what tells the site the race has been RUN (see
  * `hasRecording` in projection.ts), and a run race stops being counted as booked ahead.
@@ -1087,9 +1087,9 @@ export const GOALS: Goal[] = RAW_GOALS.map((goal) => ({
  * table ships icon classes UnoCSS never generated a rule for: correct markup, correct
  * class token, and a mask box painted at zero size. Deriving from the goal means
  * the safelist already covers the wall — there is exactly one place a sport's icon
- * is named, and it is a place the config reads. (Read that list off `uno.config.ts`
- * rather than trusting it here; an earlier revision of this sentence was stale in the
- * same commit that added `PATCHES` to the safelist.)
+ * is named, and it is a place the config reads. (Read that list off `uno.config.ts` rather
+ * than trusting it here — a copy of it went stale in the very commit that added `PATCHES`
+ * to the safelist.)
  *
  * TOTAL BY CONSTRUCTION: {@link Sport} is `typeof RAW_GOALS[number]["sport"]`, so the
  * only values the type admits are the sports of goals that exist, and {@link GOALS}
@@ -1812,9 +1812,9 @@ export const METADATA: {
      * `CAREER[0].job_name` and `METADATA.full_name` — that is a gate on the RENDER, which
      * is what catches this expression being re-typed as a literal.
      * `tests/build-output.test.ts` is the one that reads `dist/index.html` off disk, and it
-     * now makes the same assertion there. Neither sentence is decorative: the first version
-     * of this comment claimed the render test read the built page, and a reviewer disproved
-     * it by corrupting `dist/index.html` by hand and watching that test stay green.
+     * now makes the same assertion there. WHICH TEST READS WHICH IS NOT DECORATIVE: the
+     * render test does NOT read the built page, which a reviewer proved by corrupting
+     * `dist/index.html` by hand and watching it stay green.
      *
      * THE BUDGET IS PIXELS, AND THIS TITLE HAS NEVER FIT ONE. A desktop Google result
      * renders a title link in Arial 20px and cuts what does not fit. **~600px is an SEO

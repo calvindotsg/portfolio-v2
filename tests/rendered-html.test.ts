@@ -5,7 +5,7 @@ import {beforeAll, describe, expect, it} from "vitest";
 import Index from "../src/pages/index.astro";
 import {ABOUT_ME, CAREER, FOOTER, GOALS, LINKS, METADATA, NEW_TAB_NOTICE, NEXT_RACE, NOW, THEME_TOGGLE, WELCOME} from "../src/lib/constants";
 import {nextRace, nextRaceLine, patchesEarned} from "../src/lib/projection";
-import {decl, isStateful, pageCss, parseRules} from "./helpers/css";
+import {decl, isStateful, pageCss, parseRules, structuralSelector} from "./helpers/css";
 import {iconClass} from "../src/lib/icons";
 
 let doc: Document;
@@ -638,16 +638,26 @@ describe("page content", () => {
      * which is the whole reason the guard can tell a forced-colours rule from an ordinary one.
      */
     it("keeps the control's chevron painted when forced colours override background-color", () => {
-        // MATCHED ON THE CONTROL PLUS A DESCENDANT, not on a class of the glyph's own.
+        // MATCHED AGAINST THE GLYPH ITSELF, not against a pattern in a selector's text.
         // The glyph carried `.events-link-go` while this was a text link; the icon-span
         // allowlist in tests/control-geometry.test.ts admits a control's icon exactly its
         // `i-` utility and `shrink-0`, so a class existing only to be styled is no longer
-        // available and the rule reaches the span structurally. Written as "a rule under
-        // forced-colors whose selector names the control AND goes on to select something
-        // inside it", which is what the old pattern was really asserting.
+        // available. The rule that repaints it is now the shared one in BasicLayout.astro
+        // and names no component at all — so the question has to be asked of the ELEMENT:
+        // does any forced-colours rule in this page's sheet reach this span. A text pattern
+        // answered "no" on a build where the glyph was correctly painted.
+        const chevron = doc.querySelector(".events-link span[aria-hidden]");
+        expect(chevron, "the control has no decorative mark at all, so there is nothing to keep").toBeTruthy();
+
         const forced = parseRules(pageCss()).filter(
             (r) => (r.at ?? "").includes("forced-colors")
-                && r.selectors.some((sel) => /\.events-link\b[^,]*\s+\S/.test(sel)),
+                && r.selectors.some((sel) => {
+                    try {
+                        return chevron!.matches(structuralSelector(sel));
+                    } catch {
+                        return false;
+                    }
+                }),
         );
         expect(
             forced.length,
@@ -656,10 +666,15 @@ describe("page content", () => {
             + "by colour alone",
         ).toBeGreaterThan(0);
 
-        const adjust = forced.map((r) => decl(r.body, "forced-color-adjust")).find((v) => v !== undefined);
-        expect(adjust, "the glyph must opt out of the override with forced-color-adjust: none").toBe("none");
+        // The LAST declaration among the matching rules, in both cases: these are several
+        // rules at different specificities now, and the first one is not what paints.
+        const effective = (prop: string) =>
+            forced.map((r) => decl(r.body, prop)).filter((v) => v !== undefined).at(-1);
 
-        const paint = forced.map((r) => decl(r.body, "background-color") ?? decl(r.body, "background")).find((v) => v !== undefined);
+        expect(effective("forced-color-adjust"),
+            "the glyph must opt out of the override with forced-color-adjust: none").toBe("none");
+
+        const paint = effective("background-color") ?? effective("background");
         // Case-INSENSITIVE, and that is not defensive: the minifier lowercases system colour
         // keywords, so the sheet ships `linktext` however it was authored. A case-sensitive
         // match here fails on correct CSS — which is how this assertion first went red.

@@ -88,10 +88,12 @@ Which makes *how it decides* load-bearing, and it is not the exit code — `octo
 whether or not it found changes. It reports in prose instead: a `checksum=` line when there is at
 least one change, `No changes were planned` when there is none. `drift.sh` reads both signals and
 requires them to agree, and **exits non-zero when it can tell neither**, because the alternative is
-a check reporting a zone it failed to read as unchanged. `test_drift.sh` executes that against
-fixtures of every shape, including a plan whose checksum line has changed format — the realistic
-version-bump case, which under the original one-line grep reported "No changes" and took Monday's
-run green.
+a check reporting a zone it failed to read as unchanged. `tests/dns-config.test.ts` executes that
+against fixtures of every shape, including a plan whose checksum line has changed format — the
+realistic version-bump case, which under the original one-line grep reported "No changes" and took
+Monday's run green. Those cases live in `pnpm test` rather than beside this file so that they run on
+every pull request, including the ones that touch nothing under `dns/` and so never start this
+workflow at all.
 
 ## Working on it locally
 

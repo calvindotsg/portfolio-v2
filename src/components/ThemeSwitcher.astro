@@ -73,23 +73,14 @@ import {THEME_TOGGLE} from "../lib/constants";
     }
 
     /*
-     * THE TOGGLE'S GLYPH SURVIVES FORCED COLOURS. Same presetIcons mask mechanism written
-     * up in EventsLink.astro: the artwork is a mask over `background-color: currentColor`,
-     * and a forced-colours mode overrides that property, so the sun and moon painted
-     * rgb(255,255,255) on a rgb(255,255,255) card — measured, 1.00:1, gone. This control
-     * carries no words on screen at all, so losing the glyph loses the control entirely.
-     *
-     * `ButtonText` rather than `LinkText` because this is the one control here that is a
-     * BUTTON: it changes the page rather than leaving it, and the mode reserves a different
-     * system colour for each. `[aria-hidden]` keeps the rule off the `sr-only` name, for
-     * the reason EventsLink.astro measured at length.
+     * THE TOGGLE'S GLYPH SURVIVES FORCED COLOURS, by the shared rule in BasicLayout.astro.
+     * This control carries no words on screen at all, so losing the glyph loses the control
+     * entirely — the sun and moon painted rgb(255,255,255) on a rgb(255,255,255) card, 1.00:1,
+     * gone. It is the one control here that takes `ButtonText` rather than `LinkText`: it
+     * changes the page rather than leaving it, and the mode reserves a colour for each. That
+     * distinction is drawn by what CONTAINS the mark, so this button gets it by being a
+     * button, with nothing to declare here.
      */
-    @media (forced-colors: active) {
-        .theme-toggle span[aria-hidden] {
-            forced-color-adjust: none;
-            background-color: ButtonText;
-        }
-    }
 
 </style>
 

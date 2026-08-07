@@ -134,13 +134,11 @@ const title = `${NOT_FOUND.heading} — ${METADATA.name}`;
      * exist is neither, and of the two the outline is the honest one, because the face is
      * what a bib gets when a race was finished.
      *
-     * THE VALUES ARE COPIED, AND NOTHING LINKS THEM. An earlier version of this comment said
-     * the 32% hairline and the 2px radius "are `.bib--booked`'s own, so a re-tone moves both
-     * together" — which is false twice over: they are literals duplicated by hand, and a
-     * re-tone of `Patch.astro` moves nothing here. It also claimed the pin holes below use
-     * "the same 7px inset", and they do not: the wall uses 7px, this uses 9px, because this
-     * bib's padding is larger. Both claims were caught by a review panel, and a wrong comment
-     * is worse than no comment because it stops the next reader checking.
+     * THE VALUES ARE COPIED, AND NOTHING LINKS THEM. The 32% hairline and the 2px radius are
+     * NOT `.bib--booked`'s own: they are literals duplicated by hand, and a re-tone of
+     * `Patch.astro` moves nothing here. The pin holes below do NOT share the wall's inset
+     * either — the wall uses 7px, this uses 9px, because this bib's padding is larger. Both
+     * are the reading a reader arrives at unaided, and both are false.
      *
      * What IS shared by construction is the theme tokens — `--text`, and through it the
      * hairline mix — which live in `BasicLayout.astro` and are the site-wide mechanism every
@@ -168,8 +166,8 @@ const title = `${NOT_FOUND.heading} — ${METADATA.name}`;
          * Drawn with the same technique as `Patch.astro` — radial gradients rather than
          * pseudo-elements, one declaration for four dots, and the same 1.7px→1.8px
          * antialiasing band, because a hard stop renders a stepped circle at this size. The
-         * INSET is 9px where the wall uses 7px, because this bib's padding is larger; a
-         * previous version of this comment claimed they matched, and they never did.
+         * INSET is 9px where the wall uses 7px, because this bib's padding is larger. They
+         * have never matched, whatever the rest of the technique shares.
          *
          * THEY ARE PAINTED, NOT PUNCHED, AND THAT IS A DEPARTURE WORTH STATING. On the wall
          * a hole is a VOID: `--hole` is the card colour showing through an opaque ink face,
@@ -196,10 +194,10 @@ const title = `${NOT_FOUND.heading} — ${METADATA.name}`;
      * bib, and this is one. Only the SIZE differs, and it has to: on the wall a bib is one
      * cell of a six-item grid, and here it is alone on the page.
      *
-     * `min(6rem, 34cqi)` IS A CAP AND A FIT, NOT A FLOOR, and an earlier version of this
-     * comment had that backwards — it called the rem "a floor the reader's text size moves",
-     * which is not what `min()` does. `6rem` is the CEILING; `34cqi` is what keeps three
-     * digits inside the bib, and on a narrow viewport it is the term that binds.
+     * `min(6rem, 34cqi)` IS A CAP AND A FIT, NOT A FLOOR. The rem is not "a floor the
+     * reader's text size moves" — that is not what `min()` does. `6rem` is the CEILING;
+     * `34cqi` is what keeps three digits inside the bib, and on a narrow viewport it is the
+     * term that binds.
      *
      * THE CONSEQUENCE, MEASURED BY A REVIEW PANEL RATHER THAN GUESSED: on a 320px viewport at
      * 200% text the numeral goes from 86.4px to 64.6px. It gets SMALLER as the reader asks
@@ -226,19 +224,8 @@ const title = `${NOT_FOUND.heading} — ${METADATA.name}`;
     }
 
     /*
-     * THE HOME LINK'S MARK, KEPT IN FORCED COLOURS. presetIcons paints a glyph as a mask over
-     * `background-color`, which a forced-colours mode overrides, so the arrow beside "Home"
-     * was erased to Canvas on Canvas. The words and `.text-link`'s underline both survive on
-     * their own — this restores the mark, which is a signifier the link is meant to carry.
-     *
-     * The same rule is said in IntroCard.astro and patches/[...sport].astro; read the long
-     * form there. Astro scopes a component's styles to that component, so each page that owns
-     * a `.text-link` with a mark has to say it once.
+     * The mark beside "Home" is an icon mask, repainted for forced colours by the shared rule
+     * in BasicLayout.astro. The words and `.text-link`'s underline both survive on their own;
+     * what that rule restores is a signifier the link is meant to carry.
      */
-    @media (forced-colors: active) {
-        .text-link span[aria-hidden] {
-            forced-color-adjust: none;
-            background-color: LinkText;
-        }
-    }
 </style>

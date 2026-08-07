@@ -8,7 +8,6 @@ import stravaProgress from "../src/data/strava-progress.json";
 import {
     UPDATED_AT, bookedAhead, daysRemaining, eventsInYear, formatDateline, goalStatus,
     goalStatusLine, nextRace, parseIsoDate, patchesEarned, patchState, patchWall,
-    stampYearMatchesGoalYear,
 } from "../src/lib/projection";
 import type {RaceEvent} from "../src/lib/constants";
 import {BUILD_DATE, singaporeDate as siteSingaporeDate} from "../src/lib/today";
@@ -109,6 +108,13 @@ describe("date handling", () => {
      * The January checklist is in the `GOAL_YEAR` doc comment in `constants.ts`.
      */
     it("stamps the goal year, so a stale JSON cannot divide fresh days into last year's km", () => {
+        // Written out here rather than imported. It was an export of `projection.ts` whose
+        // only caller was this line — a comparison shipped to every reader of the site so
+        // that one assertion could make it. The claim belongs to the assertion that makes
+        // it; the fixture arm below is what proves the comparison can still say `false`.
+        const stampYearMatchesGoalYear = (iso: string = UPDATED_AT, year: number = GOAL_YEAR) =>
+            !Number.isNaN(parseIsoDate(iso)) && Number(iso.slice(0, 4)) === year;
+
         expect(stampYearMatchesGoalYear()).toBe(true);
         expect(stampYearMatchesGoalYear("2025-12-31", 2026)).toBe(false);
     });
@@ -428,9 +434,9 @@ describe("required rate", () => {
      * character ceiling for the generated branches — and between them they force a
      * re-measurement rather than allowing a silent widening.
      *
-     * CORRECTED: an earlier revision of this comment claimed the budget was 110.02px
-     * and that `Booked races cover it` "wrapped at every viewport". Both are false,
-     * and the second was never measured — it was inferred from the first. 110.02px is
+     * 110.02px IS NOT THE BUDGET, and `Booked races cover it` does not "wrap at every
+     * viewport" — that second claim is what the first one produces when it is inferred
+     * from rather than measured. 110.02px is
      * the running card's inner `max-content` column, which is not a budget at all: it
      * WIDENS with its content (to 121.06 under that very string), and the cycling
      * card's is 125.89. Measured on the built page, `Booked races cover it` renders as

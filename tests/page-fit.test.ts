@@ -20,12 +20,11 @@ import {appliesBelow, decl, effectiveDecl, isKeyframeStep, minWidthOf, pageCss, 
  * are 2px taller. From 800 to 1023px it is two cards, worst 76.13px falling to
  * 62.58px; at 768x1024 it is one, 36.61px.
  *
- * An earlier revision of this comment said "six of the eight", which was wrong and
- * is worth recording as a method failure rather than a typo: the six came from a
- * `scrollHeight - clientHeight` probe, which over-reports because an inline-block
- * icon inflates the scrollable-overflow rectangle. That instrument was retired
- * for exactly this reason and its NUMBER was kept anyway. Retiring a measuring
- * tool means re-deriving every figure it produced.
+ * IT IS NOT "six of the eight", and the difference is a method failure rather than a
+ * typo: six is what a `scrollHeight - clientHeight` probe reports, and it over-reports
+ * because an inline-block icon inflates the scrollable-overflow rectangle. That
+ * instrument was retired for exactly this reason and its NUMBER survived it anyway.
+ * Retiring a measuring tool means re-deriving every figure it produced.
  *
  * The severity is in one detail that is easy to miss: the body was *exactly* as
  * tall as the viewport, so `document.scrollHeight` never exceeded it and the page

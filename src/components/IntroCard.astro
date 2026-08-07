@@ -253,48 +253,16 @@ import portfolioImage from '../assets/me.webp'
     }
 
     /*
-     * WITHOUT THIS THE SIX SOCIAL GLYPHS DISAPPEAR IN FORCED COLOURS, and with them the
-     * only thing telling the controls apart.
+     * The six social glyphs and the hero's way to the wall are icon masks, repainted for
+     * forced colours by the shared rule in BasicLayout.astro — which carries the mechanism,
+     * the measurement and the reason it is scoped to masks rather than to every decorative
+     * span. Both cases were erased before it existed: the six painted rgb(255,255,255) on a
+     * card of rgb(255,255,255), 1.00:1, and 784 of 784 pixels of the link's arrow were Canvas.
      *
-     * Same mechanism EventsLink.astro records for its arrow: presetIcons paints an icon as
-     * a MASK over `background-color: currentColor`, and `background-color` is one of the
-     * properties a forced-colours mode overrides. Measured on the built page with the mode
-     * emulated, against the arrow the repo had already corrected, measured as a control in the same run:
-     * that arrow paints rgb(0,0,159) with `forced-color-adjust: none`, while all six of
-     * these painted rgb(255,255,255) on a card of rgb(255,255,255) — 1.00:1, erased. These
-     * are icon-ONLY controls whose on-screen name IS the glyph, so the row degraded to six
-     * identical empty boxes with no way to tell GitHub from LinkedIn from the resume.
-     *
-     * `[aria-hidden]` IS LOAD-BEARING, for the reason written at length in EventsLink.astro:
-     * each anchor also holds an `sr-only` span, so a bare `.control span` would paint the
-     * accessible name on its own colour. Scoped by the attribute that makes the mark
-     * decorative rather than by a class of its own, which the control allowlist forbids.
+     * They are DIFFERENT FAULTS and it is worth saying so. An icon-only control loses its
+     * NAME when its glyph goes — the row degraded to six identical empty boxes with no way to
+     * tell GitHub from LinkedIn from the resume. The text link keeps its words and its
+     * underline, and loses a signifier it did not need twice; its mark is repaired because it
+     * is meant to be there, not because the link stops working without it.
      */
-    /*
-     * AND THE SAME FOR A LINK THAT IS A RUN OF WORDS. `.text-link` carries a mark too — the
-     * hero's way to the wall wears the same arrow `EventsLink` wears — and it was erased by
-     * the same mechanism while the rule below said "every icon-mask glyph". Measured under forced
-     * colours: 784 of 784 pixels of that arrow's box were Canvas, i.e. no ink at all.
-     *
-     * IT IS A LESSER FAULT THAN THE ONE ABOVE, and worth saying so rather than filing both as
-     * one. An icon-only control loses its NAME when its glyph goes; this link keeps the words
-     * "My events" and keeps the underline `.text-link` ships, both browser-forced to LinkText
-     * on Canvas. What it loses is a signifier it did not need twice. It is repaired because
-     * the mark is meant to be there, not because the link stops working without it.
-     *
-     * LinkText is the right keyword for BOTH: the anchor's own text is forced to LinkText
-     * whatever the author says, so painting the mark anything else would make the glyph
-     * disagree with the words beside it.
-     *
-     * SAID AGAIN IN 404.astro AND patches/[...sport].astro, because Astro scopes a component's
-     * styles to that component and all three pages own a `.text-link` carrying a mark. That
-     * duplication is the same one `a.control` already lives with.
-     */
-    @media (forced-colors: active) {
-        a.control span[aria-hidden],
-        .text-link span[aria-hidden] {
-            forced-color-adjust: none;
-            background-color: LinkText;
-        }
-    }
 </style>

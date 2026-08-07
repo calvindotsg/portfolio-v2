@@ -1,4 +1,7 @@
-import {readFileSync} from "node:fs";
+import {execFileSync} from "node:child_process";
+import {mkdtempSync, readFileSync, rmSync, writeFileSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import {Evaluator, Lexer, Parser, data} from "@actions/expressions";
 import {truthy} from "@actions/expressions/result";
 import {parse} from "yaml";
@@ -189,8 +192,8 @@ describe("the weekly drift run cannot be evicted by pull request traffic", () =>
 
 describe("the drift decision is delegated, so that it can be executed", () => {
     /**
-     * WHY THIS READS THE WORKFLOW RATHER THAN TRUSTING `dns/test_drift.sh`. That script proves
-     * `dns/drift.sh` behaves; it says nothing about whether the workflow still CALLS it. Restore
+     * WHY THIS READS THE WORKFLOW RATHER THAN TRUSTING THE BEHAVIOURAL CASES BELOW. Those prove
+     * `dns/drift.sh` behaves; they say nothing about whether the workflow still CALLS it. Restore
      * the bare `grep -o 'checksum=...'` this replaced and every behavioural check stays green
      * while the plan job goes back to reporting a drifted zone as "No changes" — the redundancy
      * is invisible from below, so one assertion has to look at the config itself.
@@ -208,8 +211,90 @@ describe("the drift decision is delegated, so that it can be executed", () => {
         expect(runCommands("plan")).not.toMatch(/grep[^\n]*checksum=/);
     });
 
-    it("the semantics job executes drift.sh against its fixtures", () => {
-        expect(runCommands("semantics")).toMatch(/dns\/test_drift\.sh/);
+    /**
+     * THE SAME SYMMETRY, FOR THE PROOF THAT CANNOT MOVE HERE. `dns/test_filters.py` needs Python
+     * and octoDNS, so it stays in the workflow — and CLAUDE.md calls it the only evidence a DNS
+     * change is safe. Nothing else in this repository reads the `semantics` job's commands, so
+     * without this the job can be emptied of every offline proof while `plan` and `apply` keep
+     * their `needs:` edge and go on presenting a green gate.
+     */
+    it("the semantics job still executes the reject-list proof", () => {
+        expect(runCommands("semantics")).toMatch(/dns\/test_filters\.py/);
+    });
+});
+
+/**
+ * `dns/drift.sh` EXECUTED, against fixtures of every output shape it can be handed.
+ *
+ * These were a hand-rolled bash harness — `check()`, pass/fail counters, ANSI colour codes and a
+ * summary line, for six cases — run only by `.github/workflows/dns.yml`, which triggers itself on
+ * `dns/**`. So the way this actually breaks was uncovered: a refactor that changes the script's
+ * behaviour and does not touch `dns/` never ran them. They cost nothing to re-host here, they run
+ * on every PR now, and the assertion library was already in the repository.
+ *
+ * THE FIXTURES ARE NOT INVENTED. The clean and drifted ones are the literal lines octodns 1.21.0
+ * printed on 2026-07-31 — the first from the live plan job against calvin.sg, the second from a
+ * local run of two YamlProviders differing by one added record. The three failures are the shapes
+ * a format change would produce, and they are the whole point: octodns-sync exits 0 whether or not
+ * it found changes, so an output this parser cannot read must go RED rather than fall through to
+ * "clean". That fall-through is what once took a Monday drift run green while the zone had moved.
+ */
+describe("drift.sh reads octodns' two signals, and refuses when they do not agree", () => {
+    const CS = "3ba77b5bb4a88d80ad9b14733236ee74e88e0237e8d0e69a88a073308820f595";
+
+    /** drift.sh's answer to one plan file, or to a path it cannot read when `plan` is null. */
+    const drift = (plan: string | null) => {
+        const dir = mkdtempSync(join(tmpdir(), "drift-"));
+        const file = join(dir, "plan.txt");
+        if (plan !== null) writeFileSync(file, plan);
+        try {
+            const stdout = execFileSync("bash", ["dns/drift.sh", file], {
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"],
+            });
+            return {status: 0, stdout: stdout.trim()};
+        } catch (e) {
+            const err = e as {status?: number, stdout?: string};
+            return {status: err.status ?? -1, stdout: (err.stdout ?? "").trim()};
+        } finally {
+            rmSync(dir, {recursive: true, force: true});
+        }
+    };
+
+    it.each([
+        {
+            name: "a matching zone reports CLEAN",
+            plan: "INFO  CloudflareProvider[cloudflare] plan:   No changes\nNo changes were planned\n",
+            status: 0,
+            stdout: "CLEAN",
+        },
+        {
+            name: "a drifted zone reports DRIFT and the checksum to apply",
+            plan: "INFO  Plan\n"
+                + "********************************************************************************\n"
+                + "* calvin.sg.\n"
+                + "********************************************************************************\n"
+                + "Create <CNAME gallery.calvin.sg.>\n"
+                + `INFO  Checksum checksum=${CS}\n`,
+            status: 0,
+            stdout: `DRIFT ${CS}`,
+        },
+        {
+            name: "a plan with changes whose checksum line changed format is not reported clean",
+            plan: `INFO  Plan\nCreate <CNAME gallery.calvin.sg.>\nINFO  Checksum sha256:${CS}\n`,
+            status: 2,
+            stdout: "",
+        },
+        {
+            name: "both signals at once is a contradiction, not a coin toss",
+            plan: `No changes were planned\nINFO  Checksum checksum=${CS}\n`,
+            status: 2,
+            stdout: "",
+        },
+        {name: "an empty plan file is unreadable, not clean", plan: "", status: 2, stdout: ""},
+        {name: "a missing plan file is an error", plan: null, status: 2, stdout: ""},
+    ])("$name", ({plan, status, stdout}) => {
+        expect(drift(plan)).toEqual({status, stdout});
     });
 });
 

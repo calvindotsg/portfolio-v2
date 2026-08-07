@@ -44,8 +44,8 @@ export default defineConfig({
      *  tracking, line height — is authored CSS, and splitting one type treatment
      *  across two mechanisms is how the pair drifts. */
     /*
-     * `underline` IS BLOCKED AS AN ENGLISH WORD, not as a declaration value — and the difference
-     * is worth stating, because an earlier revision of this comment claimed both and was wrong.
+     * `underline` IS BLOCKED AS AN ENGLISH WORD, not as a declaration value, and the difference
+     * decides whether the entry survives its own reason.
      *
      * `static` and `tabular-nums` are blocked for the declaration-value reason: this codebase has
      * to write them in authored CSS, and the extractor reads `src/**`. `underline` was briefly in
@@ -144,9 +144,8 @@ export default defineConfig({
      *   3. `max-w-[60px]` on the same variant was BELOW that button's own content
      *      width (2px border + 40px padding + a 20px icon = 62px), so under
      *      border-box the icon child shrank to 18px — the sun and moon artwork
-     *      shipped squashed 10% horizontally. An earlier version of this comment
-     *      read that backwards and called it "an 18px icon"; the icon is 1em and
-     *      the cap was deforming it.
+     *      shipped squashed 10% horizontally. The icon is 1em; the cap was
+     *      deforming it, rather than the icon being authored small.
      *
      * So the box is now DECLARED rather than capped, once, for every control:
      * 64 x 48px, which is 2px larger on each axis than the widest button that used
@@ -155,11 +154,10 @@ export default defineConfig({
      * AA floor was never the binding constraint here, and 48px is also exactly
      * Material's 48dp.
      *
-     * An earlier version of this comment justified the 48 with "the 48-CSS-pixel
-     * finger Lighthouse's tap-target audit uses". Do not restore that: the
-     * tap-target audit was REMOVED in Lighthouse v12.0.0 (2024-04-01), so no
-     * automated tool ships a 48px check any more — axe's `target-size` measures
-     * 24px. The number stands on SC 2.5.5 and on nothing shrinking, not on a tool.
+     * DO NOT JUSTIFY THE 48 WITH A TOOL. Lighthouse's tap-target audit — the source of
+     * the "48-CSS-pixel finger" — was REMOVED in v12.0.0 (2024-04-01), and axe's
+     * `target-size` measures 24px, so no automated check ships a 48px floor any more. The
+     * number stands on SC 2.5.5 and on nothing shrinking.
      *
      * THE BOX IS FONT-RELATIVE — `w-16 h-12`, which is 4rem x 3rem, the same
      * 64 x 48 at the 16px root every browser ships. It spent one revision in px and
@@ -196,22 +194,20 @@ export default defineConfig({
      * card's copy column open at its own min-content width, and the card sheared the hero
      * copy. 136.84 of text ink at 320px wide and a 40px root; 47.44 at a 32px root, inside
      * the WCAG 1.4.4 bracket. On a 320px viewport two controls stop fitting at a 25px root
-     * and the card starts shearing a BUTTON at 28 — an onset an earlier draft of this note
-     * put at 32, which was the first root its text-only sweep happened to sample. The two
-     * claims are not opposites by accident: BOTH rest on comparing a rem bound against a
-     * rem control, and the sweep that seemed to confirm the optimistic one measured the
-     * bottom edge while the damage was on the right.
+     * and the card starts shearing a BUTTON at 28. SAMPLE THE ONSET, DO NOT TAKE THE FIRST
+     * ROOT A SWEEP HAPPENS TO HIT: that onset was reported at 32 from a sweep whose lowest
+     * sample it was, and the same sweep measured the bottom edge while the damage was on
+     * the right.
      *
      * THE BOUND IS GONE ENTIRELY NOW, which is the answer to the class rather than to the
      * instance. The ladder was first extended to reach one column, with the bound derived
      * from a fitted budget and asserted at every width; then the counting was deleted
      * outright — the control row wraps, so its minimum content width is one control at
      * every text size, and there is no number left to get wrong. That is what makes the
-     * rem box safe to keep rather than merely preferable. What the old paragraph got right
-     * is its conclusion: a px bound left behind to part company with every other
-     * breakpoint was never the answer. What it got wrong generalises past the sign of the
-     * error — a hand-tuned count compared against a text-relative box has to be re-tuned
-     * every time either side moves, and the two times it was wrong here were in opposite
+     * rem box safe to keep rather than merely preferable. The conclusion that survives: a
+     * px bound left behind to part company with every other breakpoint was never the
+     * answer, and a hand-tuned count compared against a text-relative box has to be
+     * re-tuned every time either side moves — it was wrong twice here, in opposite
      * directions. `tests/control-geometry.test.ts` asserts the invariant that replaced it.
      *
      * What the build before last did here was accidental and is still worth knowing:
@@ -225,9 +221,8 @@ export default defineConfig({
      * UnoCSS emits BOTH conflicting declarations in authoring order and the LAST
      * one wins by the cascade (the minifier then drops the dead one) — so
      * `w-16 w-max` really does resolve to max-content, and only the reverse order
-     * looks like the width surviving. An earlier draft of this comment claimed the
-     * width could never win; it can, and that is exactly why the token has to be
-     * absent rather than merely early.
+     * looks like the width surviving. The width CAN win, which is exactly why the token
+     * has to be absent rather than merely early.
      *
      * NOTHING OUTSIDE THIS SHORTCUT MAY RESTATE THE WIDTH, and the container the
      * controls sit in is where that would most naturally happen. It used to size
@@ -275,17 +270,15 @@ export default defineConfig({
      * wrapping row, but no reachable configuration currently triggers it. Removing the token
      * changes no control's rendered width at any measured configuration; force the row
      * narrower than one control and a control goes 64 -> 40 without it and holds 64 with it.
-     * An earlier draft of this paragraph claimed the token was load-bearing again, which
-     * overstated it in the direction that invites someone to "verify" it by deleting it,
-     * seeing nothing change, and concluding the note is stale. It is worth knowing that it
-     * has been all three things in turn — necessary, inert, and applicable-but-unexercised —
-     * because that is why it was never removed. It was added for a real measured failure: the
-     * two goal CTAs were flex items, flex-shrink outranks a declared width, and they
-     * measured 47.80px at lg with the width already in place. Removing those CTAs left
-     * all seven remaining controls as grid items of a column ladder, where nothing
-     * shrinks, and the token went inert — an earlier draft of this note said so and
-     * argued for keeping it anyway, on the grounds that the next control dropped into a
-     * flex row would silently lose its box.
+     * DO NOT OVERSTATE IT TO "load-bearing" — that invites someone to "verify" it by
+     * deleting it, seeing nothing change, and concluding the note is stale. It is worth
+     * knowing that it has been all three things in turn — necessary, inert, and
+     * applicable-but-unexercised — because that is why it was never removed. It was added
+     * for a real measured failure: the two goal CTAs were flex items, flex-shrink outranks
+     * a declared width, and they measured 47.80px at lg with the width already in place.
+     * Removing those CTAs left all seven remaining controls as grid items of a column
+     * ladder, where nothing shrinks, and the token went inert — kept anyway, on the grounds
+     * that the next control dropped into a flex row would silently lose its box.
      *
      * That is exactly what happened, to all seven at once: the ladder is gone and the
      * control row wraps, so every control is a flex item again and flex-shrink is once
@@ -577,9 +570,8 @@ export default defineConfig({
          * elements on the home page — seven plated icon controls, the two goal cards' calls to action,
          * two role-card company links, and the Now card's info link, which wears a bare `hover:` utility
          * and belongs to neither named idiom — plus six more on the wall (the back link, three sport
-         * chips, and the linked bibs). An earlier draft of this sentence said "twelve elements across
-         * two pages", which was the home page's count labelled as the whole site's, and its stated
-         * breakdown reached twelve before the wall was added at all.
+         * chips, and the linked bibs). COUNT THE PAGE YOU MEAN: a home-page total labelled as the
+         * whole site's is the mistake this breakdown is written out to prevent.
          *
          * WHY THE FIX BELONGS IN THE CONFIG AND NOT IN THE SHORTCUTS. Guarding each of the two
          * shortcuts would fix today's wearers and leave the next `hover:` token anyone writes
@@ -668,9 +660,9 @@ export default defineConfig({
          *     Widely Available only since 2026-06-11 — and the browsers that lack
          *     it keep the whole defect. (Do not quote Chrome 111 / Safari 16.4 for
          *     this: those are the floors of OTHER length units in the same BCD
-         *     file, `rex`/`rch`/`ric`/`rlh` and `lh`/`rlh`. An earlier draft of
-         *     this comment conflated them and made the swap look about two years
-         *     safer than it is.) What the exact spelling buys over the constant is
+         *     file, `rex`/`rch`/`ric`/`rlh` and `lh`/`rlh`, and reading one of those
+         *     rows for this unit makes the swap look about two years safer than it
+         *     is.) What the exact spelling buys over the constant is
          *     0.0027em of residual, which is 0.05px on the 20px greeting at the
          *     default root size and grows with the text — 0.07px at root 20,
          *     0.08px at root 24 — so it is a fixed em fraction, not a fixed 0.06px.

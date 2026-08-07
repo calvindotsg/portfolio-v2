@@ -25,6 +25,17 @@ import {iconClass} from "../lib/icons";
 const dateline = formatDateline();
 
 /*
+ * THE HEART STANDS IN FOR A WORD, so losing it loses meaning rather than decoration — the
+ * sentence reads "Built with <heart>", and the `sr-only` "love" beside it is what a listener
+ * gets. In forced colours it was painting rgb(255,255,255) on a card of rgb(255,255,255):
+ * measured 1.00:1, the glyph simply absent, leaving "Built with , more love to Astro template
+ * by Gianmarco" on screen. The shared rule in BasicLayout.astro paints it, and paints it
+ * `CanvasText` — neither a link nor a control but body copy, which is what the mode reserves
+ * that colour for. It takes that by being inside neither an anchor nor a button, so this page
+ * declares nothing for it and needs no class hook to be found by.
+ */
+
+/*
  * The footer heart is toned from a theme token, and the token sits on a WRAPPER
  * around the glyph rather than on the glyph itself. That is not decoration — it is
  * the only arrangement that does not depend on the order UnoCSS happens to emit
@@ -125,8 +136,8 @@ const dateline = formatDateline();
  * 5px and eating the footer card's bottom padding. BE PRECISE ABOUT WHAT SCROLLS:
  * measured at both of those viewports, the text ink below the fold is ZERO. The 29px
  * is 5px of the footer card's own box plus `main`'s bottom padding, so the cost is a
- * scrollbar, not a line of copy. An earlier draft of this paragraph said only that the
- * page stops fitting, which reads as content going under the fold and overstates it. Rect-diffed against a build of the
+ * scrollbar, not a line of copy. "The page stops fitting" is the wrong summary of that —
+ * it reads as content going under the fold, and overstates it. Rect-diffed against a build of the
  * previous revision across ten lg viewports: no card moves horizontally or changes
  * width, the intro card gains 5px, the footer 14px — that is its own padding coming
  * back — and everything below the first row shifts down 5px.
@@ -211,8 +222,8 @@ const dateline = formatDateline();
              this row-span it loses actual glyphs at the DEFAULT 16px text size —
              5px at 1440x900, and 13px at every viewport whose height puts `main`
              on its 46rem floor. Those two figures belong to different
-             configurations; an earlier draft attached the 1440x900 number to the
-             floor configs and so understated this fix by 8px.
+             configurations and must not be swapped: attaching the 1440x900 number to the
+             floor configs understates this fix by 8px.
 
              The rows cost nothing because the grid already computes TEN row tracks —
              the eight explicit ones plus two implicit zero-height rows created by
@@ -239,7 +250,7 @@ const dateline = formatDateline();
              tests/projection.test.ts pins that bound. */}
         <Card colSpan="md:col-span-1" rowSpan="md:row-span-1 lg:row-span-3">
             <p class="text-xs">
-                {FOOTER.prefix} <span class="footer-heart text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}
+                {FOOTER.prefix} <span class="text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}
             </p>
             {dateline && (
                     <p class="text-xs mt-2">Updated <time datetime={UPDATED_AT}>{dateline}</time></p>
@@ -248,28 +259,3 @@ const dateline = formatDateline();
     </main>
 </Layout>
 
-<style>
-    /*
-     * THE HEART STANDS IN FOR A WORD, so losing it loses meaning rather than decoration —
-     * the sentence reads "Built with <heart>", and the `sr-only` "love" beside it is what a
-     * listener gets. In forced colours it was painting rgb(255,255,255) on a card of
-     * rgb(255,255,255): measured 1.00:1, the glyph simply absent, leaving "Built with ,
-     * more love to Astro template by Gianmarco" on screen.
-     *
-     * Mechanism and technique are EventsLink.astro's, written up there in full: presetIcons
-     * paints the artwork as a mask over `background-color`, which the mode overrides.
-     *
-     * `CanvasText` rather than LinkText or ButtonText — this one is neither a link nor a
-     * control, it is body copy, and the mode reserves CanvasText for exactly that. The hook
-     * is a real class on the wrapper: the wrapper is the element that carries the colour
-     * token (see the note above on why the token sits on a wrapper and not on the glyph),
-     * and its only other selector is a generated utility whose escaped form is not
-     * something a stylesheet should be asked to match.
-     */
-    @media (forced-colors: active) {
-        .footer-heart span[aria-hidden] {
-            forced-color-adjust: none;
-            background-color: CanvasText;
-        }
-    }
-</style>

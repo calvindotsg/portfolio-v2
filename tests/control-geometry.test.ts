@@ -362,9 +362,8 @@ describe("every styled control declares its box", () => {
         // anchors already shipped 46px tall. 48 also lands exactly on Android's and
         // Material's 48dp recommendation and above Apple's 44pt.
         //
-        // CORRECTION to an earlier version of this comment, which claimed 48px
-        // "clears the 48-CSS-px finger Lighthouse's tap-target audit uses": that
-        // audit no longer exists. `tap-targets`, with its `FINGER_SIZE_PX = 48`,
+        // DO NOT JUSTIFY 48 WITH "the 48-CSS-px finger Lighthouse's tap-target audit
+        // uses": that audit no longer exists. `tap-targets`, with its `FINGER_SIZE_PX = 48`,
         // was deleted in Lighthouse v12.0.0 (commit acfd1fb5ea, 2024-04-01) and
         // replaced by the axe-backed `target-size` audit, which measures bounding
         // rects against 24px. So no shipping tool checks 48 — the AAA number 44 is
@@ -447,11 +446,11 @@ describe("every styled control declares its box", () => {
             // only to decide whether a further assertion applied, so deleting the token would
             // have made that assertion vanish rather than fail.
             //
-            // (An earlier draft of this comment said "the cycling label measured 418px". Both
-            // halves were wrong: 418 does not reproduce by any route, and the number is a
-            // CONTROL height, not a label height. It came from EventsLink.astro on origin/main,
-            // where it was written as "the same label" without naming a card, and restating it
-            // here newly pinned it to the one card it does not match.)
+            // (418px is NOT "the cycling label" and is not a label at all: it does not
+            // reproduce by any route as one, it is a CONTROL height, and it comes from
+            // EventsLink.astro on origin/main where it was written as "the same label"
+            // without naming a card. Restating it here pins it to the one card it does not
+            // match.)
             expect(
                 box.wraps,
                 `.${box.cls} must let its children wrap. A label comes from data and grows with the `
@@ -992,8 +991,8 @@ describe("every styled control declares its box", () => {
      * TWO THINGS THIS DELIBERATELY NO LONGER ASSERTS, both consequences of the change
      * rather than omissions.
      *
-     * The GAP, and READ THE WHOLE OF THIS before concluding the gap is now harmless — an
-     * earlier draft of this paragraph concluded exactly that and was wrong.
+     * The GAP, and READ THE WHOLE OF THIS before concluding the gap is now harmless. It is
+     * the conclusion the first half invites, and it is wrong.
      *
      * A column gap only separates items that SHARE a line, and a wrapping row's minimum is
      * one item on a line by itself, so the gap can make this row taller and never WIDER.
@@ -1466,9 +1465,9 @@ describe("every styled control declares its box", () => {
      * i.e. under the heading. The controls are a card's primary affordances in a grid of
      * their own and have the room; this is a supplementary link beside a heading.
      *
-     * The vertical direction is NOT a reason, and an earlier version of this note claimed
-     * it was: "at 44px the box would run down into the first line of the body copy". It
-     * would not. Measured with a 44px override injected, the heading box runs 25->53px, the
+     * THE VERTICAL DIRECTION IS NOT A REASON. "At 44px the box would run down into the
+     * first line of the body copy" is the plausible objection and it is false. Measured with
+     * a 44px override injected, the heading box runs 25->53px, the
      * 16px heading margin puts the paragraph's first line box at 69, and a 44px mark
      * starting at 25 ends at exactly 69 — it abuts the line box and clears its first ink by
      * 1px. Structurally that is not a coincidence: the mark starts at the heading's top and
@@ -1594,5 +1593,58 @@ describe("every styled control declares its box", () => {
             tabindex === null || Number(tabindex) >= 0,
             `the explainer carries tabindex="${tabindex}", so it is sized correctly and cannot be reached by keyboard`,
         ).toBe(true);
+    });
+});
+
+/**
+ * THE SHEET READER'S OWN CONTRACT, held here because this is the file `helpers/css.ts`
+ * was extracted from and the invariant above is what pays for it: every assertion in this
+ * suite is "no rule anywhere may do X", and a rule the parser cannot see reads as a rule
+ * that does not exist — a silent pass.
+ *
+ * Both directions are asserted, because a nested block gets two different answers on
+ * purpose. A nested AT-RULE is descended into: its declarations belong to the enclosing
+ * selector under the accumulated prelude, which is what the browser does. Folding them
+ * into the parent's body text instead is what let four lines of nested
+ * `@media (max-width:40rem)` on the control row shear 266px of control box at 320 wide
+ * and the default text size, with the whole suite green. A nested STYLE rule is refused:
+ * its subject is relative to the parent and a `Rule` here is a selector list with nothing
+ * to relativise against, so its declarations would be attributed to the wrong elements.
+ */
+describe("parseRules reads a nested block or refuses it, and never folds one away", () => {
+    it("gives a nested at-rule's declarations the parent's selectors and the prelude", () => {
+        expect(parseRules(".control{width:4rem;@media (max-width:40rem){flex-wrap:nowrap}}")).toEqual([
+            {selectors: [".control"], body: "width:4rem", nested: false, at: ""},
+            {selectors: [".control"], body: "flex-wrap:nowrap", nested: true, at: "@media (max-width:40rem)"},
+        ]);
+    });
+
+    /**
+     * THE MIRROR ARRANGEMENT, and it is the one that was wrong. Pinning only the shape above
+     * reads as though source order were proved in general; it is not, because a declaration
+     * written AFTER a nested at-rule is the case a parent-first emitter inverts. The resolved
+     * value is asserted as well as the array, because that is the property a reader has: at
+     * 320px this control is 3rem, which is what Chromium paints and what the array order has
+     * to produce.
+     */
+    it("keeps a declaration that FOLLOWS a nested at-rule after it, so the cascade resolves", () => {
+        const css = ".control{@media (max-width:40rem){width:7rem}width:3rem}";
+        expect(parseRules(css)).toEqual([
+            {selectors: [".control"], body: "width:7rem", nested: true, at: "@media (max-width:40rem)"},
+            {selectors: [".control"], body: "width:3rem", nested: false, at: ""},
+        ]);
+        expect(effectiveDecl(parseRules(css), "width", 320)).toMatchObject({value: "3rem"});
+    });
+
+    it("still yields exactly one empty Rule for a selector that declares nothing itself", () => {
+        expect(parseRules(".control{}")).toEqual([{selectors: [".control"], body: "", nested: false, at: ""}]);
+        expect(parseRules(".control{@media print{width:1rem}}")).toEqual([
+            {selectors: [".control"], body: "width:1rem", nested: true, at: "@media print"},
+            {selectors: [".control"], body: "", nested: false, at: ""},
+        ]);
+    });
+
+    it("refuses a nested style rule rather than mis-attributing it", () => {
+        expect(() => parseRules(".control{color:red;& span{width:2px}}")).toThrow(/nested style rule/);
     });
 });

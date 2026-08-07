@@ -595,11 +595,10 @@ describe("raceKm", () => {
     });
 
     /**
-     * THE TYPE CLOSES THIS AND THE BRANCH STAYS ANYWAY — and the earlier version of this
-     * comment claimed the opposite, that "`recordings: []` is a legal booked race, so a row
-     * could carry an empty list and no `km`". It is not legal: `BookedRace` REQUIRES `km` and
-     * `RecordedRace` requires a non-empty tuple, so that shape satisfies neither arm and
-     * `pnpm check` rejects it. A review panel caught the false reason.
+     * THE TYPE CLOSES THIS AND THE BRANCH STAYS ANYWAY. The false reason for keeping it is
+     * that "`recordings: []` is a legal booked race, so a row could carry an empty list and
+     * no `km`" — it is not legal: `BookedRace` REQUIRES `km` and `RecordedRace` requires a
+     * non-empty tuple, so that shape satisfies neither arm and `pnpm check` rejects it.
      *
      * The `?? NaN` branch is kept because the type is not the only door. `EVENTS` is authored
      * behind one cast in this suite and several in the others, `JSON.parse` reaches none of

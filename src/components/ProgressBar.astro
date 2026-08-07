@@ -38,9 +38,11 @@ const percent = Math.max(0, Math.min(100, (currentProgress / totalGoal) * 100));
  *
  * SC 1.4.11 STILL APPLIES. It is a graphical object that conveys information, so the
  * fill is held to 3:1 against the track it sits in. It is no longer held against the ink
- * that used to ride it: the icon is gone, and with it the reason --on-brand existed on
- * this element. Put a glyph back and that obligation returns — it was at 1.89:1 in dark
- * mode before the token was introduced.
+ * that used to ride it: the icon is gone, and with it the ink token that existed for this
+ * element — deleted rather than left waiting, because a token nothing wears reads as a
+ * colour the design uses. Put a glyph back and that obligation returns, and the figure to
+ * beat is recorded: the icon inherited --text and sat at 1.89:1 on the fill in dark mode,
+ * which is what the token was introduced to fix.
  *
  * THE TWO COLOURS STAY IN UTILITY CLASSES rather than moving in beside
  * the geometry, and that is a testability decision worth keeping. tests/build-output.test.ts

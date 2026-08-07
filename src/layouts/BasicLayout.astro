@@ -82,8 +82,8 @@ const {title, description, noindex = false} = Astro.props;
  * note further down this file, and index.astro). A card grows vertically with its content
  * and never horizontally, which is the whole reason the two edges needed separate work.
  *
- * It also fixes the large breakpoint, which the exact height broke as well, and
- * an earlier version of this comment wrongly claimed it left untouched. <main>
+ * IT ALSO FIXES THE LARGE BREAKPOINT, which the exact height broke as well and which
+ * reads as untouched by it. <main>
  * carries a minimum height of its own at that breakpoint (index.astro owns the
  * number — do not copy it here, it moves), so on a viewport shorter than that
  * minimum the exact-height body could not contain it; because the body centres
@@ -331,17 +331,17 @@ const schema = {
      *
      * That is not a hypothetical trap. It is exactly how --brand-ink came to sit at
      * 2.77:1 on a dark face earlier in this project: a token chosen against the card
-     * and then painted on ink. The convention that surfaces it is the one
-     * --on-brand already established — a `-on-` name states the surface it was chosen
-     * against, and a token without one is for the card.
+     * and then painted on ink. The convention that surfaces it is the one the retired
+     * progress-bar ink token established — a `-on-` name states the surface a token was
+     * chosen against, and a token without one is for the card.
      *
      * Held to the 4.5:1 TEXT floor — text, not the 3:1 graphics floor, because the mark
      * is an icon AND the word beside it. Two instruments agree on all eight
      * combinations: `tests/patch-wall.test.ts` resolves the chain out of the shipped
      * stylesheet and does the arithmetic, and a scratchpad probe samples the composited
-     * pixels of the rendered page. BE PRECISE ABOUT WHICH IS WHICH — an earlier draft
-     * of this note said the test measures pixels. It does not, and it cannot: there is
-     * no browser in the suite. That distinction is the whole reason the test also
+     * pixels of the rendered page. BE PRECISE ABOUT WHICH IS WHICH — the TEST does not
+     * measure pixels and cannot, because there is no browser in the suite. That
+     * distinction is the whole reason the test also
      * carries a separate structural guard against a translucent ancestor, which is the
      * one thing arithmetic over authored colours can never see.
      *
@@ -374,18 +374,15 @@ const schema = {
      * light mode: that makes the *unfilled* remainder the strongest mark on the
      * card and inverts what the bar reports.
      *
-     * --on-brand is the ink for content sitting ON --progress-fill, so it flips
-     * with the fill. It is not a fixed dark: a dark icon on the light-mode fill
-     * would be 2.77:1, the same class of failure it was introduced to fix.
-     *
-     * NOTHING WEARS IT TODAY. The progress bar became a 2px rule and its sport glyph went
-     * with the capsule, so as of that change --on-brand has no consumer — it is KEPT rather
-     * than deleted because the obligation it encodes returns the moment any ink is put back
-     * on the fill, and the ratio above is the whole reason the token exists rather than a
-     * literal. Read this paragraph in the conditional: it describes what the token is FOR,
-     * not what the page currently does. See ProgressBar.astro, whose own note says the same
-     * from the other side, and tests/build-output.test.ts, which fails if the bar regrows a
-     * child without the ink check being restored.
+     * THERE IS NO INK ON THE FILL, so there is no token for it. The bar carried one —
+     * an --on-brand, the ink for content sitting ON --progress-fill, flipping with the fill
+     * because a fixed dark on the light-mode fill measures 2.77:1 — and it lost its consumer
+     * when the bar became a 2px rule and its sport glyph went with the capsule. It was kept
+     * for a while against the ink coming back, which is the wrong keeper for that obligation:
+     * the check in tests/build-output.test.ts fires if the bar regrows a child without an ink
+     * ratio being asserted, whether or not a token is sitting here waiting, and the 2.77:1
+     * that decided its value is recorded in ProgressBar.astro. A token nothing wears is read
+     * as a colour the design uses.
      */
     :root[data-theme='light'] {
         --background: #FAFAFA; /* grey-50 */
@@ -399,7 +396,6 @@ const schema = {
         --status-live: #A82334; /* primary-600 */
         --status-halo: #A82334; /* primary-600 */
         --brand-ink: #A82334; /* primary-600 — 6.52:1 on the card */
-        --on-brand: #FAFAFA; /* grey-50 — light ink, the fill is deep here */
         --sport-ride: #A82334; /* primary-600 — deep, for the card */
         --sport-ride-on-ink: #F3A3AA; /* primary-200 — pale, for the inverted bib face */
         --sport-run: #1F4E9C; /* marine-600 */
@@ -418,7 +414,6 @@ const schema = {
         --status-live: #F3A3AA; /* primary-200 */
         --status-halo: #F9CDD3; /* primary-100 */
         --brand-ink: #F3A3AA; /* primary-200 — 9.08:1 on the card */
-        --on-brand: #0B0B0B; /* darkslate-900 — dark ink, the fill is pale here */
         --sport-ride: #F3A3AA; /* primary-200 — pale, for the card */
         --sport-ride-on-ink: #A82334; /* primary-600 — deep, for the inverted bib face */
         --sport-run: #9FC0F0; /* marine-200 */
@@ -460,7 +455,7 @@ const schema = {
 
        MEASURED, against the ladder it replaces rather than against the defect both
        of them fix. NAME THE EDGE AND THE GRID, because these are two different sweeps
-       and an earlier draft of this note quoted one number for both: CONTROL BOXES past
+       one number cannot stand for both: CONTROL BOXES past
        a card's right clip edge are 0 at all 32 configurations (4 widths x 8 root sizes),
        and past its BOTTOM clip edge 0 at all of a further 27 (9 viewports x 3 roots,
        desktop included); TEXT INK is 0 at 34 of its 35 (7 widths x 5 roots) at the right
@@ -470,10 +465,10 @@ const schema = {
        Deleting the rungs also removes the last two rem bounds that had no variant sibling
        to move with.
 
-       WHAT THE LADDER'S ABSENCE USED TO COST is recorded here rather than by pointer,
-       because the pointer was wrong — an earlier draft sent the reader to uno.config.ts,
-       which never held these figures, so deleting them from this file recorded them
-       nowhere. Control boxes sheared past the right clip edge by 142 at 320 wide and a
+       WHAT THE LADDER'S ABSENCE USED TO COST is recorded here in full rather than by
+       pointer, because uno.config.ts — the obvious place to point at — never held these
+       figures, and deleting them from this file would record them nowhere. Control boxes
+       sheared past the right clip edge by 142 at 320 wide and a
        40px root, 102 at 360, 87 at 375, 48 at 414, 50 at 320/root 32, 10 at 360/root 32
        and 4 at 320/root 28 — so the onset is a 28px root, not the 32 a text-only sweep
        reported. Text ink lost 136.84 / 96.84 / 81.84 / 42.84 at 320/360/375/414 at a 40px
@@ -489,12 +484,11 @@ const schema = {
        (on a finer 70-configuration grid it is 26 and 7 — see the next paragraph, and
        always say which grid a count came from).
 
-       WIDER VIEWPORTS GAIN MOSTLY ONCE THE TEXT GROWS, not at the default size, and an
-       earlier draft of this note had that wrong in a way worth recording: it said they
-       "gain more, because the old top rung capped every one of them at 4". The rung did
-       cap them, but the figures behind that sentence were measured before the portrait
-       was pinned (`shrink-0` in IntroCard.astro), when this row was taking width from
-       the photo — so they described a build that did not ship. Measured on what did:
+       WIDER VIEWPORTS GAIN MOSTLY ONCE THE TEXT GROWS, not at the default size. "They gain
+       more, because the old top rung capped every one of them at 4" is the tempting reading
+       and it is wrong: the rung did cap them, but the figures behind it were measured before
+       the portrait was pinned (`shrink-0` in IntroCard.astro), when this row was taking width
+       from the photo — a build that did not ship. Measured on what did:
        768 and 1024 are UNCHANGED at 4 per row at a 16px root, because the portrait now
        keeps its 275px and the copy column takes only what is left. The gains are real
        but they sit at larger text and at the widest viewports — 768 at a 20px root goes
@@ -502,9 +496,9 @@ const schema = {
        1440 at 16 goes 4 -> 5.
 
        SEVEN GET TALLER, and the reason is the whole trade rather than a wrinkle in it.
-       An earlier draft said TWO, which was an artefact of sampling five root sizes where
-       the clipping sweep samples eight — the same coarse-grid error that once put the
-       shearing onset at a 32px root when it is 28. On a ten-root grid the page grows at
+       SAMPLE THE GRID THE CLAIM NEEDS: five root sizes report TWO where the clipping sweep's
+       eight report seven — the same coarse-grid error that once put the shearing onset at a
+       32px root when it is 28. On a ten-root grid the page grows at
        375/28 (+434, the worst), 360/26 (+403), 414/28 (+385), 320/24 (+372), 375/26
        (+357), 360/24 (+330) and 320/22 (+264), it shrinks at 28 configurations by up to
        160, and 35 are identical. Every one of the seven is a narrow-to-mid viewport
@@ -528,9 +522,9 @@ const schema = {
        Worth knowing for whoever wants that height back: below `md` the portrait is
        positioned out of flow, but its wrapper is still an in-flow sibling of the
        copy column and spends 48 of the card's 222 content-box pixels there. Those two
-       figures were 24 and 198 in an earlier draft, DERIVED arithmetically instead of
-       measured, and they were wrong in a way that inverted the conclusion: two controls
-       at a 24px root need 216, which 222 accommodates and 198 does not. Recovering the
+       figures come out as 24 and 198 if they are DERIVED arithmetically instead of
+       measured, and that inverts the conclusion: two controls at a 24px root need 216,
+       which 222 accommodates and 198 does not. Recovering the
        48 would seat two controls at 320 and 360 wide at that root. That is a fix to the
        mobile hero, not to this row, and it is deliberately not made here.
 
@@ -543,10 +537,9 @@ const schema = {
        sideways.
 
        THE SEPARATION CAN NO LONGER COST A PIXEL OF WIDTH — AND THAT IS NOT THE SAME AS
-       SAFE. An earlier draft of this note claimed widening it "stopped being dangerous"
-       and called that the clearest argument for this shape. That claim was measured on
-       ONE EDGE and generalised to a class, which is the error this file warns about
-       three paragraphs above, so it is corrected here rather than quietly dropped.
+       SAFE. "Widening it stopped being dangerous" is the claim this shape invites, and it
+       is one edge generalised to a class, which is the error this file warns about three
+       paragraphs above.
 
        What is true and measured: widened to 6rem under the column layout it pushed a
        control past the card's RIGHT clip edge at 12 of 32 configurations, worst 89px,
@@ -657,6 +650,75 @@ const schema = {
         main > *,
         .bib-cell {
             animation: none;
+        }
+    }
+
+    /*
+     * EVERY DECORATIVE MARK ON THE SITE, KEPT IN FORCED COLOURS — once, here, instead of
+     * eight times in eight components.
+     *
+     * THE MECHANISM, which every copy used to restate: presetIcons paints an icon's artwork
+     * as a MASK over `background-color: currentColor`, and `background-color` is one of the
+     * properties a forced-colours mode overrides. So the glyph paints Canvas on Canvas and
+     * vanishes. Measured with the mode emulated, on more than one of them: glyph
+     * rgb(255,255,255) on a surface of rgb(255,255,255), a ratio of exactly 1.00:1. Where the
+     * mark stands in for a word ("Built with <heart>") that is meaning lost, and where the
+     * control has no words on screen at all — the six social links, the theme toggle, the Now
+     * explainer — it is the whole control.
+     *
+     * SAID ONCE RATHER THAN PER COMPONENT. THREE of the eight copies carried the note "said
+     * again here, because Astro scopes a component's styles to that component" — true as far as
+     * it goes, and not the end of it: `is:global` is the escape, this layout wraps every page,
+     * and the block is already global. (The other five explained nothing, which is its own
+     * argument: a rule copied without its reason is a rule nobody can retire.) What that bought, besides 211 lines: the card headings' marks
+     * and the bibs' sport marks, which no copy reached, so they were vanishing.
+     *
+     * AND THE COUNTING IS THE ARGUMENT. The Now card's explainer was the EIGHTH icon-only
+     * control, missed by the sweep that repaired the other seven, because it wore no shared
+     * class — and it was repaired by giving it one, which is the shape that lets a ninth be
+     * missed the same way. A mark is covered here by being a mark, so nothing has to be
+     * remembered. (Two components kept a class hook for this and no longer need one; the
+     * class-token gate in tests/build-output.test.ts is what says so.)
+     *
+     * WHICH SYSTEM COLOUR IS DECIDED BY WHAT CONTAINS THE MARK, because the mode reserves a
+     * different one for each kind of thing and a glyph must agree with the words beside it —
+     * an anchor's own text is forced to LinkText whatever the author says.
+     *
+     * SCOPED TO THE ICON MASKS RATHER THAN TO EVERY `aria-hidden` SPAN, and that narrowing is
+     * deliberate: `forced-color-adjust: none` lets ALL author colour through on the element it
+     * names, not just the system colour put back beside it, so a rule carrying it is a
+     * standing invitation for some later author colour to reach a mode that exists to remove
+     * them. The advice is to keep it infrequent and tightly scoped and never at a higher level
+     * than needed (Sarah Higley, "forced-color-adjust: none is an unavoidable foot gun"), and
+     * the level actually needed is "an element whose ink IS a background-color" — which on
+     * this site is exactly a presetIcons mask, and is what the `i-` class prefix names. A
+     * decorative span that is not an icon needs nothing here and must not silently get it.
+     *
+     * `[aria-hidden]` IS LOAD-BEARING, and it was paid for. One of these rules was `.events-link
+     * span` for a revision, written when the anchor had one child; wrapping the label in an
+     * element gave it a second, and the label took the glyph's treatment — `background-color:
+     * LinkText` under the anchor's inherited `color: LinkText`, the words painted on their own
+     * colour. Measured with the mode emulated: rgb(0,0,159) on rgb(0,0,159) across 102.95x16px,
+     * a ratio of exactly 1.00:1, the control's whole on-screen name replaced by a solid block.
+     * Four reviewers found it and none of eleven mutations could, because they all altered a
+     * DECLARATION and the defect was in the SELECTOR's reach. If a glyph ever stops being
+     * `aria-hidden` it stops being decorative, and these rules correctly stop applying to it.
+     */
+    @media (forced-colors: active) {
+        span[aria-hidden][class^="i-"],
+        span[aria-hidden][class*=" i-"] {
+            forced-color-adjust: none;
+            background-color: CanvasText;
+        }
+
+        a span[aria-hidden][class^="i-"],
+        a span[aria-hidden][class*=" i-"] {
+            background-color: LinkText;
+        }
+
+        button span[aria-hidden][class^="i-"],
+        button span[aria-hidden][class*=" i-"] {
+            background-color: ButtonText;
         }
     }
 </style>

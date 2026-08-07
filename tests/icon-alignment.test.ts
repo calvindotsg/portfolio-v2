@@ -56,11 +56,10 @@ import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, pageCss, parseR
  *                         and webstatus.dev has it Baseline Widely Available only
  *                         since 2026-06-11, six weeks before this change. Older
  *                         browsers would keep the whole defect to buy a tenth of
- *                         a pixel in newer ones. (Not Chrome 111/Safari 16.4, as
- *                         an earlier version of this note said: those belong to
- *                         other units — 111 is the rex/rch/ric/rlh family and
- *                         16.4 is lh/rlh. Checked against BCD, which is also why
- *                         the floor is quoted per engine.) A future change to
+ *                         a pixel in newer ones. (NOT Chrome 111/Safari 16.4 —
+ *                         those rows belong to other units in the same BCD file:
+ *                         111 is the rex/rch/ric/rlh family and 16.4 is lh/rlh,
+ *                         which is also why the floor is quoted per engine.) A future change to
  *                         this form is fine, and the em-length assertion
  *                         deliberately does NOT admit it — swapping to it should
  *                         have to come here and say so.
@@ -158,8 +157,8 @@ describe("an inline icon is centred on its text's cap band", () => {
      * real one, and the mutation that exposed it was a legitimate re-tune to
      * -0.14em, which the header claimed to allow and the suite rejected.
      *
-     * What is NOT true, since an earlier version of this comment said it: that no
-     * constant can meet this bound over the whole bracket. -0.145em meets it, at a
+     * WHAT IS NOT TRUE is that no constant can meet this bound over the whole
+     * bracket. -0.145em meets it, at a
      * worst case of 0.300px on cap 0.68. The bracket is half a pixel WIDE, but a
      * midpoint constant is only ever half of that from either end, and halving it
      * is the point of picking a midpoint. The domain is the faces actually

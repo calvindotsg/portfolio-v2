@@ -26,70 +26,32 @@ interface Props {
 // tests/rendered-html.test.ts fails if the hero is taken out of the tree without an equivalent
 // `aria-valuetext` beside it, so the meter cannot quietly become decorative later.
 //
-// THE BUDGET THIS NOTE GUARDED IS GONE, AND THE WHOLE OF WHAT FOLLOWS IS HISTORY.
+// NOTHING HAS TO BE REMOVED TO ADD A LINE HERE ANY MORE, and that rule really did hold:
+// while `main` had a height CAP and eight equal fraction rows, the right-hand stack got a
+// set slice of a set grid, so a line added to any of its three cards came out of the other
+// two. `main`'s row template sizes to its content now and the cap is gone (index.astro), so
+// a fourth or fifth row makes the GRID taller and the page scroll instead. Measured by
+// building the same mutation against both revisions rather than by reasoning about either:
+// one extra `text-xs` line at 1024x600 took Now from 154 to 150.7px and the OTHER goal card
+// from 232.8 to 227px before; after, only the edited card moves.
 //
-// It was real while `main` had a height CAP and eight equal fraction rows: the
-// right-hand stack got a set slice of a set grid, so a line added to any of its
-// three cards came out of the other two. `main`'s row template sizes to its content now
-// and the cap is gone (index.astro), so a fourth or fifth row makes the GRID taller and
-// the page scroll instead.
-//
-// Measured, by building the same mutation against both revisions rather than by reasoning
-// about either. One extra `text-xs` line into one goal card, at 1024x600:
-//
-//     before   Now 154 -> 150.7 -> 146.7px, the OTHER goal card 232.8 -> 227 -> 220px
-//     after    Now 154px and the other goal card 232.8px, both unmoved; only the edited
-//              card grows, 232.8 -> 252.8 -> 272.8px
-//
-// So the rule "anything added to either goal card or to Now must remove something first"
-// no longer holds, and neither does the 4.4px. What is still true is that the page gets
-// taller: at a 797px-tall viewport and above it does not scroll today, and enough new rows
-// will change that. Weigh it against the page, not against a budget.
-//
-// The arithmetic below is kept because the CARD-LEVEL figures in it are still current and
-// still the cheapest way to price a design change here — 232.8px per card, the Now card at
-// 154px, the cost of a text-xs row at 20px. Read the "unspent" column as the state of a
-// mechanism that no longer exists.
-//
-// The right-hand stack (index.astro) pooled its leftover height at its foot, and the
-// tightest lg configuration was any viewport whose height put `main` on its 46rem floor
-// while lg was still active — 1024x600, 1152x700 and 1280x720 all tied. Measured on the
-// built page at those three:
-//
-//     the pill revision that shipped before this   234.0px per card,  2.0px unspent
-//     this revision                                 232.8px per card,  4.4px unspent
-//
-// So the redesign is CHEAPER than what it replaced, which is the only reason a fourth row
-// was affordable at all: the pill was 24px of card and the line restating its fraction was
-// another 20, against 22.8 for the hero and 2 for the rule. At the roomy configurations the
-// stack's leftover goes 66px to 68.4px. The Now card is untouched at 154px throughout —
-// that figure is the one to watch, because it is what moves first when this runs out.
-//
-// At zero the flex column starts CONTRACTING its children and takes the Now card down
-// with the goal cards (154 -> 149.39px) even though nothing was added to it. That, not
-// clipping, is the cost the budget is protecting against: glyphs are not sheared until
-// FOUR extra lines, which three independent rebuilds confirmed at 0 ink lost across 43,
-// 170 and 170 lg configurations.
-//
-// BE CAREFUL QUOTING THAT HEADROOM HERE, because this paragraph is about the TIGHT
-// configurations and the four-line figure was not measured at them: those sweeps ran at
-// roomy viewports, where the stack has 68.4px rather than 4.4px. At the tight end the
-// contraction starts at the FIRST extra line — that is what "4.4px unspent" means, since a
-// text-xs row costs 20px in each of two cards. Four lines is the shearing threshold, not
-// the budget; the budget above is the number that governs.
+// SO WEIGH A DESIGN CHANGE HERE AGAINST THE PAGE, NOT AGAINST A BUDGET. What is still true
+// is that the page gets taller: at a 797px-tall viewport and above it does not scroll today,
+// and enough new rows will change that. The card-level figures are the cheapest way to price
+// one — 232.8px per goal card, the Now card at 154px, and 20px for a `text-xs` row.
 //
 // `progress_last_year` is still configured and nothing renders it — deliberately, so it
 // is one edit from returning, and the January checklist in constants.ts still asks for
-// it. If it comes back, something else has to leave.
+// it.
 //
 // Nothing in the suite can see any of this: there is no layout engine in the tests, so a
 // taller variant runs green. The guards are the width bound in tests/projection.test.ts,
 // the text-relative-sizing assertions in tests/rendered-html.test.ts, and the browser
 // sweep in the PR — never a green run.
 //
-// (The verb above is deliberately not the obvious one — the obvious one is a flex
-// utility, and UnoCSS scans this comment, so writing it emits a real CSS rule that
-// no element wears. tests/build-output.test.ts catches that by name.)
+// (Word any addition to this comment around the obvious verbs for a box changing size:
+// several of them are flex utilities, UnoCSS scans this file's text, and naming one emits
+// a real CSS rule that no element wears. tests/build-output.test.ts catches that by name.)
 const {goal} = Astro.props;
 const statusLine = goalStatusLine(goal);
 const countdown = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
@@ -126,20 +88,16 @@ const countdown = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
      * headline. (The declaration's own value is blocklisted in uno.config.ts — UnoCSS
      * reads the CSS below and would emit a utility rule for it that nothing wears.)
      *
-     * 1.5rem IS A MEASURED CEILING, and the reason is HEIGHT rather than wrapping — which
-     * is worth saying plainly, because the variant rig this design came out of said
-     * otherwise and it was wrong. In the rig 1.75rem wrapped the cycling figure at 1024px
-     * and desynchronised the pair to 227.5 and 251.7px. In the real component it does not
-     * wrap at all: measured across 20 configurations (five lg widths x four root sizes),
-     * the hero is one line at both sizes and the two cards stay identical. What 1.75rem
-     * actually costs is 3.8px per card — 236.6 against 232.8 — which was more than the
-     * 4.4px the right-hand stack then had in hand across two cards, so it would have put
-     * the stack back into contraction. The ceiling is real; the story about it was not.
+     * 1.5rem IS A CEILING OF HEIGHT, NOT OF WRAPPING, and that is worth saying plainly
+     * because the variant rig this design came out of said otherwise and was wrong: in the
+     * rig 1.75rem wrapped the cycling figure at 1024px, and in the real component it does
+     * not wrap at all — measured across 20 configurations (five lg widths x four root
+     * sizes), the hero is one line at both sizes and the two cards stay identical. What
+     * 1.75rem actually costs is 3.8px per card, 236.6 against 232.8.
      *
-     * That last reason has EXPIRED: the stack no longer has a set height to run out of
-     * (see the note at the top of this file). 1.5rem stays, because it is the size the
-     * design was chosen at and 7.6px of page height is still 7.6px, but it is now a taste
-     * decision rather than an arithmetic one. Do not quote the contraction argument for it.
+     * 1.5rem stays because it is the size the design was chosen at and 7.6px of page height
+     * is still 7.6px — a taste decision now rather than an arithmetic one, since there is no
+     * stack height to exhaust (see the note at the top of this file).
      *
      * So: if this copy grows, measure the STACK, not the line count. A wrap would show up
      * as the hero's own height exceeding one of its own line-heights — and note that
@@ -182,11 +140,9 @@ const countdown = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
      * card is 236.8px, which is 2.8px more than the pill revision it replaced; at 0.25rem
      * the card is 232.8px. Measured on the built page.
      *
-     * The reason RECORDED here for preferring 0.25rem has expired — it was that 0.5rem
-     * took the right-hand stack to zero unspent height and started the flex column
-     * contracting the Now card. There is no set stack height to exhaust any more (see
-     * the note at the top of this file), so what 0.5rem costs now is 4px of page, not a
-     * neighbouring card. The value stays for the optical reason in the first sentence.
+     * WHAT 0.5rem COSTS IS 4px OF PAGE, not a neighbouring card: there is no set stack
+     * height to exhaust any more (see the note at the top of this file). So the value stays
+     * for the optical reason in the first sentence, and not for an arithmetic one.
      */
     .goal-figure + :global([role="progressbar"]) {
         margin-top: 0.25rem;

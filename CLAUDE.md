@@ -76,10 +76,11 @@ block above it before giving either consumer the other's list.
   `_dmarc` all survive the reject lists, and that `pagerules` stays off so the
   `www` redirect is invisible rather than deleted — is proved by
   `dns/test_filters.py`, which needs Python plus octoDNS and runs only in
-  `.github/workflows/dns.yml`. `tests/dns-config.test.ts` *is* in the suite, but
-  it guards that workflow's `if:` gates and reads the shipped `dns/config.yaml`;
-  it says nothing about the resulting plan. A green `pnpm test` is therefore not
-  evidence that a DNS change is safe — read the `plan` job's output for that
+  `.github/workflows/dns.yml`. `tests/dns-config.test.ts` *is* in the suite, and it
+  guards that workflow's `if:` gates, reads the shipped `dns/config.yaml` and
+  executes `dns/drift.sh` against fixtures of every output shape octodns can print
+  — but it says nothing about the resulting plan. A green `pnpm test` is therefore
+  not evidence that a DNS change is safe — read the `plan` job's output for that
 
 ## Key Architecture Points
 
