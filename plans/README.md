@@ -54,9 +54,16 @@ What follows is only what is **local**, and therefore cannot be derived from ups
   is that plans are drafted in a home directory; here a plan is written into `plans/`
   and stamped with the commit it was planned against, because the drift check at the
   top of every plan is what protects an executor from a tree that moved underneath it.
-- **A plan whose prerequisite has not landed is staged outside the tree**, in the
-  repository's gitignored scratch directory, and moved in by the plan that unblocks it.
-  Being gitignored, staged plans do not travel with a branch or a fresh clone.
+- **A numbered plan is a proposal, and the suite treats that as its own document class.**
+  It is exempt from the three gates that check a name against the tree that exists —
+  paths, `pnpm` scripts and configured values — because a plan names the tree it intends
+  to create. This file is not a proposal and is fully gated; so is everything else. The
+  reason lives beside the predicate in `tests/docs-drift.test.ts`, not here.
+- **A plan never waits outside `plans/`.** If a plan cannot land green because the change
+  it depends on has not shipped, ship that change first — do not stage the plan somewhere
+  gitignored, where it would not travel with a branch, appear in a PR, or survive a fresh
+  clone. That was tried while closing this very gap and it is what the exemption above
+  replaced.
 
 ## If you are starting a new run
 
@@ -101,7 +108,12 @@ recreated.
 | 015 | Automate goal progress from Strava | P2 | M | — | **DONE** (`a4b419b`) |
 | 016 | Stop shipping rationale comments in the built HTML | P2 | S | — | **DONE** (`c3734b1`) |
 | 017 | Clear the clearable brace-expansion HIGH with an in-range lockfile refresh | P2 | S | — | **DONE** (`6647c31`) |
-| 018 | Let a plan live in this directory again, and record what governs it | P1 | S | — | **TODO** |
+| 018 | Let a plan live in this directory again, and record what governs it | P1 | S | — | **DONE** (#130) |
+| 019 | Generate the projection's derived figures instead of writing them by hand | P1 | M | 018 | **TODO** |
+| 020 | Make each race its own module, so adding one is adding a file | P1 | L | 019 | **TODO** |
+| 021 | Split the copy out of `constants.ts` and delete the file | P2 | L | 020 | **TODO** |
+| 022 | Separate the data contract from behaviour, and promote the Strava tooling | P2 | L | 020 | **TODO** |
+| 023 | Sweep the prose references no gate catches | P2 | M | 019, 020, 021, 022 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

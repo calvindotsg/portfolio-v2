@@ -18,6 +18,10 @@
 - **Depends on**: none
 - **Category**: dx
 - **Planned at**: commit `8ce7565`, 2026-08-07
+- **Executed**: in the same PR that added it (#130), which is unusual and deliberate. This plan
+  is the prerequisite for every other plan in the directory, so leaving it as TODO would have
+  meant parking plans 019–023 somewhere gitignored until someone ran it. The steps below are kept
+  as the record of what was done and why, and their Verify commands are the evidence.
 
 ## Why this matters
 
@@ -32,8 +36,10 @@ slightly different answer each time.
 `tests/docs-drift.test.ts` exempts as an archive. That exemption reads as "archives are stale by
 nature", but the property that actually matters is different: **a plan is a proposal, and a
 proposal names the tree it intends to create.** Three gates check names against the tree that
-exists, so a live plan reddens all three. Measured against the five plans queued behind this one:
-**29 path misses, 5 `pnpm`-script misses, 1 configured-value miss.**
+exists, so a live plan reddens them. Measured against the five plans that land with this one:
+**51 path misses and 5 `pnpm`-script misses.** The clearest is plan 019 naming `pnpm typecheck`
+and `pnpm lint` inside a sentence warning an executor that neither exists here — a document
+penalised for saying the true thing the suite exists to enforce.
 
 The gate has never met a live plan — 016 and 017 sat at top level until 2026-07-29, and
 `tests/docs-drift.test.ts` landed 2026-07-31. So this is not a regression; it is a gap that every
@@ -48,11 +54,11 @@ future run of the pipeline hits.
 - **Three gates iterate `liveDocs()`**, and a proposal names tomorrow's tree in all three
   dimensions:
 
-  | line | gate | misses on the queued plans |
-  |---|---|---|
-  | `:196` | `it("names no file that is not there")` | **29** |
-  | `:238` | `it("names no pnpm script that is not in package.json")` | **5** |
-  | `:281` | `it("names no configured value that is declared nowhere")` | **1** |
+  | gate | misses on the five plans landing alongside |
+  |---|---|
+  | `it("names no file that is not there")` | **51** |
+  | `it("names no pnpm script that is not in package.json")` | **5** |
+  | `it("names no configured value that is declared nowhere")` | **0** — unexercised, exempted anyway |
 
 - `tests/docs-drift.test.ts:201-202` — the two filters that already exist, and which decide how
   narrow the new one has to be:
@@ -62,8 +68,6 @@ future run of the pipeline hits.
   ```
   The second means a token written `plans/NNN-*.md` is **already** skipped. The problem is not the
   plan's own filename — it is the paths a plan file *contains*.
-- `tests/docs-drift.test.ts:180` — `TOP_LEVEL`, which does not include `.scratchpad/`; that is why
-  staging a plan there is invisible to the path gate as well as to `walk()`.
 - `plans/README.md:3` — "**Nothing is executable right now.**" This plan makes that false.
 - `plans/README.md:71-73` — the execution table, currently ending at 017.
 - `CLAUDE.md` — has no section on `plans/` at all.
@@ -89,7 +93,7 @@ STOP conditions.
 - `tests/docs-drift.test.ts`
 - `plans/README.md`
 - `CLAUDE.md` (one short section)
-- `plans/019-*.md` … `plans/023-*.md` (moved in, not authored — they are staged already)
+- `plans/019-*.md` … `plans/023-*.md` (added alongside, and the reason the exemption is needed)
 
 **Out of scope**:
 - **Restating anything the upstream repository or its `SKILL.md` already says** — not the
@@ -164,10 +168,13 @@ Do not restate the exemption's mechanism there; the reason belongs beside the pr
 
 In `plans/README.md`: delete "Nothing is executable right now" and the sentence that says every
 plan is archived, both now false. Add rows 018–023 to the execution table with their dependencies,
-and move the five staged plan files into `plans/`.
+and add the five plan files to `plans/` in the same commit as step 1.
 
-The five are staged in the repository's scratch directory as `019-…` through `023-…`. Move, do not
-rewrite.
+**They land together on purpose.** An earlier draft staged them in the repository's gitignored
+scratch directory to keep the gate green until this plan executed. That is the wrong shape twice
+over: it breaks the pipeline's own rule that plans live under `plans/`, and a gitignored plan does
+not travel with a branch, appear in a PR, or survive a fresh clone. Ship the change the plans
+depend on first, then the plans — never park a plan outside the tree.
 
 **Verify**: `pnpm test` → all pass, **with all six plans present**. This is the whole point of the
 plan: if it is green here, a live plan can exist again.
@@ -199,8 +206,6 @@ plan: if it is green here, a live plan can exist again.
   been switched off rather than scoped.
 - A gate other than the three at `:196`, `:238` and `:281` turns out to iterate `liveDocs()`.
   Re-read before exempting it; durability and internal-consistency gates must still apply.
-- The five staged plans are not where step 4 expects them. They are gitignored, so they do not
-  travel with a branch or a fresh clone — get them from the author rather than reconstructing them.
 - `pnpm test` is red after step 4 for a reason that is not a name gate. That is a real finding
   about one of the five plans; report it rather than editing the plan to pass.
 
