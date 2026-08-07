@@ -5,11 +5,12 @@ merged, and live on https://calvin.sg, as is plan **015**, which came from the
 maintainer resolving DIRECT-01 rather than from an audit run. Those plan files
 and the full evidence log are archived in [`done/`](done/README.md).
 
-These are the first live plans since 2026-07-29, and **018** exists because a live
-plan had stopped being possible: three name gates in `tests/docs-drift.test.ts`
-check what a document names against the tree that exists, and a plan names the tree
-it intends to create. 018 closed that in the same change that landed 019–023, which
-decouple the race data and the site copy from the code that renders them.
+They are the first live plans since 2026-07-29, and they exist because **018** made a
+live plan possible again: three name gates in `tests/docs-drift.test.ts` check what a
+document names against the tree that exists, and a plan names the tree it intends to
+create. 018 closed that in the same change that landed 019–023, which decouple the race
+data and the site copy from the code that renders them. It is `done/` already — the
+directory's own lifecycle, applied to the plan that reopened it.
 
 Run 3 (2026-07-22, audited at `4e15674`, completed the same day) had two
 mandated items from the maintainer (emoji→icons migration,
@@ -106,7 +107,7 @@ recreated.
 | 015 | Automate goal progress from Strava | P2 | M | — | **DONE** (`a4b419b`) |
 | 016 | Stop shipping rationale comments in the built HTML | P2 | S | — | **DONE** (`c3734b1`) |
 | 017 | Clear the clearable brace-expansion HIGH with an in-range lockfile refresh | P2 | S | — | **DONE** (`6647c31`) |
-| 018 | Let a plan live in this directory again, and record what governs it | P1 | S | — | **DONE** (#130) |
+| 018 | Let a plan live in this directory again, and record what governs it | P1 | S | — | **DONE** (`232f751`) |
 | 019 | Generate the projection's derived figures instead of writing them by hand | P1 | M | 018 | **TODO** |
 | 020 | Make each race its own module, so adding one is adding a file | P1 | L | 019 | **TODO** |
 | 021 | Split the copy out of `constants.ts` and delete the file | P2 | L | 020 | **TODO** |

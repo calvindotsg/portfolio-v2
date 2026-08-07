@@ -16,7 +16,7 @@
 - **Priority**: P1
 - **Effort**: M
 - **Risk**: LOW (adds a test and a generated file; deletes prose; no runtime code changes)
-- **Depends on**: plans/018 (this file cannot live in `plans/` until 018 lands)
+- **Depends on**: 018, which is done and archived — it is what made this file able to live here at all
 - **Category**: docs
 - **Planned at**: commit `8ce7565`, 2026-08-07
 
