@@ -1596,3 +1596,31 @@ describe("every styled control declares its box", () => {
         ).toBe(true);
     });
 });
+
+/**
+ * THE SHEET READER'S OWN CONTRACT, held here because this is the file `helpers/css.ts`
+ * was extracted from and the invariant above is what pays for it: every assertion in this
+ * suite is "no rule anywhere may do X", and a rule the parser cannot see reads as a rule
+ * that does not exist — a silent pass.
+ *
+ * Both directions are asserted, because a nested block gets two different answers on
+ * purpose. A nested AT-RULE is descended into: its declarations belong to the enclosing
+ * selector under the accumulated prelude, which is what the browser does. Folding them
+ * into the parent's body text instead is what let four lines of nested
+ * `@media (max-width:40rem)` on the control row shear 266px of control box at 320 wide
+ * and the default text size, with the whole suite green. A nested STYLE rule is refused:
+ * its subject is relative to the parent and a `Rule` here is a selector list with nothing
+ * to relativise against, so its declarations would be attributed to the wrong elements.
+ */
+describe("parseRules reads a nested block or refuses it, and never folds one away", () => {
+    it("gives a nested at-rule's declarations the parent's selectors and the prelude", () => {
+        expect(parseRules(".control{width:4rem;@media (max-width:40rem){flex-wrap:nowrap}}")).toEqual([
+            {selectors: [".control"], body: "width:4rem", nested: false, at: ""},
+            {selectors: [".control"], body: "flex-wrap:nowrap", nested: true, at: "@media (max-width:40rem)"},
+        ]);
+    });
+
+    it("refuses a nested style rule rather than mis-attributing it", () => {
+        expect(() => parseRules(".control{color:red;& span{width:2px}}")).toThrow(/nested style rule/);
+    });
+});

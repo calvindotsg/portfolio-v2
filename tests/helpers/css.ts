@@ -1,4 +1,5 @@
 import {readFileSync} from "node:fs";
+import postcss, {list, type AtRule, type Container, type Rule as CssRule} from "postcss";
 
 /**
  * Reading the BUILT stylesheet as data.
@@ -115,101 +116,76 @@ export type Rule = {
  * away the entire time.
  *
  * Commas inside brackets, parens and strings are not separators either; a real selector
- * list can carry all three (`:is(a,b)`, `[title="x,y"]`). Escapes win over everything,
- * because a backslash makes the next character literal wherever it appears.
+ * list can carry all three (`:is(a,b)`, `[title="x,y"]`), and an escape wins over all of
+ * them because a backslash makes the next character literal wherever it appears. All four
+ * cases are `postcss`'s `list.comma`, which is what `Rule.selectors` itself is built on.
  */
 export function splitSelectorList(head: string): string[] {
-    const out: string[] = [];
-    let cur = "", depth = 0, quote = "";
-    for (let i = 0; i < head.length; i++) {
-        const ch = head[i]!;
-        if (ch === "\\") {
-            cur += head.slice(i, i + 2);
-            i++;
-            continue;
-        }
-        if (quote) {
-            cur += ch;
-            if (ch === quote) quote = "";
-            continue;
-        }
-        if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue; }
-        if (ch === "(" || ch === "[") depth++;
-        else if (ch === ")" || ch === "]") depth--;
-        if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
-        cur += ch;
-    }
-    out.push(cur.trim());
-    return out.filter(Boolean);
+    return list.comma(head).map((s) => s.trim()).filter(Boolean);
 }
 
-/** Every rule in a minified sheet, at every at-rule depth. */
+/** The at-rule's prelude as written, so a failure message can name the query. */
+const preludeOf = (at: AtRule): string => `@${at.name}${at.raws.afterName ?? " "}${at.params}`.trim();
+
+/**
+ * EVERY RULE IN A MINIFIED SHEET, AT EVERY AT-RULE DEPTH, in source order.
+ *
+ * The parsing is `postcss`'s. It was hand-rolled here for as long as the sheet was flat,
+ * and every trap that cost this file a revision — escaped commas in a class name, a comma
+ * inside a quoted attribute value or an `:is()`, a `@keyframes` step that is not a
+ * selector — is a case a CSS parser is required to get right and a brace-counting scanner
+ * has to be taught one at a time.
+ *
+ * A NESTED AT-RULE IS DESCENDED INTO rather than refused. Native CSS nesting survives this
+ * project's minifier intact, and the flat scanner could only fold a nested block's braces
+ * into the rule's own body text — where `decl()` reads a declaration sitting first inside
+ * the block as ABSENT, a repeated property resolves to the OUTER value, and `at` stays
+ * "", which makes every "no at-rule may decide this" guard skip the rule entirely.
+ * Measured before this file could read nesting: four lines of nested
+ * `@media (max-width:40rem){flex-wrap:nowrap}` on the control row shear 266px of control
+ * box at 320 wide and the DEFAULT text size, with the whole suite green. Those
+ * declarations now arrive as their own Rule, carrying the parent's selectors and the
+ * accumulated prelude, so both readings are the browser's.
+ *
+ * A nested STYLE rule is still refused, because THAT one the model cannot represent: its
+ * subject is the descendant `&` names, and a `Rule` here carries a selector list and
+ * nothing to relativise it against. Refusing costs nothing today and cannot rot into a
+ * silent pass — the same precedent `widthPx` sets for a unit it cannot read.
+ */
 export function parseRules(css: string): Rule[] {
     const rules: Rule[] = [];
-    let i = 0, prelude = "";
-    const atStack: string[] = [];
-    while (i < css.length) {
-        const ch = css[i];
-        if (ch === "{") {
-            const head = prelude.trim();
-            prelude = "";
-            if (head.startsWith("@")) {
-                atStack.push(head);
-                i++;
-                continue;
+
+    /** A container's own declarations, under the selectors and at-rules that reach it. */
+    const emit = (node: Container, selectors: string[], at: string[]) => {
+        const decls = (node.nodes ?? []).filter((n) => n.type === "decl");
+        rules.push({
+            selectors,
+            body: decls.map((d) => d.toString()).join(";"),
+            nested: at.length > 0,
+            at: at.join(" "),
+        });
+    };
+
+    const descend = (node: Container, selectors: string[] | null, at: string[]) => {
+        if (selectors) emit(node, selectors, at);
+        for (const child of node.nodes ?? []) {
+            if (child.type === "rule") {
+                if (selectors) {
+                    throw new Error(
+                        `nested style rule "${(child as CssRule).selector}" inside "${selectors.join(", ")}" — `
+                        + `a Rule here is a selector list with nothing to relativise a nested one against, so `
+                        + `its declarations would be attributed to the wrong elements, silently and green. `
+                        + `Flatten it in the source, or teach parseRules to resolve "&".`,
+                    );
+                }
+                descend(child as CssRule, (child as CssRule).selectors, at);
+            } else if (child.type === "atrule" && (child as AtRule).nodes) {
+                descend(child as AtRule, selectors, [...at, preludeOf(child as AtRule)]);
             }
-            let depth = 1, j = i + 1;
-            while (j < css.length && depth > 0) {
-                if (css[j] === "{") depth++;
-                else if (css[j] === "}") depth--;
-                j++;
-            }
-            const body = css.slice(i + 1, j - 1);
-            /**
-             * A NESTED BLOCK INSIDE A STYLE RULE IS REFUSED, not folded into this rule's
-             * body text — the same precedent `widthPx` sets for a unit it cannot read.
-             *
-             * Native CSS nesting survives this project's minifier intact, and this parser
-             * is flat: a nested block's braces would end up inside `body`, where `decl()`
-             * only matches a declaration preceded by `;` or the start of the body. So a
-             * declaration sitting first inside a nested block reads as ABSENT, a repeated
-             * property resolves to the OUTER value, and `at` stays "" — which makes every
-             * "no at-rule may decide this" guard skip the rule entirely. Measured: four
-             * lines of nested `@media (max-width:40rem){flex-wrap:nowrap}` on the control
-             * row shear 266px of control box at 320 wide and the DEFAULT text size, with
-             * the whole suite green.
-             *
-             * Throwing costs nothing today (the built sheet has no nested blocks) and it
-             * cannot rot into a silent pass. Teaching it to descend — emitting each nested
-             * at-rule's declarations as their own Rule carrying the parent's selectors and
-             * the accumulated prelude — is the fuller fix if the sheet ever needs one.
-             */
-            if (body.includes("{")) {
-                throw new Error(
-                    `nested block inside the style rule "${head}" — this parser reads only flat rules, `
-                    + `and folding a nested at-rule into a rule body makes its declarations invisible to `
-                    + `decl() and unattributed to any at-rule, silently and green. Flatten it in the `
-                    + `source, or teach parseRules to descend.`,
-                );
-            }
-            rules.push({
-                selectors: splitSelectorList(head),
-                body,
-                nested: atStack.length > 0,
-                at: atStack.join(" "),
-            });
-            i = j;
-            continue;
         }
-        if (ch === "}") {
-            atStack.pop();
-            prelude = "";
-            i++;
-            continue;
-        }
-        prelude += ch;
-        i++;
-    }
+    };
+
+    descend(postcss.parse(css), null, []);
     return rules;
 }
 
