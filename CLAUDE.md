@@ -69,6 +69,11 @@ block above it before giving either consumer the other's list.
     time. Do not "helpfully" add a fact to it — the right fix for a fact that
     could go stale is to delete the claim and name its source. That file once
     said the site's client JS was two inline scripts when the build shipped three
+  - a numbered plan under `plans/` is a **proposal** — it describes a repository
+    that does not exist yet, so it is exempt from the three gates that check a name
+    against the tree that does, and gated for everything else. `plans/README.md` is
+    the living index rather than a proposal and is gated in full. The argument sits
+    beside `isProposal` in `tests/docs-drift.test.ts`
   - measurement and rationale are ungated everywhere; `plans/done/` is exempt as
     an archive. When one of these goes red, the document is what is wrong
 - **`pnpm test` does not cover the DNS zone.** What a plan would actually do to
@@ -263,6 +268,16 @@ the file:
 - `PATCHES`: the wall's own prose, now one lede rather than a scope sentence plus a key.
   Its heading is `My events`; "patch wall" survives in the URL and the metaphor, not as a
   visible title
+
+## Plans
+
+`plans/` implements the **improve** skill pipeline from `github.com/shadcn/improve`;
+`plans/README.md` is the living index and the first thing to read before writing or
+executing one. **What is written down here and there is only what is local to this
+repo** — the archive convention, the numbering, and the fact that a plan is authored
+into `plans/` rather than a home directory. Everything about the pipeline itself
+— the template, the file naming, the advisor/executor split — is read from upstream,
+never restated, because a copied convention is one that goes stale in silence.
 
 ## Memories
 

@@ -14,9 +14,9 @@ import unoConfig from "../uno.config";
  * generator config that counts two of something there are now three of — all of
  * them build, lint, type-check and deploy green.
  *
- * TWO KINDS OF DOCUMENT LIVE HERE, AND THEY NEED OPPOSITE GATES. Getting this wrong
- * is what the first version of this file did, so the distinction is the load-bearing
- * idea rather than a taxonomy:
+ * THREE KINDS OF DOCUMENT LIVE HERE, AND THE FIRST TWO NEED OPPOSITE GATES. Getting
+ * that wrong is what the first version of this file did, so the distinction is the
+ * load-bearing idea rather than a taxonomy:
  *
  *   A CURRENT-STATE DOCUMENT describes the repository as it is today. README.md,
  *   CLAUDE.md, plans/README.md's baseline table and every comment under src/ are
@@ -30,6 +30,11 @@ import unoConfig from "../uno.config";
  *   accuracy but DURABILITY — it must not contain the kind of claim that can go
  *   stale at all. Facts belong in the code, where they are true by construction;
  *   the instruction belongs here, and says where to read them.
+ *
+ *   A PROPOSAL describes a repository that does not exist yet. A numbered plan under
+ *   `plans/` is the one here. It needs neither gate, because its whole subject is the
+ *   tree it intends to create — the argument is beside `isProposal` below, and is not
+ *   repeated here.
  *
  * THE FIRST VERSION OF THIS FILE GATED THE WRONG PROPERTY, and the mistake is worth
  * recording because it is the more tempting of the two. `.devin/wiki.json` said the
@@ -112,6 +117,49 @@ const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".astro", ".venv", "c
 const SKIP_PATHS = new Set([".claude/worktrees"]);
 const ARCHIVE = "plans/done/";
 const WIKI = ".devin/wiki.json";
+
+/**
+ * A NUMBERED PLAN IS A **PROPOSAL**, AND THAT IS A THIRD DOCUMENT CLASS.
+ *
+ * CLAUDE.md splits documents two ways: a current-state document may state facts and is
+ * gated for accuracy; `.devin/wiki.json` is a standing instruction and is gated for
+ * durability instead. A plan is neither. It describes a tree that does not exist yet —
+ * the files it will create, the `pnpm` script it will add, the configured value it will
+ * introduce — so the three gates below, each of which checks a name against the tree that
+ * DOES exist, are asking a proposal the wrong question. Every one of its forward
+ * references is a miss, and a plan that has to spell its own subject matter without
+ * backticks to stay green is a plan nobody will keep writing.
+ *
+ * THIS IS A GAP RATHER THAN A REGRESSION, and the dates are why nobody hit it: plans 016
+ * and 017 sat at the top level of `plans/` until 2026-07-29, and this file landed
+ * 2026-07-31. The two had never met until plan 018.
+ *
+ * `plans/README.md` IS NOT A PROPOSAL and is deliberately not matched here. It is the
+ * living index — its execution table and its baseline are claims about now, which is
+ * exactly what these gates are for. The pattern is anchored to the `NNN-` prefix so the
+ * distinction is structural rather than a judgement about a filename; a plan named any
+ * other way is gated like ordinary prose, which is the safe default. Rename the file
+ * rather than loosening this.
+ *
+ * WHAT A PROPOSAL IS STILL GATED FOR: everything else in this suite. Only the three
+ * name-versus-today gates skip it.
+ *
+ * MEASURED, on the six plans this landed with: the path gate reports 51 misses and the
+ * script gate 7, every one of them a forward reference. The clearest of them is plan 019
+ * naming the two scripts CLAUDE.md already warns do not exist here — `typecheck` and
+ * `lint` — inside a sentence whose entire purpose is to warn an executor about exactly
+ * that. A document penalised for saying the true thing this suite exists to enforce.
+ * (Written without the invocation prefix here on purpose: this file is not a proposal, so
+ * the gate below reads its own comment, and it reddened on the first draft of this note.)
+ *
+ * THE CONFIGURED-VALUE GATE IS UNEXERCISED TODAY: those six plans produce zero misses
+ * there. It is exempted anyway, for the reason `uno.config.ts` gives when it safelists an
+ * icon class another constant already emits — a member left out of a set it belongs to
+ * fails silently the first time it is needed, and the next plan to propose a new
+ * repository variable would redden with no hint that this argument had ever been had.
+ * The class is what is being exempted, not the three symptoms.
+ */
+const isProposal = (file: string) => /^plans\/\d{3}-/.test(file);
 const read = (p: string) => readFileSync(p, "utf8");
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -197,6 +245,7 @@ describe("documentation, against the code it describes", () => {
         const misses: string[] = [];
         let checked = 0;
         for (const file of liveDocs()) {
+            if (isProposal(file)) continue;
             for (const {token, line} of backticked(file)) {
                 if (!TOP_LEVEL.some((t) => token.startsWith(t))) continue;
                 if (/[*${}]/.test(token)) continue; // globs and interpolations are not paths
@@ -214,6 +263,35 @@ describe("documentation, against the code it describes", () => {
         for (const [path, why] of Object.entries(NAMED_AS_ABSENT)) {
             expect(existsSync(resolve(path.replace(/\/$/, ""))),
                 `${path} exists again, so its NAMED_AS_ABSENT entry is now false: "${why}"`).toBe(false);
+        }
+    });
+
+    /**
+     * THE PROPOSAL EXEMPTION IS ASSERTED IN BOTH DIRECTIONS, for the reason the excuse list
+     * above is: an exemption is the gate's new single point of failure, and one that only
+     * ever widens is one nobody notices widening. So this checks that it catches what it is
+     * for AND that it does not reach the index or the archive.
+     *
+     * NON-VACUITY COMES FROM THE PREDICATE, NOT FROM THE TREE, and the difference is the
+     * whole reason this note exists. The obvious form — assert that some live plan is
+     * currently exempted — reads as the stronger test and is the weaker one: it passes only
+     * while `plans/` happens to hold a live plan, so ARCHIVING THE LAST ONE turns this red.
+     * That is not a hypothetical, it is the first local rule this directory writes down
+     * ("completed plans move to `done/`"), so the gate would have punished someone for
+     * following the documented lifecycle, and blamed the exemption while doing it. Asking
+     * the predicate about a filename instead is unconditionally answerable and says the
+     * same thing.
+     */
+    it("exempts a numbered plan and nothing else", () => {
+        expect(isProposal("plans/024-a-plan-that-does-not-exist-yet.md"),
+            "the exemption no longer recognises a numbered plan, so every proposal is gated as ordinary prose")
+            .toBe(true);
+        for (const file of liveDocs().filter(isProposal)) expect(file).toMatch(/^plans\/\d{3}-[a-z0-9-]+\.md$/);
+
+        for (const notAProposal of ["plans/README.md", "README.md", "CLAUDE.md",
+            `${ARCHIVE}015-automate-goal-progress-from-strava.md`, "src/lib/projection.ts"]) {
+            expect(isProposal(notAProposal),
+                `${notAProposal} is not a proposal — it states what is true now and must stay gated`).toBe(false);
         }
     });
 
@@ -240,6 +318,7 @@ describe("documentation, against the code it describes", () => {
         const misses: string[] = [];
         let checked = 0;
         for (const file of liveDocs()) {
+            if (isProposal(file)) continue;
             let fenced = false;
             read(file).split("\n").forEach((text, i) => {
                 if (/^\s*```/.test(text)) {
@@ -292,6 +371,7 @@ describe("documentation, against the code it describes", () => {
         const misses: string[] = [];
         let checked = 0;
         for (const file of liveDocs()) {
+            if (isProposal(file)) continue;
             for (const {token, line} of backticked(file)) {
                 if (!/^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(token)) continue;
                 checked++;

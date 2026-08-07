@@ -204,7 +204,7 @@ One suite has the repository itself as its subject rather than the site:
   counting two of something there are now three of all build, lint, type-check and
   deploy green.
 
-  It treats two kinds of document differently, which is the whole design. A
+  It treats three kinds of document differently, which is the whole design. A
   **current-state document** — this README, `CLAUDE.md`, the baseline table in
   `plans/README.md`, every comment under `src/` — describes the repository as it is
   today, so it may state facts and is gated for **accuracy**: paths, `pnpm` scripts
@@ -221,7 +221,13 @@ One suite has the repository itself as its subject rather than the site:
   derive — the audience, the traps that make a careful reading come out wrong anyway,
   and where the non-derivable knowledge is written down.
 
-  Measurement and rationale are deliberately left alone in both. `plans/done/` is
+  A **proposal** describes a repository that does not exist yet. A numbered plan under
+  `plans/` is the one here, and it needs neither gate: naming the files it intends to
+  create is its entire subject, so it is exempt from the three checks that hold a name
+  against the tree that exists, and gated for everything else. `plans/README.md` is the
+  living index rather than a proposal and is held to the same standard as this file.
+
+  Measurement and rationale are deliberately left alone in all three. `plans/done/` is
   exempt entirely: it is an archive, and a plan that stopped naming what it deleted
   would stop being a record of the deletion.
 

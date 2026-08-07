@@ -1,10 +1,15 @@
 # Implementation Plans
 
-**Nothing is executable right now.** Four runs are complete: plans 001–014
-are all DONE, merged, and live on https://calvin.sg, as is plan **015**, which
-came from the maintainer resolving DIRECT-01 rather than from an audit run.
-Every plan file and the full evidence log are archived in
-[`done/`](done/README.md).
+**Plans 019–023 are executable; 019 is next.** Four runs are complete: plans 001–014 are all DONE,
+merged, and live on https://calvin.sg, as is plan **015**, which came from the
+maintainer resolving DIRECT-01 rather than from an audit run. Those plan files
+and the full evidence log are archived in [`done/`](done/README.md).
+
+These are the first live plans since 2026-07-29, and **018** exists because a live
+plan had stopped being possible: three name gates in `tests/docs-drift.test.ts`
+check what a document names against the tree that exists, and a plan names the tree
+it intends to create. 018 closed that in the same change that landed 019–023, which
+decouple the race data and the site copy from the code that renders them.
 
 Run 3 (2026-07-22, audited at `4e15674`, completed the same day) had two
 mandated items from the maintainer (emoji→icons migration,
@@ -25,12 +30,42 @@ is recorded below so it is not re-derived.
 This file is the **living index**: the state a new `improve` run needs before it
 audits anything. Read it first.
 
+## What governs this directory
+
+`plans/` implements the **improve** skill pipeline from `github.com/shadcn/improve`.
+Read it rather than this file for the pipeline itself — the plan template, the file
+naming, the numbering rule, the advisor/executor split and the audit workflow all
+live there and are deliberately **not** restated here. A copied convention goes stale
+in silence, which is the failure `.devin/wiki.json` exists to record.
+
+    pnpm dlx opensrc path shadcn/improve
+
+then read `skills/improve/SKILL.md` and `skills/improve/references/plan-template.md`.
+The closest in-tree exemplar of the template is [`done/015-automate-goal-progress-from-strava.md`](done/015-automate-goal-progress-from-strava.md).
+
+What follows is only what is **local**, and therefore cannot be derived from upstream:
+
+- **Completed plans move to [`done/`](done/README.md)** and are archived permanently.
+  Upstream leaves them in place carrying a DONE status; this repo does not. This file
+  stays the living index either way, and the archive is exempt from the prose gates.
+- **This repository overrides the user-level plan lifecycle.** The global instruction
+  is that plans are drafted in a home directory; here they are written into `plans/`.
+- **A numbered plan is a proposal, and the suite treats that as its own document class.**
+  It is exempt from the three gates that check a name against the tree that exists —
+  paths, `pnpm` scripts and configured values — because a plan names the tree it intends
+  to create. This file is not a proposal and is fully gated; so is everything else. The
+  reason lives beside the predicate in `tests/docs-drift.test.ts`, not here.
+- **A plan never waits outside `plans/`.** If a plan cannot land green because the change
+  it depends on has not shipped, ship that change first — do not stage the plan somewhere
+  gitignored, where it would not travel with a branch, appear in a PR, or survive a fresh
+  clone. That was tried while closing this very gap and it is what the exemption above
+  replaced.
+
 ## If you are starting a new run
 
-- **Numbering continues at `018`.** The improve skill requires monotonic
-  numbering across runs — do not restart at 001. (*"If `plans/` already exists
-  from a previous run, reconcile, don't duplicate: read `plans/README.md`, keep
-  numbering monotonic, skip findings already planned or listed as rejected."*)
+- **The next number is one below the last row of the execution table.** Do not
+  restart at 001 and do not reuse a number; the table is the only thing that knows,
+  which is why no figure is written here.
 - **Do not re-audit the refuted findings or re-propose CI** — see below. Six
   findings were killed by an adversarial skeptic pass with evidence; re-deriving
   them wastes a full audit cycle that has already been paid for once.
@@ -71,6 +106,12 @@ recreated.
 | 015 | Automate goal progress from Strava | P2 | M | — | **DONE** (`a4b419b`) |
 | 016 | Stop shipping rationale comments in the built HTML | P2 | S | — | **DONE** (`c3734b1`) |
 | 017 | Clear the clearable brace-expansion HIGH with an in-range lockfile refresh | P2 | S | — | **DONE** (`6647c31`) |
+| 018 | Let a plan live in this directory again, and record what governs it | P1 | S | — | **DONE** (#130) |
+| 019 | Generate the projection's derived figures instead of writing them by hand | P1 | M | 018 | **TODO** |
+| 020 | Make each race its own module, so adding one is adding a file | P1 | L | 019 | **TODO** |
+| 021 | Split the copy out of `constants.ts` and delete the file | P2 | L | 020 | **TODO** |
+| 022 | Separate the data contract from behaviour, and promote the Strava tooling | P2 | L | 020 | **TODO** |
+| 023 | Sweep the prose references no gate catches | P2 | M | 019, 020, 021, 022 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -114,8 +155,8 @@ with `content-encoding: br` confirmed for weight. What is worth recording here i
 the SHAPE — one test file per gated concern, all of them run by that one command
 — not the integer. **Do not add the next figure to a running list; replace it.**
 
-Four maintainer-direct changes landed between runs with no plan number, and the
-numbering still continues at `018`: the control-geometry and page-fit fixes, one
+Four maintainer-direct changes landed between runs with no plan number, and they
+took none of the numbering with them: the control-geometry and page-fit fixes, one
 Strava link with a brand-ink heart and a toggle reporting `aria-pressed`, the
 `/patches` wall with its projection model, and the SC 1.4.12 text-resize work.
 Each is written up where it can be checked — in `plans/done/` and in the source
@@ -130,7 +171,7 @@ comments beside the code it changed — rather than re-narrated here.
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
 | components | 15 `.astro` files (11 components, 1 layout, 3 page routes → **5 prerendered pages**: `/`, `/patches`, `/patches/cycling`, `/patches/running` and `/404`, plus the `robots.txt` and `llms.txt` endpoints); **no UI framework**, no `.svelte`, no islands |
 | `uno.config.ts` | derive: `wc -l uno.config.ts` (**719** at 2026-08-07) — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale |
-| tests | **477** assertions across **15** files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, measured 2026-08-07. A 16th file, `tests/strava-verify.test.ts`, holds 7 more and is opt-in — it skips by default, so it contributes none of the 477. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it by kind — a current-state document (this table included) is gated for accuracy, while `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*: forbidden from stating a count, a component filename or an exported constant at all, and required to say where each is derived instead. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
+| tests | **479** assertions across **15** files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, measured 2026-08-07. A 16th file, `tests/strava-verify.test.ts`, holds 7 more and is opt-in — it skips by default, so it contributes none of the 479. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it into three kinds — a current-state document (this table included) is gated for accuracy; `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*, forbidden from stating a count, a component filename or an exported constant at all and required to say where each is derived instead; and a numbered plan is a *proposal*, exempt from the checks that hold a name against a tree it exists to change. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
 | `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up. **Run 4: now 1 moderate + 2 high** — both highs are brace-expansion GHSA-mh99-v99m-4gvg on dev-only lint paths; plan 017 clears one in-range and documents the other as a second deliberate residual (no patched 1.x exists; the override is measured-broken). **`@netlify/otel` survived the cutover and always would have**: it arrives as `astro` → `unstorage` → `@netlify/blobs`, so it is an Astro dependency and has nothing to do with where the site is hosted — leaving Netlify does not clear it |
 | deploy gate | **Changed after run 4.** `.github/workflows/ci.yml` — a `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test`, uploads `dist/`, and two `wrangler pages deploy` jobs sit behind `needs: build` and publish that same artifact without rebuilding. It replaced `netlify.toml` running `pnpm check && pnpm test`; that file and the Netlify project are both deleted. `tests/workflow-guards.test.ts` is what holds the `needs:` edge |
