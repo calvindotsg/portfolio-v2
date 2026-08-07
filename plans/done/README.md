@@ -916,6 +916,15 @@ Every gate and every stimulus re-run by the reviewer, in the executor's worktree
 The baseline was built from a clean `git archive` extraction, never `git stash` — the stash stack
 is shared across every worktree of this repo and held nine entries from other sessions throughout.
 
+**One done criterion reads FALSE on `main` and the code is right — recorded so nobody "fixes" it.**
+The plan asks that `grep -c "EVENTS" src/lib/constants.ts` return 0. It returned 0 at the reviewed
+commit and returns **1** on `main`, because the review-fix commit retargeted a stale pointer into a
+comment that now says the rule lives *above `EVENTS` in `src/data/races/index.ts`*. That is the
+"delete the claim and name its source" doctrine producing exactly the sentence it should, and the
+criterion's intent — no `EVENTS` code in that file — is met and separately checked (no export, no
+compatibility re-export). A criterion counting a bare identifier cannot tell a reference from a
+declaration; the count is the wrong instrument, not the comment.
+
 ## Post-merge activation
 
 `main` at `46119ae`; suite re-run in the primary checkout after confirming the fast-forward moved
