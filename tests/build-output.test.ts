@@ -9,6 +9,7 @@ import {
 import stravaProgress from "../src/data/strava-progress.json";
 import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
+import {contrast, expandHex} from "./helpers/contrast";
 import {decl, isStateful, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
 import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
@@ -866,25 +867,9 @@ describe("dist/", () => {
      * happens. It reads no progress value, so the daily Strava commit to
      * src/data/strava-progress.json cannot flip it.
      */
-    const expandHex = (hex: string) => {
-        // The minifier shortens #111111 to #111 and unquotes [data-theme='dark'].
-        const h = hex.replace("#", "");
-        return `#${h.length === 3 ? [...h].map((c) => c + c).join("") : h}`;
-    };
-
-    const channel = (hex: string, at: number) => {
-        const v = parseInt(expandHex(hex).slice(at, at + 2), 16) / 255;
-        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-    };
-
-    const luminance = (hex: string) =>
-        0.2126 * channel(hex, 1) + 0.7152 * channel(hex, 3) + 0.0722 * channel(hex, 5);
-
-    const contrast = (a: string, b: string) => {
-        const x = luminance(a);
-        const y = luminance(b);
-        return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-    };
+    // `expandHex` and `contrast` are helpers/contrast.ts's. The minifier shortens
+    // #111111 to #111 and unquotes [data-theme='dark'], so a token read out of the
+    // sheet has to be expanded before it can be compared with anything.
 
     /** The built stylesheet. Read lazily: the build runs in vitest's globalSetup. */
     const sheet = () => pageCss();

@@ -2,6 +2,7 @@ import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 import {WELCOME} from "../src/lib/constants";
+import {contrast, over} from "./helpers/contrast";
 import {pageCss} from "./helpers/css";
 
 /**
@@ -102,13 +103,6 @@ const mobileOpacity = () => {
     return mobile.length ? Math.min(...mobile.map((c) => Number(c.split("-")[1]) / 100)) : 1;
 };
 
-const srgb = (v: number) => (v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-const lum = (c: number[]) => 0.2126 * srgb(c[0]) + 0.7152 * srgb(c[1]) + 0.0722 * srgb(c[2]);
-const ratio = (a: number[], b: number[]) => {
-    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-    return (hi + 0.05) / (lo + 0.05);
-};
-const over = (top: number[], alpha: number, bottom: number[]) => top.map((t, i) => alpha * t + (1 - alpha) * bottom[i]);
 
 describe("mobile hero legibility", () => {
     /** Worst case per theme: the photo pixel that fights the text colour hardest. */
@@ -120,7 +114,7 @@ describe("mobile hero legibility", () => {
         const photo = over(WORST_PHOTO[theme], mobileOpacity(), token(css, theme, "--card-background"));
         const behindType = over(token(css, theme, "--background"), scrimMix(css), photo);
 
-        expect(ratio(token(css, theme, "--text"), behindType)).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(token(css, theme, "--text"), behindType)).toBeGreaterThanOrEqual(4.5);
     });
 
     /**

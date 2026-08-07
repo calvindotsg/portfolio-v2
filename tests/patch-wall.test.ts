@@ -12,6 +12,7 @@ import {
     bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
 } from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
+import {contrast, luminance, over, toHex} from "./helpers/contrast";
 import {decl, isKeyframeStep, lastDecl, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
 
 /**
@@ -2001,20 +2002,6 @@ describe("the sport mark reads as text on the surface it lands on", () => {
         throw new Error(`var() chain from ${start} did not terminate`);
     };
 
-    const expand = (hex: string) => {
-        const h = hex.replace("#", "");
-        return h.length === 3 ? [...h].map((c) => c + c).join("") : h;
-    };
-    const channel = (hex: string, at: number) => {
-        const v = parseInt(expand(hex).slice(at, at + 2), 16) / 255;
-        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-    };
-    const luminance = (hex: string) => 0.2126 * channel(hex, 0) + 0.7152 * channel(hex, 2) + 0.0722 * channel(hex, 4);
-    const contrast = (a: string, b: string) => {
-        const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m);
-        return (x + 0.05) / (y + 0.05);
-    };
-
     /**
      * THE OTHER HALF OF THE REFUSAL. Returning null from `required()` only stops the
      * resolver reading a selector wrongly; on its own it converts a wrong answer into a
@@ -2255,18 +2242,9 @@ describe("the sport mark reads as text on the surface it lands on", () => {
             .filter((x) => x.opacity !== undefined && parseFloat(x.opacity) < 1);
         expect(dimmed.length, "nothing is dimmed — this assertion would be vacuous").toBeGreaterThan(0);
 
-        const rgb = (hex: string) => {
-            const h = expand(hex);
-            return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
-        };
-        const composite = (fg: string, bg: string, a: number) => {
-            const [f, b] = [rgb(fg), rgb(bg)];
-            return "#" + f.map((c, i) => Math.round(c * a + b[i] * (1 - a)).toString(16).padStart(2, "0")).join("");
-        };
-
         for (const {el, tokens, opacity} of new Map(dimmed.map((d) => [d.tokens.join(" "), d])).values()) {
             const a = parseFloat(opacity!);
-            const composited = composite(ink, ground, a);
+            const composited = toHex(over(ink, a, ground));
             const ratio = contrast(composited, ground);
             expect(
                 ratio,
