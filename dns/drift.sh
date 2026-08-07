@@ -24,7 +24,8 @@
 #     stdout "DRIFT <checksum>" exit 0   they disagree; the checksum names the plan to apply
 #     stderr <reason>           exit 2   the output could not be read; treat as drift until known
 #
-# Self-tested by dns/test_drift.sh, which runs it against fixtures of all four shapes.
+# Executed by tests/dns-config.test.ts against fixtures of every shape above, under `pnpm test` —
+# so the cases run on every pull request, not only on one that touches dns/.
 
 set -euo pipefail
 
