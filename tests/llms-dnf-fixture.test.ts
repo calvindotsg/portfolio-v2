@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest";
 
-import type {RaceEvent} from "../src/lib/constants";
+import type {RaceEvent} from "../src/lib/race";
 
 /**
  * THE ONE SHAPE `EVENTS` DOES NOT CURRENTLY HOLD, AND THE ONLY PLACE IT CAN BE HELD.
@@ -46,8 +46,12 @@ const DNF_NOTHING_RECORDED = {
     outcome: "dnf",
 } as unknown as RaceEvent;
 
-vi.mock("../src/lib/constants", async (importOriginal) => {
-    const real = await importOriginal<typeof import("../src/lib/constants")>();
+// THE MOCK TARGETS THE MODULE THE ENDPOINT ACTUALLY IMPORTS `EVENTS` FROM, which is the
+// collector over `src/data/races/`, not `src/lib/constants.ts`. Mocking the wrong module
+// leaves every assertion below running against the real calendar and passing by never
+// being about anything — the calibration in the first test is what says so out loud.
+vi.mock("../src/data/races", async (importOriginal) => {
+    const real = await importOriginal<typeof import("../src/data/races")>();
     return {...real, EVENTS: [...real.EVENTS, DNF_NOTHING_RECORDED]};
 });
 
@@ -103,7 +107,9 @@ describe("llms.txt on a race abandoned with nothing recorded", () => {
         // The other side of the branch, so this file cannot be satisfied by an endpoint that
         // simply stopped printing distances for every DNF. The calendar's real abandoned race
         // carries recordings and its recorded distance is honest — it is how far he got.
-        const {EVENTS, PATCHES, raceKm, recordingsOf} = await import("../src/lib/constants");
+        const {PATCHES} = await import("../src/lib/constants");
+        const {EVENTS} = await import("../src/data/races");
+        const {raceKm, recordingsOf} = await import("../src/lib/race");
         const recordedDnf = EVENTS.find((e) => patchState(e) === "dnf" && recordingsOf(e).length > 0);
         expect(recordedDnf, "the calendar must still hold a recorded abandoned race").toBeDefined();
         // BY NAME AND DATE. The calendar holds the same race name in more than one year —

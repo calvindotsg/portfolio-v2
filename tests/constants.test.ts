@@ -1,9 +1,10 @@
 import {describe, expect, it} from "vitest";
 
 import {
-    ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, goalForSport, kmFromMetres, LINKS, METADATA,
-    NOW, type RaceEvent, raceKm, type Recording, recordingKm, type Sport, THEME_TOGGLE, WELCOME,
+    ABOUT_ME, CAREER, clampToGoal, FOOTER, GOALS, goalForSport, LINKS, METADATA,
+    NOW, type Sport, THEME_TOGGLE, WELCOME,
 } from "../src/lib/constants";
+import {kmFromMetres, type RaceEvent, raceKm, type Recording, recordingKm} from "../src/lib/race";
 import stravaProgress from "../src/data/strava-progress.json";
 import {kmFromMeters} from "../scripts/fetch-strava-progress.mjs";
 import {arial20pxWidth} from "./helpers/arial-20px";

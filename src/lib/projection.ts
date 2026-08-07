@@ -1,5 +1,7 @@
 import stravaProgress from "../data/strava-progress.json"
-import {EVENTS, GOAL_YEAR, type Goal, NEXT_RACE, type RaceEvent, raceKm, recordingsOf, type Sport} from "./constants"
+import {GOAL_YEAR, type Goal, NEXT_RACE, type Sport} from "./constants"
+import {EVENTS} from "../data/races"
+import {type RaceEvent, raceKm, recordingsOf} from "./race"
 import {BUILD_DATE} from "./today"
 
 /**
@@ -476,8 +478,8 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * another file. The test is not "is it stored" but "does the calendar keep
  * re-deriving the answer": it does for `done`, which is why that flag rots, and it
  * cannot for an abandonment, which nothing in the data records at all. The argument
- * is written out above `outcome` in constants.ts; satisfy it before storing a second
- * one.
+ * is written out above `outcome` in `src/lib/race.ts`, where the field is declared;
+ * satisfy it before storing a second one.
  *
  * THERE ARE TWO WAYS TO BE `finished`, AND THE ORDER MATTERS. A race with a
  * recording is finished because it was run; a race without one is finished once the
@@ -541,7 +543,7 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * reason. Every other answer this function gives is read off the data — a recording, a
  * date, a clock — and a race that was abandoned carries all three of those looking
  * exactly like a race that was completed, because no device models the difference (see
- * `RaceEvent.outcome` in constants.ts). So it is hand-entered, and every question below
+ * `RaceEvent.outcome` in `src/lib/race.ts`). So it is hand-entered, and every question below
  * it would resolve such a race `finished`: it has a recording, and its date is years
  * past. Moving this line down the function is silent — the type still checks, the wall
  * still renders, and the bib simply claims a result the rider did not get.

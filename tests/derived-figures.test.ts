@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest";
 
-import {GOALS, GOAL_YEAR, type Goal, type RaceEvent, type Recording, raceKm, recordingsOf, type Sport} from "../src/lib/constants";
+import {GOALS, GOAL_YEAR, type Goal, type Sport} from "../src/lib/constants";
+import {type RaceEvent, type Recording, raceKm, recordingsOf} from "../src/lib/race";
 import {bookedAhead, daysRemaining, eventsInYear, goalStatus, parseIsoDate, patchState} from "../src/lib/projection";
 import {AS_OF, CYCLING_KM, RUNNING_KM} from "./helpers/reference";
 

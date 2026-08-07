@@ -1,8 +1,9 @@
 import type {APIRoute} from "astro"
 import {
-    ABOUT_ME, CAREER, EVENTS, GOAL_YEAR, GOALS, LINKS, METADATA, NEXT_RACE, PATCHES, PROJECTS,
-    raceKm, recordingsOf,
+    ABOUT_ME, CAREER, GOAL_YEAR, GOALS, LINKS, METADATA, NEXT_RACE, PATCHES, PROJECTS,
 } from "../lib/constants"
+import {EVENTS} from "../data/races"
+import {raceKm, recordingsOf} from "../lib/race"
 import stravaProgress from "../data/strava-progress.json"
 import {patchState} from "../lib/projection"
 import {BUILD_DATE} from "../lib/today"

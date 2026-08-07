@@ -3,13 +3,15 @@ import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 
-import {EVENTS, GOAL_YEAR, GOALS, type Goal, raceKm, recordingsOf} from "../src/lib/constants";
+import {GOAL_YEAR, GOALS, type Goal} from "../src/lib/constants";
+import {EVENTS} from "../src/data/races";
+import {raceKm, recordingsOf} from "../src/lib/race";
 import stravaProgress from "../src/data/strava-progress.json";
 import {
     UPDATED_AT, bookedAhead, daysRemaining, eventsInYear, formatDateline, goalStatus,
     goalStatusLine, nextRace, parseIsoDate, patchesEarned, patchState, patchWall,
 } from "../src/lib/projection";
-import type {RaceEvent} from "../src/lib/constants";
+import type {RaceEvent} from "../src/lib/race";
 import {BUILD_DATE, singaporeDate as siteSingaporeDate} from "../src/lib/today";
 import {nextProgress, serialise, singaporeDate} from "../scripts/fetch-strava-progress.mjs";
 import {AS_OF, CYCLING_KM, RUNNING_KM} from "./helpers/reference";

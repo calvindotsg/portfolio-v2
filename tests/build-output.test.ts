@@ -4,8 +4,10 @@ import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
 import {
-    CAREER, EVENTS, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, raceKm, recordingsOf, WELCOME,
+    CAREER, FOOTER, GOALS, LINKS, METADATA, PATCHES, PROJECTS, WELCOME,
 } from "../src/lib/constants";
+import {EVENTS} from "../src/data/races";
+import {raceKm, recordingsOf} from "../src/lib/race";
 import stravaProgress from "../src/data/strava-progress.json";
 import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
