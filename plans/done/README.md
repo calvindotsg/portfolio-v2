@@ -1275,3 +1275,177 @@ pass.**
 `main` at `5b9c794`; suite re-run in the primary checkout after confirming the fast-forward moved
 HEAD — **531 passed / 7 skipped across 19 suites**. Containment proved by tree diff against the
 branch head: empty.
+
+# Run 6 (2026-08-08): the audit that read the record instead of the code (plans 024–026)
+
+Five runs audited the source. This one audited `plans/` — the twenty-three archived plan files,
+`done/README.md` and the living index — for items deferred, "recorded not fixed", "noted not
+fixed", accepted as a coverage gap, or conditional on a trigger. Three read-only agents returned
+roughly seventy candidates; each was held against the live tree, and **the three that survived
+with a measurement behind them became plans**. Everything else is recorded in
+`../README.md` § "Run 6" so it is not swept a third time.
+
+All three were authored in one PR, executed **in parallel** by three worktree executors, reviewed
+against their own criteria by a reviewer who re-ran them, and merged one at a time.
+
+## The transferable result: a residual's REASON has a shelf life
+
+The audit floor was recorded as "1 moderate + 1 high", both named unfixable by construction. The
+tool said **1 moderate + 8 high**. Six new high advisories had appeared, and of the two recorded
+reasons:
+
+- **`brace-expansion`'s was FALSE.** The record said the advisory's *"only patched release is
+  5.0.8 (no patched 1.x)"*. `1.1.17` and `1.1.18` are published, `minimatch@3` declares `^1.1.7`,
+  so the fix arrives in range with no override.
+- **`@opentelemetry/core`'s CAME TRUE, on schedule.** It predicted a `@netlify/otel` bump would
+  clear it. `6.0.5` still pins the package exactly, now at the patched `2.8.0`.
+
+Both cleared with one `pnpm update --no-save`. The lesson is not "check the audit" — it is that a
+residual documented with an upstream author's release plans as its reason is a fact with an expiry
+date and no gate. The baseline cell now names a **derivation and a test** (`Patched versions:
+<0.0.0`) instead of a story.
+
+## Two review panels over the authoring PR (#144), 16 + 36 agents
+
+A four-lens adversarial panel raised 42 findings, 34 surviving a reproduce-first skeptic; a
+**ponytail over-engineering lens** proposed 33 cuts of which a defender mandated to protect
+load-bearing rationale killed 31. **Four blocking defects, every one reproduced by execution, and
+three of them the repository's dominant failure class — a plan whose own criteria a correct
+execution cannot satisfy:**
+
+- **Every plan's done criterion diffed against `219dcde..HEAD`**, the SHA the authoring PR itself
+  moves past. Simulated post-merge in a throwaway clone: five paths, not one. Replaced with the
+  three-dot branch-point form. The *drift checks* kept the pin — they are path-scoped, and there
+  the pin is the point.
+- **Every plan hard-pinned the suite at 531/532 while the index promised "any order".** 025 and
+  026 each add one assertion, so whichever landed second needed 533 and 024 would have hard-STOPped
+  on a `main` that had absorbed either. Each plan now records its own baseline `N` in step 1;
+  `7 skipped` stays absolute as the discriminating half. **This is what made the parallel execution
+  legitimate rather than lucky**, and it is the run's second transferable result: an absolute count
+  in a plan is a dependency edge nobody declared.
+- **026 step 3's Verify said "green" and is reproducibly `1 failed | 12 passed`** — its calibration
+  test cannot go green until step 4.
+- **025 told the executor to build the page's CSS as `inline + shared`.** The built page links the
+  shared sheet at byte 4952 and opens its inline `<style>` at 5009, so that join is the **inverse**
+  of the cascade — and the gate's whole rule is last-declaration-wins. Measured with a synthetic
+  component rule: plan order 0 mismatches, **green on the exact defect it exists to catch**;
+  document order 2. Replaced with `parseRules(pageCss(page))`, which exists for this and says so.
+
+**The ponytail lens earned its place on a finding that was not a cut at all**: 025 never asserted
+`forced-color-adjust: none`. Moving that declaration out of the base rule into the two arms erases
+all 32 bare marks, and both the suite and the proposed gate stayed green. It became a fourth
+assertion and a fourth mutation. Its defenders then killed the reviewer's own instinct to merge the
+two forced-colours gates — a rule-first loop of that shape goes green when the entire shared
+`@media` block is deleted, 78 marks invisible. Net accepted from that lens: −60 lines of ~1,550,
+plus two spec corrections.
+
+## 024 — refresh the lockfile in-range (PR #145, squash `c2558be`)
+
+`pnpm audit` **1 moderate + 8 high → 0 moderate + 2 high**. `package.json` byte-identical, no
+override added. Both survivors are the `image-size` pair with `Patched versions: <0.0.0`.
+
+**The `dist/` comparison was re-derived by the reviewer rather than read from the report**, because
+`astro 7.1.5 → 7.2.0` is a minor of the thing that renders every page: built both lockfiles, and
+found **zero files gained or lost**, all four `_astro/` assets byte-identical including both
+stylesheets, and the five HTML pages differing at identical byte length by the generator string
+alone. Output-neutral.
+
+### Panel (18 agents): 14 raised, **0 survived** — and two by-products worth more than a finding
+
+- **The two surviving highs are not permanent and not upstream's to fix.** `@netlify/blobs` is an
+  OPTIONAL peer a fresh resolution never installs — measured: `pnpm install` against this same
+  `package.json` with no lockfile yields zero `@netlify/blobs` and zero `image-size`. They survive
+  only because `pnpm update --no-save` carries forward a peer resolution orphaned when the SSR
+  adapter was dropped in `32071fe`. **Do not write "because `autoInstallPeers: true`"** — measured
+  false. Clearing them means re-resolving the whole tree: its own plan, its own `dist/` comparison.
+- **`astro preview` changed behaviour in 7.2.0 under a non-interactive shell** — it forks a
+  detached server and returns immediately, with `astro preview stop|status|logs`, and a second run
+  exits 0 while silently ignoring a different `--port`. `ASTRO_PREVIEW_BACKGROUND` set to any
+  non-empty value restores foreground. Nothing ships or is gated on it.
+
+## 025 — assert what forced colours PAINT (PR #147, squash `4b9d5ea`)
+
+The gate protecting icon-only controls asked whether *some* forced-colours rule reached a glyph and
+never read the declaration. Measured, both green: `CanvasText` → `Canvas` paints 32 marks the
+ground colour; moving the opt-out out of the base rule erases the same 32. The new assertion reads
+**both halves of the repair** — the system colour its container reserves, and the opt-out — for
+every `i-` mark on every page, and **fails a mark no rule reaches** rather than skipping it.
+
+**The reviewer's decisive check was one no mutation in the plan covers**: a component-level override
+injected into an inline `<style>`, which follows the linked sheet in document order, is correctly
+resolved as the winner and reddens the gate. Under the plan's original join it would have been
+green. Deleting the whole shared block leaves all 78 marks unreached and fails the test.
+
+Panel: MERGE, no blocking items. Four claims in the new comment were measured false and corrected
+in place — "precisely the population the gate above skips" (that gate examines 9 and skips 69),
+"fails this test 78 times" (vitest aborts at the first expectation), "in cascade order … the last
+rule wins" (true only at equal specificity; it holds here because the three arms are authored in
+ascending specificity, and the comment now names the two shapes it cannot see), and a message that
+printed "for a a container". **A specificity scorer was built and rejected: measured, it reddened
+46 correct rules.**
+
+## 026 — close the bare-filename case gap (PR #146, squash `557af8f`)
+
+The rule that exists because plan 021 left 33 bare references green was itself case-sensitive, and
+every component here is PascalCase. **The reviewer's check was the real scenario**:
+`git mv Pulse.astro Beat.astro` now reddens the gate, naming a live comment in `Now.astro` — and
+that same rename was green before.
+
+A third excuse list, `NOT_A_FILE_OF_OURS`, holds the two names the widening reaches that this
+repository never owned. It is **the one excuse list here not asserted in both directions**, and
+says so in place: coming back is something only a name we once had can do, so a `GONE` entry would
+redden the suite the day a file legitimately took one of them.
+
+**The census moved in the direction the gate predicts.** The plan measured four foreign sites; the
+executor measured three, because its rewrite *describes* the foreign names instead of quoting them
+and so stopped creating the fourth site itself. That is "A CENSUS IN THIS FILE COUNTS ITSELF"
+firing constructively, and it is why one entry is scoped to two documents rather than three.
+
+Panel: one blocking edit. The comment said the widening brought in "43" sites; the three foreign
+names `continue` before `considered++` and were never members of the 155 the same sentence counts,
+so 43 double-counted them against the paragraph below. **Re-derived independently by the reviewer:
+wide bare-arm `considered` 155, narrow 115, delta 40, misses 0 either way.** Corrected to 40.
+*The reviewer's first probe said 32* — it used `return` inside a `forEach` where the gate uses
+`continue`, silently dropping every later token on a line. A probe is a re-implementation and gets
+the same scrutiny as the thing it measures.
+
+Also taken: the failure message offered only two lists, and following it to file a foreign name
+under `GONE` leaves the suite green while asserting a deletion that never happened. It now names
+all three and what separates them.
+
+## Three plan defects found by the executors, none of which stopped a run
+
+Each was reported rather than papered over, and each exists because the plans told executors to
+re-measure rather than trust:
+
+- 025 claimed `lastDecl` was already imported in `tests/build-output.test.ts`. It was not.
+- 026's mutation 4 was predicted to give `1 failed | 12 passed`; it gives 13, because step 5 adds a
+  test before step 6 runs — **a plan's own step ordering made its prediction stale**.
+- 026's mutation 1 was predicted to "fail on both" assertions; vitest throws on the first, so the
+  second is unobservable.
+
+## A note on `main...HEAD`
+
+All three executors reported the same thing: the new three-dot done criterion could not pass in
+their checkouts, because a fresh worktree's local `main` had never been fetched and sat at the
+pre-run commit. Every one of them diagnosed it correctly as ref staleness and supplied the honest
+equivalent rather than improvising. **The criterion is only as good as the freshness of the ref it
+names** — the reviewer fetched and rebased before re-running it, and it then listed exactly one
+file in each case.
+
+## Run-6 outcome vs baseline
+
+| | before (`219dcde`) | after (`4b9d5ea`) |
+|---|---|---|
+| `pnpm audit` | 1 moderate + 8 high, against a recorded floor of 1 + 1 | **0 moderate + 2 high**, both `Patched versions: <0.0.0` |
+| tests | 531 | **533** |
+| a mark painted the ground colour in forced colours | suite green | **red**, on any of 78 marks |
+| the opt-out removed from the base rule | suite green | **red** |
+| a PascalCase component renamed, prose left behind | suite green | **red**, naming the document |
+| shipped page delta | — | the `Astro v7.2.0` generator string; nothing else, `_astro/` byte-identical |
+| direct dependencies | 21 | 21 |
+
+Deferred with reasons in `../README.md` § "Run 6": `main()` in the Strava writer is unexported and
+untested; the pre-paint theme script's unguarded `localStorage.getItem`; the entrance-stagger
+middle rung; `max-h-[415px]` on the portrait; and the `<project>.pages.dev` duplicate, restated
+against the current host rather than dropped.
