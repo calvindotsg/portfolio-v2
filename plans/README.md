@@ -1,18 +1,20 @@
 # Implementation Plans
 
-**Run 6 is open: plans 024–026 are proposals and executable in any order.** They came from a
-re-audit of this directory's own record rather than of the source — every archived plan, this
-index, and `done/README.md` were swept for items that were deferred, "recorded not fixed" or
-accepted as a coverage gap during an earlier run, and each survivor was then held against the
-live tree. Three survived that test with a measurement behind them; the rest are recorded in
-§ "Run 6" below so nobody re-derives them. Run 5 before it decoupled the race data and the
+**Run 6 is open: plans 024–026 are proposals and executable in any order.** The order is free
+because of a mechanism rather than a hope: each plan re-measures its own suite baseline in its
+own worktree, and none asserts an absolute suite total or diffs against the commit it was
+written at. They came from a re-audit of this directory's own record rather than of the
+source — every archived plan, this index, and `done/README.md` were swept for items that were
+deferred, "recorded not fixed" or accepted as a coverage gap during an earlier run, and each
+survivor was then held against the live tree. The three survivors became 024–026; everything
+else is in § "Run 6" below. Run 5 before it decoupled the race data and the
 site copy from the code that renders them, and all five of plans 019–023 are merged, archived
 and live. Four earlier runs are complete: plans 001–014 are all DONE,
 merged, and live on https://calvin.sg, as is plan **015**, which came from the
 maintainer resolving DIRECT-01 rather than from an audit run. Those plan files
 and the full evidence log are archived in [`done/`](done/README.md).
 
-They are the first live plans since 2026-07-29, and they exist because **018** made a
+Plans 019–023 were the first live plans since 2026-07-29, and they exist because **018** made a
 live plan possible again: three name gates in `tests/docs-drift.test.ts` check what a
 document names against the tree that exists, and a plan names the tree it intends to
 create. 018 closed that in the same change that landed 019–023, which decouple the race
@@ -135,10 +137,9 @@ recreated.
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
-**Run 6's three plans have no dependencies on each other** — one moves only
-`pnpm-lock.yaml`, one adds an assertion to `tests/build-output.test.ts`, one changes
-`tests/docs-drift.test.ts`. They are numbered in leverage order rather than in a chain, and
-the linear merge convention below is a convention about PRs, not a claim that 025 needs 024.
+**Run 6's three plans touch disjoint files** — one moves only `pnpm-lock.yaml`, one adds an
+assertion to `tests/build-output.test.ts`, one changes `tests/docs-drift.test.ts`. They are
+numbered in leverage order rather than in a chain.
 
 Plan 008 did not come from the audit — it was raised from a production PageSpeed
 report mid-run and executed out of numeric order.
@@ -189,9 +190,7 @@ code it changed, and in its own PR** — rather than re-narrated here. This
 sentence used to send the reader to `plans/done/` as well, and that was wrong:
 the archive is the record of *numbered plans*, and none of these four has one.
 Measured — the archive mentions none of `control-geometry`, `page-fit`,
-`aria-pressed` or SC 1.4.12 even once. It was caught by the 2026-08-07 review
-panel and is fixed here rather than in the branch that found it, because the
-status table and this file's prose are the reviewer's to maintain.
+`aria-pressed` or SC 1.4.12 even once.
 
 | | value |
 |---|---|
@@ -218,21 +217,24 @@ is cosmetic.
 
 ### Run 6 (2026-08-08, audited at `219dcde`) — a re-audit of the record, not of the source
 
-Every earlier run audited the code. This one audited **this directory**: the twenty-four
+Every earlier run audited the code. This one audited **this directory**: the twenty-three
 archived plan files, `done/README.md` and this index, swept by three read-only agents for
 anything deferred, "recorded not fixed", "noted not fixed", accepted as a coverage gap, or
 conditional on a trigger. Roughly seventy candidates came back. Each was then held against
 the live tree, and the three that survived with a **measurement** behind them became plans
 024–026. What follows is everything else, so it is not swept for a third time.
 
-**Two recorded reasons had EXPIRED, which is the run's most transferable result.** Both
-`pnpm audit` residuals were written down as unfixable by construction and both were cleared
-by an ordinary in-range refresh: a patched `brace-expansion@1.x` now exists where the record
-says *"no patched 1.x"*, and the transitive pin holding `@opentelemetry/core` has been lifted
-upstream. Meanwhile six *new* highs had appeared, so the documented floor of "1 moderate + 1
-high" was reading as current policy while the tool said 1 moderate + 8 high. A residual's
-REASON has a shelf life; re-derive it before quoting it. Plan 024 is the fix and its
-maintenance note carries the general form.
+**A recorded reason had EXPIRED, and that is the run's most transferable result.** Both
+`pnpm audit` residuals were written down as unfixable by construction, and both are cleared by
+an ordinary in-range refresh — but for opposite reasons, and the difference is the lesson. The
+`brace-expansion` reason is simply **false now**: a patched `1.x` exists where the record says
+*"no patched 1.x"*. The `@opentelemetry/core` entry, by contrast, **came true on schedule** —
+it predicted that a bump to `@netlify/otel` would clear it, and that is what happened;
+`6.0.5` still pins the package exactly, now at a patched version. Meanwhile six *new* high
+advisories had appeared, so the documented floor of "1 moderate + 1 high" was reading as
+current policy while the tool said 1 moderate + 8 high. A residual's REASON has a shelf life;
+re-derive it before quoting it. Plan 024 is the fix and its maintenance note carries the
+general form.
 
 **Confirmed still open, and deliberately not planned this run:**
 
@@ -269,10 +271,11 @@ generated with a single `Allow: /` and cannot be made host-conditional from a st
 Whether to add a redirect rule is a dashboard decision and remains maintainer-owned.
 
 **Not re-derived, and specifically not re-litigated:** plan 025 asserts what the shared
-forced-colours rules *paint*, which is the PONY-01 item recorded below as real and worth one
-assertion. It does **not** revisit PONY-04, the refuted claim that the icon-only gate should
-also check the opt-out — that gate's contract is unchanged and plan 025 puts its assertion in
-a sibling rather than in it.
+forced-colours rules *paint*, which is the first ponytail-panel item recorded below — the one
+sized there as real and *"worth one assertion"*. It does **not** revisit the refuted item in
+the same list, the claim that the icon-only gate should itself check the opt-out. That gate's
+contract is unchanged and plan 025 puts its assertion in a sibling rather than in it, which is
+the distinction the refutation turned on.
 
 **Unchanged and still maintainer-owned**, each already recorded below or in `done/README.md`:
 the booked/DNF bib outline's 2.13:1 contrast, the `ping` halo under `prefers-reduced-motion`,
@@ -320,7 +323,9 @@ future run neither re-derives it nor "fixes" a non-defect.
   sweep; `plans/README.md` points at `plans/done/` for four changes not archived there.
   Ungated by construction — `docs-drift` resolves names that must exist and is blind to a
   quoted VALUE. Recorded rather than corrected one at a time, because the class is the
-  finding: **a figure in a commit body is unreviewable after the fact.**
+  finding: **a figure in a commit body is unreviewable after the fact.** The last of the four
+  was **corrected 2026-08-08** — see the Baseline section, which now says where those four
+  changes are actually written up. The other three sit in commit bodies and stay as they are.
 
 ### Two review panels over PR #122 (2026-08-03, merged at `ea6fa8f`)
 

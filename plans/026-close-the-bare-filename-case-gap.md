@@ -6,10 +6,17 @@
 > report — do not improvise. Do NOT update `plans/README.md`; your reviewer
 > maintains the index.
 >
-> **Drift check (run first)**:
-> `git diff --stat 219dcde..HEAD -- tests/docs-drift.test.ts src/data/races/README.md src/data/races/index.ts tests/build-output.test.ts`
-> If any of those changed since this plan was written, re-run the census in
-> "Current state" before proceeding; on a mismatch, treat it as a STOP condition.
+> **Drift check (run first)**: `git diff --stat 219dcde..HEAD -- tests/docs-drift.test.ts`
+> A change to the **shape** of what this plan edits — `BARE_SOURCE_FILE`, either
+> excuse list, or `unmetNames`'s signature — is a STOP condition. Anything else
+> in that file is a NOTES entry.
+>
+> Separately run
+> `git diff --stat 219dcde..HEAD -- src/data/races/README.md src/data/races/index.ts tests/build-output.test.ts`.
+> Those three hold the census sites in "Current state". A moved line anchor or a
+> changed count there is **expected drift and a NOTES entry, not a STOP** — step 2
+> re-measures the census anyway, and `tests/build-output.test.ts` is also sibling
+> plan 025's only file.
 
 ## Status
 
@@ -30,12 +37,13 @@ references to it survived a fully green suite**.
 The rule is case-sensitive, and this repository names its components in
 PascalCase. So the rule that exists to catch a rename cannot see a rename of
 `BasicLayout.astro`, `Goal.astro`, `Now.astro`, `Patch.astro`,
-`ProgressBar.astro` or `Pulse.astro` — six of the fifteen `.astro` files here.
-The gate's own comment records this as *"KNOWN GAP, MEASURED AND DEFERRED"* and
-says why it was deferred: widening it reports a handful of tokens that were never
-files of this repository, and those *"need a 'not a file of ours' list rather
-than an entry in GONE, whose come-back gate would then be asserting something
-false about its own subject."*
+`ProgressBar.astro` or `Pulse.astro`. **A rename's broken imports are caught by
+the compiler; this gate's subject is the prose left behind**, and for those six
+names there is nothing watching it. The gate's own comment records the gap as
+*"KNOWN GAP, MEASURED AND DEFERRED"* and says why: widening it reports a handful
+of tokens that were never files of this repository, and those *"need a 'not a
+file of ours' list rather than an entry in GONE, whose come-back gate would then
+be asserting something false about its own subject."*
 
 That is a complete design. This plan implements it. The deferral was a budget
 decision inside plan 023's cleanup, not a doubt about the fix.
@@ -55,28 +63,37 @@ that accepted a leading underscore would redden on the two names whose absence i
 the assertion. A medial underscore is allowed and is what makes the `py` arm live
 (`dns/test_filters.py`).
 
-### Where the rule is applied — `tests/docs-drift.test.ts:377-399`
+### Where the rule is applied — `tests/docs-drift.test.ts:376-399`
 
 ```ts
-function unmetNames(tokens, doc, hasPath, hasFile): {misses: Named[], considered: number} {
-    const misses: Named[] = [];
-    let considered = 0;
-    for (const {token, line} of tokens) {
-        if (/[*${}]/.test(token)) continue; // globs and interpolations are not paths
-        const bare = token.replace(/:\d+(-\d+)?$/, "").replace(/\/$/, "");
-        if (TOP_LEVEL.some((t) => token.startsWith(t))) {
-            if (excused(NAMED_AS_ABSENT, token, doc) || excused(NAMED_AS_ABSENT, `${bare}/`, doc)) continue;
-            considered++;
-            if (!hasPath(bare)) misses.push({token, line, kind: "path"});
-        } else if (BARE_SOURCE_FILE.test(bare)) {
-            if (excused(GONE, bare, doc)) continue;
-            considered++;
-            if (!hasFile(bare)) misses.push({token, line, kind: "file"});
+    type Named = {token: string, line: number, kind: "path" | "file"}
+    function unmetNames(
+        tokens: {token: string, line: number}[],
+        doc: string,
+        hasPath: (p: string) => boolean,
+        hasFile: (name: string) => boolean,
+    ): {misses: Named[], considered: number} {
+        const misses: Named[] = [];
+        let considered = 0;
+        for (const {token, line} of tokens) {
+            if (/[*${}]/.test(token)) continue; // globs and interpolations are not paths
+            const bare = token.replace(/:\d+(-\d+)?$/, "").replace(/\/$/, "");
+            if (TOP_LEVEL.some((t) => token.startsWith(t))) {
+                if (excused(NAMED_AS_ABSENT, token, doc) || excused(NAMED_AS_ABSENT, `${bare}/`, doc)) continue;
+                considered++;
+                if (!hasPath(bare)) misses.push({token, line, kind: "path"});
+            } else if (BARE_SOURCE_FILE.test(bare)) {
+                if (excused(GONE, bare, doc)) continue;
+                considered++;
+                if (!hasFile(bare)) misses.push({token, line, kind: "file"});
+            }
         }
+        return {misses, considered};
     }
-    return {misses, considered};
-}
 ```
+
+The four parameters are spelled out because **step 5 calls this function
+directly** with all of them.
 
 ### The excuse shape, and the two lists that use it — `tests/docs-drift.test.ts:310-365`
 
@@ -97,8 +114,14 @@ Both are asserted in both directions:
 
 - `it("keeps no excuse for a file that has come back")` — every
   `NAMED_AS_ABSENT` path and every `GONE` filename must **not** exist.
-- `it("scopes every excuse to documents that exist")` — every `where` entry must
-  be non-empty and every document in it must exist.
+- `it("scopes every excuse to documents that exist")` — every `where` must be
+  non-empty and every document in it must exist.
+
+**That first gate is why the two foreign names below cannot go in `GONE`:** it
+asserts the name never comes back, so a legitimate future `parseHeaders.ts` in
+this repository would redden the suite with a message about a deletion that never
+happened. `GONE` also *means* "we had this and deleted it", which is false of
+both.
 
 ### The census, measured at `219dcde`
 
@@ -129,6 +152,8 @@ not are the whole cost of this change:
 The distinct stems the widening newly reaches, in full:
 `BasicLayout.astro`, `Goal.astro`, `Now.astro`, `Patch.astro`,
 `ProgressBar.astro`, `Pulse.astro`, `YYYY-MM-DD-slug.ts`, `parseHeaders.ts`.
+That list is the only thing against which a newly-*resolving* stem is visible as
+out-of-census; no STOP condition covers that direction.
 
 **The gate's own comment predicted three sites and there are four.** The reason
 is stated in that same comment: *"A CENSUS IN THIS FILE COUNTS ITSELF"* — the
@@ -154,21 +179,6 @@ this table.**
 Neither is a file this repository deleted, and that is the distinction the third
 list exists to keep.
 
-### Why these must NOT go in `GONE`
-
-`GONE`'s partner gate asserts, for every entry, that no file of that name exists
-anywhere in the tree — *"a file called X exists again, so its GONE entry is now
-false"*. Two consequences, and both matter:
-
-1. **The record would be wrong.** `GONE` means *this repository had this and
-   deleted it*. Neither of these was ever ours, so an entry there is a false
-   claim about the repository's own history — exactly the class of rot this file
-   exists to catch, one level up.
-2. **The come-back gate would be asserting the wrong thing.** If someone one day
-   writes a legitimate `parseHeaders.ts` here, a `GONE` entry turns the suite red
-   with a message about a deletion that never happened. A foreign name has no
-   come-back semantics at all.
-
 ## Commands you will need
 
 | Purpose | Command | Expected on success |
@@ -176,9 +186,12 @@ false"*. Two consequences, and both matter:
 | Install | `pnpm install` | exit 0 |
 | Typecheck | `pnpm check` | 0 errors, 0 warnings, 2 hints |
 | Lint | `pnpm eslint` | exit 0, 0 problems (says nothing about `.ts`) |
-| Tests | `pnpm test` | 531 passed, 7 skipped before; **532 passed** after |
+| Tests | `pnpm test` | see step 1 — you record the baseline |
 | One file | `SKIP_BUILD=1 pnpm test docs-drift` | faster while iterating |
 | Build | `pnpm build` | exit 0, 5 pages |
+
+`SKIP_BUILD=1` reuses whatever is already in `dist/`. It never rebuilds, so if
+`dist/` is ever emptied you must run `pnpm build` before using it again.
 
 ## Scope
 
@@ -208,43 +221,31 @@ false"*. Two consequences, and both matter:
 
 ## Steps
 
-### Step 1: Establish the baseline and reproduce the gap
+### Step 1: Establish YOUR baseline, and reproduce the gap
 
 ```
 pnpm install
 pnpm test
 ```
 
-**Verify**: `531 passed | 7 skipped`.
+**Record**: the suite's `N passed | 7 skipped`. At the time of writing N was
+**531**. A higher N means sibling plan 024 or 025 landed first — that is expected
+drift, not a STOP. Every later figure in this plan is `N + 1`. The `7 skipped` is
+absolute.
 
-Now prove the gap is live, in this worktree. Rename a component that live prose
-names, and watch the suite stay green:
-
-```
-git mv src/components/Pulse.astro src/components/Beat.astro
-grep -rn "Pulse.astro" --include=*.astro --include=*.ts --include=*.md . | grep -v node_modules | grep -v plans/done | head
-pnpm test
-```
-
-**Verify**: `grep` finds at least one live document still naming `Pulse.astro`,
-and `pnpm test` is **red** — but read *why*. The rename breaks imports, so the
-build fails. That is the wrong signal. Restore it and use a rename that no code
-imports instead:
+Now demonstrate the gap. Add one line to `README.md` naming, in backticks, a
+PascalCase file that does not exist — a sentence mentioning `Vanished.astro`
+will do. Then:
 
 ```
-git mv src/components/Beat.astro src/components/Pulse.astro
-git status --porcelain
+SKIP_BUILD=1 pnpm test docs-drift
 ```
 
-**Verify**: `git status --porcelain` is empty.
+**Verify**: **green**. A live, fully-gated document names a file that is not
+there and the suite does not care. That is the defect.
 
-The honest demonstration is the direct one: add a line to `README.md` naming a
-PascalCase file that does not exist, in backticks — for example a sentence
-mentioning `Vanished.astro` — and run `SKIP_BUILD=1 pnpm test docs-drift`.
-
-**Verify**: the suite is **green** on a document naming a file that is not there.
-That is the defect. Then `git checkout -- README.md` and confirm
-`git status --porcelain` is empty.
+Revert: `git checkout -- README.md`, then confirm `git status --porcelain` is
+empty.
 
 ### Step 2: Widen the pattern
 
@@ -257,18 +258,24 @@ The leading `_` must still be rejected, and a medial `_` must still be accepted.
 
 Rewrite the block comment above it. What must change:
 
-- The "KNOWN GAP, MEASURED AND DEFERRED" paragraph is now a description of
-  something that is fixed; replace it with what the rule now does and why the
-  third excuse list exists.
+- The "KNOWN GAP, MEASURED AND DEFERRED" paragraph now describes something that
+  is fixed; replace it with what the rule does and why the third excuse list
+  exists.
 - Keep the paragraphs that are still true: the argument for the weak question,
-  the extension list, the medial-vs-leading underscore rule, and the note that
-  a census in this file counts itself.
+  the extension list, the medial-vs-leading underscore rule, and the note that a
+  census in this file counts itself.
 - Update any figure you restate by **re-measuring it**, not by copying this plan.
   A count in prose here is inside the population it counts.
 
-**Verify**: `SKIP_BUILD=1 pnpm test docs-drift` → red, with
-`it("names no file that is not there")` listing the four sites from the census
-(or whatever set your own measurement produced). Record the exact list.
+**Verify**: `SKIP_BUILD=1 pnpm test docs-drift` → red, with **two** tests
+failing:
+
+- `names no file that is not there`, listing the four census sites (or whatever
+  set your own measurement produced);
+- `catches a name that is gone, and passes one that is there`, because its
+  fixture pins the old behaviour. Step 4 rewrites it.
+
+Record the exact list from the first. Any *third* red is a STOP condition.
 
 ### Step 3: Add the third excuse list and wire it in
 
@@ -290,17 +297,25 @@ Consult it in `unmetNames`, in the bare-filename arm only, beside the existing
 `GONE` check. A foreign name is not a path, so the path arm needs nothing.
 
 Then extend the **scope** gate — `it("scopes every excuse to documents that
-exist")` — to iterate the new list alongside the other two, so a `where` naming
-a renamed document is caught here as it is for the others.
+exist")` — to iterate the new list alongside the other two.
 
 **Do NOT add the new list to `it("keeps no excuse for a file that has come
 back")`.** Write a short comment in that test saying why it is excluded: a
 foreign name has no come-back semantics, and asserting one would redden the suite
 if this repository ever legitimately created a file with that name.
 
-**Verify**: `SKIP_BUILD=1 pnpm test docs-drift` → green.
+**Verify**: `SKIP_BUILD=1 pnpm test docs-drift` → **`1 failed | 12 passed`**.
 
-### Step 4: Update the calibration test, which currently pins the gap
+`names no file that is not there` is now GREEN — that is what this step did. The
+one remaining red is `catches a name that is gone, and passes one that is there`,
+whose diff shows exactly one added line, `+ "file Vanished.astro"`. Step 4
+rewrites it. **This is the expected result; proceed.** Any other red, or a green
+suite here, is a STOP condition.
+
+Do not attempt to make this step green by adding an excuse — the STOP list below
+forbids it, and the entry would be false.
+
+### Step 4: Update the two places that pin the gap
 
 `it("catches a name that is gone, and passes one that is there")` at line ~456
 contains this fixture line and this comment:
@@ -320,29 +335,40 @@ PascalCase is now seen. The expectations change with it:
   `"file test_filters.py"` and before `"path src/components/Vanished.astro"`.
 - `considered` goes from `6` to `7`.
 
+**And there is a second site the plan-before-review missed**: the inline comment
+at `tests/docs-drift.test.ts:479-480`, immediately below those expectations —
+
+> Four names reached a predicate and were satisfied or reported; the
+> leading-underscore and PascalCase tokens reached none, which is the deferred gap
+> stated in place.
+
+That sentence becomes false the moment `considered` is 7. Rewrite it: five names
+reach a predicate, and only the leading-underscore token reaches none.
+
 **The fixture's backticks are assembled from a `tick` variable rather than
 typed**, because this file is gated by the rule it defines and a literally
 backticked fake name is a claim like any other. Keep doing that for anything you
 add.
 
-**Verify**: `SKIP_BUILD=1 pnpm test docs-drift` → green, and the two expectations
-above are the ones you changed.
+**Verify**: `SKIP_BUILD=1 pnpm test docs-drift` → green.
 
 ### Step 5: Add a wiring assertion for the new list
 
 The lists are consulted inside `unmetNames`, and a pure rule with a list it never
 reads is a rule that passes every test of its logic while doing nothing. Add one
-`it(...)` that pushes a real entry through `unmetNames` with the real
-predicates, in **both** directions:
+`it(...)` that pushes a real entry through `unmetNames` with the real predicates
+`hasPath` and `hasFile`, in **both** directions:
 
 - the foreign name in a document its `where` names → **no miss**;
 - the same token in a document its `where` does not name → **exactly one miss**,
   of kind `file`.
 
 Build the backticked token with the `tick` variable, as step 4 describes.
+Structural pattern: `it("asks the real filesystem, on both halves of the rule")`
+at line ~431, which does the same job for the two existing halves.
 
-**Verify**: `SKIP_BUILD=1 pnpm test docs-drift` → green, and the suite total is
-now **532 passed | 7 skipped**.
+**Verify**: `SKIP_BUILD=1 pnpm test docs-drift` → green, and `pnpm test` → the
+suite total is now `N + 1 passed | 7 skipped`.
 
 ### Step 6: Mutation-test the change, and run the full ladder
 
@@ -352,9 +378,9 @@ Each mutation is applied, measured, and reverted before the next.
 |---|---|---|
 | 1 | revert `BARE_SOURCE_FILE`'s leading class to `[a-z0-9]` | the step-4 calibration test fails on both the `misses` list and `considered` |
 | 2 | make the leading class `[A-Za-z0-9_]` (accepting a leading underscore) | a test fails naming `_routes.json` or `_worker.js` |
-| 3 | remove the `NOT_A_FILE_OF_OURS` consultation from `unmetNames` | `it("names no file that is not there")` fails, naming the foreign sites |
-| 4 | change one entry's `where` to a document that does not exist | the scope gate fails, naming that entry |
-| 5 | add a live document line naming a PascalCase file that is not there | `it("names no file that is not there")` fails, naming it — this is the whole point of the plan |
+| 3 | remove the `NOT_A_FILE_OF_OURS` consultation from `unmetNames` | `names no file that is not there` fails, naming the foreign sites |
+| 4 | **add** a document that does not exist to one entry's existing `where` (do not replace the real one — replacing removes a live excuse and produces two reds) | `1 failed | 12 passed`, the scope gate alone, naming that entry |
+| 5 | add a line to a live document naming a PascalCase file that is not there | `names no file that is not there` fails, naming it — this is the whole point of the plan |
 
 For each: apply, run `SKIP_BUILD=1 pnpm test docs-drift`, record which test failed
 and the message, then revert and confirm green.
@@ -368,7 +394,7 @@ pnpm test
 ```
 
 **Verify**: check → 0 errors / 0 warnings / 2 hints; eslint → 0 problems;
-test → **532 passed | 7 skipped**.
+test → `N + 1 passed | 7 skipped`.
 
 ### Step 7: Commit
 
@@ -384,29 +410,34 @@ nothing else.
 
 ## Test plan
 
-- **One new test**: the step-5 wiring assertion, both directions, using the real
-  `hasPath`/`hasFile` bindings. Structural pattern:
-  `it("asks the real filesystem, on both halves of the rule")` at line ~431,
-  which does the same job for the two existing halves.
+- **One new test**: the step-5 wiring assertion.
 - **One test amended**: the step-4 calibration, whose PascalCase pair moves from
-  pinning the gap to pinning its closure.
+  pinning the gap to pinning its closure — along with the inline comment below it.
 - **One test extended**: the scope gate, to cover the third list.
 - **One test deliberately not extended**: the come-back gate, with a comment
   saying why.
-- Verification: `pnpm test` → 532 pass, and each of the five mutations in step 6
-  turns exactly the named test red.
+- Verification: `pnpm test` → `N + 1` pass, and each of the five mutations in
+  step 6 turns **exactly the named test** red — which is stricter than the done
+  criteria below and is the point of running them one at a time.
 
 ## Done criteria
 
 Machine-checkable. ALL must hold:
 
-- [ ] `git diff --name-only 219dcde..HEAD` lists exactly `tests/docs-drift.test.ts`
-- [ ] `pnpm test` exits 0 with **532 passed | 7 skipped**
+- [ ] `git diff --name-only main...HEAD` lists exactly `tests/docs-drift.test.ts`
+      (three dots — the branch point, not this plan's `Planned at` SHA, which the
+      plan files themselves have already moved past)
+- [ ] `pnpm test` exits 0 with `N + 1 passed | 7 skipped`, against the N you
+      recorded in step 1
 - [ ] `pnpm check` exits 0 with 0 errors and 0 warnings
 - [ ] `pnpm eslint` exits 0 with 0 problems
 - [ ] `grep -n "A-Za-z0-9" tests/docs-drift.test.ts` shows the widened character
-      class, and the pattern still rejects a leading underscore
-- [ ] `grep -c "known gap" tests/docs-drift.test.ts` returns 0
+      class
+- [ ] `grep -ci "known gap" tests/docs-drift.test.ts` returns 0 and
+      `grep -ci "deferred gap" tests/docs-drift.test.ts` returns 0 — **the `-i`
+      is load-bearing**: the paragraph step 2 must delete is written `KNOWN GAP,
+      MEASURED AND DEFERRED`, so a case-sensitive check passes while it is still
+      there
 - [ ] The new excuse list has exactly two entries, each with a non-empty `where`
       and a `why` that says what the name actually is
 - [ ] The come-back gate does **not** iterate the new list, and carries a comment
@@ -424,12 +455,13 @@ Stop and report back (do not improvise) if:
   the decision of whether to fix the prose or excuse the name is not yours.
 - Making the suite green requires editing any file other than
   `tests/docs-drift.test.ts`.
+- Step 2 or step 3 produces a red test other than the two each names.
 - Mutation 5 does not turn the gate red — that would mean the widening did not
   take effect and the plan has achieved nothing.
-- The pattern change makes `it("names no file that is not there")` report more
-  than about a dozen misses. The plan's premise is that the cost is four sites;
-  an order of magnitude more means the widened pattern is matching prose that is
-  not a filename, and the extension list or the character class needs rethinking
+- The pattern change makes `names no file that is not there` report more than
+  about a dozen misses. The plan's premise is that the cost is four sites; an
+  order of magnitude more means the widened pattern is matching prose that is not
+  a filename, and the extension list or the character class needs rethinking
   rather than a pile of excuses.
 - You are tempted to add a third, fourth or fifth entry to
   `NOT_A_FILE_OF_OURS` to make things green. The list is for names that were
@@ -444,9 +476,9 @@ Stop and report back (do not improvise) if:
   intended behaviour, not a regression.
 - **A repointing sweep must tell a live pointer from a record of what was true
   then.** When this gate names a document after a rename, check whether the
-  sentence is describing the current tree or recording history. A record that
-  says "X used to be Y" is correct and belongs in `GONE`, scoped to that
-  document; a live pointer should be repointed.
+  sentence describes the current tree or records history. A record that says
+  "X used to be Y" is correct and belongs in `GONE`, scoped to that document; a
+  live pointer should be repointed.
 - Any future census from this gate must record **both** the pattern used and the
   fact that this file scans itself — one quantity has already produced four
   different honest numbers here depending on whether line anchors were stripped
@@ -455,5 +487,5 @@ Stop and report back (do not improvise) if:
   genuinely a name this repository never owned, and is its `where` the minimum
   set of documents that actually name it?
 - The extensions remain lowercase-only and the leading underscore remains
-  excluded. If either ever changes, re-derive the census first — both choices are
-  load-bearing for a specific, named reason.
+  excluded. If either ever changes, re-derive the census in "Current state"
+  first.
