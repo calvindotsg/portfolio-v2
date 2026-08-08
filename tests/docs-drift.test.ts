@@ -259,36 +259,43 @@ describe("documentation, against the code it describes", () => {
      * deletion or a rename leaves behind.
      *
      * THE EXTENSIONS ARE THE ONES THIS REPOSITORY ROTS IN, and the shape is deliberately
-     * narrow: a lowercase name with a source or config extension and no slash. Prose is full of
-     * backticked code that would read as a filename to a looser pattern. MEASURED against the
-     * tree at `96ec8fa`, the commit this landed on: this pattern matches 119 tokens and 111
-     * resolve; the narrower first draft, without the underscore or `yaml`, saw 109 and 101 of
-     * the same. Both find the same 8 misses, and those split 7 + 1 — seven naming the file plan
-     * 021 DELETED, one naming the suite it RENAMED, which is the distinction the two excuses
-     * below exist to keep apart.
+     * narrow: a name with a source or config extension and no slash. Prose is full of backticked
+     * code that would read as a filename to a looser pattern. THE EXTENSIONS STAY LOWERCASE even
+     * though the stem no longer has to — every source extension written in this tree is
+     * lowercase, so folding their case buys nothing and starts matching prose that is not a
+     * filename.
+     *
+     * THE STEM MAY BE PascalCase, and that is the difference between watching this repository's
+     * prose and watching half of it: everything under `src/components/` is PascalCase, so while
+     * the stem had to open lowercase, renaming any component left every sentence still naming
+     * the old file unguarded. That was proven live — a component renamed, a document left
+     * pointing at the old name, and the full suite green. MEASURED with the pattern as it stands
+     * and this comment in place: the rule reaches 155 bare tokens and every one resolves, and
+     * the case widening is what brought 43 of those sites in.
+     *
+     * IT IS ALSO WHAT BROUGHT IN THREE SITES NAMING SOMETHING THAT WAS NEVER A FILE OF OURS — a
+     * race-module naming pattern, twice, and one of Cloudflare's own source files, described
+     * rather than quoted here so that this comment does not become a fourth. That is what
+     * NOT_A_FILE_OF_OURS below is for, and why those two names cannot go in GONE instead: GONE's
+     * come-back gate asserts the name never returns, which is a claim nobody can make about a
+     * name this repository never owned, and would redden the suite if a file legitimately took
+     * one of them one day.
      *
      * A CENSUS IN THIS FILE COUNTS ITSELF. The rule scans every live document and this is one,
      * so writing the rule's own rationale adds sites to its own totals — and the anchor-stripping
      * two lines down means a token carrying a `:12` suffix counts as the name it points at. The
      * first draft of this comment was measured with a probe that did neither and reported one
-     * miss fewer than the gate it was sizing.
+     * miss fewer than the gate it was sizing. Any figure above therefore has to name its pattern
+     * AND be taken with this file included; one quantity here has already produced four honest
+     * numbers depending on which of those was true.
      *
      * A MEDIAL UNDERSCORE IS ALLOWED AND A LEADING ONE IS NOT, which is not a style preference:
      * `_worker.js` and `_routes.json` are named in this suite precisely to assert they are NOT
      * in the build, so a rule that accepted a leading underscore would redden on the two names
      * whose absence is the assertion. Allowing the medial one is what finally makes the `py`
      * arm live — the only Python file here is `dns/test_filters.py`.
-     *
-     * KNOWN GAP, MEASURED AND DEFERRED: the rule is case-sensitive, so it does not see a
-     * PascalCase stem. That is 42 further tokens at this commit, 39 of them `.astro` component
-     * names — proven live by renaming a component and watching the full suite stay green while
-     * a document went on naming the old file. It is not widened here because a case-insensitive
-     * rule reports three tokens that were never files of ours: a `YYYY-MM-DD-slug.ts` naming
-     * pattern, twice, and one of Cloudflare's own source files. Those need a "not a file of
-     * ours" list rather than an entry in GONE, whose come-back gate would then be asserting
-     * something false about its own subject.
      */
-    const BARE_SOURCE_FILE = /^[a-z0-9][a-z0-9._-]*\.(ts|astro|mjs|js|json|yml|yaml|sh|py)$/;
+    const BARE_SOURCE_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]*\.(ts|astro|mjs|js|json|yml|yaml|sh|py)$/;
 
     /**
      * AN EXCUSE IS SCOPED TO THE DOCUMENTS THAT EARNED IT. Both lists below share this shape,
@@ -333,6 +340,36 @@ describe("documentation, against the code it describes", () => {
             name: "constants.test.ts",
             where: ["tests/docs-drift.test.ts"],
             why: "renamed to content.test.ts by the same plan. The suite-list gate below names it to record the hole that rename walked into, which is the reason that gate has its current shape",
+        },
+    ];
+
+    /**
+     * NAMES THAT WERE NEVER FILES OF OURS, which is a different fact from GONE and needs a
+     * different list to hold it. GONE means "we had this and deleted it", and its come-back gate
+     * asserts the name stays absent forever; both halves are false here. A naming convention is
+     * a shape no file will ever have, and another project's source file is theirs — if this
+     * repository ever legitimately created a file with one of these names, a GONE entry would
+     * redden the suite with a message about a deletion that never happened.
+     *
+     * SO THIS LIST IS DELIBERATELY NOT ASSERTED IN BOTH DIRECTIONS, and it is the only excuse
+     * list here that is not. It keeps the other half: the scope gate below covers it, because a
+     * `where` pointing at a document that has moved is a leftover in this list exactly as much
+     * as in the other two.
+     *
+     * IT IS THE LAST RESORT AND STAYS AT TWO ENTRIES UNTIL A THIRD EARNS IT. The test is not
+     * "does an excuse make the gate green" — a name that this repository DID have and dropped is
+     * rot, belongs in GONE or in a fixed sentence, and putting it here would launder it.
+     */
+    const NOT_A_FILE_OF_OURS: readonly Excuse[] = [
+        {
+            name: "YYYY-MM-DD-slug.ts",
+            where: ["src/data/races/README.md", "src/data/races/index.ts"],
+            why: "a naming convention rather than a name — the shape one race module per file is written in, so a directory listing of src/data/races/ reads as a calendar. Both documents quote the shape while telling an author how to name a new race; no file has this name and none ever should",
+        },
+        {
+            name: "parseHeaders.ts",
+            where: ["tests/build-output.test.ts"],
+            why: "Cloudflare's own source file, not ours. The _headers gate records that it was calibrated by executing against the real parser rather than against a third grammar the test invented, which is the evidence for the shape that gate now has",
         },
     ];
 
@@ -390,7 +427,9 @@ describe("documentation, against the code it describes", () => {
                 considered++;
                 if (!hasPath(bare)) misses.push({token, line, kind: "path"});
             } else if (BARE_SOURCE_FILE.test(bare)) {
-                if (excused(GONE, bare, doc)) continue;
+                // Only the bare arm consults NOT_A_FILE_OF_OURS: a foreign name is a name, not a
+                // repository-relative path, so the path arm above can never reach one.
+                if (excused(GONE, bare, doc) || excused(NOT_A_FILE_OF_OURS, bare, doc)) continue;
                 considered++;
                 if (!hasFile(bare)) misses.push({token, line, kind: "file"});
             }
@@ -439,6 +478,36 @@ describe("documentation, against the code it describes", () => {
     });
 
     /**
+     * THE THIRD LIST IS ACTUALLY CONSULTED, which no test of its contents can say. A list the
+     * rule never reads passes every assertion about its entries, its scopes and its shape while
+     * doing nothing — so this pushes a real entry through `unmetNames` with the real predicates,
+     * in both directions. The name is one the filesystem genuinely does not hold, which is what
+     * makes the excused direction mean something: without the consultation it is a miss.
+     *
+     * THE SCOPE IS HALF THE WIRING. Reading the list but ignoring `where` would be an unscoped
+     * excuse — the licence the shape above exists to refuse — and only the second half sees it.
+     *
+     * The backtick is built rather than typed, for the reason the fixture below is: this file is
+     * gated by the rule it defines, so a quoted foreign name here would be a claim of its own and
+     * would drag this document into that entry's `where`.
+     */
+    it("consults the foreign-name list, and only where it is scoped", () => {
+        const tick = "`";
+        const [{name, where}] = NOT_A_FILE_OF_OURS;
+        expect(hasFile(name), `${name} is now a real file, so this test no longer proves anything`).toBe(false);
+        const doc = `${tick}${name}${tick}`;
+
+        expect(unmetNames(backtickedIn(doc), where[0], hasPath, hasFile).misses,
+            "the entry is scoped to this document, so the rule must consult the list and skip the name")
+            .toEqual([]);
+
+        expect(unmetNames(backtickedIn(doc), "README.md", hasPath, hasFile).misses
+            .map(({token, kind}) => `${kind} ${token}`),
+            "outside its scope the same name is ordinary rot — an excuse that travels is a licence")
+            .toEqual([`file ${name}`]);
+    });
+
+    /**
      * BOTH DIRECTIONS OF BOTH HALVES, on text this file owns rather than on the tree. The
      * stimulus each assertion needs is the one the gate would otherwise never meet: a name that
      * is not there.
@@ -449,9 +518,12 @@ describe("documentation, against the code it describes", () => {
      * as the offending document. The names are assembled here so they exist for the extractor
      * without existing for the gate.
      *
-     * THE PASCALCASE PAIR IS LOAD-BEARING. The rule's case-sensitivity is a deliberate, measured
-     * gap rather than an oversight, and without a case that pins the current behaviour the next
-     * narrowing of that pattern is a green one.
+     * THE PASCALCASE PAIR IS LOAD-BEARING, and it now pins the closure rather than the gap. The
+     * bare form is REPORTED, because the stem may open uppercase; the path form is reported by
+     * the other arm, as it always was. Without a case holding both, re-narrowing that character
+     * class back to lowercase is a change that passes every other test in this file — and since
+     * every component here is PascalCase, it is exactly the components' prose that would go
+     * unwatched again.
      */
     it("catches a name that is gone, and passes one that is there", () => {
         const tick = "`";
@@ -463,7 +535,7 @@ describe("documentation, against the code it describes", () => {
             `a bare name that is not: ${quoted("vanished.ts")}`,
             `a medial underscore is a name: ${quoted("test_filters.py")}`,
             `a leading one is not: ${quoted("_routes.json")}`,
-            `PascalCase is the known gap: ${quoted("Vanished.astro")}`,
+            `a PascalCase stem is a name too: ${quoted("Vanished.astro")}`,
             `and its path form is not: ${quoted("src/components/Vanished.astro")}`,
             `not a filename at all: ${quoted("display:contents")}`,
         ].join("\n");
@@ -474,11 +546,12 @@ describe("documentation, against the code it describes", () => {
             "path src/lib/vanished.ts",
             "file vanished.ts",
             "file test_filters.py",
+            "file Vanished.astro",
             "path src/components/Vanished.astro",
         ]);
-        // Four names reached a predicate and were satisfied or reported; the leading-underscore
-        // and PascalCase tokens reached none, which is the deferred gap stated in place.
-        expect(considered, "the names that ARE there must reach a predicate too, or the rule is only half exercised").toBe(6);
+        // Five names reached a predicate and were satisfied or reported; only the
+        // leading-underscore token reached none, which is the one exclusion the pattern keeps.
+        expect(considered, "the names that ARE there must reach a predicate too, or the rule is only half exercised").toBe(7);
     });
 
     /**
@@ -498,6 +571,10 @@ describe("documentation, against the code it describes", () => {
     });
 
     it("keeps no excuse for a file that has come back", () => {
+        // NOT_A_FILE_OF_OURS is deliberately absent from this gate. Coming back is something only
+        // a name we once had can do; those names we never had, so there is nothing to resurrect —
+        // and asserting it anyway would redden the suite the day this repository legitimately
+        // created a file called one of them, over a deletion that never happened.
         for (const {name, why} of NAMED_AS_ABSENT) {
             expect(hasPath(name.replace(/\/$/, "")),
                 `${name} exists again, so its NAMED_AS_ABSENT entry is now false: "${why}"`).toBe(false);
@@ -514,7 +591,7 @@ describe("documentation, against the code it describes", () => {
      * anything, and the next reader cannot tell a scope from a leftover.
      */
     it("scopes every excuse to documents that exist", () => {
-        for (const {name, where} of [...NAMED_AS_ABSENT, ...GONE]) {
+        for (const {name, where} of [...NAMED_AS_ABSENT, ...GONE, ...NOT_A_FILE_OF_OURS]) {
             expect(where, `${name} has no scope, which is the global form this shape replaced`).not.toEqual([]);
             for (const w of where) {
                 expect(hasPath(w.replace(/\/$/, "")),
