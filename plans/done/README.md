@@ -1171,3 +1171,107 @@ instructions. Nothing reached the repo. Say both, every time.
 `main` at `a00c819`; suite re-run in the primary checkout after confirming the fast-forward
 moved HEAD — **527 passed / 7 skipped across 19 suites**. Containment proved by tree diff
 against the branch head: empty.
+
+# Plan 023 — sweep the prose no gate catches, and gate the bare filename
+
+Merged as `5b9c794` (PR #142), archived in the same run. **The last plan of run 5**, which closes
+`plans/` for the first time since 2026-08-07. Suite **527 → 531**.
+
+## Step 1 was a real choice and the measurement made it
+
+The plan offered widen-the-gate or budget-the-sweep and said to decide first. **Widen**, on a
+census taken before anything was written: of the backticked bare filenames in the live tree,
+every single non-resolving one named the file plan 021 deleted. Zero false positives. The
+alternative was priced by this same run — **021 renamed a file and 33 bare references survived a
+fully green suite**, because `if (!TOP_LEVEL.some((t) => token.startsWith(t))) continue;` meant a
+bare token never reached `existsSync`.
+
+**RECORD BOTH PATTERNS WITH ANY CENSUS FROM THIS GATE**, measured at `96ec8fa`: pre-widening
+109 matched / 101 resolved / 8 missed; shipped 119 / 111 / 8. **Four different numbers were
+produced for this one quantity during the run** (108/101/7 by the executor, 79/74/5 by the chair,
+109/101/8 by five panel lenses, 119/111/8 final) and every one was honestly derived — they differ
+by extension set, by document set, and by whether line anchors are stripped. Two causes, both
+real: the executor's sizing probe **did not strip line anchors as the rule does**, dropping
+`plans/README.md:289`'s `` `constants.ts:978` ``; and separately **the file scans itself**, so
+writing the rule's own comment moves the count, which is why "nine sites" thirty lines below is
+right where "seven" was not.
+
+## Three holes in the new gate, all found by EXECUTION, all closed
+
+1. **The live predicates were unasserted.** They were inline lambdas at the call site, so no
+   single definition existed to assert against — replacing the real `hasFile` with `() => true`
+   left the **whole suite green**. Bound once at describe scope and asserted now. **The path half
+   had the identical hole and had had it since before this plan.**
+2. **The excuse list was keyed on a bare NAME with no location**, so a flatly false
+   `` `constants.ts` `` claim in a live `src/` comment shipped green. Both lists are now
+   `{name, where[], why}`, matched by exact path or `/`-terminated directory prefix — a bare
+   `startsWith` would silently excuse `plans/README.md.bak`. **Scoping immediately caught a site
+   the flat form had hidden.** The come-back gate guards resurrection; scoping is what guards rot.
+3. **The pattern rejected PascalCase and underscore stems and omitted `.yaml`.** Proven by a real
+   `git mv Pulse.astro Beat.astro`: full suite green while `plans/README.md` still named the old
+   file. **Medial underscore only** — a leading one reddens `_worker.js` and `_routes.json`, which
+   are deliberately named as absent. The case gap is measured at **42 tokens** and deferred with
+   its three would-be excuses named; they belong in a "not a file of ours" map, **not** in the
+   deleted-file list, whose come-back gate would then lie about its own subject.
+
+## The sweep repointed ARCHAEOLOGY, and this is the class to carry forward
+
+Two comments in `tests/rendered-html.test.ts` **record what a past failure message said**.
+Repointing them made the record false — and one then read *"the failure message claimed the value
+came from the content module when it did not"*, three lines above the live message the same commit
+had correctly rewritten to say `src/content/site.ts`. **The comment condemned the correct line as
+the defect it warns against.**
+
+**A repointing sweep must distinguish a live POINTER from a record of what was true THEN.** Grep
+the diff for a renamed name inside "an earlier version / used to / no longer / was itself the
+defect". Both sites are now inside an excuse's `where`, so the record is protected rather than
+merely repaired.
+
+## THE PLAN'S OWN PREMISE WAS FALSE, and it is corrected here rather than in the archived file
+
+Plan 023's Out-of-scope says writing `src/content/` into `.devin/wiki.json` is *"the exact mistake
+that file's own opening note records"*. **It is not.** The durability gate's own comment says, of
+component filenames: *"Directories and documents are fine and are how the instruction should
+point"*, and two lines on, *"NOTHING HERE FORBIDS SPECIFICITY."* `repo_notes[3]` already named both
+directories plainly and passed every gate.
+
+The executor obeyed the plan and produced an indirection buying **zero** durability, which was the
+root cause of three further review findings. Reverted to the direct form. The archived plan keeps
+its false sentence, because it is the record; this entry is the correction.
+
+## Counts corrected, every one in prose this run wrote
+
+- **`index.ts` is one file, not "fourteen"** — 14 was the race-module count, transposed. **Deleted
+  rather than corrected**: substituting the true count re-arms the same class one notch lower.
+- **The jiti graph reaches SIX modules, not four**, and `src/lib/icons.ts` carried no head rule.
+  Proven by adding an import edge: `pnpm build` exit 1, `glob is not a function`. All three sites
+  now point at `uno.config.ts`'s own import list as the census, following it one hop.
+- **Four scripts talk to Strava, not three**; `scaffold-race.mjs` has three siblings, not two.
+- The `my` note stated a **false universal** — `Goal.astro:66` builds `` `My ${…} goal this year` ``
+  as template text. Conclusion true, reason false, and as written it invited the one-word lowercase
+  edit it claimed was impossible. Rewritten to name **case** as the real protection.
+
+A ~50-line retired block in `uno.config.ts` headed **"TWO SHORTCUTS"**, carrying a `control`
+definition contradicting the live one, sat directly above a heading reading "THERE ARE THREE NOW"
+and listing four — in the file `docs-drift` derives CLAUDE.md's gated count from. Cut to the
+measurement that justified `text-link`: comment lines only, no expression touched.
+
+## The Maintenance note's question, answered
+
+**The gate was WIDENED, and the reason is that the alternative was measured on this very run**: a
+rename left 33 bare references green. The cost is that the next file rename gets named by the gate
+instead of by a person. The residual gap — PascalCase and underscore stems, 42 tokens — is written
+into the rule's own comment rather than into a plan.
+
+## Line accounting, two populations
+
+**Prose +82 / −82 = net 0**; gate code **+281 / −26**. The plan's *"fewer prose lines than
+before"* criterion reads false on a raw `git diff --stat` because widening a gate adds test code —
+**measure the two populations separately, and never delete a gate to make an arithmetic criterion
+pass.**
+
+## Post-merge activation
+
+`main` at `5b9c794`; suite re-run in the primary checkout after confirming the fast-forward moved
+HEAD — **531 passed / 7 skipped across 19 suites**. Containment proved by tree diff against the
+branch head: empty.
