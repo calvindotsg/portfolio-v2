@@ -25,8 +25,16 @@
  * the October city ride took 76 → 74, which is the edit that last reddened the assertion
  * in tests/projection.test.ts. Neither input is one this repository may pin live.
  *
- * `EVENTS` is deliberately left live: it is human-edited, so a red test there is
- * wanted feedback rather than noise.
+ * `EVENTS` USED TO BE LEFT LIVE EVERYWHERE, on the argument that it is human-edited so a
+ * red test is wanted feedback rather than noise. That argument survives only where the
+ * calendar is the SUBJECT. `bookedAhead` is subtracted from the deficit before a rate is
+ * divided out, so the required-rate assertions in tests/projection.test.ts read the live
+ * calendar through a default argument while claiming to be about arithmetic — measured, one
+ * added booked ride took them 74 → 69, which is a data fact reported as an arithmetic
+ * failure. Those two now divide against `REFERENCE_CALENDAR`, declared beside them; the
+ * assertions whose subject IS the calendar still read it live, and tests/derived-figures.test.ts
+ * still publishes from these three literals against live `EVENTS`, which is where a data
+ * edit is meant to show up.
  *
  * THERE IS EXACTLY ONE TRIPLE AND IT LIVES HERE, which is the whole reason this file
  * exists rather than the constants sitting in the suite that first needed them. Two

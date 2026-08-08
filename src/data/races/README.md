@@ -19,6 +19,19 @@ export default {date: "2026-12-06", name: "BYD Singapore International Marathon"
 `satisfies RaceEvent` rather than an annotation, so the object keeps its literal types and a
 misspelled key is still an error. `pnpm check` names the file and the missing field.
 
+For a race that was RECORDED, start from the activities rather than from this template:
+
+```bash
+op run --env-file=.env.op -- pnpm race:add 12058884605 12058885236
+```
+
+One race, however many activities it was recorded as — which ones belong together is the
+rider's call and nothing can derive it. It writes `date`, `sport`, `elapsed_time` and each
+recording's `id`, `metres` and `elapsed_time`, and leaves everything else ABSENT so `pnpm check`
+asks for it. That is a scaffold and never a generator: no source has a DNF, and an activity's
+title is not the race's name — it is quoted in the module's comment as evidence for the ids and
+nowhere else.
+
 ## Adding a race changes the page, and which page depends on when it is
 
 **A booked race inside `GOAL_YEAR` moves the required rate.** Its kilometres are promised

@@ -5,6 +5,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
+import { accessToken } from "./strava-auth.mjs";
+
 // This script holds no configuration of its own: the athlete comes from the
 // STRAVA_ATHLETE_ID repository variable, and the goal targets live in
 // src/data/goals.ts, where src/lib/goal.ts clamps the raw km written here against
@@ -95,20 +97,16 @@ async function main() {
         return value;
     };
 
-    const tokenRes = await fetch("https://www.strava.com/oauth/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            client_id: env("STRAVA_CLIENT_ID"),
-            client_secret: env("STRAVA_CLIENT_SECRET"),
-            refresh_token: env("STRAVA_REFRESH_TOKEN"),
-            grant_type: "refresh_token"
-        })
-    });
-    if (!tokenRes.ok) throw new Error(`Token refresh failed: ${tokenRes.status} ${await tokenRes.text()}`);
-    // The response contains a rotated refresh_token. It is IGNORED by design
-    // (static-secret, fail-loud posture — see plan 015). Do not persist it.
-    const { access_token } = await tokenRes.json();
+    // THE REFRESH LIVES IN scripts/strava-auth.mjs, which every Strava caller in this
+    // repository shares. It used to be inline here and to destructure `access_token`
+    // alone, commented as a deliberate "static-secret, fail-loud posture". The BEHAVIOUR
+    // was right and the REASON was not, which matters because a reader acts on the reason:
+    // a rotated refresh token is not something this job chooses to discard, it is
+    // something this job CANNOT persist. 1Password is the source of truth for the
+    // credential and a runner cannot reach it, so CI writes nothing and says so loudly on
+    // the day it happens. The shared module carries the whole argument, including what a
+    // CI-time rotation costs.
+    const access_token = await accessToken(process.env);
 
     const statsRes = await fetch(`https://www.strava.com/api/v3/athletes/${env("STRAVA_ATHLETE_ID")}/stats`, {
         headers: { Authorization: `Bearer ${access_token}` }
