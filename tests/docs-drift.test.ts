@@ -271,7 +271,7 @@ describe("documentation, against the code it describes", () => {
      * the old file unguarded. That was proven live — a component renamed, a document left
      * pointing at the old name, and the full suite green. MEASURED with the pattern as it stands
      * and this comment in place: the rule reaches 155 bare tokens and every one resolves, and
-     * the case widening is what brought 43 of those sites in.
+     * the case widening is what brought 40 of those sites in.
      *
      * IT IS ALSO WHAT BROUGHT IN THREE SITES NAMING SOMETHING THAT WAS NEVER A FILE OF OURS — a
      * race-module naming pattern, twice, and one of Cloudflare's own source files, described
@@ -458,7 +458,7 @@ describe("documentation, against the code it describes", () => {
             for (const {token, line} of run.misses) found.push(`${file}:${line} names \`${token}\``);
         }
         expect(considered, "no document named a repository path or file — this gate is vacuous").toBeGreaterThan(50);
-        expect(found, "these documents name files that do not exist. Fix the reference, or add it to NAMED_AS_ABSENT (a path) or GONE (a bare filename), scoped to the documents that name it and with the reason it is named at all").toEqual([]);
+        expect(found, "these documents name files that do not exist. Fix the reference, or add it to one of the three excuse lists, scoped to the documents that name it and with the reason it is named at all: NAMED_AS_ABSENT for a path, GONE for a bare filename this repository HAD and no longer has, NOT_A_FILE_OF_OURS for a name it never had at all. A name we once had does not belong in the third — GONE is what records that, and putting it in the third launders rot").toEqual([]);
     });
 
     /**
