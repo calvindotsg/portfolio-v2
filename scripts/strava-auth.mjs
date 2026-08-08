@@ -36,20 +36,45 @@ function required(env, name) {
 }
 
 /**
- * CAN THIS PROCESS REACH THE TRUTH? Asked as a capability rather than inferred from a
- * hostname: `op` on PATH and answering `--version` is what "1Password is reachable here"
- * actually means, and a runner that one day installs the CLI should be governed by the
- * SECOND clause rather than by the first silently becoming false.
+ * IS THE 1PASSWORD CLI INSTALLED HERE, AND IS THIS A CONTEXT ALLOWED TO WRITE? Those are the
+ * two questions, and neither of them is "is the vault unlocked".
+ *
+ * `op --version` SUCCEEDS SIGNED OUT. It asks the binary its version and never touches the
+ * vault, so a true answer here means "there is a CLI to try", not "a write will land". That
+ * distinction is the whole content of this note, because the first draft claimed the probe
+ * was what "1Password is reachable here" MEANS, and a reader acting on that sentence would
+ * reach for a stronger probe.
+ *
+ * DO NOT REPLACE IT WITH `op whoami`, which is the obvious stronger probe and is wrong on
+ * this machine. MEASURED: `op account list --format=json` answers `"accounts": null` here —
+ * no CLI session has ever existed, because every read authenticates per-command through the
+ * desktop app — so `op whoami` exits non-zero in the ORDINARY WORKING STATE. Gating the write
+ * on it would make a real rotation refuse a write that would have succeeded, turning a
+ * three-second unlock prompt into the unrecoverable case described below. The lock is
+ * therefore discovered by ATTEMPTING the write and reading its failure, which is what the
+ * messages further down are for.
  *
  * `GITHUB_ACTIONS` is checked as well and it is not redundant. A workflow that gained the
- * 1Password CLI would be able to write the truth from a context that cannot be watched,
- * and the posture below is deliberate about that: CI persists nothing at all.
+ * 1Password CLI would be able to write the truth from a context nobody watches, and the
+ * posture below is deliberate about that: CI persists nothing at all.
+ *
+ * `run` IS INJECTABLE so the three branches can be exercised without a binary on PATH. It
+ * defaults to the real `spawnSync` and nothing in the repository passes anything else.
  */
-export function canReachTheTruth(env = process.env) {
+export function canReachTheTruth(env = process.env, run = spawnSync) {
     if (env.GITHUB_ACTIONS === "true") return false;
-    const probe = spawnSync("op", ["--version"], { stdio: "ignore" });
+    const probe = run("op", ["--version"], { stdio: "ignore" });
     return probe.status === 0;
 }
+
+/**
+ * WHAT A LOCKED VAULT LOOKS LIKE FROM HERE, appended to both write failures because it is the
+ * single most likely cause and it does not look like one. A locked 1Password does not answer
+ * "locked": the command hangs for about a minute waiting for a desktop approval nobody gave,
+ * and then fails with `authorization timeout`, which reads as a network or account problem.
+ */
+export const LOCK_HINT = " If that took about a minute and ended in `authorization timeout`, 1Password "
+    + "is locked — unlock the desktop app and run the command again; nothing here retries.";
 
 /**
  * WHAT A ROTATION COSTS, WRITTEN DOWN BECAUSE A FUTURE READER WILL ACT ON IT.
@@ -96,7 +121,7 @@ function persistRotation(env, refreshToken) {
         throw new Error(
             `Strava rotated the refresh token and \`op item edit\` failed (exit ${written.status}). `
             + "Nothing was written to either store, and the old token is already spent — write the "
-            + "new one into 1Password by hand, then run `pnpm strava:sync --write`.",
+            + "new one into 1Password by hand, then run `pnpm strava:sync --write`." + LOCK_HINT,
         );
     }
 

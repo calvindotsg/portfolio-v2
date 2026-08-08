@@ -369,6 +369,13 @@ const at = (sport: string, raw: number): Goal => ({...goalBySport(sport), raw_pr
  * rather than as a digit". That is a data gate stating a data fact, and it is the one that
  * SHOULD go red on a calendar edit.
  *
+ * HOW MANY IT REDDENS DEPENDS ON THE RACE'S DATE, which is worth writing down because the
+ * count gets quoted. MEASURED, one booked 120 km cycling race added to `src/data/races/`:
+ * dated 2026-09-01 it reddens TWO — `counts only future events` here, plus the
+ * derived-figures snapshot; dated 2026-11-28 it reddens THREE, because `PRO-RATES a
+ * multi-day event` pins `bookedAhead("cycling", "2026-11-07")` and a September race is
+ * already past by that date while a November one is not. Neither count is "the" count.
+ *
  * Cast for the reason every fixture in this file is: a spread over the recorded|booked
  * union cannot be verified by the compiler, and these rows are booked by construction.
  */

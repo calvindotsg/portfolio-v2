@@ -21,7 +21,7 @@
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
-import { accessToken, canReachTheTruth } from "./strava-auth.mjs";
+import { LOCK_HINT, accessToken, canReachTheTruth } from "./strava-auth.mjs";
 
 const SECRET = "STRAVA_REFRESH_TOKEN";
 
@@ -46,7 +46,10 @@ function required(env, name) {
 function truth(env) {
     const ref = `op://${required(env, "STRAVA_OP_VAULT")}/${required(env, "STRAVA_OP_ITEM")}/refresh_token`;
     const read = spawnSync("op", ["read", ref], { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-    if (read.status !== 0) throw new Error(`\`op read ${ref}\` failed (exit ${read.status}).`);
+    // THE OTHER PLACE A LOCKED VAULT SURFACES, and the likelier of the two — this is the first
+    // `op` call a person makes. `canReachTheTruth` deliberately cannot tell them apart: it asks
+    // whether the CLI exists, which a locked 1Password answers yes to.
+    if (read.status !== 0) throw new Error(`\`op read ${ref}\` failed (exit ${read.status}).` + LOCK_HINT);
     const value = read.stdout.trim();
     if (value === "") throw new Error(`\`op read ${ref}\` returned nothing.`);
     return { ref, value };

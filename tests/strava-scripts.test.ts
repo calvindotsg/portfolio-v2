@@ -1,10 +1,19 @@
 import {afterEach, describe, expect, it, vi} from "vitest";
 
-import {accessToken} from "../scripts/strava-auth.mjs";
+import {accessToken, canReachTheTruth} from "../scripts/strava-auth.mjs";
 import {
-    editOrderNote, hms, modulesOn, orderedByStart, raceSpanSeconds, recordingsFrom, renderModule,
-    slugify, sportOf,
+    calendarDate, commentSafe, distinctIds, editOrderNote, hms, modulesOn, orderedByStart,
+    raceSpanSeconds, recordingsFrom, renderModule, slugify, sportOf,
 } from "../scripts/scaffold-race.mjs";
+/**
+ * IMPORTED FOR ITS SIDE EFFECT OF BEING PARSED AND EVALUATED, which is the only static
+ * analysis this file gets today beyond `eslint.config.js`'s `scripts/**` block. It exports
+ * nothing this suite calls; a `ReferenceError` at its top level, a bad import specifier or a
+ * syntax error fails collection here, where the whole suite is the message. Before the eslint
+ * block and this line, `pnpm check`, `pnpm eslint` and `pnpm test` were all green over a
+ * script nothing had read.
+ */
+import * as stravaSync from "../scripts/strava-sync.mjs";
 
 /**
  * THE THREE SCRIPTS UNDER `scripts/` THAT TALK TO STRAVA, held offline.
@@ -82,6 +91,99 @@ describe("the shared Strava credential path", () => {
         // would fire nightly.
         vi.stubGlobal("fetch", tokenResponse({access_token: "at", refresh_token: "the-same-one"}));
         await expect(accessToken(ENV)).resolves.toBe("at");
+    });
+
+    /**
+     * THE WHOLE REQUEST, NOT ONE FIELD OF IT. Every assertion above reads `client_id` and
+     * nothing else, and six mutations survived that: a wrong URL, `GET` instead of `POST`, a
+     * dropped `Content-Type`, `client_secret` sourced from the refresh token, a missing
+     * `grant_type`, and a fifth field smuggled into the body.
+     *
+     * `toEqual` ON THE PARSED BODY is what closes the last two at once — an extra key fails an
+     * equality where it passes any number of `toContain`s. THIS REPOSITORY IS PUBLIC and its
+     * Actions logs are world-readable, so a body that quietly grew a field, or a URL quietly
+     * pointed somewhere else, is a live credential published to strangers with nothing red.
+     *
+     * The URL is written out rather than compared to the script's own constant: `TOKEN_URL` is
+     * not exported, and importing it would make this assert that the code equals itself.
+     * `new Headers()` because a header name is case-insensitive and the raw object is not —
+     * pinning the literal `"Content-Type"` would redden on a correct `content-type`.
+     */
+    it("posts the refresh to Strava's token endpoint, with exactly the four fields it needs", async () => {
+        const fetched = tokenResponse({access_token: "at", refresh_token: "the-same-one"});
+        vi.stubGlobal("fetch", fetched);
+        await accessToken(ENV);
+
+        expect(fetched.mock.calls).toHaveLength(1);
+        const [url, init] = fetched.mock.calls[0];
+        expect(url, "a token refresh may go to exactly one place").toBe("https://www.strava.com/oauth/token");
+        expect(init.method).toBe("POST");
+        expect(new Headers(init.headers).get("content-type")).toBe("application/json");
+        expect(JSON.parse(init.body as string), "an extra field here is a credential leaving the process")
+            .toEqual({
+                client_id: "id",
+                client_secret: "secret",
+                refresh_token: "the-same-one",
+                grant_type: "refresh_token",
+            });
+    });
+
+    /**
+     * A SENTINEL, AND ITS LIMITS ARE THE POINT. `console.log` is where a debugging line goes,
+     * and in this repository that line lands in a PUBLIC Actions log: `strava-progress.yml`
+     * runs the bot nightly and anyone can read the output. So one assertion holds that the
+     * ordinary refresh prints nothing at all.
+     *
+     * WHAT IT DOES NOT CATCH, written out so it is not mistaken for a guarantee:
+     * `process.stdout.write` bypasses `console` entirely; `console.error` is a different
+     * method and is not spied here; and a credential interpolated into a thrown `Error` is
+     * printed by the runner rather than by this process. This closes the likeliest hole, not
+     * the class.
+     *
+     * The rotation path deliberately DOES log — one line saying which stores it wrote — and
+     * that line carries no value. It is out of this case's reach because nothing rotates here.
+     */
+    it("prints nothing on the path that runs every night", async () => {
+        vi.stubGlobal("fetch", tokenResponse({access_token: "at", refresh_token: "the-same-one"}));
+        const logged = vi.spyOn(console, "log").mockImplementation(() => {});
+        try {
+            await accessToken(ENV);
+            expect(logged.mock.calls, "an ordinary refresh must print nothing: this process holds a live "
+                + "credential and its stdout is a world-readable Actions log").toEqual([]);
+        } finally {
+            logged.mockRestore();
+        }
+    });
+
+    /**
+     * THE REACHABILITY PROBE, THROUGH ITS INJECTED SEAM. `canReachTheTruth` decides whether a
+     * rotation may be persisted, and until it took a `run` argument the only way to exercise
+     * it was to have — or not have — the 1Password CLI on the machine running the suite.
+     *
+     * THE THIRD ROW IS THE ONE THAT MATTERS. `op --version` succeeds while signed OUT and
+     * while the vault is LOCKED, so a `status: 0` here means "there is a CLI to try" and never
+     * "a write will land". That is deliberate: `op whoami` is the obvious stronger probe and
+     * was measured non-zero in this machine's ordinary working state — no CLI session has ever
+     * existed, every read authenticates through the desktop app — so gating on it would refuse
+     * a write that would have succeeded and turn a three-second unlock into the unrecoverable
+     * case. A locked vault is meant to be discovered by attempting the write.
+     */
+    it("asks whether the CLI is installed, and refuses CI whatever the answer", () => {
+        // Cast through `unknown` because the seam's parameter is the REAL `spawnSync`, whose
+        // type is a five-way overload set no two-line fake can satisfy structurally. The seam
+        // reads one property of the result, and that is what the fakes provide.
+        type SpawnSync = typeof import("node:child_process").spawnSync;
+        const probe = (status: number) => ((() => ({status})) as unknown) as SpawnSync;
+        expect(canReachTheTruth({}, probe(0))).toBe(true);
+        expect(canReachTheTruth({}, probe(127)), "no `op` on PATH — there is nothing to try").toBe(false);
+        expect(canReachTheTruth({GITHUB_ACTIONS: "true"}, probe(0)),
+            "a runner that installed the CLI still may not write a credential unattended").toBe(false);
+    });
+
+    it("loads scripts/strava-sync.mjs, which nothing else in the suite executes", () => {
+        // The smoke import at the head of this file is the assertion; this names it so the
+        // import is not read as unused and deleted. See the note there.
+        expect(typeof stravaSync).toBe("object");
     });
 
     /**
@@ -196,11 +298,34 @@ describe("the race scaffold's output", () => {
         // words — and a grep over the file would read that prose as a written field.
         const code = rendered.split("export default")[1];
         expect(code, "the scaffold emitted no object at all").toBeDefined();
-        for (const field of ["name:", "country:", "outcome:", "advertised_km:", "official:"]) {
-            expect(code, `the scaffold wrote a ${field} — the API does not know it`).not.toContain(field);
+        // THE KEY SET, NOT A DENY-LIST OF FIVE NAMES. This used to check that five specific
+        // strings were absent, which says nothing about a SIXTH: emitting `end_date` was
+        // demonstrated green through a full build, and `end_date` is a field that changes how
+        // a race books — a tour pro-rates across its span. The repository's doctrine everywhere
+        // else is discover-don't-enumerate, so the object is parsed and its keys compared as a
+        // set. Anything the API cannot know is then absent by construction rather than by
+        // having been thought of.
+        //
+        // Evaluated rather than regex'd because the emitted text is a TypeScript object literal
+        // with unquoted keys, which is not JSON — and because the nested rows have to be read
+        // the same way. The input is this repository's own generator output.
+        const literal = code.split("satisfies RaceEvent")[0];
+        const emitted = new Function(`return (${literal})`)() as Record<string, unknown>;
+        expect(new Set(Object.keys(emitted)),
+            "the scaffold emitted a field the API does not know. Everything absent here is absent "
+            + "so that `pnpm check` names it: a placeholder compiles, and a module that compiles "
+            + "is one that ships.")
+            .toEqual(new Set(["date", "sport", "elapsed_time", "recordings"]));
+        // AND EVERY ROW, which a top-level-only comparison misses entirely: an `official:` block
+        // written inside a recording row leaves the key set above untouched.
+        const rows = emitted.recordings as Record<string, unknown>[];
+        expect(rows.length, "no recording row was emitted, so the loop below is vacuous").toBeGreaterThan(0);
+        for (const row of rows) {
+            expect(new Set(Object.keys(row)), `recording ${String(row.id)} carries a field the API does not know`)
+                .toEqual(new Set(["id", "metres", "elapsed_time"]));
         }
         expect(code).toContain("satisfies RaceEvent");
-        expect(code).toContain('date: "2024-08-04"');
+        expect(emitted.date).toBe("2024-08-04");
     });
 
     /**
@@ -248,6 +373,75 @@ describe("the race scaffold's output", () => {
         expect(slugify("OCBC Cycle — Johor Bahru!")).toBe("ocbc-cycle-johor-bahru");
         expect(slugify("")).toBe("rename-me");
         expect(slugify(undefined)).toBe("rename-me");
+    });
+
+    /**
+     * A TITLE CANNOT CLOSE THE COMMENT IT IS QUOTED IN.
+     *
+     * An activity title is text from an API, and it goes into the module's JSDoc block as
+     * evidence for the ids. A title carrying the two characters that END a block comment closes
+     * it early, and everything after lands as TOP-LEVEL EXECUTABLE CODE in a file that is about
+     * to be committed — `pnpm check` reads it as ordinary source and says nothing.
+     *
+     * `JSON.stringify` alone does not close this and that is the whole trap: no JSON escape
+     * produces a `/`, so the sequence passes through untouched. The assertion is therefore on
+     * the RENDERED MODULE rather than on the helper — a hostile title has to be unable to reach
+     * executable position, wherever the escaping happens to live.
+     */
+    it("cannot be made to write executable code out of an activity title", () => {
+        const hostile = '*/ globalThis.OWNED = 1; /*';
+        const module = renderModule({
+            date: "2024-08-04", sport: "cycling", elapsed_time: "1:00:00",
+            recordings: [{id: "1", metres: 1000, elapsed_time: "1:00:00"}],
+            titles: [{id: "1", title: hostile}],
+            argv: ["1"],
+        });
+        const [comment, code] = module.split("export default");
+        expect(comment, "the title escaped its comment and reached module scope").not.toContain("*/ globalThis");
+        expect(code, "nothing from a title may appear outside the comment").not.toContain("globalThis");
+        // The comment still ENDS, exactly once, where the generator put it.
+        expect(comment.split("*/")).toHaveLength(2);
+        // And the title is preserved rather than mangled: `\/` is JSON's own spelling of `/`.
+        expect(JSON.parse(commentSafe(hostile))).toBe(hostile);
+    });
+
+    /**
+     * THE SAME ACTIVITY TWICE IS A DOUBLED RACE. It emitted two identical `recordings` rows and
+     * exited 0; `raceKm` sums the metres, so the bib then claimed twice the distance and twice
+     * the recorded time, in the flattering direction. Nothing downstream sees it either —
+     * `tests/data-contract.test.ts` refuses one activity shared by two RACES, and this is one
+     * race holding it twice.
+     */
+    it("refuses the same activity id twice rather than doubling the race", () => {
+        expect(() => distinctIds(["1", "2", "1"])).toThrow(/given more than once/);
+        expect(() => distinctIds(["1", "1", "1"])).toThrow(/DOUBLE the race's distance/);
+        expect(distinctIds(["1", "2"]), "two different parts are the ordinary split race")
+            .toEqual(["1", "2"]);
+        expect(distinctIds([])).toEqual([]);
+    });
+
+    /**
+     * THE CALENDAR DAY IS THE RIDER'S, AND SINGAPORE IS UTC+8.
+     *
+     * This was a line inside `main` with a comment asserting it was right, reachable by nothing:
+     * changing it to read `start_date` — the UTC instant — was green across the whole suite. A
+     * 06:00 SGT start is 22:00 the PREVIOUS day in UTC, so a New Year's Day race would scaffold
+     * as 31 December: not merely the wrong day but the wrong YEAR, and `eventsInYear` would drop
+     * it off the goal card, the countdown and the required rate.
+     *
+     * THE FIXTURE IS SGT-SHAPED ON PURPOSE. An hour-apart pair passes under both spellings; the
+     * two fields here fall on different days AND different years, which is the only shape that
+     * tells them apart. The `Z` on `start_date_local` is Strava's own lie — the instant is
+     * already shifted — so the day is taken off the front of the string rather than parsed.
+     */
+    it("reads the day off the rider's own clock, not off UTC", () => {
+        const newYear = {id: 7, start_date: "2026-12-31T22:00:00Z", start_date_local: "2027-01-01T06:00:00Z"};
+        expect(calendarDate(newYear)).toBe("2027-01-01");
+        expect(newYear.start_date.slice(0, 10),
+            "the fixture must actually discriminate: the two fields have to fall on different days")
+            .toBe("2026-12-31");
+        expect(() => calendarDate({id: 7, start_date: "2026-12-31T22:00:00Z"}))
+            .toThrow(/no readable start_date_local/);
     });
 });
 

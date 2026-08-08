@@ -55,6 +55,29 @@ const SPORT_BY_STRAVA_TYPE = {
     VirtualRun: "running",
 };
 
+/**
+ * THE RIDER'S OWN CALENDAR DAY, FROM `start_date_local` AND NEVER FROM `start_date`.
+ *
+ * A FUNCTION BECAUSE IT WAS A LINE INSIDE `main` WITH A COMMENT ASSERTING IT WAS RIGHT, and
+ * nothing could ask it anything. MEASURED: changing that line to read `start_date` — the UTC
+ * instant — was green across the whole suite. Singapore is UTC+8, so a 06:00 SGT start is
+ * 22:00 the PREVIOUS day in UTC; a New Year's Day race would scaffold as 31 December, which
+ * is not merely the wrong date but the wrong YEAR, and `eventsInYear` would drop it out of
+ * `GOAL_YEAR` — off the goal card, off the countdown, off the required rate.
+ *
+ * Strava's `start_date_local` is an ISO string carrying a `Z` that is a lie: the instant is
+ * already shifted into the athlete's own zone and the suffix is left on. So the day is TAKEN
+ * OFF THE FRONT OF THE STRING rather than parsed — parsing it would apply the `Z` and undo
+ * the shift the field exists to encode.
+ */
+export function calendarDate(activity) {
+    const local = String(activity.start_date_local ?? "");
+    if (!/^\d{4}-\d\d-\d\d/.test(local)) {
+        throw new Error(`Activity ${activity.id} has no readable start_date_local (${JSON.stringify(activity.start_date_local)})`);
+    }
+    return local.slice(0, 10);
+}
+
 export function sportOf(activity) {
     const sport = SPORT_BY_STRAVA_TYPE[activity.sport_type] ?? SPORT_BY_STRAVA_TYPE[activity.type];
     if (!sport) {
@@ -123,10 +146,14 @@ export function raceSpanSeconds(activities) {
  * ONE `recordings` ROW PER ACTIVITY, IN RIDE ORDER.
  *
  * A FUNCTION RATHER THAN A LINE INSIDE `main`, and that is not tidiness: while it was inline
- * it was the one computation in this file no test could reach, and MEASURED — replacing
- * `metres: a.distance` with a helpful `Math.floor(distance / 10) / 100` left the whole suite
- * green. `renderModule` is handed rows that are already built, so a test against it can only
- * see what the caller decided.
+ * no test could reach it, and MEASURED — replacing `metres: a.distance` with a helpful
+ * `Math.floor(distance / 10) / 100` left the whole suite green. `renderModule` is handed rows
+ * that are already built, so a test against it can only see what the caller decided.
+ *
+ * IT WAS NOT THE ONLY ONE, which is what the first version of this note claimed. The calendar
+ * date was a second unreachable line in the same function, carrying its own comment asserting
+ * its own correctness, and reading `start_date` there was green too. It is `calendarDate` now.
+ * The rest of `main` is I/O and is deliberately left as I/O.
  *
  * `metres` IS THE API's `distance`, COPIED. Not converted, not rounded. `kmFromMetres` in
  * src/lib/race.ts owns the conversion and has been reset three times; each reset rewrote every
@@ -151,22 +178,67 @@ export function slugify(title) {
 }
 
 /**
+ * TEXT THAT IS SAFE TO PUT INSIDE A `/** … *\/` BLOCK, as a JSON string literal.
+ *
+ * AN ACTIVITY TITLE IS ATTACKER-INFLUENCED TEXT FROM AN API — the rider types it, but so does
+ * anyone who can get a title in front of this script — and a title containing the two
+ * characters that CLOSE a block comment ends the comment early. Everything after it lands as
+ * TOP-LEVEL EXECUTABLE CODE in a module that is about to be committed, and `pnpm check` reads
+ * it as ordinary source: a title of `*\/ globalThis.x = 1; /*` produces a file that
+ * type-checks. Demonstrated, which is why this is a function and not a warning in prose.
+ *
+ * `JSON.stringify` alone is NOT enough and that is the trap: it escapes quotes, backslashes
+ * and newlines, and leaves `*\/` exactly as it found it — no JSON escape can produce a `/`,
+ * so the sequence survives verbatim. The one further step is to escape that `/` as `\/`,
+ * which JSON already defines as meaning `/`. The value a reader parses back is therefore the
+ * true title, unmangled, and the comment cannot be closed.
+ */
+export function commentSafe(text) {
+    return JSON.stringify(String(text ?? "")).replace(/\*\//g, "*\\/");
+}
+
+/**
+ * ONE ACTIVITY MAY ONLY APPEAR ONCE IN A RACE.
+ *
+ * Passing an id twice used to emit two identical `recordings` rows and exit 0. Both the race's
+ * distance and its recorded time then DOUBLE — `raceKm` sums the metres — and the resulting
+ * bib is wrong in the flattering direction, on a wall whose whole argument is that it prints
+ * what the sources said. Nothing downstream catches it either: `tests/data-contract.test.ts`
+ * refuses one activity id shared by two RACES, and this is one race holding it twice.
+ *
+ * Refused rather than de-duplicated, because a repeated id is a person having made a mistake
+ * about which activities this race is, and quietly dropping one would hide the question.
+ */
+export function distinctIds(ids) {
+    const repeated = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];
+    if (repeated.length > 0) {
+        throw new Error(
+            `Activity ${repeated.join(", ")} was given more than once. One activity is one recording: `
+            + "repeating it would emit the row twice and DOUBLE the race's distance and its recorded "
+            + "time. If the race really was recorded in parts, pass each part's own id.",
+        );
+    }
+    return ids;
+}
+
+/**
  * THE MODULE'S TEXT. `name`, `country`, `outcome`, `advertised_km` and `official` are absent
  * rather than stubbed, so `pnpm check` names the two that are required and the reader decides
  * about the three that are not.
  *
  * The activity titles ride along as a COMMENT, which is the evidence a reviewer needs to
  * agree that these ids are this race — and the one place a title may appear, because it is
- * not the race's name.
+ * not the race's name. They go through `commentSafe`, and so does the echoed command line:
+ * both are text this script did not author.
  */
 export function renderModule({ date, sport, elapsed_time, recordings, titles, argv }) {
     const rows = recordings
         .map((r) => `{id: "${r.id}", metres: ${r.metres}, elapsed_time: "${r.elapsed_time}"}`);
-    const evidence = titles.map(({ id, title }) => ` *   ${id}  ${JSON.stringify(title ?? "")}`).join("\n");
+    const evidence = titles.map(({ id, title }) => ` *   ${id}  ${commentSafe(title)}`).join("\n");
     return `import type {RaceEvent} from "../../lib/race"
 
 /**
- * SCAFFOLDED BY \`pnpm race:add ${argv.join(" ")}\`, then finished by hand. The fields the API
+ * SCAFFOLDED BY \`pnpm race:add\` with ${commentSafe(argv.join(" "))}, then finished by hand. The fields the API
  * cannot know are MISSING, not blank: \`pnpm check\` will name \`name\` and \`country\`, and it
  * will not ask about \`outcome\` — a race that was abandoned needs \`outcome: "dnf"\` written in,
  * because no device models an abandonment.
@@ -211,6 +283,9 @@ async function main(ids) {
             + "however many activities it was recorded as. Which activities belong together is "
             + "the rider's call and nothing can derive it.");
     }
+    // BEFORE THE NETWORK, so a repeated id costs nothing and the message is the first thing
+    // the reader sees rather than the last.
+    distinctIds(ids);
 
     const token = await accessToken(process.env);
     const activities = await Promise.all(ids.map(async (id) => {
@@ -235,7 +310,7 @@ async function main(ids) {
             + "A race joins exactly one goal.");
     }
 
-    const date = String(ordered[0].start_date_local).slice(0, 10);
+    const date = calendarDate(ordered[0]);
     const module = renderModule({
         date,
         sport: [...sports][0],

@@ -43,9 +43,11 @@ block above it before giving either consumer the other's list.
   script names exists. The `build` job in `.github/workflows/ci.yml` runs all
   three (`check`, `eslint`, `test`), and both deploy jobs sit behind
   `needs: build`, so a red run of any of them blocks the deploy.
-  `eslint` globs `src/**/*.{js,astro}` only, so a clean run says nothing about
-  the `.ts` files — those are gated by `pnpm check` (tsconfig includes `**/*`)
-  and by the suite
+  `eslint` globs `src/**/*.{js,astro}` and `scripts/**/*.mjs`, so a clean run
+  still says nothing about the `.ts` files — those are gated by `pnpm check`
+  (tsconfig includes `**/*`) and by the suite. The scripts arm needs its own
+  block in `eslint.config.js` carrying its own globals; widening the glob alone
+  matches no config and reports zero problems, which reads exactly like a pass
 - `pnpm preview` serves the built `dist/` directory locally on
   http://localhost:4321 — the site is a static build with no adapter, and the
   deploy jobs upload the very `dist/` the suite asserted against rather than

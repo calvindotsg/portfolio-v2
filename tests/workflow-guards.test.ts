@@ -152,9 +152,9 @@ const NEUTERED = (v: boolean | string | undefined) => v === true || v === "true"
  * all three (`check`, `eslint`, `test`) … so a red run of any of them blocks the deploy", and
  * that sentence was true of the workflow and false of this file: deleting the `pnpm check` and
  * `pnpm eslint` steps from ci.yml left the suite fully green, which silently removes the ONLY
- * type gate on every `.ts` file in the repository — `pnpm eslint` globs only `.js` and
- * `.astro` files under `src`, so `constants.ts`, `projection.ts` and every test file are
- * checked by `astro check` and by nothing else. A gate that holds one third of a documented
+ * type gate on every `.ts` file in the repository — `pnpm eslint` globs `.js` and `.astro`
+ * under `src` plus `.mjs` under `scripts`, and no `.ts` at all, so `src/lib/projection.ts`
+ * and every test file are checked by `astro check` and by nothing else. A gate that holds one third of a documented
  * invariant reads, to anyone who greps for it, exactly like a gate that holds all of it.
  *
  * The semantics below are unchanged and are the point of reusing them rather than writing a
@@ -233,7 +233,7 @@ describe("a red suite still blocks a deploy", () => {
                     + `way that can FAIL — it reaches ${JSON.stringify(upstream)}. CLAUDE.md states that the `
                     + `build job runs check, eslint and test and that a red run of ANY of them blocks the `
                     + `deploy; deleting this step makes that sentence false. \`pnpm check\` is the only type `
-                    + `gate on the repository's .ts files, since \`pnpm eslint\` globs only .js and .astro files under src.`)
+                    + `gate on the repository's .ts files, since \`pnpm eslint\` globs no .ts at all — .js and .astro under src, .mjs under scripts.`)
                     .toBe(true);
             }
         },
