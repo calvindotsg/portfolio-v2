@@ -13,7 +13,7 @@ import stravaProgress from "../src/data/strava-progress.json";
 import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
 import {contrast, expandHex} from "./helpers/contrast";
-import {decl, isStateful, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
+import {decl, isStateful, lastDecl, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
 import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
 /**
@@ -2325,6 +2325,130 @@ describe("source hygiene", () => {
         // CALIBRATION. Every assertion above is inside two `continue`s; if the shape of the
         // markup moved, this test would pass by never asking anything.
         expect(iconOnly, "no icon-only control was found on any page, so this gate is vacuous")
+            .toBeGreaterThan(0);
+    });
+
+    /**
+     * WHICH SYSTEM COLOUR EACH MARK IS ACTUALLY REPAINTED, and that it is repainted at all.
+     *
+     * The gate above asks whether SOME forced-colours rule REACHES an icon-only control's
+     * glyph. It collects selectors and discards the declaration bodies, so `background-color:
+     * Canvas` — the ground colour, an invisible mark — satisfies it exactly as well as
+     * `CanvasText` does. Measured on this tree: changing the shared base rule to `Canvas`
+     * paints 32 marks the ground colour and the whole suite stays green.
+     *
+     * SO THIS ONE READS BOTH HALVES OF THE REPAIR, because it takes both to draw a mark.
+     * `forced-color-adjust: none` is what lets author colour through at all — without it the
+     * mode discards the author's `background-color` and a presetIcons mask has nothing left to
+     * paint — and the system colour is what the mark is then given. Moving the opt-out out of
+     * the base rule into the `a` and `button` arms erases all 32 bare marks, and was green too.
+     *
+     * THE COLOUR IS DECIDED BY WHAT CONTAINS THE MARK. That is the rule BasicLayout.astro's own
+     * comment states: the mode reserves a different colour for each kind of thing and a glyph
+     * must agree with the words beside it. An anchor's text is forced to LinkText whatever the
+     * author says, so a mark inside one must be LinkText; ButtonText inside a button;
+     * CanvasText bare.
+     *
+     * ASKED OF EVERY MARK, not of icon-only controls, and the widening is most of the value:
+     * the 32 bare marks the base rule exists for are precisely the population the gate above
+     * skips, because a bare mark is in no control at all.
+     *
+     * READ THROUGH `pageCss(page)`, WHICH IS LOAD-BEARING RATHER THAN STYLISTIC. This gate's
+     * whole rule is last-declaration-wins, and that helper returns links and inline blocks
+     * interleaved in DOCUMENT order. The built page links the shared sheet BEFORE its own
+     * inline `<style>`, so a hand-rolled `inline + shared` join is the INVERSE of the cascade
+     * and resolves the wrong declaration — measured, it reports 0 mismatches against a defect
+     * document order catches. `lastDecl` rather than `decl` is the same hazard one level down:
+     * the minifier merges same-selector rules into one body and `decl` returns the FIRST
+     * occurrence, so it reads a superseded value.
+     *
+     * A MARK NO RULE REACHES FAILS HERE rather than being skipped, and that is deliberate. Every
+     * mutation anyone would write against this test changes a VALUE, so none of them can detect
+     * a skip branch; a `continue` for the unreached case would leave this gate strictly weaker
+     * than the reach-only one beside it, silently. Deleting the shared `@media` block fails this
+     * test 78 times.
+     *
+     * The system-colour keywords are compared LOWER-CASED because the minifier lower-cases them.
+     * The source says `CanvasText`; the shipped sheet says `canvastext`. A case-sensitive
+     * comparison here goes red on correct CSS, which is how the chevron assertion in
+     * rendered-html.test.ts once failed.
+     */
+    it("paints every mark the system colour its container reserves", () => {
+        /*
+         * A pseudo-ELEMENT names something that is not an element in the tree, and linkedom
+         * THROWS on one rather than answering false. This is a real selector on a real page
+         * rather than a hypothetical: index.html ships
+         * `.intro-type:after{background-color:canvas}` inside the forced-colours block, and
+         * attributing that `canvas` to a glyph would be a mark reported as invisible on a
+         * correct build.
+         */
+        const namesPseudoElement = (s: string) =>
+            /::/.test(s) || /:(?:before|after|first-line|first-letter)\b/i.test(s);
+
+        /*
+         * Whichever of the two paint properties the body declares LAST. `background` is a
+         * shorthand that resets `background-color`, so which of them the reader gets is a
+         * question about position in the body, not about precedence between the names.
+         */
+        const paintOf = (body: string): string | undefined => {
+            const longhand = lastDecl(body, "background-color");
+            const shorthand = lastDecl(body, "background");
+            if (longhand === undefined || shorthand === undefined) return longhand ?? shorthand;
+            return body.lastIndexOf("background-color") > body.lastIndexOf("background:") ? longhand : shorthand;
+        };
+
+        let examined = 0;
+        for (const page of builtPages()) {
+            const forced = parseRules(pageCss(page)).filter((r) => (r.at ?? "").includes("forced-colors"));
+            const {document} = parseHTML(read(page));
+            for (const glyph of [...document.querySelectorAll('[aria-hidden="true"]')]) {
+                if (![...glyph.classList].some((c) => c.startsWith("i-"))) continue;   // not an icon mask
+                examined++;
+
+                // In cascade order, so the last rule to name a property is the one that wins.
+                let paint: string | undefined, adjust: string | undefined;
+                for (const rule of forced) {
+                    const reaches = rule.selectors.some((s) => {
+                        if (namesPseudoElement(s)) return false;
+                        /*
+                         * A state pseudo-class linkedom does not know — `:focus-visible` is on
+                         * this build — throws as well. "Does not reach this mark AT REST" is the
+                         * right answer for one, and this catch cannot hide a rule that mattered:
+                         * a mark left unreached by everything fails the assertions below.
+                         */
+                        try { return glyph.matches(s); } catch { return false; }
+                    });
+                    if (!reaches) continue;
+                    paint = paintOf(rule.body) ?? paint;
+                    adjust = lastDecl(rule.body, "forced-color-adjust") ?? adjust;
+                }
+
+                const container = glyph.closest("a,button");
+                const kind = container ? container.tagName.toLowerCase() : "bare";
+                const expected = kind === "a" ? "linktext" : kind === "button" ? "buttontext" : "canvastext";
+                const where = `${page}: <span class="${glyph.getAttribute("class")}"> `
+                    + (container ? `inside a <${kind}>` : "with no anchor or button ancestor");
+
+                expect(paint?.toLowerCase() ?? "(unreached)",
+                    `${where} must be repainted ${expected} when colours are forced. The mode overrides `
+                    + `background-color and this mark IS a background-color, so the colour it is given is the `
+                    + `only thing that keeps it on screen — and it must be the one the mode reserves for a `
+                    + `${kind} container, or the glyph disagrees with the words beside it. Expected `
+                    + `${expected}, found ${paint ?? "no background-color from any forced-colors rule"}.`)
+                    .toBe(expected);
+
+                expect(adjust?.toLowerCase() ?? "(unreached)",
+                    `${where} must carry forced-color-adjust: none. Without the opt-out the mode discards the `
+                    + `author's background-color outright and the mark is erased whatever colour it names. `
+                    + `Found ${adjust ?? "no forced-color-adjust from any forced-colors rule"}.`)
+                    .toBe("none");
+            }
+        }
+        // CALIBRATION. The assertions sit behind a `continue`, so without this the gate could
+        // pass by asking nothing at all. Deliberately ONE total rather than a floor per arm: a
+        // per-arm floor counts the current tree, and the theme toggle becoming an anchor would
+        // take the button arm to zero on entirely correct code.
+        expect(examined, "no icon mask was found on any built page, so this gate is vacuous")
             .toBeGreaterThan(0);
     });
 
