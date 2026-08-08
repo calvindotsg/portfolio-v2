@@ -1,13 +1,16 @@
 # Implementation Plans
 
-**Run 6 is open: plans 024–026 are proposals and executable in any order.** The order is free
-because of a mechanism rather than a hope: each plan re-measures its own suite baseline in its
-own worktree, and none asserts an absolute suite total or diffs against the commit it was
-written at. They came from a re-audit of this directory's own record rather than of the
-source — every archived plan, this index, and `done/README.md` were swept for items that were
-deferred, "recorded not fixed" or accepted as a coverage gap during an earlier run, and each
-survivor was then held against the live tree. The three survivors became 024–026; everything
-else is in § "Run 6" below. Run 5 before it decoupled the race data and the
+**Nothing is executable: `plans/` is empty of proposals and run 6 is closed.** Plans 024–026 are
+merged, archived and live. A "continue the refactor" request means re-audit or ask — there is no
+queue.
+
+Run 6 audited **this directory** rather than the source: every archived plan, this index, and
+`done/README.md` were swept for items deferred, "recorded not fixed" or accepted as a coverage
+gap during an earlier run, and each survivor was held against the live tree. The three that
+survived with a measurement became 024–026 and everything else is in § "Run 6" below. They were
+executed **in parallel**, which was safe because of a mechanism rather than a hope: each plan
+re-measured its own suite baseline in its own worktree and none asserted an absolute total. Run 5
+before it decoupled the race data and the
 site copy from the code that renders them, and all five of plans 019–023 are merged, archived
 and live. Four earlier runs are complete: plans 001–014 are all DONE,
 merged, and live on https://calvin.sg, as is plan **015**, which came from the
@@ -131,15 +134,18 @@ recreated.
 | 021 | Split the copy out of `constants.ts` and delete the file | P2 | L | 020 | **DONE** (`4bf156d`) |
 | 022 | Separate the data contract from behaviour, and promote the Strava tooling | P2 | L | 020 | **DONE** (`a00c819`) |
 | 023 | Sweep the prose references no gate catches | P2 | M | 019, 020, 021, 022 | **DONE** (`5b9c794`) |
-| 024 | Refresh the lockfile in-range, taking the audit from eight highs to two unpatchable ones | P1 | S | — | TODO |
-| 025 | Assert what forced colours PAINT a mark, not merely that some rule reaches it | P2 | S | — | TODO |
-| 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | TODO |
+| 024 | Refresh the lockfile in-range, taking the audit from eight highs to two unpatchable ones | P1 | S | — | **DONE** (`c2558be`) |
+| 025 | Assert what forced colours PAINT a mark, not merely that some rule reaches it | P2 | S | — | **DONE** (`4b9d5ea`) |
+| 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | **DONE** (`557af8f`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
-**Run 6's three plans touch disjoint files** — one moves only `pnpm-lock.yaml`, one adds an
-assertion to `tests/build-output.test.ts`, one changes `tests/docs-drift.test.ts`. They are
-numbered in leverage order rather than in a chain.
+**Run 6's three plans touched disjoint files** — one moved only `pnpm-lock.yaml`, one added an
+assertion to `tests/build-output.test.ts`, one changed `tests/docs-drift.test.ts`. They were
+numbered in leverage order rather than in a chain, and all three executors ran at once. That is
+the first parallel execution here, and what paid for it was deleting every absolute suite count
+from the plans: 025 and 026 each add one assertion, so whichever landed second would have failed
+a plan that said "532".
 
 Plan 008 did not come from the audit — it was raised from a production PageSpeed
 report mid-run and executed out of numeric order.
@@ -200,10 +206,10 @@ Measured — the archive mentions none of `control-geometry`, `page-fit`,
 | client JavaScript | **zero external files**, which is not the same as none. **Three first-party scripts, all inline**: the pre-paint theme resolver and the press-hold (`data-leaving`) listener, both in `BasicLayout.astro` and on every page, plus `ThemeSwitcher`'s toggle listener, inlined as a module on the home page only. The ~525 B figure quoted here before was the theme resolver alone, and it was labelled as the total. **Nothing gates this row** — a census gate was written and then deliberately deleted, because pinning a count is what puts a rotting fact somewhere nobody revisits. Re-derive it from the script elements in `dist/` when you touch it |
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
 | components | 15 `.astro` files (11 components, 1 layout, 3 page routes → **5 prerendered pages**: `/`, `/patches`, `/patches/cycling`, `/patches/running` and `/404`, plus the `robots.txt` and `llms.txt` endpoints); **no UI framework**, no `.svelte`, no islands |
-| `uno.config.ts` | derive: `wc -l uno.config.ts` (**719** at 2026-08-07) — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale |
-| tests | **531** assertions across **18** files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, measured 2026-08-08 after plan 023. A 19th file, `tests/strava-verify.test.ts`, holds 7 more and is opt-in — it skips by default, so it contributes none of the 531. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it into three kinds — a current-state document (this table included) is gated for accuracy; `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*, forbidden from stating a count, a component filename or an exported constant at all and required to say where each is derived instead; and a numbered plan is a *proposal*, exempt from the checks that hold a name against a tree it exists to change. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
+| `uno.config.ts` | derive: `wc -l uno.config.ts` (**700** at 2026-08-08) — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale. The figure here read 719 until run 6 re-derived it; the file was 700 lines at `219dcde` too, so that number was never right rather than having gone stale — which is what "derive" in this cell is for |
+| tests | **533** assertions across **18** files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, measured 2026-08-08 after run 6. A 19th file, `tests/strava-verify.test.ts`, holds 7 more and is opt-in — it skips by default, so it contributes none of the 533. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it into three kinds — a current-state document (this table included) is gated for accuracy; `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*, forbidden from stating a count, a component filename or an exported constant at all and required to say where each is derived instead; and a numbered plan is a *proposal*, exempt from the checks that hold a name against a tree it exists to change. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
-| `pnpm audit` | **1 moderate, 0 high, 0 critical** since plan 009's in-range refresh. The residual is `@opentelemetry/core <2.8.0` (dev/build-only), pinned exactly by `@netlify/otel@6.0.3` — unreachable without an override, by design left alone; it clears when @netlify/otel bumps and a future `pnpm update --no-save` picks it up. **Run 4: now 1 moderate + 2 high** — both highs are brace-expansion GHSA-mh99-v99m-4gvg on dev-only lint paths; plan 017 clears one in-range and documents the other as a second deliberate residual (no patched 1.x exists; the override is measured-broken). **`@netlify/otel` survived the cutover and always would have**: it arrives as `astro` → `unstorage` → `@netlify/blobs`, so it is an Astro dependency and has nothing to do with where the site is hosted — leaving Netlify does not clear it |
+| `pnpm audit` | derive: `pnpm audit --json \| jq .metadata.vulnerabilities` — **0 moderate, 2 high, 0 critical** at 2026-08-08, after plan 024. **Do not transcribe that pair; the advisory database moves with no commit here.** What is worth writing down is the TEST for a residual rather than a reason: a survivor is unpatchable when its `Patched versions` reads `<0.0.0`, and both survivors do. They are the `image-size` ICNS and JXL/HEIF advisories, reached build-time only via `astro` → `unstorage` → `@netlify/blobs` → `@netlify/dev-utils`. **They are not permanent, and not upstream's to fix** — plan 024's review panel measured that `@netlify/blobs` is an OPTIONAL peer a fresh resolution never installs: `pnpm install` against this same `package.json` with no lockfile yields zero of it and zero `image-size`. They survive because `pnpm update --no-save` carries forward a peer resolution orphaned when the SSR adapter was dropped in `32071fe`. Clearing them means re-resolving the whole tree, which needs its own plan and its own `dist/` comparison. **Every prior REASON recorded in this cell has since expired or come true**, which is why the cell now names a derivation and a test instead of a story |
 | deploy gate | **Changed after run 4.** `.github/workflows/ci.yml` — a `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test`, uploads `dist/`, and two `wrangler pages deploy` jobs sit behind `needs: build` and publish that same artifact without rebuilding. It replaced `netlify.toml` running `pnpm check && pnpm test`; that file and the Netlify project are both deleted. `tests/workflow-guards.test.ts` is what holds the `needs:` edge |
 | host | **Cloudflare Pages** (project `calvindotsg`), zone on Cloudflare DNS. Was Netlify until 2026-07-30 |
 | DNS | **In git since 2026-07-31** — `dns/zones/calvin.sg.yaml` (octoDNS), planned and applied by `.github/workflows/dns.yml`. Ten of the zone's fifteen records; the three Email Routing `MX`, the `read_only` DKIM key and `_dmarc` are each excluded for a different reason, stated in `dns/config.yaml` beside the exclusion. **Live since 2026-07-31**: the first plan against the real zone reported *"No changes were planned"* (11 records returned, 3 rejected, 8 matched). Two zone-scoped tokens, read-only for planning and edit-only for applying — see `dns/README.md`; nothing in this repository can mint them |
