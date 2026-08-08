@@ -182,7 +182,7 @@ const GOAL_YEAR_EVENTS: readonly RaceEvent[] = eventsInYear(GOAL_YEAR)
  * flag has no content, so it says nothing when it is wrong and rots in the direction
  * nobody notices. These two fields are facts with content: they are printed on the
  * bib, one of them is a link a reader can follow, and typing either against a race
- * that has not happened is caught at build by the gate in tests/projection.test.ts,
+ * that has not happened is caught at build by the gate in `tests/data-contract.test.ts`,
  * which refuses a finishing time on a race that has not started.
  *
  * THE CLOCK STILL RULES EVERY RACE WITHOUT ONE. A race with no recording — one ridden
@@ -539,7 +539,7 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * nobody has run as finished, and a page that claims a result is worse than a page that
  * claims a plan. A race with a recording never reaches the comparison — it is finished
  * on its recording — and that is not a way round the rule, because a finishing time on
- * an unreadable date fails the build outright (tests/projection.test.ts).
+ * an unreadable date fails the build outright (`tests/data-contract.test.ts`).
  *
  * `dnf` IS THE ONE STATE NOTHING HERE DERIVES, and it is asked first for exactly that
  * reason. Every other answer this function gives is read off the data — a recording, a

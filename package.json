@@ -9,12 +9,14 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "eslint": "eslint 'src/**/*.{js,astro}'",
+    "eslint": "eslint 'src/**/*.{js,astro}' 'scripts/**/*.mjs'",
     "check": "astro check",
     "prepare": "husky",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:update": "vitest run -u"
+    "test:update": "vitest run -u",
+    "race:add": "node scripts/scaffold-race.mjs",
+    "strava:sync": "node scripts/strava-sync.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
@@ -43,6 +45,9 @@
   },
   "lint-staged": {
     "src/**/*.{js,astro}": [
+      "eslint --fix"
+    ],
+    "scripts/**/*.mjs": [
       "eslint --fix"
     ]
   }

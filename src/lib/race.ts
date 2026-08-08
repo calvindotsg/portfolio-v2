@@ -433,7 +433,7 @@ type RecordedRace = RaceEventCommon & {
      * `hasRecording` in projection.ts. Do not paste one in ahead of a race because the
      * mapping happens to exist: with a time already present that draws a solid patch for
      * a race nobody has run, which is the one failure this file works hardest to avoid.
-     * The build refuses it (tests/projection.test.ts), so the cost is a red deploy.
+     * The build refuses it (`tests/data-contract.test.ts`), so the cost is a red deploy.
      */
     recordings: readonly [Recording, ...Recording[]]
 }

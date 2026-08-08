@@ -6,7 +6,6 @@ import {describe, expect, it} from "vitest";
 import {GOAL_YEAR} from "../src/data/goals";
 import {type Goal, GOALS} from "../src/lib/goal";
 import {EVENTS} from "../src/data/races";
-import {raceKm, recordingsOf} from "../src/lib/race";
 import stravaProgress from "../src/data/strava-progress.json";
 import {
     UPDATED_AT, bookedAhead, daysRemaining, eventsInYear, formatDateline, goalStatus,
@@ -133,6 +132,12 @@ describe("date handling", () => {
  * a nightly commit-push-deploy. The first test below is that freeze, run against the
  * SHIPPED script rather than described — it is the whole argument for `BUILD_DATE`, and
  * if the bot ever starts stamping unconditionally it should be re-read, not deleted.
+ *
+ * THIS BLOCK IS POINTED AT BY NAME. `singaporeDate` exists twice — once in `src/lib/today.ts`
+ * and once in `scripts/fetch-strava-progress.mjs`, because a zero-dependency `.mjs` cannot
+ * import a `.ts` — and the comment on the `src/` copy says the two are "held in step by a test
+ * that runs both over the same instants", naming this describe. Moving or renaming it silently
+ * breaks that reference, so move the comment in the same commit.
  */
 describe("the site's clock", () => {
     it("shows why the stamp cannot answer what day it is", () => {
@@ -327,11 +332,65 @@ describe("booked race distance", () => {
  */
 const at = (sport: string, raw: number): Goal => ({...goalBySport(sport), raw_progress: raw});
 
+/**
+ * THE THIRD INPUT, AND THE ONE THAT USED TO BE LIVE: the calendar those kilometres are
+ * divided against.
+ *
+ * `bookedAhead` is subtracted from the deficit before the rate is worked out, so the two
+ * rate assertions below have always read `EVENTS` through `goalStatus`'s default argument
+ * — and MEASURED, adding one 120 km booked ride to `src/data/races/` moved both of them
+ * (74 → 69) while `tests/derived-figures.test.ts` produced exactly the diff that describes
+ * the move. Two failures saying "the arithmetic is wrong" for an edit that made no
+ * arithmetic wrong is the noise this fixture removes: entering a race is now a red
+ * SNAPSHOT and a regenerated `src/lib/derived-figures.md`, and a red assertion here means
+ * the projection itself changed.
+ *
+ * THE ROWS REPRODUCE WHAT THE PAGE ACTUALLY DIVIDED BY, so the literals below are still the
+ * figures the site rendered on `AS_OF` rather than an invented pair: 42.00 + 1022.00 booked
+ * for cycling and 63.30 for running were `bookedAhead`'s live answers at that date. One
+ * SHAPE of each is kept, not one name — a single-day race and a genuinely multi-day tour —
+ * so that the fixture is the same kind of calendar the figures came off.
+ *
+ * THE TOUR DOES NOT COVER THE PRO-RATA BRANCH, and this note says so outright because the
+ * sentence it replaces claimed the opposite and read as a coverage argument. Every date
+ * below is in July and the tour starts in November, so `bookedAhead` takes the `today <=
+ * start` arm and books it whole; the pro-rata line is never reached. MEASURED: replacing
+ * `km += booked * ((totalDays - doneDays) / totalDays)` in `src/lib/projection.ts` with a
+ * `throw` leaves all seven cases in this describe GREEN, and reddens exactly two elsewhere —
+ * `describe("booked race distance")`'s pro-rata case and the abandoned-tour case, which pass
+ * dates that reach the branch. `end_date` on the row below is therefore inert here too:
+ * deleting it also leaves all seven green. Those two are where pro-rata is owned; do not
+ * move this fixture's dates to reach it, which would move 1064, then 74 and 18, then
+ * `src/lib/derived-figures.md`.
+ *
+ * WHAT THIS DELIBERATELY DOES NOT DO is fixture `describe("booked race distance")` above,
+ * whose whole subject is what the live calendar books and whose comment says the sum is
+ * spelled out as terms "so that adding or removing a booked race shows up here as a term
+ * rather than as a digit". That is a data gate stating a data fact, and it is the one that
+ * SHOULD go red on a calendar edit.
+ *
+ * HOW MANY IT REDDENS DEPENDS ON THE RACE'S DATE, which is worth writing down because the
+ * count gets quoted. MEASURED, one booked 120 km cycling race added to `src/data/races/`:
+ * dated 2026-09-01 it reddens TWO — `counts only future events` here, plus the
+ * derived-figures snapshot; dated 2026-11-28 it reddens THREE, because `PRO-RATES a
+ * multi-day event` pins `bookedAhead("cycling", "2026-11-07")` and a September race is
+ * already past by that date while a November one is not. Neither count is "the" count.
+ *
+ * Cast for the reason every fixture in this file is: a spread over the recorded|booked
+ * union cannot be verified by the compiler, and these rows are booked by construction.
+ */
+const REFERENCE_CALENDAR: readonly RaceEvent[] = [
+    {date: "2026-10-11", name: "A One Day Ride", advertised_km: 42.00, sport: "cycling", country: "Nowhere"},
+    {date: "2026-11-07", end_date: "2026-11-15", name: "A Nine Day Tour", advertised_km: 1022.00,
+        sport: "cycling", country: "Nowhere"},
+    {date: "2026-09-27", name: "A One Day Run", advertised_km: 63.30, sport: "running", country: "Nowhere"},
+] as RaceEvent[];
+
 describe("required rate", () => {
     it("produces the figures the page rendered when this was written", () => {
-        expect(goalStatus(at("cycling", CYCLING_KM), AS_OF)).toEqual(
+        expect(goalStatus(at("cycling", CYCLING_KM), AS_OF, REFERENCE_CALENDAR)).toEqual(
             expect.objectContaining({kind: "rate", kmPerWeek: 74, days: 158}));
-        expect(goalStatus(at("running", RUNNING_KM), AS_OF)).toEqual(
+        expect(goalStatus(at("running", RUNNING_KM), AS_OF, REFERENCE_CALENDAR)).toEqual(
             expect.objectContaining({kind: "rate", kmPerWeek: 18, days: 158}));
     });
 
@@ -340,29 +399,40 @@ describe("required rate", () => {
         // has a fractional part below .5, so rounding to nearest asks for a rate that delivers
         // LESS than the goal needs — the case that rules round out. One day later the fraction
         // is above .5 and round gives the same answer as ceil, so that date alone cannot tell
-        // the two apart. The figures, and a census of how many of the remaining sport-days
-        // discriminate at all, are derived and published in `src/lib/derived-figures.md`; read
-        // them there rather than copying them back into this comment, which is the mistake that
-        // file exists to end.
+        // the two apart. Which two dates those are is a property of REFERENCE_CALENDAR, so it
+        // is stable; see the note on the fixture.
         //
-        // WHICH DATE PLAYS WHICH ROLE FLIPS WITH THE NUMERATOR, and these two have already
+        // THE CENSUS IN `src/lib/derived-figures.md` IS NO LONGER ABOUT THIS TEST, and the
+        // pointer that used to sit here has been cut rather than repaired. That document counts
+        // the discriminating sport-days over the LIVE calendar, which stopped being this test's
+        // denominator when the assertions above moved onto the fixture — so sending a reader
+        // there for "the figures" would hand them a number derived from a different divisor and
+        // invite exactly the re-copying that file exists to end. Read it for the rounding
+        // ARGUMENT, which is unchanged and is about the real calendar; do not read it as this
+        // test's arithmetic. Publishing a second census over the fixture was the alternative and
+        // is worse: it would need the fixture hoisted into `tests/helpers/reference.ts` to be
+        // reachable — one test file may not import another, see the note there — and would give
+        // that document two subjects where its whole value is having one.
+        //
+        // WHICH DATE PLAYS WHICH ROLE USED TO FLIP WITH THE NUMERATOR, and the pair had already
         // swapped once: the round-island ride's recording moved the kilometres owed, and with
         // them the fractional part of every rate on the calendar — AS_OF used to be the date
-        // that could not discriminate and 28 July the one that could. Booking the October
-        // city ride moved every rate again and this time the roles held, which is the reason
-        // to re-measure rather than to reason about it: the same size of edit did one thing
-        // once and the other thing next. So if the assertion below goes red, re-measure the
-        // fraction and move the roles; do not relax it to an inequality, which is what the
-        // pair exists to rule out.
+        // that could not discriminate and 28 July the one that could. Booking the October city
+        // ride moved every rate again and that time the roles held, which is why re-measuring
+        // beat reasoning about it: the same size of edit did one thing once and the other thing
+        // next. It cannot flip any more, because the denominator now comes from
+        // REFERENCE_CALENDAR rather than from `EVENTS` — the roles are a property of a frozen
+        // fixture. If this goes red, the arithmetic moved; do not relax it to an inequality,
+        // which is what the pair exists to rule out.
         for (const iso of [AS_OF, "2026-07-28"]) {
-            const cycling = goalStatus(at("cycling", CYCLING_KM), iso);
+            const cycling = goalStatus(at("cycling", CYCLING_KM), iso, REFERENCE_CALENDAR);
             if (cycling.kind !== "rate") throw new Error(`expected a rate at ${iso}`);
             const weeks = cycling.days / 7;
             expect(cycling.kmPerWeek * weeks, iso).toBeGreaterThanOrEqual(cycling.km);
             expect((cycling.kmPerWeek - 1) * weeks, iso).toBeLessThan(cycling.km);
         }
         // The discriminating assertion, stated outright: at AS_OF, round is wrong.
-        const discriminating = goalStatus(at("cycling", CYCLING_KM), AS_OF);
+        const discriminating = goalStatus(at("cycling", CYCLING_KM), AS_OF, REFERENCE_CALENDAR);
         if (discriminating.kind !== "rate") throw new Error("expected a rate");
         const exact = discriminating.km / (discriminating.days / 7);
         expect(Math.round(exact)).toBeLessThan(exact);
@@ -498,302 +568,6 @@ describe("the dateline", () => {
                     .toBeLessThanOrEqual(worst.length);
             }
         }
-    });
-});
-
-describe("EVENTS", () => {
-    it("has a real date, a finite non-negative distance and a known sport", () => {
-        const sports = new Set(GOALS.map((g) => g.sport));
-        for (const e of EVENTS) {
-            expect(Number.isNaN(parseIsoDate(e.date)), `${e.name} date`).toBe(false);
-            if (e.end_date !== undefined) {
-                expect(Number.isNaN(parseIsoDate(e.end_date)), `${e.name} end_date`).toBe(false);
-                expect(parseIsoDate(e.end_date), `${e.name} ends before it starts`)
-                    .toBeGreaterThanOrEqual(parseIsoDate(e.date));
-            }
-            // THE DISTANCE, WHICHEVER SHAPE THE ROW IS. A booked race must carry `km`; a
-            // recorded one must derive a real figure from its metres. `raceKm` answers NaN
-            // for the hole the type cannot close — an empty `recordings` list beside no `km`
-            // — so this reads through the accessor rather than at either field.
-            expect(Number.isFinite(raceKm(e)) && raceKm(e) >= 0, `${e.name} distance`).toBe(true);
-            expect(e.name.trim().length, "an unnamed event renders as a blank patch").toBeGreaterThan(0);
-            // Required by the type, so this cannot be a missing key — it can be an empty
-            // one, which renders as a blank line on the bib rather than as no line.
-            expect(e.country.trim().length, `${e.name} has no country, so its bib prints a blank line`)
-                .toBeGreaterThan(0);
-            // The join. A sport matching no goal contributes to no projection and
-            // throws nothing — it is invisible without this.
-            expect(sports.has(e.sport), `${e.name} sport "${e.sport}" matches no goal`).toBe(true);
-        }
-    });
-
-    it("carries no field that nothing reads", () => {
-        for (const e of EVENTS) {
-            expect(e, `${e.name} priority would be read by nothing`).not.toHaveProperty("priority");
-        }
-    });
-
-    /**
-     * A FINISHING TIME ONLY EXISTS FOR A RACE THAT HAS BEEN RUN, and this is now the
-     * ONLY thing standing behind that sentence — which is why it is written more
-     * carefully than the assertion it replaced.
-     *
-     * IT USED TO ASSERT `elapsed_time` IMPLIES `patchState === "finished"`. Once a
-     * recording became a way to BE finished (see `hasRecording` in projection.ts), that
-     * assertion started proving itself: a race with a time and an id is finished because
-     * it has a time and an id. A tautology in the place of a gate is worse than no gate,
-     * because the file still reads as though the data were checked.
-     *
-     * SO IT ASKS THE QUESTION THE OLD ONE WAS REALLY ASKING: has the race started? A
-     * time typed against a race still ahead is the mistake worth catching — the bib
-     * would print a result for a day that has not happened — and it is now catchable
-     * ONLY here, because `patchState` would happily draw that bib as earned.
-     *
-     * AGAINST THE BUILD DAY, not the bot's stamp, and the difference is the whole point
-     * of the change this test belongs to: a race run this morning is a race that has
-     * started, whatever the kilometres say. Compared with `<=`, so a time entered on the
-     * day of the race passes — that is the case the wall could not previously record.
-     *
-     * A race remembered without a recording stays a legitimate timeless bib, so nothing
-     * here may require a time. This sentence used to name the race that was in that state;
-     * which races are is a property of the data, and the rule is not.
-     */
-    it("never carries a finishing time for a race that has not started", () => {
-        // No `toBeGreaterThan(0)` on the subset — see the note in tests/patch-wall.test.ts.
-        // `timed` is legitimately empty every January, and a red suite blocks the
-        // deploy. The loop asserts a property OF each timed event; zero of them is a true
-        // state of the calendar, not a broken test.
-        const timed = EVENTS.filter((e) => e.elapsed_time !== undefined);
-        for (const e of timed) {
-            expect(parseIsoDate(e.date), `${e.name} has an unreadable date and a finishing time`).not.toBeNaN();
-            // THE END OF THE EVENT, NOT ITS START. A nine-day tour that began last Tuesday
-            // has started and is not over, and a finishing time typed into it is still a
-            // result for a day that has not happened. Reading `e.date` here let exactly
-            // that through, and the message named the wrong field while doing it.
-            expect(
-                parseIsoDate(e.end_date ?? e.date) <= parseIsoDate(BUILD_DATE),
-                `${e.name} is not over until ${e.end_date ?? e.date}, which is after ${BUILD_DATE}, but it `
-                + `carries elapsed_time ${e.elapsed_time} — the bib would print a result for a day that `
-                + `has not happened`,
-            ).toBe(true);
-            expect(e.elapsed_time, `${e.name} elapsed_time must read H:MM:SS`).toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
-        }
-    });
-
-    /**
-     * THE SAME GUARD FOR THE OTHER ACCOUNT. An official result is a finishing time too, and it
-     * arrived without either half of the protection its sibling above has had for months.
-     *
-     * A RACE THAT HAS NOT HAPPENED HAS NO RESULT. The ledger already refuses to draw for a
-     * booked bib, but the stub does not: an `official` block on a race still ahead publishes a
-     * link announcing a finishing time for a day that has not come. The type cannot say this —
-     * `booked` is derived from the CALENDAR, not from the row's shape — so it is said here,
-     * where the two other date-versus-result rules already live.
-     *
-     * AND THE CLOCKS MUST READ LIKE CLOCKS. `net_time` and `gun_time` are hand-typed and are
-     * printed verbatim into the ledger's Time column and into the link a reader is told the
-     * clock's name in. Every other clock in this file is held to `H:MM:SS`; these two escaped
-     * it purely because they were new.
-     *
-     * BOTH ARE OPTIONAL AND THE LOOP MUST SAY SO. A sheet can publish a gun time alone — one on
-     * this calendar does, and constants.ts refuses to derive its net time by subtraction — so
-     * asserting either field unconditionally would fail on correct data.
-     */
-    it("never carries an official result for a race that has not happened, and reads its clocks", () => {
-        // No `toBeGreaterThan(0)` on the subset, for the reason the sibling above gives: a
-        // calendar with no published sheet on it is a true state, not a broken test.
-        for (const e of EVENTS.filter((x) => x.official !== undefined)) {
-            const official = e.official!;
-            expect(
-                parseIsoDate(e.end_date ?? e.date) <= parseIsoDate(BUILD_DATE),
-                `${e.name} is not over until ${e.end_date ?? e.date}, which is after ${BUILD_DATE}, but it `
-                + "carries an official result — the stub would link a finishing time for a day that has "
-                + "not happened",
-            ).toBe(true);
-
-            // AT LEAST ONE CLOCK, or the row is a distance beside a blank on a bib whose whole
-            // argument is that a source's figures travel together.
-            expect(official.net_time ?? official.gun_time,
-                `${e.name} has an official result with no time on it at all`).toBeTruthy();
-
-            for (const [field, value] of [["net_time", official.net_time], ["gun_time", official.gun_time]] as const) {
-                if (value === undefined) continue;
-                expect(value, `${e.name} official ${field} must read H:MM:SS`)
-                    .toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
-            }
-
-            // A GUN TIME IS THE LONGER OF THE TWO, always — it starts at the gun and the net
-            // clock starts when the rider crosses the mat, which is never earlier. Reversed,
-            // the pair would be mislabelled rather than merely odd.
-            if (official.net_time !== undefined && official.gun_time !== undefined) {
-                const secs = (t: string) => t.split(":").reduce((a, n) => a * 60 + Number(n), 0);
-                expect(secs(official.gun_time), `${e.name}: a gun time cannot be shorter than its own net `
-                    + `time (${official.gun_time} against ${official.net_time}) — the pen is never negative`)
-                    .toBeGreaterThan(secs(official.net_time));
-            }
-
-            if (official.url !== undefined) {
-                expect(official.url, `${e.name} official url must be absolute`).toMatch(/^https:\/\//);
-            }
-        }
-    });
-
-    /**
-     * THE OTHER HALF OF THE SAME GUARD. A recording is a finishing time AND an activity
-     * id, and the id is the half the test above cannot see: an id alone earns no bib, so
-     * a stray one is harmless — but an id beside a time is what makes `patchState` draw a
-     * solid bib, and pasting a Strava link next to a race still ahead is an easy slip.
-     *
-     * Stated separately rather than folded in, because the two say different things and a
-     * combined message would name the wrong field half the time.
-     */
-    it("never carries a recording for a race that has not started", () => {
-        const recorded = EVENTS.filter((e) => e.elapsed_time !== undefined && recordingsOf(e).length > 0);
-        for (const e of recorded) {
-            // Against a clock pinned before every race on the calendar, so ONLY the
-            // recording branch can answer. `patchState(e)` takes BUILD_DATE, under which
-            // every past race is finished by the clock anyway — the assertion could not
-            // fail, which is the tautology the comment above condemns.
-            //
-            // ASKED AS "THE CLOCK DID NOT DECIDE THIS", NOT AS `=== "finished"`, and the
-            // difference arrived with `dnf`. A recorded race that was ABANDONED is `dnf` on
-            // every day, so the old spelling was red on correct data. Relaxing it to
-            // `!== "booked"` would have been the weak fix: a past race is not booked by the
-            // CLOCK either, so deleting the recording branch entirely would still pass. What
-            // a recording actually buys is that the answer does not MOVE with the day, and
-            // that is what this now asks — red if the branch goes, green for either settled
-            // outcome, and still not a tautology.
-            expect(
-                patchState(e, "1970-01-01"),
-                `${e.name} carries a full recording, so its state must be settled ahead of the clock`,
-            ).toBe(patchState(e, BUILD_DATE));
-            expect(
-                patchState(e, "1970-01-01"),
-                `${e.name} carries a full recording, so it cannot be drawn as still to come`,
-            ).not.toBe("booked");
-            expect(
-                parseIsoDate(e.end_date ?? e.date) <= parseIsoDate(BUILD_DATE),
-                `${e.name} would be drawn as an EARNED patch, but it does not finish until `
-                + `${e.end_date ?? e.date}, which has not happened yet`,
-            ).toBe(true);
-        }
-    });
-
-    /**
-     * An activity id is an opaque identifier that only ever goes into a URL. Digits only,
-     * and a STRING: 19-digit ids are close enough to Number.MAX_SAFE_INTEGER that a
-     * numeric literal would round one silently, and the rounded id 404s rather than
-     * failing anywhere a build could see.
-     */
-    it("carries activity ids as digit strings, so none can be rounded into a dead link", () => {
-        const seen = new Set<string>();
-        let checked = 0;
-        for (const e of EVENTS) {
-            for (const r of recordingsOf(e)) {
-                expect(typeof r.id, `${e.name} activity id must be a string`).toBe("string");
-                expect(r.id, `${e.name} activity id must be digits only`).toMatch(/^\d+$/);
-                // Two races pointing at one ride is the transposition this cannot otherwise
-                // see — both ids are valid, both pages load, and only reading them tells.
-                // UNIQUENESS NOW HAS TO HOLD ACROSS THE ARRAYS AND NOT ONLY BETWEEN ROWS:
-                // a race recorded in parts holds several ids, so the same slip can now be
-                // made twice inside one event as well as between two.
-                expect(seen.has(r.id), `${e.name} shares activity ${r.id} with another recording`).toBe(false);
-                seen.add(r.id);
-                checked++;
-            }
-        }
-        expect(checked, "no event carries a recording — this assertion would be vacuous").toBeGreaterThan(0);
-    });
-
-    /**
-     * A RECORDING'S OWN FIGURES ARE PRINTED ON THE BIB, so they are held to the shapes a bib
-     * can print. `metres` is what the API said and everything else about a distance is derived
-     * from it, so the only offline claim worth making is that it IS a distance: finite, and
-     * greater than zero, because a race recorded as 0 m would draw a bib reading `0.00`.
-     *
-     * WHAT THIS DELIBERATELY NO LONGER ASSERTS is any agreement between a race's distance and
-     * its parts'. It used to compare a single-recording race's `km` against the part's, which
-     * caught a real drift while both were hand-typed. Neither is typed now — `raceKm` converts
-     * the same metres either way — so that assertion would be a test of arithmetic this file
-     * does not own. Its subject moved to `tests/content.test.ts`, which exercises the
-     * conversion itself, including the summing rule a split race depends on.
-     *
-     * THE ELAPSED PAIR IS STILL WORTH HOLDING, and the asymmetry is the point: that figure is
-     * hand-entered in two places, so a single-recording race really can carry two different
-     * clocks. The distance cannot any more.
-     *
-     * A MISTYPED `metres` REMAINS INVISIBLE HERE, and nothing offline can see it — that is what
-     * `tests/strava-verify.test.ts` is for, holding every recording against the API exactly.
-     */
-    it("holds each recording's own figures to the shapes the bib prints them in", () => {
-        let checked = 0;
-        for (const e of EVENTS) {
-            const parts = recordingsOf(e);
-            for (const r of parts) {
-                expect(r.elapsed_time, `${e.name} recording ${r.id} elapsed time must be H:MM:SS`)
-                    .toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
-                expect(Number.isFinite(r.metres) && r.metres > 0,
-                    `${e.name} recording ${r.id} metres must be a positive number`).toBe(true);
-                checked++;
-            }
-            if (parts.length !== 1) continue;
-            expect(parts[0].elapsed_time, `${e.name} has one recording, so its elapsed time must equal the race's`)
-                .toBe(e.elapsed_time);
-        }
-        expect(checked, "no event carries a recording — this assertion would be vacuous").toBeGreaterThan(0);
-    });
-
-    /*
-     * THE SPLIT-RACE DISTANCE GATE THAT USED TO SIT HERE IS GONE, AND ITS SUBJECT WITH IT.
-     *
-     * It bounded a hand-typed race-level `km` against the sum of its hand-typed parts, because
-     * both were data and could disagree. Neither is data now: a race's distance is `raceKm`
-     * over the parts' metres, so the bound it enforced holds by construction and asserting it
-     * here would be a test of the code's own arithmetic run against the code's own output —
-     * green whatever the rule, which is the shape of assertion this file exists to avoid.
-     *
-     * WHERE THE COVERAGE WENT, so this is a move rather than a deletion: the conversion and
-     * the summing rule are exercised directly in `tests/content.test.ts`, on inputs chosen
-     * to discriminate rounding down from half-up. What NEITHER can see is a mistyped `metres`
-     * — only `tests/strava-verify.test.ts` reads the API, and it is opt-in.
-     */
-
-    /**
-     * A SPLIT RACE'S CLOCK MUST AT LEAST CONTAIN ITS OWN PARTS.
-     *
-     * `elapsed_time` is first start to last stop, so it is NOT the sum of the parts — the gaps
-     * between recordings are inside it, which is exactly why summing is the wrong rule (2024's
-     * span is 10:05:34 against 7:22:15 summed, and the 2h43m in the bike shop is the
-     * difference). That makes the figure look unconstrained, and it is not: recordings do not
-     * overlap, so the span cannot be SHORTER than the time actually spent recording.
-     *
-     * `>=`, and the slack is the point rather than a weakness. An equality would be red on
-     * every real split race; this catches the failures that matter — a span accidentally set
-     * to one part's elapsed time, or to the sum-minus-a-gap, or a digit dropped from the
-     * hours. It is the only offline constraint on this field: `strava-verify` computes the
-     * true span from the activities' own timestamps, but it is opt-in, needs live credentials
-     * and does not run in CI.
-     */
-    it("never lets a split race's span be shorter than the time it spent recording", () => {
-        const seconds = (hms: string): number => {
-            const [h, m, s] = hms.split(":").map(Number);
-            return h * 3600 + m * 60 + s;
-        };
-        let checked = 0;
-        for (const e of EVENTS) {
-            const parts = recordingsOf(e);
-            if (parts.length < 2 || e.elapsed_time === undefined) continue;
-            const recording = parts.reduce((total, part) => total + seconds(part.elapsed_time), 0);
-            const span = seconds(e.elapsed_time);
-            expect(
-                span >= recording,
-                `${e.name} says its span is ${e.elapsed_time} (${span}s), but its ${parts.length} recordings `
-                + `hold ${recording}s of riding between them. First start to last stop CONTAINS every part plus `
-                + "the gaps between them, so it can never be shorter than their sum.",
-            ).toBe(true);
-            checked++;
-        }
-        expect(checked, "split races checked").toBeGreaterThanOrEqual(0);
     });
 });
 
@@ -1078,6 +852,30 @@ describe("the scope split: a lifetime wall, a goal card that is one year", () =>
     });
 });
 
+/**
+ * THE BOT'S WRITE CONTRACT STAYS IN THIS FILE, and it is worth saying why, because the block
+ * above it just left for `tests/data-contract.test.ts` on the rule "an assertion that holds
+ * for any valid DATA belongs with the data".
+ *
+ * FOUR OF THE SIX HOLD FOR NO DATA AT ALL. They exercise `nextProgress` and `serialise` —
+ * imported from the shipped `scripts/fetch-strava-progress.mjs` — against LITERAL fixtures,
+ * including `""` and `"{not json"`, which is a script's behaviour rather than a property of
+ * any calendar.
+ *
+ * THE OTHER TWO DO READ THE SHIPPED JSON, and the first draft of this note said all six were
+ * data-free, which is the kind of tidy criterion that is easier to write than to check.
+ * MEASURED, one edit at a time against `src/data/strava-progress.json` with the values
+ * untouched: reindenting it from four spaces to two reddens `PRESERVES updated_at
+ * byte-for-byte`, and rewriting `updated_at` as `02/08/2026` reddens `ships updated_at`.
+ * Nothing else moves in either case.
+ *
+ * THEY STILL BELONG HERE, and the reason is what the criterion should have been. Neither is
+ * a claim about the CALENDAR — the file they read is the bot's own output, and what they
+ * assert is the workflow's zero-diff gate: `strava-progress.yml` commits only when `git diff
+ * --quiet` reports a change, so the bytes on disk have to be the bytes `serialise` would
+ * write. That is a property of a script and of a workflow, and filing it beside the race
+ * modules would put it in a file about races.
+ */
 describe("the bot's write contract", () => {
     const raw = readFileSync("src/data/strava-progress.json", "utf8");
 

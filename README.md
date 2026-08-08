@@ -114,9 +114,34 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
    publicly?** The athlete id is on the site's Strava links, and a Strava client
    id is a query parameter of the OAuth authorize URL, so both are public and
    both are variables. Only the client secret and the refresh token authenticate,
-   so only those are secrets — and because a GitHub secret can never be read
-   back, those two are also kept in 1Password (`calvindotsg-strava`), which is
-   the only recoverable copy that exists.
+   so only those are secrets.
+
+   **1Password is the source of truth for those two, and the GitHub secrets are a
+   copy.** That reads backwards until you notice that a GitHub secret cannot be
+   read back: it can be compared with nothing and recovered from nothing, so the
+   readable store — the `calvindotsg-strava` item — is the only one that can be
+   authoritative. Two rules follow. Only a caller that can reach 1Password may
+   *change* either credential, and it writes 1Password *before* re-copying to
+   GitHub. `scripts/strava-auth.mjs` is where both live: it is the one place
+   anything here gets an access token, it notices when Strava rotates the refresh
+   token, and in CI — which cannot reach the truth — it persists nothing and fails
+   loudly, because a rotation there kills the chain in both stores at once and the
+   only way back is a fresh OAuth authorize.
+
+   `.env.op` holds `op://` **references** rather than values, which is why it is
+   committed. `op run --env-file=.env.op -- <command>` resolves them, so no
+   credential is ever written to disk here:
+
+   ```bash
+   # Scaffold a race module from the Strava activities it was recorded as.
+   op run --env-file=.env.op -- pnpm race:add 12058884605 12058885236
+
+   # Re-copy the refresh token from 1Password onto the GitHub secret. Dry by
+   # default; `-- --write` does it and then spends the credential once to prove it
+   # is live, which is the only verification that exists — nothing can read a
+   # GitHub secret back to compare it.
+   op run --env-file=.env.op -- pnpm strava:sync
+   ```
 
    Note that the athlete id appears in two of the three sanctioned homes, for two
    different jobs: the `STRAVA_ATHLETE_ID` variable decides *whose kilometres* are
@@ -166,8 +191,16 @@ that carry most of the weight:
 - `tests/build-output.test.ts` — asserts on what `pnpm build` actually emits into
   `dist/`: `robots.txt` pointing at the sitemap, the sitemap index, zero external
   JavaScript, no serverless function, and the public assets the page links to.
-- `tests/data-contract.test.ts` — holds the one module per race under
-  `src/data/races/` to the three things an array used to say for free. That every
+- `tests/data-contract.test.ts` — everything that must hold of the race data for ANY
+  valid calendar, in the two halves that question has. The rows first: dates that are
+  readable and ordered, no finishing time or published result on a day that has not
+  happened, no Strava activity claimed by two recordings, and a split race's span no
+  shorter than the parts inside it. Not one of them pins a digit, which is what separates
+  them from `projection` — an editor adding a race can tell "you typed something
+  impossible" from "the page's figures moved, as they were always going to".
+
+  And then the one module per race under `src/data/races/`, held to the three things an
+  array used to say for free. That every
   module is in the array: the collector globs its siblings, and a file the pattern
   misses is an absence rather than an error, invisible to every other assertion here.
   That each filename's date is the `date` inside it, so the name stays a convenience
@@ -177,6 +210,19 @@ that carry most of the weight:
   from the data, so an optional field no current race carries cannot drop out of the
   set. It also holds that README's two edit orders and its booked-race rule by
   canonical phrase, in the shape `docs-drift` holds `CLAUDE.md`'s shortcut count.
+
+One suite has `scripts/` as its subject rather than the site:
+
+- `tests/strava-scripts.test.ts` — the three scripts that talk to Strava, held offline
+  with the network stubbed. The credential half exercises `scripts/strava-auth.mjs`: that
+  it reads the environment when CALLED rather than at import — a top-level read there
+  would throw during collection of every suite that imports the bot script, on every
+  machine without Strava secrets — and that it REFUSES a rotated refresh token it cannot
+  persist instead of half-writing one from CI. The arithmetic half holds
+  `scripts/scaffold-race.mjs` to three mistakes that were each made by hand more than
+  once: `metres` copied verbatim rather than converted, a split race's clock taken as the
+  span from first start to last stop rather than the sum of its parts, and recordings
+  ordered by when they were ridden rather than by the order the ids were pasted.
 
 The rest are geometry and content gates — `page-fit`, `card-fill`,
 `control-geometry`, `icon-alignment`, `mobile-hero-contrast`, `patch-wall`,
@@ -215,9 +261,13 @@ One suite is OPT-IN and reaches the network, which is why it is listed apart:
   the race's own day. A race recorded in parts names several, so it also holds the RACE's
   own two figures — its distance against the summed metres, and its elapsed time against
   the span from the first recording's start to the last one's stop, which is not any single
-  activity's figure and cannot be checked anywhere else. It skips unless `STRAVA_VERIFY=1`, and needs
-  `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN` in the environment —
-  the same names `scripts/fetch-strava-progress.mjs` reads. Deliberately not part of the
+  activity's figure and cannot be checked anywhere else. It skips unless `STRAVA_VERIFY=1`, and
+  gets its token from `scripts/strava-auth.mjs` like everything else here, so it needs the same
+  three credentials in the environment — supply them with
+  `op run --env-file=.env.op`, never as bare assignments on a command line. **Running it is not
+  a read-only act**: a refresh that rotates the token makes `accessToken` write 1Password and
+  then the GitHub secret, because dropping a rotation kills the credential in both stores.
+  Deliberately not part of the
   default run: `pnpm test` gates both deploys, so a rate limit or an expired token would read
   as a broken site. It is the ONLY thing that can catch a mistyped `metres`, which no offline
   test can see: a row stores the API's own figure and the kilometres a reader sees for the ride

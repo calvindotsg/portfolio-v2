@@ -52,9 +52,18 @@ jobs:
           # be read back at all, which makes drift against the 1Password copy undetectable.
           #
           # The client SECRET and the refresh TOKEN are what actually authenticate, so they
-          # stay secrets. Both are backed up in 1Password (`calvindotsg-strava`) — which
-          # matters precisely because a GitHub secret cannot be read back: before that backup
-          # existed they had no recoverable copy anywhere.
+          # stay secrets — and 1PASSWORD (`calvindotsg-strava`) IS THE SOURCE OF TRUTH FOR
+          # BOTH, while the two secrets below are a COPY of it. That is the wrong way round
+          # from how it reads: a GitHub secret cannot be read back, so it can be compared
+          # with nothing and recovered from nothing, which makes the readable store the only
+          # one that can be authoritative. It follows that only a caller who can reach
+          # 1Password may CHANGE either credential, and that it writes 1Password before
+          # re-copying to GitHub. This job cannot reach it, so it writes neither store — see
+          # `scripts/strava-auth.mjs` for what a rotation costs here, and `pnpm strava:sync`
+          # for the tool that re-copies the refresh token, which is the one of the two that
+          # rotates. The client secret has no re-copy tool because nothing rotates it: it
+          # changes only when a person changes it in the Strava app, and then both stores are
+          # updated by hand.
           STRAVA_ATHLETE_ID: ${{ vars.STRAVA_ATHLETE_ID }}
           STRAVA_CLIENT_ID: ${{ vars.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
@@ -94,8 +103,8 @@ jobs:
       # the two documented exceptions to the suppression rule, which is why the fix is a
       # dispatch and not, say, a second push or a tag.
       #
-      # UNCONDITIONAL ON PURPOSE, and this is the part that is NOT mere Netlify parity. The
-      # step above commits only when the KILOMETRES moved, but the site has a clock as well as
+      # INDEPENDENT OF WHETHER ANYTHING WAS COMMITTED, and this is the part that is NOT mere
+      # Netlify parity. The step above commits only when the KILOMETRES moved, but the site has a clock as well as
       # a distance: `BUILD_DATE` in `src/lib/today.ts` feeds the countdown, `patchState`,
       # `patchWall` and `nextRace`, and every one of those turns over at Singapore midnight
       # whether or not the owner trained. Firing only on a commit therefore reinstates, by a
@@ -107,9 +116,22 @@ jobs:
       # heartbeat for an unattended pipeline: a broken build is discovered within a day instead
       # of whenever the owner next happens to ride.
       #
-      # A FAILED PUSH MUST NOT DEPLOY, and it cannot: steps default to `if: success()`, so a
-      # non-fast-forward rejection above stops the run here and the day goes unbuilt loudly
-      # rather than publishing a tree that is not on `main`.
+      # A FAILED STEP ABOVE MUST NOT COST THE DAY'S BUILD, which is a reversal, so the
+      # argument it replaces is written out rather than deleted. This step used to run under
+      # the implicit `if: success()` on the reasoning that "a failed push must not deploy …
+      # rather than publishing a tree that is not on `main`". That premise is false: the
+      # dispatch names a REF, so `ci.yml` checks out `main` and builds whatever is on it. The
+      # runner's own checkout — pushed or not — never reaches the deploy. So a failed push
+      # cost the site its daily rebuild and bought nothing, and a credential failure in the
+      # fetch step cost the same thing for the same non-reason. The kilometres are one of the
+      # two things this workflow moves; the CLOCK is the other, and it turns over whether or
+      # not the token worked.
+      #
+      # `!cancelled()` RATHER THAN `always()`, and the difference is not stylistic.
+      # `always()` also fires when a human presses Cancel or when a concurrency rule kills the
+      # run, which turns a deliberate stop into a deploy — the one outcome nobody asked for.
+      # `!cancelled()` runs on success and on failure and stops on a cancel, which is exactly
+      # the intent.
       #
       # HOW THIS FAILS LOUDLY, which is the whole reason WP4 exists as its own piece of work.
       # `gh workflow run` exits non-zero when the API refuses — a missing `actions: write`
@@ -120,6 +142,7 @@ jobs:
       # broke. What the step does NOT do is wait for the dispatched run, so green here means
       # "the build was asked for", never "the build passed". Read the CI run itself.
       - name: Ask CI to build and deploy, since the push above triggers nothing
+        if: '!cancelled()'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
