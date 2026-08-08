@@ -287,10 +287,11 @@ describe("METADATA", () => {
      * result actually truncates on: roughly 600px of Arial 20px on desktop. This started
      * as a character cap pinned at the shipped string's own length, and a review panel
      * broke it in both directions with job titles nobody would blink at — "Warehouse
-     * Automation Manager, WMS" is 33 characters like today's and renders 606px (the cap
-     * passed it, truncated); "Institutional Litigation Field Officer I" renders 565px and
-     * the cap failed it with 35px to spare. A count cannot stand in for a width when one
-     * character spans 3.8px to 20.3px.
+     * Automation Manager, WMS" is 33 characters — the length of the job title the cap was
+     * calibrated against — and renders 606px (the cap passed it, truncated); "Institutional
+     * Litigation Field Officer I" is 40 characters, renders 565px, and the cap failed it
+     * with 35px to spare. A count cannot stand in for a width when one character spans
+     * 3.8px to 20.3px.
      *
      * The 600 is an SEO convention rather than a documented constant (see the note on
      * METADATA.title), so it is a tripwire, not a specification. What it protects against

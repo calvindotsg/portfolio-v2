@@ -28,9 +28,10 @@ import {BUILD_DATE} from "../lib/today"
  * thing here an agent can afford to miss.
  *
  * WHY THIS IS GENERATED. The hand-written `public/llms.txt` it replaces had drifted on
- * every axis at once — it called the job "Business Systems Analyst" where
- * `CAREER[0].job_name` says "Founding Business Systems Analyst", it paraphrased two
- * project descriptions instead of quoting them, and it omitted a third project entirely.
+ * every axis at once — it stated a job title `CAREER[0].job_name` had already moved past
+ * (the pair of the day: "Business Systems Analyst" in the file, "Founding Business Systems
+ * Analyst" in the source), it paraphrased two project descriptions instead of quoting them,
+ * and it omitted a third project entirely.
  * Nothing detected any of that, because nothing looked — and "nothing COULD" is the
  * stronger claim this comment used to make and cannot support. A test could always have
  * grepped `public/llms.txt` for `CAREER[0].job_name`; run the assertion below against the

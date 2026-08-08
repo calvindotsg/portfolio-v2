@@ -243,10 +243,11 @@ export const METADATA: {
      * The page title — and THE JOB IN IT IS DERIVED, not typed.
      *
      * ONE PAGE USED TO GIVE TWO ANSWERS TO "WHAT IS HIS JOB". The JSON-LD in
-     * `BasicLayout.astro` reads {@link CAREER}[0] and served "Founding Business Systems
-     * Analyst"; this string was a hand-typed copy of the same fact and still served the
-     * pre-promotion "Business Systems Analyst". A reader saw one in the tab and a search
-     * engine parsed the other out of the same document.
+     * `BasicLayout.astro` reads {@link CAREER}[0] and served the job title of the day,
+     * "Founding Business Systems Analyst"; this string was a hand-typed copy of the same
+     * fact and still served the one before it. A reader saw one in the tab and a search
+     * engine parsed the other out of the same document. (Both those strings are history:
+     * the record of what the job is has only ever been `CAREER[0]`, and it has moved since.)
      *
      * A copy of a fact drifts the moment the fact moves, and a title is the last place
      * anyone thinks to edit — so the copy is gone rather than corrected. `CAREER[0]` is
@@ -271,16 +272,20 @@ export const METADATA: {
      * estimate that tells you to front-load, not as a specification with slack to spend.
      * Against that estimate, measured in Chrome: the four-part title this replaces ran
      * **724px**, and the pre-promotion one it inherited from ran **635px**, so on a desktop
-     * result "Enthusiastic Learner" was never shown to anyone; the copy here runs **578px**.
+     * result "Enthusiastic Learner" was never shown to anyone. The copy here runs **489px**,
+     * and every figure in the paragraph below predates that: they were all measured while
+     * `CAREER[0].job_name` still carried a "Founding " prefix, worth **89px** of this string.
      *
      * WHAT THE REWRITE DROPPED AND WHY. "Enthusiastic Learner" went first because no card,
      * page, goal or event on this site is about it, and it is now cut from {@link WELCOME}
      * too rather than surviving in the copy the title had to drop for width. Cycling stayed
      * because it is what the intro card's own h1 claims and what half the site is — a goal
-     * card and a wall of race bibs. Running has an equal claim and does not fit: five
-     * phrasings naming both sports were measured and the cheapest is 601px, which is the
-     * real reason only one sport is named. The name is the FULL one because a title is
-     * where a search engine decides which Calvin this is, which is the same reason
+     * card and a wall of race bibs. Running has an equal claim and was cut for width alone:
+     * five phrasings naming both sports were measured and the cheapest was 601px — against
+     * the longer job title, so that reason has expired rather than been overturned. Naming
+     * both sports is now a copy decision; re-measure the phrasings before calling it a
+     * width one again. The name is the FULL one because a title is where a search engine
+     * decides which Calvin this is, which is the same reason
      * {@link METADATA.full_name} exists for the schema. The em dash is the separator every
      * other page's title already uses — those pages are `<heading> — Calvin`, so this one
      * inverts the order and takes the full name deliberately: the home page is the entity,
