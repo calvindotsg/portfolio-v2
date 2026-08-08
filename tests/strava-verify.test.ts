@@ -1,5 +1,6 @@
 import {beforeAll, describe, expect, it} from "vitest";
 
+import {accessToken} from "../scripts/strava-auth.mjs";
 import {EVENTS} from "../src/data/races";
 import {raceKm, type RaceEvent, type Recording, recordingsOf} from "../src/lib/race";
 
@@ -40,15 +41,29 @@ import {raceKm, type RaceEvent, type Recording, recordingsOf} from "../src/lib/r
  * flight's wifi — a veto over deploying this site. A rate limit, an expired token or a
  * five-second timeout would read as "the site is broken". So it skips unless asked:
  *
- *     STRAVA_VERIFY=1 STRAVA_CLIENT_ID=… STRAVA_CLIENT_SECRET=… STRAVA_REFRESH_TOKEN=… \
+ *     op run --env-file=.env.op -- env STRAVA_VERIFY=1 \
  *       pnpm vitest run tests/strava-verify.test.ts
  *
- * Credentials come from the environment, never from this file and never from a secret
- * store read in here: the repo's rule is that a configurable value lives in a GitHub
- * secret, a GitHub variable or the repository's own content, and `scripts/fetch-strava-progress.mjs`
- * reads the same four names. Locally they can come out of 1Password —
- * `op read 'op://Personal/calvindotsg-strava/refresh_token'` and its siblings — which is
- * where the workflow's own comment says the durable copies are.
+ * `.env.op` holds `op://` REFERENCES rather than values, so `op run` resolves them into this
+ * process's environment and no credential is written to disk or pasted into a shell. The
+ * bare-env form this replaced — three `STRAVA_…=…` assignments on the command line — put live
+ * secrets in shell history and in `ps`, and it was the invocation a reader was most likely to
+ * copy.
+ *
+ * THE TOKEN COMES FROM `scripts/strava-auth.mjs`, which is the one place in this repository
+ * that turns those three credentials into an access token. This file used to POST its own
+ * `grant_type: refresh_token` — a fourth copy of the refresh, against the LIVE credential,
+ * which dropped a rotated token on the floor exactly as the bot's inline version did before
+ * it was replaced. A rotation dropped here is unrecoverable in both stores.
+ *
+ * SO THIS FILE CAN NOW WRITE A SECRET STORE, and the note it replaces said the opposite —
+ * "never from a secret store read in here". The credentials still arrive only through the
+ * environment, and the repo's rule is unchanged: a configurable value lives in a GitHub
+ * secret, a GitHub variable or the repository's own content. What is new is the rotation
+ * path. If Strava returns a new refresh token during this suite's refresh, `accessToken`
+ * writes it to 1Password and then re-copies it to the GitHub secret, because that is the only
+ * behaviour that keeps the credential alive — see the argument on `persistRotation`. Running
+ * this suite is therefore not a read-only act.
  *
  * IT NEEDS `activity:read_all`, NOT `activity:read`. A detailed activity read answers 404
  * — not 403 — when the token lacks the scope, so an under-scoped token looks exactly like
@@ -123,23 +138,17 @@ const details = new Map<string, Detail>();
 
 describe.skipIf(!ENABLED)("EVENTS against the Strava API", () => {
     beforeAll(async () => {
+        // A PRE-FLIGHT FOR THE MESSAGE, NOT A SECOND READ OF THE CONTRACT. `accessToken`
+        // rejects a missing variable by name, one at a time, which is the right message for a
+        // script and the wrong one for a suite nobody runs by default: the reader needs to be
+        // told what this whole invocation wanted, not which variable it happened to notice
+        // first. The names below are checked and then discarded — the values are read inside
+        // `accessToken`, from the same `process.env`.
         const {STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN} = process.env;
         if (!STRAVA_CLIENT_ID || !STRAVA_CLIENT_SECRET || !STRAVA_REFRESH_TOKEN) {
             throw new Error("STRAVA_VERIFY=1 needs STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET and STRAVA_REFRESH_TOKEN");
         }
-        const tokenRes = await fetch("https://www.strava.com/oauth/token", {
-            method: "POST",
-            headers: {"content-type": "application/json"},
-            body: JSON.stringify({
-                client_id: STRAVA_CLIENT_ID,
-                client_secret: STRAVA_CLIENT_SECRET,
-                refresh_token: STRAVA_REFRESH_TOKEN,
-                grant_type: "refresh_token",
-            }),
-        });
-        if (!tokenRes.ok) throw new Error(`token refresh failed: ${tokenRes.status}`);
-        const {access_token} = await tokenRes.json() as {access_token?: string};
-        if (!access_token) throw new Error("no access_token in the refresh response");
+        const access_token = await accessToken(process.env);
 
         for (const {event: e, part} of pairs) {
             const id = part.id;

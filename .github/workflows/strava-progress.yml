@@ -60,7 +60,10 @@ jobs:
           # 1Password may CHANGE either credential, and that it writes 1Password before
           # re-copying to GitHub. This job cannot reach it, so it writes neither store — see
           # `scripts/strava-auth.mjs` for what a rotation costs here, and `pnpm strava:sync`
-          # for the tool that re-copies the truth.
+          # for the tool that re-copies the refresh token, which is the one of the two that
+          # rotates. The client secret has no re-copy tool because nothing rotates it: it
+          # changes only when a person changes it in the Strava app, and then both stores are
+          # updated by hand.
           STRAVA_ATHLETE_ID: ${{ vars.STRAVA_ATHLETE_ID }}
           STRAVA_CLIENT_ID: ${{ vars.STRAVA_CLIENT_ID }}
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}

@@ -1,5 +1,11 @@
 import {readFileSync, readdirSync} from "node:fs";
 import {Evaluator, Lexer, Parser, data} from "@actions/expressions";
+// THE SUBPATH MATTERS AND vitest WILL NOT TELL YOU. `FunctionDefinition` is not re-exported
+// from the package root; importing it from there type-checks as `any` under the bundler's
+// resolution and runs perfectly green, then `pnpm check` — which is the only type gate over
+// this file — fails. The package's `exports` map sends `./*` to `./dist/*`, so this is the
+// path the declaration actually lives at.
+import type {FunctionDefinition} from "@actions/expressions/funcs/info";
 import {truthy} from "@actions/expressions/result";
 import {parse} from "yaml";
 import {describe, expect, it} from "vitest";
@@ -56,7 +62,13 @@ interface Job {
     "continue-on-error"?: boolean | string;
 }
 
-const CI_PATH = ".github/workflows/ci.yml";
+/**
+ * The directory, module-scoped because two blocks below sweep it for different reasons — the
+ * Node version's homes and the unattended deploy's guard. It was declared inside the first of
+ * those until the second needed it, and a second literal is how the two would come to disagree.
+ */
+const WORKFLOW_DIR = ".github/workflows";
+const CI_PATH = `${WORKFLOW_DIR}/ci.yml`;
 const CI = parse(readFileSync(CI_PATH, "utf8")) as {jobs: Record<string, Job>};
 
 const jobIds = Object.keys(CI.jobs);
@@ -586,13 +598,12 @@ describe("the context set is sharp enough to catch the defects it was written fo
  * would land. `strava-progress.yml` has no `setup-node` at all today and is silently fine.
  */
 describe("the Node version has one home", () => {
-    const WORKFLOWS = ".github/workflows";
     const NVMRC = readFileSync(".nvmrc", "utf8").trim();
 
-    const setupNodeSteps = readdirSync(WORKFLOWS)
+    const setupNodeSteps = readdirSync(WORKFLOW_DIR)
         .filter((file) => /\.ya?ml$/.test(file))
         .flatMap((file) => {
-            const doc = parse(readFileSync(`${WORKFLOWS}/${file}`, "utf8")) as {jobs?: Record<string, Job>};
+            const doc = parse(readFileSync(`${WORKFLOW_DIR}/${file}`, "utf8")) as {jobs?: Record<string, Job>};
             return Object.entries(doc.jobs ?? {}).flatMap(([job, definition]) =>
                 (definition.steps ?? [])
                     .filter((step) => /^actions\/setup-node@/.test(step.uses ?? ""))
@@ -601,7 +612,7 @@ describe("the Node version has one home", () => {
 
     it("reads a version out of .nvmrc at all, so the assertions below are not comparing to nothing", () => {
         expect(NVMRC, ".nvmrc is empty or unreadable").toMatch(/^v?\d+(\.\d+)*$/);
-        expect(setupNodeSteps.length, `no job in ${WORKFLOWS} uses actions/setup-node, so every assertion `
+        expect(setupNodeSteps.length, `no job in ${WORKFLOW_DIR} uses actions/setup-node, so every assertion `
             + "in this block is vacuous").toBeGreaterThan(0);
     });
 
@@ -630,6 +641,180 @@ describe("the Node version has one home", () => {
             expect(declared, `${step.where} declares ${JSON.stringify(declared)}. With neither, the step takes `
                 + "whatever Node the runner image happens to ship and the version silently tracks GitHub's "
                 + "rollout schedule; with both, `node-version` wins and the file is decoration.").toHaveLength(1);
+        }
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// The step that asks CI to build and deploy — the one production behaviour in its own PR
+// that nothing could see.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A STEP-LEVEL GUARD, EXECUTED IN FOUR SITUATIONS, BECAUSE READING IT PROVES NOTHING.
+ *
+ * `strava-progress.yml`'s last step dispatches `ci.yml`, and that dispatch is THE ONLY
+ * UNATTENDED DEPLOY THE SITE HAS: a push made with `GITHUB_TOKEN` triggers no workflow run,
+ * so without this step the nightly commit reaches `main` and nothing builds. The step used to
+ * run under the implicit `if: success()`, which cost the site its daily rebuild whenever the
+ * fetch or the push failed — and the site has a CLOCK as well as a distance, so a day without
+ * a build is a day of stale countdowns whether or not the owner rode.
+ *
+ * MEASURED BEFORE THIS BLOCK EXISTED, and each of these left the whole suite green:
+ * `always()` in place of the shipped guard, the guard DELETED entirely, and a silent revert
+ * to `success()`. Three mutually exclusive behaviours, one green board.
+ *
+ * NOT PINNED AS A STRING, and that is the whole reason this is an evaluation rather than a
+ * `toBe`. `!cancelled()`, `${{ !cancelled() }}` and `success() || failure()` are three
+ * spellings of one guard, and a string pin reddens on two correct ones. What the guard has to
+ * SAY is a four-row table, so the table is what is asserted.
+ *
+ * THE DEFAULT IS THE LOAD-BEARING PART. A step with no `if:` runs under `success()`, so
+ * modelling "absent" as "unguarded" would make DELETING the guard skip the case instead of
+ * failing it — which is precisely the hole this block exists to close. `guardOfStep` returns
+ * `"success()"` for a missing key rather than `undefined`.
+ */
+const STATUS_FUNCTIONS = ["success", "failure", "cancelled", "always"] as const;
+
+/**
+ * THE FOUR SITUATIONS, NAMED RATHER THAN REDUCED. Two of them — a failed fetch and a failed
+ * push — currently produce the same status triple, and both are kept on purpose: they are the
+ * two failures the workflow's own comment reasons about separately, and a future guard
+ * reading `steps.<id>.outcome` would tell them apart. A table listing only the distinct
+ * triples would silently stop covering one of them on the day that happened.
+ */
+const STEP_SITUATIONS: Record<string, {failed: boolean; cancelled: boolean}> = {
+    "every earlier step succeeded": {failed: false, cancelled: false},
+    "the Strava fetch step failed": {failed: true, cancelled: false},
+    "the commit-and-push step failed": {failed: true, cancelled: false},
+    "the run was cancelled": {failed: false, cancelled: true},
+};
+
+/**
+ * GitHub's status functions as the platform defines them, including the two easy mistakes:
+ * on a CANCELLED run `success()` is false and `failure()` is ALSO false, because a
+ * cancellation is neither. `always()` is the only one true in every row, which is exactly why
+ * it is the wrong guard here.
+ *
+ * REGISTERED ON BOTH THE PARSER AND THE EVALUATOR. `@actions/expressions` ships
+ * `wellKnownFunctions` WITHOUT the status functions — the block above records that any of
+ * them in a guard used to THROW during parsing, before evaluation could happen — so handing
+ * them to the evaluator alone yields a parse error rather than an answer.
+ */
+const statusFunctions = (situation: {failed: boolean; cancelled: boolean}): Map<string, FunctionDefinition> => {
+    const answers: Record<typeof STATUS_FUNCTIONS[number], boolean> = {
+        success: !situation.failed && !situation.cancelled,
+        failure: situation.failed && !situation.cancelled,
+        cancelled: situation.cancelled,
+        always: true,
+    };
+    return new Map(STATUS_FUNCTIONS.map((name) => [name, {
+        name, minArgs: 0, maxArgs: 0,
+        call: () => new data.BooleanData(answers[name]),
+    }]));
+};
+
+/**
+ * `${{ … }}` IS A LEGAL WRAPPER ON AN `if:` AND MEANS THE SAME THING — GitHub evaluates a
+ * bare `if:` as an expression already, and both forms appear in real workflows. Lexing the
+ * braces would be a parse error reported as a broken guard.
+ */
+const evaluateStep = (expr: string, situation: {failed: boolean; cancelled: boolean}): boolean => {
+    const funcs = statusFunctions(situation);
+    const infos = [...funcs.values()].map(({name, minArgs, maxArgs}) => ({name, minArgs, maxArgs}));
+    const bare = expr.trim().replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
+    const parser = new Parser(new Lexer(bare).lex().tokens, ["github"], infos);
+    const context = new data.Dictionary({key: "github", value: toData({})});
+    return truthy(new Evaluator(parser.parse(), context, funcs).evaluate());
+};
+
+/** A step with no `if:` runs under `success()`. See above — this default IS the gate. */
+const guardOfStep = (step: Step): string => step.if ?? "success()";
+
+/**
+ * DISCOVERED FROM WHAT THE STEP DOES, not from a workflow path or a step name, for the reason
+ * `publishingJobs` above is discovered from the deploy token: a second dispatcher added in
+ * another file is exactly where the next copy of this defect lands, and a hardcoded path
+ * would go on reviewing the old one forever.
+ */
+const dispatchers = readdirSync(WORKFLOW_DIR)
+    .filter((file) => /\.ya?ml$/.test(file))
+    .flatMap((file) => {
+        const doc = parse(readFileSync(`${WORKFLOW_DIR}/${file}`, "utf8")) as {jobs?: Record<string, Job>};
+        return Object.entries(doc.jobs ?? {}).flatMap(([job, definition]) =>
+            (definition.steps ?? [])
+                .filter((step) => /gh workflow run/.test(step.run ?? ""))
+                .map((step) => ({where: `${file} → ${job} → ${step.name ?? "(unnamed step)"}`, step})));
+    });
+
+/**
+ * WHAT A DISPATCHER MUST SAY. Run when everything worked; run when an earlier step FAILED —
+ * the clock moved even if the kilometres did not, and the dispatch names a REF, so `ci.yml`
+ * checks out and builds `main` regardless of what the failing runner did or did not push —
+ * and do NOT run when a human or a concurrency rule cancelled the run, which would turn a
+ * deliberate stop into a deploy.
+ */
+const DISPATCH_INTENT: Record<string, boolean> = {
+    "every earlier step succeeded": true,
+    "the Strava fetch step failed": true,
+    "the commit-and-push step failed": true,
+    "the run was cancelled": false,
+};
+
+describe("the unattended deploy's own guard", () => {
+    it("finds a step that dispatches another workflow at all, so the rows below are not vacuous", () => {
+        expect(dispatchers.map((d) => d.where), "no step in .github/workflows/ runs `gh workflow run`, so every "
+            + "assertion in this block is vacuous — and the site's only unattended deploy is gone")
+            .not.toEqual([]);
+        expect(Object.keys(DISPATCH_INTENT).sort(), "the intent table and the situation table have drifted apart")
+            .toEqual(Object.keys(STEP_SITUATIONS).sort());
+    });
+
+    /**
+     * THE ENGINE ITSELF, asked whether it can still tell the four situations apart. Without
+     * this the whole block could pass on an evaluator that answered `true` to everything —
+     * not a hypothetical, since `always()` is a real function that does exactly that and the
+     * rows below would be satisfied by an engine stuck on it.
+     */
+    it.each(Object.keys(STEP_SITUATIONS))("computes GitHub's status functions on: %s", (name) => {
+        const situation = STEP_SITUATIONS[name];
+        expect(evaluateStep("always()", situation), "always() is true in every situation").toBe(true);
+        expect(evaluateStep("cancelled()", situation)).toBe(situation.cancelled);
+        expect(evaluateStep("success()", situation)).toBe(!situation.failed && !situation.cancelled);
+        expect(evaluateStep("failure()", situation)).toBe(situation.failed && !situation.cancelled);
+        // The `${{ }}` wrapper is the same expression, not a different one.
+        expect(evaluateStep("${{ !cancelled() }}", situation)).toBe(evaluateStep("!cancelled()", situation));
+    });
+
+    it.each(Object.keys(STEP_SITUATIONS))("runs the dispatch exactly when it should on: %s", (name) => {
+        expect(dispatchers.length).toBeGreaterThan(0);
+        for (const {where, step} of dispatchers) {
+            expect(evaluateStep(guardOfStep(step), STEP_SITUATIONS[name]),
+                `${where} dispatches CI, and on "${name}" its guard \`${guardOfStep(step)}\` must evaluate to `
+                + `${DISPATCH_INTENT[name]}. This step is the site's only unattended deploy: it must survive a `
+                + "failed fetch and a failed push — the dispatch names a ref, so CI builds `main` either way — and "
+                + "it must NOT fire on a cancellation, which would turn a deliberate stop into a deploy.")
+                .toBe(DISPATCH_INTENT[name]);
+        }
+    });
+
+    /**
+     * THE CRITERION, ASKED IN THE OTHER DIRECTION. The three wrong guards are the three that
+     * were each measured green before this block existed, so the table has to be shown
+     * REJECTING them — otherwise a criterion that happened to accept everything would look
+     * exactly like this one. `success()` is also what a DELETED `if:` means, so that row does
+     * double duty.
+     */
+    it("rejects every guard that was measured green while behaving differently", () => {
+        const says = (guard: string) => Object.fromEntries(
+            Object.entries(STEP_SITUATIONS).map(([name, s]) => [name, evaluateStep(guard, s)]));
+        for (const wrong of ["success()", "always()", "failure()"]) {
+            expect(says(wrong), `\`${wrong}\` satisfies the dispatch intent, so this table cannot tell it apart `
+                + "from the shipped guard").not.toEqual(DISPATCH_INTENT);
+        }
+        for (const right of ["!cancelled()", "${{ !cancelled() }}", "success() || failure()"]) {
+            expect(says(right), `\`${right}\` is a legitimate spelling of the shipped guard and this table must `
+                + "accept it — a string pin would redden on it").toEqual(DISPATCH_INTENT);
         }
     });
 });

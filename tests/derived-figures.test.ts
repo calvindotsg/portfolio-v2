@@ -100,9 +100,22 @@ const RIDDEN_BY_REFERENCE: readonly RaceEvent[] = riddenBy(THIS_YEAR, REFERENCE)
  * A race recorded AFTER the reference is in neither the frozen kilometres (it had not been
  * ridden) nor the booked figure (it carries a recording, so {@link bookedAhead} calls it
  * ridden and books nothing for it). The required rate published below is therefore the
- * model evaluated with the reference's kilometres against THIS COMMIT's calendar — which
- * is exactly what the same triple has always meant in tests/projection.test.ts, whose
- * pinned rate is the same number this file publishes.
+ * model evaluated with the reference's kilometres against THIS COMMIT's live calendar.
+ *
+ * IT USED TO SAY THAT WAS "the same thing the pinned assertions in tests/projection.test.ts
+ * mean", AND THAT SENTENCE IS NOW FALSE — it was true when written and was falsified by the
+ * commit that fixtured the rate assertions. `describe("required rate")` there divides
+ * against a frozen `REFERENCE_CALENDAR` declared beside it; this file divides against live
+ * `EVENTS`. They are two different quantities that happen to agree, because the fixture was
+ * built from what `bookedAhead` answered on the live calendar at the reference. MEASURED at
+ * the moment the divergence was reachable: one added booked ride published **69** here while
+ * **74** stayed pinned there, and both were green.
+ *
+ * THE DIVERGENCE IS THE DESIGN, not a defect to close. A booked race is a change to what the
+ * home page claims, so it SHOULD move this document and show up in its diff; it is not a
+ * change to the arithmetic, so it should NOT redden an assertion about the arithmetic. What
+ * has to be true is that a reader is never told the two figures are one figure — which is
+ * what this note now says instead.
  *
  * THAT IS AN EPOCH MIX AND IT IS DISCLOSED RATHER THAN DESIGNED OUT, because the two
  * available ways to design it out are both worse. Advancing the reference moves every
@@ -257,8 +270,15 @@ function disclosure(post: readonly RaceEvent[]): string[] {
     lines.push("kilometres are not in the frozen totals — they had not been ridden — and they are not in");
     lines.push("the booked figure either, because a race carrying a recording is one the projection");
     lines.push("treats as already ridden. So the required rate is the model evaluated with the");
-    lines.push("reference's kilometres against the calendar as this commit holds it, which is the same");
-    lines.push("thing the pinned assertions in `tests/projection.test.ts` mean by the same reference.");
+    lines.push("reference's kilometres against the LIVE calendar as this commit holds it.");
+    lines.push("");
+    lines.push("That is NOT the same quantity the pinned assertions in `tests/projection.test.ts` state.");
+    lines.push("`describe(\"required rate\")` there divides against a frozen fixture calendar, so the two");
+    lines.push("agree today only because the fixture was built from what the live calendar booked at the");
+    lines.push("reference — and they are MEANT to diverge: booking a race changes what the home page");
+    lines.push("claims, so it moves the figure below and shows up in this file's diff, while leaving an");
+    lines.push("assertion about the arithmetic alone. Quote this figure as what the model says today,");
+    lines.push("never as what the suite pins.");
     lines.push("");
     for (const e of post) {
         lines.push(`- ${e.date} · ${e.sport} · ${e.name} · ${n2(raceKm(e))} km`);

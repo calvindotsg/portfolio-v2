@@ -27,8 +27,15 @@ These races are in NEITHER account, and the required rate below is affected by i
 kilometres are not in the frozen totals — they had not been ridden — and they are not in
 the booked figure either, because a race carrying a recording is one the projection
 treats as already ridden. So the required rate is the model evaluated with the
-reference's kilometres against the calendar as this commit holds it, which is the same
-thing the pinned assertions in `tests/projection.test.ts` mean by the same reference.
+reference's kilometres against the LIVE calendar as this commit holds it.
+
+That is NOT the same quantity the pinned assertions in `tests/projection.test.ts` state.
+`describe("required rate")` there divides against a frozen fixture calendar, so the two
+agree today only because the fixture was built from what the live calendar booked at the
+reference — and they are MEANT to diverge: booking a race changes what the home page
+claims, so it moves the figure below and shows up in this file's diff, while leaving an
+assertion about the arithmetic alone. Quote this figure as what the model says today,
+never as what the suite pins.
 
 - 2026-07-29 · running · Garmin Run Virtual Challenge · 10.16 km
 - 2026-08-02 · cycling · Pesta Sukan Round Island Bike Adventure · 160.56 km

@@ -261,9 +261,13 @@ One suite is OPT-IN and reaches the network, which is why it is listed apart:
   the race's own day. A race recorded in parts names several, so it also holds the RACE's
   own two figures — its distance against the summed metres, and its elapsed time against
   the span from the first recording's start to the last one's stop, which is not any single
-  activity's figure and cannot be checked anywhere else. It skips unless `STRAVA_VERIFY=1`, and needs
-  `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN` in the environment —
-  the same names `scripts/fetch-strava-progress.mjs` reads. Deliberately not part of the
+  activity's figure and cannot be checked anywhere else. It skips unless `STRAVA_VERIFY=1`, and
+  gets its token from `scripts/strava-auth.mjs` like everything else here, so it needs the same
+  three credentials in the environment — supply them with
+  `op run --env-file=.env.op`, never as bare assignments on a command line. **Running it is not
+  a read-only act**: a refresh that rotates the token makes `accessToken` write 1Password and
+  then the GitHub secret, because dropping a rotation kills the credential in both stores.
+  Deliberately not part of the
   default run: `pnpm test` gates both deploys, so a rate limit or an expired token would read
   as a broken site. It is the ONLY thing that can catch a mistyped `metres`, which no offline
   test can see: a row stores the API's own figure and the kilometres a reader sees for the ride

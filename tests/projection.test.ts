@@ -348,8 +348,20 @@ const at = (sport: string, raw: number): Goal => ({...goalBySport(sport), raw_pr
  * THE ROWS REPRODUCE WHAT THE PAGE ACTUALLY DIVIDED BY, so the literals below are still the
  * figures the site rendered on `AS_OF` rather than an invented pair: 42.00 + 1022.00 booked
  * for cycling and 63.30 for running were `bookedAhead`'s live answers at that date. One
- * SHAPE of each is kept, not one name — a single-day race and a nine-day tour — because the
- * tour is what exercises the pro-rata branch on the way to the same sum.
+ * SHAPE of each is kept, not one name — a single-day race and a genuinely multi-day tour —
+ * so that the fixture is the same kind of calendar the figures came off.
+ *
+ * THE TOUR DOES NOT COVER THE PRO-RATA BRANCH, and this note says so outright because the
+ * sentence it replaces claimed the opposite and read as a coverage argument. Every date
+ * below is in July and the tour starts in November, so `bookedAhead` takes the `today <=
+ * start` arm and books it whole; the pro-rata line is never reached. MEASURED: replacing
+ * `km += booked * ((totalDays - doneDays) / totalDays)` in `src/lib/projection.ts` with a
+ * `throw` leaves all seven cases in this describe GREEN, and reddens exactly two elsewhere —
+ * `describe("booked race distance")`'s pro-rata case and the abandoned-tour case, which pass
+ * dates that reach the branch. `end_date` on the row below is therefore inert here too:
+ * deleting it also leaves all seven green. Those two are where pro-rata is owned; do not
+ * move this fixture's dates to reach it, which would move 1064, then 74 and 18, then
+ * `src/lib/derived-figures.md`.
  *
  * WHAT THIS DELIBERATELY DOES NOT DO is fixture `describe("booked race distance")` above,
  * whose whole subject is what the live calendar books and whose comment says the sum is
@@ -380,10 +392,20 @@ describe("required rate", () => {
         // has a fractional part below .5, so rounding to nearest asks for a rate that delivers
         // LESS than the goal needs — the case that rules round out. One day later the fraction
         // is above .5 and round gives the same answer as ceil, so that date alone cannot tell
-        // the two apart. The figures, and a census of how many of the remaining sport-days
-        // discriminate at all, are derived and published in `src/lib/derived-figures.md`; read
-        // them there rather than copying them back into this comment, which is the mistake that
-        // file exists to end.
+        // the two apart. Which two dates those are is a property of REFERENCE_CALENDAR, so it
+        // is stable; see the note on the fixture.
+        //
+        // THE CENSUS IN `src/lib/derived-figures.md` IS NO LONGER ABOUT THIS TEST, and the
+        // pointer that used to sit here has been cut rather than repaired. That document counts
+        // the discriminating sport-days over the LIVE calendar, which stopped being this test's
+        // denominator when the assertions above moved onto the fixture — so sending a reader
+        // there for "the figures" would hand them a number derived from a different divisor and
+        // invite exactly the re-copying that file exists to end. Read it for the rounding
+        // ARGUMENT, which is unchanged and is about the real calendar; do not read it as this
+        // test's arithmetic. Publishing a second census over the fixture was the alternative and
+        // is worse: it would need the fixture hoisted into `tests/helpers/reference.ts` to be
+        // reachable — one test file may not import another, see the note there — and would give
+        // that document two subjects where its whole value is having one.
         //
         // WHICH DATE PLAYS WHICH ROLE USED TO FLIP WITH THE NUMERATOR, and the pair had already
         // swapped once: the round-island ride's recording moved the kilometres owed, and with
@@ -828,11 +850,24 @@ describe("the scope split: a lifetime wall, a goal card that is one year", () =>
  * above it just left for `tests/data-contract.test.ts` on the rule "an assertion that holds
  * for any valid DATA belongs with the data".
  *
- * These six hold for no data at all. They exercise `nextProgress` and `serialise` — imported
- * from the shipped `scripts/fetch-strava-progress.mjs` — against LITERAL fixtures, including
- * `""` and `"{not json"`, which is a script's behaviour rather than a property of the
- * calendar. Filing them beside the race modules would put a test of a workflow's zero-diff
- * gate in a file about races.
+ * FOUR OF THE SIX HOLD FOR NO DATA AT ALL. They exercise `nextProgress` and `serialise` —
+ * imported from the shipped `scripts/fetch-strava-progress.mjs` — against LITERAL fixtures,
+ * including `""` and `"{not json"`, which is a script's behaviour rather than a property of
+ * any calendar.
+ *
+ * THE OTHER TWO DO READ THE SHIPPED JSON, and the first draft of this note said all six were
+ * data-free, which is the kind of tidy criterion that is easier to write than to check.
+ * MEASURED, one edit at a time against `src/data/strava-progress.json` with the values
+ * untouched: reindenting it from four spaces to two reddens `PRESERVES updated_at
+ * byte-for-byte`, and rewriting `updated_at` as `02/08/2026` reddens `ships updated_at`.
+ * Nothing else moves in either case.
+ *
+ * THEY STILL BELONG HERE, and the reason is what the criterion should have been. Neither is
+ * a claim about the CALENDAR — the file they read is the bot's own output, and what they
+ * assert is the workflow's zero-diff gate: `strava-progress.yml` commits only when `git diff
+ * --quiet` reports a change, so the bytes on disk have to be the bytes `serialise` would
+ * write. That is a property of a script and of a workflow, and filing it beside the race
+ * modules would put it in a file about races.
  */
 describe("the bot's write contract", () => {
     const raw = readFileSync("src/data/strava-progress.json", "utf8");
