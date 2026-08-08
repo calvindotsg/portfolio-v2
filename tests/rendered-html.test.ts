@@ -214,7 +214,8 @@ describe("page content", () => {
         // EXACTLY the name, not merely containing it. A computed accessible name is the
         // CONCATENATION of the subtree, so a second sr-only span beside this one is
         // announced as part of the name — "Link Link Link. What's a /now page?" satisfied a
-        // `toContain` check while `src/content/home.ts` no longer owned what a reader hears.
+        // `toContain` check while `constants.ts`, as the content module then was, no longer
+        // owned what a reader hears.
         //
         // BOTH strings are named here, IN ORDER, for that reason. The second is the
         // new-tab warning, and it goes last on purpose: it says what the link DOES, which
@@ -1211,7 +1212,8 @@ describe("control semantics", () => {
         // The name is DERIVED from `LINKS`, not written here. An earlier version
         // hard-coded "Strava Profile", which made renaming the link in its sanctioned
         // single home red the deploy gate for a content edit that broke nothing — and
-        // the failure message claimed the value came from the content module when it did not.
+        // the failure message claimed the value came from `constants.ts`, as it was then,
+        // when it did not.
         const configured = LINKS.filter(({link}) => link.includes("strava.com"));
         expect(configured, "`src/content/site.ts` declares exactly one Strava control").toHaveLength(1);
 

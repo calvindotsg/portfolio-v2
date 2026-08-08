@@ -100,9 +100,10 @@ import {BUILD_DATE} from "./today"
  * way from the obvious one: it is not that arithmetic here is expensive, it is that this
  * module reaches `EVENTS`, and that collector is an `import.meta.glob`. `uno.config.ts` is
  * loaded through unconfig/jiti rather than Vite, jiti has no `import.meta.glob`, and a single
- * edge from that graph to this one kills `astro build` and vitest itself. The four modules
- * that graph does reach carry the rule at their own heads; the failure is written out above
- * `EVENTS` in `src/data/races/index.ts`.
+ * edge from that graph to this one kills `astro build` and vitest itself. `uno.config.ts`'s own
+ * import list is the census of what that graph reaches — read it there rather than from a copy
+ * here, which is the enumeration that goes stale; the failure is written out above `EVENTS` in
+ * `src/data/races/index.ts`.
  */
 
 /** The bot's stamp: the day the kilometres last MOVED, not the day they were last checked. */

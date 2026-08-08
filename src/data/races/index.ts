@@ -73,12 +73,14 @@ import type {RaceEvent} from "../../lib/race"
  * `tests/data-contract.test.ts` holds the two in step from the other side, and holds this
  * array to date order so the sort cannot quietly be simplified away.
  *
- * THE GLOB IS WHY NOTHING MAY RE-EXPORT THIS MODULE FROM ANYTHING `uno.config.ts` IMPORTS —
- * today `src/content/site.ts`, `src/content/home.ts`, `src/content/races.ts` and
- * `src/lib/goal.ts`, each of which carries the rule at its own head. Those are loaded through
- * unconfig/jiti rather than Vite, and jiti has no `import.meta.glob` — a re-export drags this
- * line into that graph and kills `astro build` and vitest itself, four lines of `glob is not a
- * function` with no test executed.
+ * THE GLOB IS WHY NOTHING MAY RE-EXPORT THIS MODULE FROM ANYTHING `uno.config.ts` IMPORTS.
+ * That config's own import list is the census of which modules those are — read it there, and
+ * follow it one hop further, since a module it imports drags in whatever IT imports. An
+ * enumeration here was wrong twice: it named four when the graph reached six, and the two it
+ * omitted are exactly the ones a reader would not guess, one of them reached only by way of
+ * another. Those modules are loaded through unconfig/jiti rather than Vite, and jiti has no
+ * `import.meta.glob` — a re-export drags this line into that graph and kills `astro build` and
+ * vitest itself, four lines of `glob is not a function` with no test executed.
  */
 const modules = import.meta.glob<{default: RaceEvent}>("./*.ts", {eager: true})
 

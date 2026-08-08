@@ -23,7 +23,7 @@
 //   3. Recordings are ordered by START TIME, because the bib lists them in ride order and the
 //      order the ids were typed on the command line is not that.
 //
-// Zero dependencies, plain node — the same posture as its two siblings in this directory.
+// Zero dependencies, plain node — the same posture as every sibling in this directory.
 // Credentials come from `scripts/strava-auth.mjs`, which reads the environment when called.
 import { readdirSync, existsSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";

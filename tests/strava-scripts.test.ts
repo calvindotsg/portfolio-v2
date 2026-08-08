@@ -16,7 +16,9 @@ import {
 import * as stravaSync from "../scripts/strava-sync.mjs";
 
 /**
- * THE THREE SCRIPTS UNDER `scripts/` THAT TALK TO STRAVA, held offline.
+ * THE SCRIPTS UNDER `scripts/` THAT TALK TO STRAVA, held offline. Every script in that
+ * directory does, so read the directory rather than a count here — this said three when it
+ * was already four.
  *
  * WHY THEY NEED A SUITE AT ALL. `tests/strava-verify.test.ts` reaches the API and is opt-in,
  * so nothing in a default `pnpm test` used to execute a single line of the credential path or

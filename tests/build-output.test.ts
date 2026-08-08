@@ -1771,10 +1771,14 @@ describe("the stylesheet ships no rule nobody wears", () => {
      * cannot be avoided. Note the content modules' prose is NOT scanned, so Calvin's
      * own copy cannot trip this — only text inside .astro files.
      */
-    // `my` is not on this list. Every "My" the site says is authored content rather than
-    // template text, so no lowercase "my" is left in any .astro file, the rule stops being
-    // emitted, and the guard below demands the entry go. `me` survives it: "About me" is
-    // still a card title. Exactly the rot this pair of assertions exists to prevent.
+    // `my` is not on this list, and CASE is the whole of why. The extractor matches the
+    // lowercase token, and every "My" the site says is capitalised — including the one in
+    // template text at `Goal.astro:66`, which builds a card title and still emits nothing
+    // because of its capital. No lowercase "my" is left in any .astro file, so the rule
+    // stops being emitted and the guard below demands the entry go. That also says what
+    // would bring it back: one word lowercased mid-sentence, not a new component. `me`
+    // survives it — "About me" is still a card title. Exactly the rot this pair of
+    // assertions exists to prevent.
     // Four came off the patch wall, and each is a REAL DECLARATION rather than a word
     // in a sentence — the shape that cannot be reworded, which is why they are
     // recorded here rather than fixed at source:
