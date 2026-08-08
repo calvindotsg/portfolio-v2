@@ -1,6 +1,6 @@
 # Implementation Plans
 
-**Plans 022–023 are executable; 022 is next.** Four runs are complete: plans 001–014 are all DONE,
+**Plan 023 is executable and is the last of this run.** Four runs are complete: plans 001–014 are all DONE,
 merged, and live on https://calvin.sg, as is plan **015**, which came from the
 maintainer resolving DIRECT-01 rather than from an audit run. Those plan files
 and the full evidence log are archived in [`done/`](done/README.md).
@@ -120,7 +120,7 @@ recreated.
 | 019 | Generate the projection's derived figures instead of writing them by hand | P1 | M | 018 | **DONE** (`14d652e`) |
 | 020 | Make each race its own module, so adding one is adding a file | P1 | L | 019 | **DONE** (`46119ae`) |
 | 021 | Split the copy out of `constants.ts` and delete the file | P2 | L | 020 | **DONE** (`4bf156d`) |
-| 022 | Separate the data contract from behaviour, and promote the Strava tooling | P2 | L | 020 | **TODO** |
+| 022 | Separate the data contract from behaviour, and promote the Strava tooling | P2 | L | 020 | **DONE** (`a00c819`) |
 | 023 | Sweep the prose references no gate catches | P2 | M | 019, 020, 021, 022 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
