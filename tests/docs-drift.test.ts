@@ -192,16 +192,24 @@ function liveDocs(): string[] {
         .sort();
 }
 
-/** Every backticked run of non-whitespace in `file`, with the line it sits on. */
-function backticked(file: string): {token: string, line: number}[] {
+/** Every backticked run of non-whitespace in `text`, with the line it sits on. */
+function backtickedIn(text: string): {token: string, line: number}[] {
     const out: {token: string, line: number}[] = [];
-    read(file).split("\n").forEach((text, i) => {
-        for (const m of text.matchAll(/`([^`\n]{2,120})`/g)) {
+    text.split("\n").forEach((line, i) => {
+        for (const m of line.matchAll(/`([^`\n]{2,120})`/g)) {
             const token = m[1].trim().replace(/[\\),.:;]+$/, "");
             if (token && !/\s/.test(token)) out.push({token, line: i + 1});
         }
     });
     return out;
+}
+
+/** As {@link backtickedIn}, over the contents of `file`. */
+const backticked = (file: string) => backtickedIn(read(file));
+
+/** Every basename in the tree, so a document naming a file with no directory can be checked. */
+function basenamesInTree(): Set<string> {
+    return new Set(walk(".").map((p) => p.split("/").pop()!));
 }
 
 const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven",
@@ -235,6 +243,46 @@ describe("documentation, against the code it describes", () => {
      * outlives the thing it excuses is the same defect this file exists to catch, one
      * level up.
      */
+    /**
+     * A BARE FILENAME IS A CLAIM ABOUT THE FILESYSTEM TOO, and until this rule existed it was
+     * the claim nothing checked. The prefix restriction above is what keeps the path rule at
+     * zero false positives, and it also means a token with no directory in it never reaches
+     * `existsSync` — so `constants.ts` written without its `src/lib/` was invisible. MEASURED,
+     * and this is the whole argument for the rule: plan 021 deleted that file and 33 bare
+     * references to it survived a fully green suite. Renaming anything is a migration whose
+     * prose half no gate could see.
+     *
+     * IT ASKS THE WEAK QUESTION ON PURPOSE — does the repository hold a file with this name,
+     * anywhere. It cannot say the pointer leads to the RIGHT file, because a bare name does not
+     * say which directory it meant; `index.ts` is fourteen files here and every one of them
+     * satisfies this. What it does say is that the name still refers to something, which is
+     * exactly the rot a deletion or a rename leaves behind.
+     *
+     * THE EXTENSIONS ARE THE ONES THIS REPOSITORY ROTS IN, and the shape is deliberately
+     * narrow: a lowercase name with a source or config extension and no slash. Prose is full
+     * of backticked code that would read as a filename to a looser pattern. MEASURED over the
+     * live tree when this landed: 108 tokens matched, 101 resolved, and every one of the 7
+     * that did not named the file plan 021 deleted.
+     */
+    const BARE_SOURCE_FILE = /^[a-z0-9][a-z0-9.-]*\.(ts|astro|mjs|js|json|yml|sh|py)$/;
+
+    /**
+     * NAMES KEPT IN ORDER TO RECORD THAT THEY ARE GONE — the bare-filename half of the excuse
+     * list below, and asserted in both directions for the same reason. `plans/done/` is exempt
+     * wholesale because a plan that stopped naming what it deleted would stop being a record of
+     * the deletion; these are the handful of live documents doing the same job.
+     *
+     * AN EXCUSE HERE COVERS THE NAME EVERYWHERE, which is weaker than a path excuse and is why
+     * an entry is the last resort rather than the cheap way out. When this list was written the
+     * rule reported nine sites for these two names: six were records and three were ordinary rot
+     * in a comment, and all three were fixed rather than covered. Excusing them would have been a
+     * green suite over the exact defect the rule was added to find.
+     */
+    const GONE: Record<string, string> = {
+        "constants.ts": "split into src/content/ and src/data/ by plan 021 and deleted. plans/README.md's execution table names it as that plan's own title, and its dated audit-findings sections name it as what was true when each audit ran — both are records rather than pointers",
+        "constants.test.ts": "renamed to content.test.ts by the same plan. The suite-list gate below names it to record the hole that rename walked into, which is the reason that gate has its current shape",
+    };
+
     const NAMED_AS_ABSENT: Record<string, string> = {
         "public/llms.txt": "replaced by the generated endpoint src/pages/llms.txt.ts in PR #108; named in several places precisely to record that the hand-written file is gone",
         "public/404.html": "the alternative src/pages/404.astro rejects in its own comment — a static copy of the shell outside the theme, the analytics tag and the build-date stamp",
@@ -243,28 +291,91 @@ describe("documentation, against the code it describes", () => {
         "src/content/config.ts": "the legacy spelling of the same config, named in the same sentence and absent for the same reason",
     };
 
-    it("names no file that is not there", () => {
-        const misses: string[] = [];
-        let checked = 0;
-        for (const file of liveDocs()) {
-            if (isProposal(file)) continue;
-            for (const {token, line} of backticked(file)) {
-                if (!TOP_LEVEL.some((t) => token.startsWith(t))) continue;
-                if (/[*${}]/.test(token)) continue; // globs and interpolations are not paths
-                const path = token.replace(/:\d+(-\d+)?$/, "").replace(/\/$/, "");
-                if (Object.hasOwn(NAMED_AS_ABSENT, token) || Object.hasOwn(NAMED_AS_ABSENT, `${path}/`)) continue;
-                checked++;
-                if (!existsSync(resolve(path))) misses.push(`${file}:${line} names \`${token}\``);
+    /**
+     * THE RULE ITSELF, TAKEN OUT OF THE LOOP SO IT CAN BE EXERCISED ON A DOCUMENT THAT DOES NOT
+     * EXIST. A gate whose only stimulus is the live tree can only be calibrated by breaking the
+     * tree, which means in practice it is not calibrated at all — both directions of this one
+     * are asserted below against text written for the purpose, with the two predicates stubbed.
+     *
+     * `hasPath` and `hasFile` are handed in for that reason and are the real `existsSync` and
+     * the real basename index in the gate.
+     */
+    type Named = {token: string, line: number, kind: "path" | "file"}
+    function unmetNames(
+        tokens: {token: string, line: number}[],
+        hasPath: (p: string) => boolean,
+        hasFile: (name: string) => boolean,
+    ): {misses: Named[], considered: number} {
+        const misses: Named[] = [];
+        let considered = 0;
+        for (const {token, line} of tokens) {
+            if (/[*${}]/.test(token)) continue; // globs and interpolations are not paths
+            const bare = token.replace(/:\d+(-\d+)?$/, "").replace(/\/$/, "");
+            if (TOP_LEVEL.some((t) => token.startsWith(t))) {
+                if (Object.hasOwn(NAMED_AS_ABSENT, token) || Object.hasOwn(NAMED_AS_ABSENT, `${bare}/`)) continue;
+                considered++;
+                if (!hasPath(bare)) misses.push({token, line, kind: "path"});
+            } else if (BARE_SOURCE_FILE.test(bare)) {
+                if (Object.hasOwn(GONE, bare)) continue;
+                considered++;
+                if (!hasFile(bare)) misses.push({token, line, kind: "file"});
             }
         }
-        expect(checked, "no document named a repository path — this gate is vacuous").toBeGreaterThan(50);
-        expect(misses, "these documents name paths that do not exist. Fix the reference, or add it to NAMED_AS_ABSENT with the reason it is named at all").toEqual([]);
+        return {misses, considered};
+    }
+
+    it("names no file that is not there", () => {
+        const present = basenamesInTree();
+        const found: string[] = [];
+        let considered = 0;
+        for (const file of liveDocs()) {
+            if (isProposal(file)) continue;
+            const run = unmetNames(backticked(file), (p) => existsSync(resolve(p)), (n) => present.has(n));
+            considered += run.considered;
+            for (const {token, line} of run.misses) found.push(`${file}:${line} names \`${token}\``);
+        }
+        expect(considered, "no document named a repository path or file — this gate is vacuous").toBeGreaterThan(50);
+        expect(found, "these documents name files that do not exist. Fix the reference, or add it to NAMED_AS_ABSENT (a path) or GONE (a bare filename) with the reason it is named at all").toEqual([]);
+    });
+
+    /**
+     * BOTH DIRECTIONS OF BOTH HALVES, on text this file owns rather than on the tree. The
+     * stimulus each assertion needs is the one the gate would otherwise never meet: a name that
+     * is not there.
+     *
+     * THE FIXTURE'S BACKTICKS ARE BUILT RATHER THAN TYPED, and the first draft of this test is
+     * why. This file is gated by the rule it defines, so a quoted fake name is a claim like any
+     * other — writing the two absent names in real backticks reddened the gate, naming this test
+     * as the offending document. The names are assembled here so they exist for the extractor
+     * without existing for the gate.
+     */
+    it("catches a name that is gone, and passes one that is there", () => {
+        const tick = "`";
+        const quoted = (s: string) => `${tick}${s}${tick}`;
+        const doc = [
+            `a path that is there: ${quoted("src/lib/projection.ts")}`,
+            `a path that is not: ${quoted("src/lib/vanished.ts")}`,
+            `a bare name that is there: ${quoted("projection.ts")}`,
+            `a bare name that is not: ${quoted("vanished.ts")}`,
+            `not a filename at all: ${quoted("display:contents")}`,
+        ].join("\n");
+        const present = new Set(["projection.ts"]);
+        const {misses, considered} = unmetNames(backtickedIn(doc),
+            (p) => p === "src/lib/projection.ts", (n) => present.has(n));
+        expect(misses.map(({token, kind}) => `${kind} ${token}`))
+            .toEqual(["path src/lib/vanished.ts", "file vanished.ts"]);
+        expect(considered, "the two names that ARE there must reach a predicate too, or the rule is only half exercised").toBe(4);
     });
 
     it("keeps no excuse for a file that has come back", () => {
         for (const [path, why] of Object.entries(NAMED_AS_ABSENT)) {
             expect(existsSync(resolve(path.replace(/\/$/, ""))),
                 `${path} exists again, so its NAMED_AS_ABSENT entry is now false: "${why}"`).toBe(false);
+        }
+        const present = basenamesInTree();
+        for (const [name, why] of Object.entries(GONE)) {
+            expect(present.has(name),
+                `a file called ${name} exists again, so its GONE entry is now false: "${why}"`).toBe(false);
         }
     });
 
