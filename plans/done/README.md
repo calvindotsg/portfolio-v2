@@ -1037,3 +1037,137 @@ in 023's grep paths and its table now.
 `main` at `4bf156d`; suite re-run in the primary checkout after confirming the fast-forward moved
 HEAD — **493 passed / 7 skipped across 18 suites**, the baseline exactly, which is the point of a
 behaviour-free change. Containment proved by tree diff against the branch head: empty.
+
+# Plan 022 — separate the data contract from behaviour, and promote the Strava tooling
+
+Merged as `a00c819` (PR #140), archived in the same run. Executed by a dispatched executor in
+an isolated worktree, then a 19-agent panel, then one revision round, then merged.
+Suite **493 → 527** passed / 7 skipped.
+
+## What the plan was wrong about
+
+Its citations were authored at `8ce7565` and every one had moved by roughly twenty lines —
+`describe("EVENTS")` `:522`→`:504`, `describe("the bot's write contract")` `:1099`→`:1081`, the
+required-rate literal `:352`→`:331`, the width budgets `:447`/`:456`→`:429`/`:438`. Those were
+handed over as a delta and cost nothing. **Three things did cost something:**
+
+- **A PREMISE IN THE MAINTENANCE NOTES WAS SIMPLY FALSE.** The plan says `src/lib/today.ts`'s
+  comment points at `describe("the bot's write contract")` "as one half of a deliberately
+  paired assertion". It does not: `today.ts:48` names `"the site's clock"`, a different block.
+  The plan's conclusion (leave the write contract where it is) survives; its stated reason does
+  not. The correct pairing is now recorded on both describes rather than in the plan.
+- **`.scratchpad/` IS GITIGNORED, so Step 4's source material is not in an executor's
+  worktree.** The plan says to promote `scripts/scaffold-race.mjs` from
+  `.scratchpad/strava-activity-details.sh` "rather than written fresh" — a file the executor
+  cannot see. Solved by pointing at the MAIN checkout's absolute path, read-only.
+- **THE PLAN NAMED ONE ASSERTION TO FIXTURE AND THERE WERE TWO.** `:331` and a twin pin the
+  same literal `74` on the same edit, so fixturing only the named one would have left the same
+  digit reddening the same file on the same data edit — defeating the step. The executor found
+  this and said so; five panel lenses reproduced it independently.
+
+## The measurement, and why it needs a condition attached
+
+| tree | booked race dated 2026-09-01 | dated 2026-11-28 |
+|---|---|---|
+| base `316b837` | 4 red | 4 red |
+| merged | **2 red** | **3 red** |
+
+**The count depends on the DATE, and both the executor's report and the first PR body stated
+it flat.** The third assertion is `booked race distance > PRO-RATES a multi-day event`, which
+pins `bookedAhead("cycling", "2026-11-07")`: a September race is already past by that date, a
+November one is not. The reviewer's own "independent verification" used 25 October — inside
+the window — and so confirmed a claim that is only conditionally true. The condition now sits
+beside the number in `tests/projection.test.ts`.
+
+## The panel: 19 agents, 30 findings, 0 deaths, 6/6 calibration, both controls correct
+
+The false control (assertions weakened during the move) was **REFUTED on executed evidence**:
+byte-identical extracts by three methods, an `expect(` ledger conserving at ±29, and
+`git diff --numstat` showing 316 added / 0 deleted. The true control was kept and reframed.
+
+**Three MAJORs, all fixed:**
+
+1. **A generated document asserted an identity the change dissolved.** `src/lib/derived-figures.md`
+   said its published required rate "is the same thing the pinned assertions in
+   `tests/projection.test.ts` mean". Step 2 made them two quantities — the doc divides against
+   live `EVENTS`, the assertions against `REFERENCE_CALENDAR`. They agree today *by
+   construction* and are designed to diverge on the next booked race, silently, both green.
+2. **`scripts/strava-auth.mjs:1`'s universal was false when written.** `tests/strava-verify.test.ts`
+   still POSTed its own refresh against the LIVE credential and dropped a rotated token. The
+   claim was NEW IN THIS PR, which is what made it a defect rather than pre-existing debt.
+3. **The one production behaviour change was ungated in BOTH directions** — `always()` green,
+   guard deleted green, a silent revert to `success()` green.
+
+**The `if:` gate is the piece worth reusing.** `tests/workflow-guards.test.ts` now evaluates
+`strava-progress.yml`'s guard in GitHub's own engine. Measured, and re-run by the reviewer:
+
+| mutation | result |
+|---|---|
+| guard **deleted** | 2 red |
+| `always()` | 1 red (the cancellation row) |
+| `success()` | 2 red |
+| `${{ !cancelled() }}` | green — a legitimate spelling must not redden |
+| `success() \|\| failure()` | green |
+| engine broken (`cancelled()` always false) | 3 red |
+
+Four details that are each easy to get wrong and were each measured: register the status
+functions on **both** `Parser` and `Evaluator`; import `FunctionDefinition` from
+`@actions/expressions/funcs/info` (the wrong path passes vitest and fails `pnpm check`);
+**default a missing `if:` to `"success()"`, without which deleting the guard SKIPS instead of
+reddening**; discover dispatchers by `/gh workflow run/` in `run:` rather than by path. A
+string pin (`toBe("!cancelled()")`) reddens on correct code and was rejected.
+
+## The behaviour reversal, and why it is safe
+
+`A FAILED PUSH MUST NOT DEPLOY` was written into `strava-progress.yml` and is now reversed.
+Its premise was false: `gh workflow run ci.yml --ref main` names a REF, and `ci.yml`'s
+`actions/checkout` carries **no explicit `ref:`**, so CI builds `main` as GitHub has it and the
+runner's own checkout never reaches the deploy. A failed push cost the site its daily rebuild
+and bought nothing. `!cancelled()` rather than `always()` because `always()` also fires on a
+human pressing Cancel. The old argument is rewritten in place rather than deleted.
+
+## Defects the panel found in the new tooling
+
+- **A Strava activity title containing `*/` closed the scaffold's JSDoc and landed as
+  executable top-level code**, which `pnpm check` accepted. `JSON.stringify` escapes quotes and
+  backslashes, **not `*/`**.
+- **A repeated activity id emitted two identical `recordings` rows**, doubling the race's
+  distance, exit 0.
+- **A 1 January race scaffolded as 31 December and left `GOAL_YEAR`** — the date came from
+  `start_date` rather than `start_date_local`, on an untested line whose neighbouring comment
+  asserted it was correct. A 06:00 SGT start is the previous UTC day.
+- **The absent-field gate was a five-name deny-list**; a sixth field passed silently. The
+  allow-list needs a **per-row loop over `recordings`** — `official:` inside a recording row
+  stays green without it.
+- **The credential suite read one field of one request.** Six mutations green, including wrong
+  URL, wrong method, and `client_secret` sourced from the refresh token. **This repo is
+  public**, so a stray `console.log` would publish a live token to a world-readable Actions log.
+- **`scripts/**/*.mjs` was linted by nothing.** Widening the eslint glob alone is a measured
+  **silent no-op** — the scripts arm needs its own `eslint.config.js` block with its own globals.
+
+## Two remedies rejected as measurably harmful
+
+- **`canReachTheTruth()` → `op whoami`.** This machine has `"accounts": null`: no CLI session
+  has ever existed and every read authenticates per-command through the desktop app, so
+  `op whoami` is non-zero in the ORDINARY WORKING STATE. The "fix" would make a real rotation
+  refuse a write that would have succeeded.
+- **Moving the tour's dates** to make a fixture comment true — it cascades into 1064, then the
+  pinned 74/18, then `derived-figures.md`.
+
+## Credentials
+
+**Nothing touching the vault or a live credential was executed** — no `op`, no `op read`, no
+`gh secret set`. `pnpm strava:sync` is dry by default and requires `--write`; that path and the
+local arm of `persistRotation` remain untested, because 1Password was locked throughout the run
+(the same lock that broke SSH commit signing). `.env.op`'s `op://` references are therefore
+unverified by execution.
+
+**Two panel agents ran `op read` and `op item get` anyway.** The prompt told them never to
+reproduce a secret value; it did not tell them not to FETCH one, and those are different
+instructions. Nothing reached the repo. Say both, every time.
+
+## Post-merge activation
+
+`main` at `a00c819`; suite re-run in the primary checkout after confirming the fast-forward
+moved HEAD — **527 passed / 7 skipped across 19 suites**. Containment proved by tree diff
+against the branch head: empty.
