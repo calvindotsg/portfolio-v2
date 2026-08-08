@@ -2350,8 +2350,9 @@ describe("source hygiene", () => {
      * CanvasText bare.
      *
      * ASKED OF EVERY MARK, not of icon-only controls, and the widening is most of the value:
-     * the 32 bare marks the base rule exists for are precisely the population the gate above
-     * skips, because a bare mark is in no control at all.
+     * a bare mark is in no control at all, so the marks the base rule exists for are ones the
+     * gate above can never reach — and they are not the only thing it skips, since a mark beside
+     * words is decoration to it and not to this.
      *
      * READ THROUGH `pageCss(page)`, WHICH IS LOAD-BEARING RATHER THAN STYLISTIC. This gate's
      * whole rule is last-declaration-wins, and that helper returns links and inline blocks
@@ -2365,8 +2366,9 @@ describe("source hygiene", () => {
      * A MARK NO RULE REACHES FAILS HERE rather than being skipped, and that is deliberate. Every
      * mutation anyone would write against this test changes a VALUE, so none of them can detect
      * a skip branch; a `continue` for the unreached case would leave this gate strictly weaker
-     * than the reach-only one beside it, silently. Deleting the shared `@media` block fails this
-     * test 78 times.
+     * than the reach-only one beside it, silently. Deleting the shared `@media` block leaves all
+     * 78 marks unreached and fails this test — on the first of them, since vitest aborts a test
+     * at its first failed expectation rather than reporting all 78.
      *
      * The system-colour keywords are compared LOWER-CASED because the minifier lower-cases them.
      * The source says `CanvasText`; the shipped sheet says `canvastext`. A case-sensitive
@@ -2405,7 +2407,15 @@ describe("source hygiene", () => {
                 if (![...glyph.classList].some((c) => c.startsWith("i-"))) continue;   // not an icon mask
                 examined++;
 
-                // In cascade order, so the last rule to name a property is the one that wins.
+                /*
+                 * LAST MATCHING RULE WINS, WHICH IS SOURCE ORDER AND NOT THE WHOLE CASCADE. It is
+                 * the right answer here because the three shared arms are authored in ascending
+                 * specificity — bare, then `a`, then `button` — so order and specificity agree.
+                 * Deliberately not a specificity scorer: one was measured against this tree and
+                 * reddened 46 correct rules. What it cannot see is a MORE specific rule placed
+                 * EARLIER, or an `!important`; if either ever appears in a forced-colours block,
+                 * this resolution is what has to change.
+                 */
                 let paint: string | undefined, adjust: string | undefined;
                 for (const rule of forced) {
                     const reaches = rule.selectors.some((s) => {
@@ -2432,8 +2442,8 @@ describe("source hygiene", () => {
                 expect(paint?.toLowerCase() ?? "(unreached)",
                     `${where} must be repainted ${expected} when colours are forced. The mode overrides `
                     + `background-color and this mark IS a background-color, so the colour it is given is the `
-                    + `only thing that keeps it on screen — and it must be the one the mode reserves for a `
-                    + `${kind} container, or the glyph disagrees with the words beside it. Expected `
+                    + `only thing that keeps it on screen — and it must be the one the mode reserves for `
+                    + `that container, or the glyph disagrees with the words beside it. Expected `
                     + `${expected}, found ${paint ?? "no background-color from any forced-colors rule"}.`)
                     .toBe(expected);
 
