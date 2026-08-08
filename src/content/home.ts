@@ -49,7 +49,7 @@ export const CAREER: {
         "Built customer support and ops from scratch, growing towards 6 figure weekly active users"
     ],
     end_date: "Present",
-    job_name: "Founding Business Systems Analyst",
+    job_name: "Business Systems Analyst",
     start_date: "Aug 2023",
     icon: "ri:tools-line"
 }, {
@@ -60,7 +60,7 @@ export const CAREER: {
         "I'm your Sherlock with data and logs to solve tricky technical problems"
     ],
     end_date: "Aug 2023",
-    job_name: "Business Systems Analyst",
+    job_name: "Business Analyst",
     start_date: "Jun 2022",
     icon: "ri:search-line"
 }]
@@ -137,11 +137,11 @@ export const ABOUT_ME: {
  * The intro card's h1 stack — one `<h1>` per line, and THE JOB LINE IS DERIVED like every other
  * statement of the job on this site.
  *
- * IT USED TO BE A TYPED COPY, AND IT WAS WRONG. The line read "Business Systems Analyst." —
- * character-identical to {@link CAREER}[1].job_name, the title held at NCS until Aug 2023 — while
- * the role card a few hundred pixels below it announced the current "Founding Business Systems
- * Analyst" and showed the NCS one with its own dates. The page stated the previous employer's job
- * title as the present tense, in its own largest type. A review panel found it while the fix for
+ * IT USED TO BE A TYPED COPY, AND IT WAS WRONG. The line was character-identical to the NCS title
+ * of the day — {@link CAREER}[1].job_name, held until Aug 2023 — while the role card a few hundred
+ * pixels below it announced the then-current HeyMax one from {@link CAREER}[0] and showed the NCS
+ * one with its own dates. The page stated the previous employer's job title as the present tense,
+ * in its own largest type. A review panel found it while the fix for
  * the identical defect in `<title>` was in flight: correcting one typed copy of a fact and leaving
  * the other is not a fix, it is a relocation.
  *
