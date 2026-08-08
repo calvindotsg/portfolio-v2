@@ -13,7 +13,7 @@ export default defineConfig({
      *
      * NOTE WHAT IS NOT IN THIS LIST: `EVENTS`. The patch wall draws a sport's icon,
      * and it gets it from the GOAL that owns the sport (`goalForSport` in
-     * constants.ts) rather than from a table of its own, so the two entries below
+     * `src/lib/goal.ts`) rather than from a table of its own, so the two entries below
      * for GOALS already cover every bib on the wall. A second sport→icon map beside
      * EVENTS would ship class tokens this list never saw, and a presetIcons class
      * with no rule renders as a mask box at zero size — an icon that is silently

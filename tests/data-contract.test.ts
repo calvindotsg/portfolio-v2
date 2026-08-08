@@ -390,7 +390,7 @@ describe("EVENTS", () => {
      * it purely because they were new.
      *
      * BOTH ARE OPTIONAL AND THE LOOP MUST SAY SO. A sheet can publish a gun time alone — one on
-     * this calendar does, and constants.ts refuses to derive its net time by subtraction — so
+     * this calendar does, and `net_time` in `src/lib/race.ts` refuses to derive one by subtraction — so
      * asserting either field unconditionally would fail on correct data.
      */
     it("never carries an official result for a race that has not happened, and reads its clocks", () => {
