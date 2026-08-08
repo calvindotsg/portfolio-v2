@@ -34,7 +34,7 @@ const {event, state, index} = Astro.props;
  * "no patch here", which is true of both — and what tells them apart is text.
  *
  * The sport's icon and name come from the GOAL that owns the sport, never from a
- * lookup beside EVENTS — `goalForSport` in constants.ts has the argument, and the
+ * lookup beside EVENTS — `goalForSport` in `src/lib/goal.ts` has the argument, and the
  * short version is that uno.config.ts safelists icon classes by reading GOALS and
  * has no reason to read EVENTS. A second lookup ships a class UnoCSS never generated
  * a rule for, which renders as a mask box at zero size: correct markup, no icon,
@@ -117,7 +117,7 @@ const {event, state, index} = Astro.props;
  * THE OBJECTION THAT USED TO DECIDE THIS IS ANSWERED RATHER THAN OVERRULED. Delegating on
  * every bib was rejected once because it would give every linked bib the SAME accessible name
  * — one string, "View on Strava", repeated across as many races as the wall holds, which is
- * SC 2.4.4. That is exactly what `race_name` in constants.ts exists for: every stub link's
+ * SC 2.4.4. That is exactly what `race_name` in `src/content/races.ts` exists for: every stub link's
  * name now carries the race and its date, so the disambiguation the whole-bib form got for
  * free is stated instead of inherited. Verified on the rendered wall rather than argued —
  * patch-wall.test.ts holds every link name on a page distinct.
@@ -162,7 +162,7 @@ const recordings = recordingsOf(event);
 const dateText = formatPatchDate(event) ?? "";
 /*
  * WHICH RACE THIS IS, for any stub link whose on-screen words are the same on every bib. See
- * `race_name` in constants.ts for why every one of them is owed it.
+ * `race_name` in `src/content/races.ts` for why every one of them is owed it.
  */
 const raceName = PATCHES.race_name.replace("{race}", event.name).replace("{date}", dateText);
 /*
@@ -305,7 +305,7 @@ if (recordings.length === 1) {
     {/* THE LEDGER: WHOSE ACCOUNT, HOW FAR, HOW LONG — once per source that has one.
 
         THE HEADING STATES THE UNIT ONCE. Repeating it on every figure was built first and
-        does not fit; the measurements are in `time_head` in constants.ts. The distance
+        does not fit; the measurements are in `time_head` in `src/content/races.ts`. The distance
         heading is the goal's own `measurable_unit`, the same string the hero sets on its
         side, so the two cannot word it differently.
 
@@ -341,7 +341,7 @@ if (recordings.length === 1) {
     {/* THE STUB. One line per place this bib can go, each its own link, under one perforation.
 
         THE RESULTS SHEET IS FIRST because it is the one a logged-out reader can follow — see
-        `official_link` in constants.ts. Where a race was recorded in parts, each part prints
+        `official_link` in `src/content/races.ts`. Where a race was recorded in parts, each part prints
         its own distance and clock, so the bib's summed hero is never what any link promises.
 
         The race and the date are said in the accessible name rather than on the bib — this
@@ -1024,7 +1024,7 @@ if (recordings.length === 1) {
      * speed the rider never held. The old answer was a LABEL naming which clock; this one is
      * stronger, because the two figures a reader would naturally divide are now on the same
      * line and belong to the same instrument by construction. A gun time is never printed
-     * beside a GPS distance. See `official_row` in constants.ts for why the rows are named for
+     * beside a GPS distance. See `official_row` in `src/content/races.ts` for why the rows are named for
      * their SOURCE rather than for their clock, and what that costs.
      *
      * THREE COLUMNS ON THE LEDGER, NOT ON EACH ROW: a row is `display: contents`, so its three

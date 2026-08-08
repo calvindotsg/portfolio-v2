@@ -96,8 +96,14 @@ import {BUILD_DATE} from "./today"
  * {@link bookedAhead} takes neither: it has no default, because it is called by both
  * sides and must be handed the caller's own day rather than quietly pick one.
  *
- * This module deliberately lives outside `constants.ts`: that file is imported by
- * `uno.config.ts`, and arithmetic there would be evaluated during CSS generation.
+ * NOTHING `uno.config.ts` IMPORTS MAY IMPORT THIS MODULE, and the constraint runs the other
+ * way from the obvious one: it is not that arithmetic here is expensive, it is that this
+ * module reaches `EVENTS`, and that collector is an `import.meta.glob`. `uno.config.ts` is
+ * loaded through unconfig/jiti rather than Vite, jiti has no `import.meta.glob`, and a single
+ * edge from that graph to this one kills `astro build` and vitest itself. `uno.config.ts`'s own
+ * import list is the census of what that graph reaches — read it there rather than from a copy
+ * here, which is the enumeration that goes stale; the failure is written out above `EVENTS` in
+ * `src/data/races/index.ts`.
  */
 
 /** The bot's stamp: the day the kilometres last MOVED, not the day they were last checked. */

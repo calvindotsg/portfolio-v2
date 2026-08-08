@@ -13,7 +13,7 @@ export default defineConfig({
      *
      * NOTE WHAT IS NOT IN THIS LIST: `EVENTS`. The patch wall draws a sport's icon,
      * and it gets it from the GOAL that owns the sport (`goalForSport` in
-     * constants.ts) rather than from a table of its own, so the two entries below
+     * `src/lib/goal.ts`) rather than from a table of its own, so the two entries below
      * for GOALS already cover every bib on the wall. A second sport→icon map beside
      * EVENTS would ship class tokens this list never saw, and a presetIcons class
      * with no rule renders as a mask box at zero size — an icon that is silently
@@ -331,18 +331,7 @@ export default defineConfig({
      * backstop if that ever changes.
      */
     /*
-     * TWO SHORTCUTS, AND THEY ARE THE SITE'S TWO KINDS OF CONTROL. This file used to say there
-     * was one, deliberately; that sentence is retired rather than edited, because what changed
-     * is not the count but the discovery that the site had a second kind of control all along
-     * and had never named it.
-     *
-     *   `control`    the styled box — 64x48, bordered, wearing the offset plate. Six social
-     *                links and the theme toggle.
-     *   `text-link`  a link that is a run of words inside a sentence or a column of figures.
-     *                The goal cards' way out, the wall's way back, and the company name on each
-     *                role card.
-     *
-     * WHY THE SECOND ONE EXISTS: THREE LINKS WERE DRAWN EXACTLY LIKE STATIC TEXT. Two friends
+     * WHY `text-link` EXISTS: THREE LINKS WERE DRAWN EXACTLY LIKE STATIC TEXT. Two friends
      * reviewing the site did not know the goal card's "My cycling events" could be clicked, and
      * that turned out to be one instance of a class. Measured on the shipped build at 1024x600,
      * the goal-card control against the figure line directly above it:
@@ -358,20 +347,6 @@ export default defineConfig({
      * link must "differ from static text" (NN/g, "Beyond Blue Links"). It is also the ONLY cue
      * here that survives a phone, where the hover colour cannot happen — and a phone is where
      * both reports came from.
-     *
-     * IT IS A SHORTCUT RATHER THAN THREE COPIES because the three links must not drift apart.
-     * They already had three spellings of the same intent, and EventsLink.astro's own comment
-     * records that its control and the wall's "Home" link are meant to be the same object,
-     * mirrored. One name is what makes that true rather than aspirational.
-     *
-     * THE TREATMENT COSTS NO LAYOUT, WHICH IS THE ONLY REASON IT IS AFFORDABLE HERE. The
-     * right-hand stack has 4.4px of unspent height at its tightest lg configuration and a
-     * text-xs line costs 20px in each of two cards (see Goal.astro), so anything that added a
-     * row was out. Measured on the built page by injecting this treatment and re-reading every
-     * box under `main` at 390x844, 1024x600 and 1440x900: ZERO boxes moved, the goal card stayed
-     * 232.8px and the stack's unspent height stayed 4.41px. A weight bump was measured too — it
-     * is also affordable (it moves the four links' own widths and no card height) and is the
-     * escalation if this ever reads too quiet.
      *
      * `from-font` rather than a length: the face ships its own decoration position and
      * thickness, so this tracks the type instead of pinning a hairline that would go wrong at
@@ -396,7 +371,10 @@ export default defineConfig({
      * a 24px text link would either dilute the mark or claim a size these are not.
      */
     /*
-     * THERE ARE THREE NOW, AND THE THIRD IS WHY THE SURFACE IS A BASE AGAIN.
+     * THE SHORTCUTS ARE THE SITE'S KINDS OF CONTROL, AND THE SURFACE IS A BASE RATHER THAN ONE
+     * OF THEM. The `shortcuts` object below is the census; this list says what each one is FOR,
+     * which is the half the object cannot carry. (It read "there are three now" while listing
+     * four — a count in a heading is a count that rots, and the CTA is what made it wrong.)
      *
      *   `control-surface`  the plate, the accent border, the hover ink and the press. No box.
      *   `control`          that surface at 64 x 48, icon-only. Six social links, the toggle.

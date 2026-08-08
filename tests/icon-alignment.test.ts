@@ -258,7 +258,7 @@ describe("an inline icon is centred on its text's cap band", () => {
      * leave was not there — removing one social link made this file the failure.
      * Now a content edit moves both sides and lands nowhere near here.
      *
-     * The two theme-toggle glyphs are the only icons not named in constants.ts: the
+     * The two theme-toggle glyphs are the only icons not named under `src/content/`: the
      * toggle carries a sun and a moon and hides whichever one is not current.
      *
      * The Now card's explainer icon belongs in the FLEX group, and it is worth saying

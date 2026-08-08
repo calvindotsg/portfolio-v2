@@ -1310,7 +1310,7 @@ describe("dist/patches", () => {
             }
 
             // THE UNIT IS STATED ONCE, IN THE COLUMN IT GOVERNS. Repeating it on every figure
-            // was built first and does not fit — see `time_head` in constants.ts. The distance
+            // was built first and does not fit — see `time_head` in `src/content/races.ts`. The distance
             // heading comes from the GOAL, so it cannot disagree with the hero's sideways unit.
             const head = [...bib.querySelectorAll(".bib-ledger-head span")].map((s) => s.textContent?.trim());
             expect(head, `${event.name} heading row`)
@@ -1356,7 +1356,7 @@ describe("dist/patches", () => {
      *
      * IT IS A CORRECTNESS PROPERTY AND NOT A TASTE ONE, which is why it is gated rather than
      * left to review. The ledger's whole claim is that one row carries ONE source's distance
-     * beside that SAME source's clock — see `official_row` in constants.ts — and a 127px rift
+     * beside that SAME source's clock — see `official_row` in `src/content/races.ts` — and a 127px rift
      * between exactly those two figures argues the opposite of the thing the row exists to say.
      * A gap after the row's NAME has no such problem: a leader rail between a key and its
      * figures is what a results sheet already does.
@@ -1695,8 +1695,8 @@ describe("dist/patches", () => {
             const said = (line!.textContent ?? "").replace(/\s+/g, " ").toLowerCase();
             // DERIVED FROM THE EVENT, NOT FROM THE COMPONENT'S CHOICE. `net_time` is the
             // rider's own race and wins where the sheet publishes one; where it does not, what
-            // is left is a gun time and must be called that. constants.ts refuses to derive a
-            // net time by subtraction for exactly this reason.
+            // is left is a gun time and must be called that. `net_time` in `src/lib/race.ts`
+            // refuses to derive one by subtraction for exactly this reason.
             const right = official.net_time !== undefined ? "net" : "gun";
             const wrong = right === "net" ? "gun" : "net";
             if (right === "net") net++; else gun++;
@@ -2397,7 +2397,7 @@ describe("nothing inside the wall's card is pinned to a device pixel", () => {
  * THE NEW-TAB WARNING, and specifically WHERE IT LANDS.
  *
  * The bib opens a new tab and keeps doing so — the maintainer's call, and the argument
- * is recorded on NEW_TAB_NOTICE in constants.ts. What it owes a reader who cannot see
+ * is recorded on `NEW_TAB_NOTICE` in `src/content/site.ts`. What it owes a reader who cannot see
  * that happen is the warning WCAG SC 3.2.5 and technique G201 ask for, in advance.
  *
  * "In advance" is why the position is asserted rather than the presence. The obvious

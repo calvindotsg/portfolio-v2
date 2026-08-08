@@ -108,7 +108,7 @@ describe("date handling", () => {
      * every other test would stay green. A blocked deploy is the cheap failure; a
      * silently wrong page for the first weeks of January is the expensive one.
      *
-     * The January checklist is in the `GOAL_YEAR` doc comment in `constants.ts`.
+     * The January checklist is in the `GOAL_YEAR` doc comment in `src/data/goals.ts`.
      */
     it("stamps the goal year, so a stale JSON cannot divide fresh days into last year's km", () => {
         // Written out here rather than imported. It was an export of `projection.ts` whose

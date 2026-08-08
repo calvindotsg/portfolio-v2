@@ -214,7 +214,8 @@ describe("page content", () => {
         // EXACTLY the name, not merely containing it. A computed accessible name is the
         // CONCATENATION of the subtree, so a second sr-only span beside this one is
         // announced as part of the name — "Link Link Link. What's a /now page?" satisfied a
-        // `toContain` check while constants.ts no longer owned what a reader hears.
+        // `toContain` check while `constants.ts`, as the content module then was, no longer
+        // owned what a reader hears.
         //
         // BOTH strings are named here, IN ORDER, for that reason. The second is the
         // new-tab warning, and it goes last on purpose: it says what the link DOES, which
@@ -224,7 +225,7 @@ describe("page content", () => {
         const srOnly = [...link!.querySelectorAll(".sr-only")].map((s) => s.textContent?.trim()).filter(Boolean);
         expect(
             srOnly,
-            "the explainer link's announced text must come from constants.ts and be the whole of it, in order; extra hidden text concatenates into what is announced",
+            "the explainer link's announced text must come from the content modules and be the whole of it, in order; extra hidden text concatenates into what is announced",
         ).toEqual([NOW.explainer_name, NEW_TAB_NOTICE]);
 
         // The anchor holds exactly two things: the glyph and the name. Asserted on the
@@ -1095,7 +1096,7 @@ describe("control semantics", () => {
      * reworded span, or a reinstated aria-label, would change every announced
      * name with the suite still green.
      */
-    it("names every control from its sr-only text, matching constants.ts", () => {
+    it("names every control from its sr-only text, matching the content modules", () => {
         const named = [...doc.querySelectorAll("a.control")].map((a) => ({
             href: a.getAttribute("href"),
             name: a.querySelector(".sr-only")?.textContent?.trim(),
@@ -1110,7 +1111,7 @@ describe("control semantics", () => {
             // `${name} Profile` was itself the defect — it called a PDF a profile.
             ...LINKS.map(({name}) => name),
         ].sort();
-        expect(named.map(({name}) => name).sort(), "announced names must come from constants.ts").toEqual(expected);
+        expect(named.map(({name}) => name).sort(), "announced names must come from `src/content/site.ts`").toEqual(expected);
     });
 
     /**
@@ -1208,16 +1209,17 @@ describe("control semantics", () => {
      * noticing rather than something to discover from a diff.
      */
     it("links to Strava exactly once", () => {
-        // The name is DERIVED from constants.ts, not written here. An earlier version
+        // The name is DERIVED from `LINKS`, not written here. An earlier version
         // hard-coded "Strava Profile", which made renaming the link in its sanctioned
         // single home red the deploy gate for a content edit that broke nothing — and
-        // the failure message claimed the value came from constants.ts when it did not.
+        // the failure message claimed the value came from `constants.ts`, as it was then,
+        // when it did not.
         const configured = LINKS.filter(({link}) => link.includes("strava.com"));
-        expect(configured, "constants.ts declares exactly one Strava control").toHaveLength(1);
+        expect(configured, "`src/content/site.ts` declares exactly one Strava control").toHaveLength(1);
 
         const rendered = [...doc.querySelectorAll("a[href]")]
             .filter((a) => (a.getAttribute("href") ?? "").includes("strava.com"));
-        expect(rendered.map((a) => accessibleName(a)), "one Strava control, named from constants.ts")
+        expect(rendered.map((a) => accessibleName(a)), "one Strava control, named from `LINKS`")
             .toEqual(configured.map(({name}) => name));
     });
 
@@ -1233,13 +1235,13 @@ describe("control semantics", () => {
         expect((buttons[0].getAttribute("class") ?? "").split(/\s+/)).toContain("control");
     });
 
-    it("names the theme toggle from constants.ts, with one name for both states", () => {
+    it("names the theme toggle from `THEME_TOGGLE`, with one name for both states", () => {
         const toggle = doc.querySelector("#theme-toggle")!;
         const names = [...toggle.querySelectorAll(".sr-only")].map((s) => s.textContent?.trim());
         // Exactly one, not merely "includes the right one". A second name span is how
         // the changing-name pattern would start to grow back beside the pressed
         // state, which is the combination WAI-ARIA's guidance warns against.
-        expect(names, "one state-independent name, from constants.ts").toEqual([THEME_TOGGLE.name]);
+        expect(names, "one state-independent name, from `THEME_TOGGLE`").toEqual([THEME_TOGGLE.name]);
     });
 
     /**
@@ -1321,7 +1323,7 @@ describe("footer", () => {
  * intro card's social row. That is deliberate — the context change is conventional for
  * a social row, and six identical suffixes in a row is the noise technique G201's own
  * guidance warns about, making the list harder to scan by voice rather than easier.
- * NEW_TAB_NOTICE in constants.ts carries the reasoning.
+ * `NEW_TAB_NOTICE` in `src/content/site.ts` carries the reasoning.
  *
  * Without this assertion the obvious "improvement" is to announce it everywhere, which
  * nothing else here would catch: every other test on this page is satisfied by MORE

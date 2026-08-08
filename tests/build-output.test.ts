@@ -119,7 +119,7 @@ describe("dist/", () => {
      * to the constants it paraphrases. These assertions are that relationship.
      *
      * WHAT THIS CANNOT CATCH, AND WHY THAT IS CORRECT — found by calibrating it wrongly
-     * first. Editing a description in `constants.ts` leaves this GREEN, because the
+     * first. Editing a description in `src/content/home.ts` leaves this GREEN, because the
      * endpoint regenerates from the same constant the assertion reads: both sides move
      * together and the comparison is a tautology. That is not a hole to plug. Pinning
      * the literal string here would put the description in two places again, which is
@@ -1768,15 +1768,17 @@ describe("the stylesheet ships no rule nobody wears", () => {
      * (`grow`, `container`, and a reversed-row utility, all from comments written
      * while fixing the previous one). The failure names the token; the fix is a
      * one-word reword, or a `blocklist` entry in uno.config.ts when the word
-     * cannot be avoided. Note constants.ts prose is NOT scanned, so Calvin's own
-     * copy cannot trip this — only text inside .astro files.
+     * cannot be avoided. Note the content modules' prose is NOT scanned, so Calvin's
+     * own copy cannot trip this — only text inside .astro files.
      */
-    // `my` came off this list when the goal CTA's sr-only name stopped being
-    // built from a sentence ("Follow my running on Strava") and became the shared
-    // label in constants.ts — that removed the last lowercase "my" from any .astro
-    // file, so the rule stopped being emitted and the guard below demanded the
-    // entry go. `me` survives it: "About me" is still a card title. Exactly the
-    // rot this pair of assertions exists to prevent.
+    // `my` is not on this list, and CASE is the whole of why. The extractor matches the
+    // lowercase token, and every "My" the site says is capitalised — including the one in
+    // template text at `Goal.astro:66`, which builds a card title and still emits nothing
+    // because of its capital. No lowercase "my" is left in any .astro file, so the rule
+    // stops being emitted and the guard below demands the entry go. That also says what
+    // would bring it back: one word lowercased mid-sentence, not a new component. `me`
+    // survives it — "About me" is still a card title. Exactly the rot this pair of
+    // assertions exists to prevent.
     // Four came off the patch wall, and each is a REAL DECLARATION rather than a word
     // in a sentence — the shape that cannot be reworded, which is why they are
     // recorded here rather than fixed at source:
