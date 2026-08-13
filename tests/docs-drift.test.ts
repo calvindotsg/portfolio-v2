@@ -742,41 +742,50 @@ describe("documentation, against the code it describes", () => {
     });
 
     /**
-     * README.md'S TESTING SECTION LISTS THE SUITES, so a suite it does not list is a suite
-     * that does not exist as far as a reader is concerned. That is how this repository
-     * accumulated more than a dozen suites under a section that describes three of them at
-     * length and gestures at the rest — the gesture is fine, and it has to be complete.
+     * WHAT A SUITE IS FOR IS A PROPERTY OF THE SUITE, NOT OF THE README. This gate replaces one
+     * that held README.md's Testing section to a complete list of the files under `tests/`, and
+     * the replacement is a straight trade of the same property for a durable form of it.
      *
-     * The section is authoritative rather than decorative for a specific reason: it is the
-     * only place that says what each suite is FOR, and `pnpm test` prints filenames without
-     * saying which question any of them answers.
+     * THE OLD GATE WAS DEFENDING SOMETHING REAL: that section was the only place saying what each
+     * suite ANSWERED, and `pnpm test` prints filenames without saying which question any of them
+     * is for. But the form it defended that in was an enumeration of the tree kept in prose on the
+     * front page of the repository — the exact failure the rest of this file exists to catch,
+     * committed deliberately and then policed. It made the README grow by a paragraph per suite,
+     * and it put the cost of adding a suite on a document a reader of that suite never opens.
+     *
+     * SO THE EXPLANATION MOVED TO WHERE IT CANNOT DRIFT: beside the thing it explains. A reader
+     * asking what `patch-wall` is for opens `patch-wall.test.ts` and finds out. Nothing has to be
+     * kept in step with anything, renaming a suite carries its own reason along with it, and a
+     * suite added with no reason at all is RED rather than merely unmentioned — which is strictly
+     * more than the old gate could see, since a README sentence could always name a suite without
+     * saying anything about it.
+     *
+     * THE FLOOR IS MEASURED RATHER THAN CHOSEN. Every suite already complied when this was
+     * written, and the smallest pre-`describe` docblock ran to 611 characters, so 300 sits at
+     * roughly half the real minimum: it reddens on a header that is a line of throat-clearing and
+     * on a suite with no header at all, and it cannot redden on correct code. Tuning it upward
+     * until it bites one specific short header would be fitting the gate to today's tree, which
+     * is the habit this file argues against everywhere else.
      */
-    it("lists every test suite in the README", () => {
-        const suites = readdirSync("tests")
-            .filter((f) => f.endsWith(".test.ts"))
-            .map((f) => f.replace(/\.test\.ts$/, ""))
-            .sort();
+    it("holds every suite to its own explanation", () => {
+        const suites = readdirSync("tests").filter((f) => f.endsWith(".test.ts")).sort();
         expect(suites.length, "there are no suites — this gate is vacuous").toBeGreaterThan(5);
 
         /*
-         * THE MENTION HAS TO BE OF THE SUITE, AND A BARE SUBSTRING IS NOT. This read
-         * `readme.includes(s)` against the stem alone, which any prose containing that word
-         * satisfies — and plan 021 walked straight into it: renaming `constants.test.ts` to
-         * `content.test.ts` moved the suite's identity onto the token `content`, which the
-         * same commit wrote into README seven times as `src/content/`. The suite could then
-         * have been deleted from the Testing section with this gate still green, and three
-         * others (`build-output`, `derived-figures`, `projection`) were already vouched for
-         * by prose about the code rather than about the suite.
-         *
-         * A FULL PATH IS THE STRONG FORM AND A BACKTICKED STEM IS THE WEAK ONE, and both
-         * are needed: requiring the path form alone reddens on ten suites this README
-         * describes perfectly well in its own voice, which would be a gate failing on
-         * correct code rather than a gate finding anything.
+         * THE DOCBLOCK HAS TO PRECEDE THE FIRST `describe(`. A suite explained only in comments
+         * scattered among its assertions is explained to someone already reading it, which is not
+         * the reader this replaces the README list for. Anything after that point is ordinary
+         * commentary and is deliberately not counted.
          */
-        const readme = read("README.md");
-        const named = (s: string) => readme.includes(`tests/${s}.test.ts`) || readme.includes(`\`${s}\``);
-        expect(suites.filter((s) => !named(s)),
-            "README.md's Testing section does not mention these suites").toEqual([]);
+        const unexplained = suites.filter((f) => {
+            const src = read(`tests/${f}`);
+            const firstDescribe = src.indexOf("describe(");
+            const head = firstDescribe === -1 ? src : src.slice(0, firstDescribe);
+            const blocks = head.match(/^\/\*\*[\s\S]*?\*\//gm) ?? [];
+            return blocks.reduce((n, b) => n + b.length, 0) < 300;
+        });
+        expect(unexplained,
+            "these suites do not say what they are for, above their first describe()").toEqual([]);
     });
 
     /**

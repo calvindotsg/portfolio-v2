@@ -1,0 +1,194 @@
+# Scripts
+
+Everything the site needs from Strava. Plain node, zero dependencies, no TypeScript — because
+`.github/workflows/strava-progress.yml` runs one of these on GitHub Actions' preinstalled node
+with no `pnpm install` in front of it, and a dependency would buy an install step on the one
+path nobody watches.
+
+Each file argues its own decisions at the line that makes them. This page is the part that
+lives nowhere else: how they are invoked, what the nightly run does, and where the credentials
+come from.
+
+## The scripts
+
+**`scripts/fetch-strava-progress.mjs`** — the bot. Fetches the athlete's year-to-date ride and
+run totals and writes `src/data/strava-progress.json`, which `src/data/goals.ts` imports. The
+workflow invokes it as `node scripts/fetch-strava-progress.mjs`; it has no `pnpm` script of its
+own, because nothing about it is meant to be a local chore. It is fail-loud: any error exits
+non-zero, the workflow goes red, and no file is written. `updated_at` in that JSON means *the
+day the kilometres last moved*, not the day they were last checked, which is what lets an
+unchanged run produce a byte-identical file. To bump a figure by hand, edit that JSON rather
+than the goal; the target stays in `src/data/goals.ts` and caps the displayed figure.
+
+**`scripts/scaffold-race.mjs`** — `pnpm race:add <activity-id> [<activity-id> …]`. Writes a
+module under `src/data/races/` from the Strava activities a race was recorded as. One race,
+however many activities it was recorded as; which ones belong together is the rider's call and
+nothing can derive it. It is a scaffold and never a generator: it writes what the API knows and
+leaves every other field **absent**, so `pnpm check` names each missing field on the module it
+is missing from, instead of a placeholder that compiles and ships wrong.
+
+**`scripts/strava-sync.mjs`** — `pnpm strava:sync`. Re-copies the refresh token from 1Password
+onto the GitHub repository secret the bot reads. Dry by default; `-- --write` does it. The flag
+is the point: `gh secret set` is an irreversible write to the credential an unattended nightly
+job authenticates with, and the value it overwrites cannot be read back to compare or to
+restore.
+
+**`scripts/strava-auth.mjs`** — not invoked directly. It is the one place anything in this
+repository gets a Strava access token, imported by the others, and it holds the credential
+model described below.
+
+## The nightly run
+
+`.github/workflows/strava-progress.yml` runs the fetch on a cron at 21:13 UTC — 05:13 in
+Singapore, after a full Singapore day, and off the top of the hour to avoid GitHub's peak
+scheduling delays. It writes `src/data/strava-progress.json`, commits it, and asks
+`.github/workflows/ci.yml` to build and deploy.
+
+Outcomes in its log that read like failures and are not:
+
+**A run that commits nothing is the ordinary outcome.** The script re-reads the year-to-date
+totals in full every time rather than tracking what it last saw, so when the kilometres have
+not moved it writes byte-identical JSON, the commit step's `git diff --quiet` gate passes, and
+there is nothing to push. That gate is the only thing standing between this repository and a
+commit-push-deploy every night, which is why `updated_at` has to survive an unchanged run: a
+freshly stamped date would make the file differ by construction and the gate could never fire.
+
+**The deploy is dispatched either way.** The last step carries `if: '!cancelled()'`, so it runs
+on success and on failure and stops only on a cancel. It exists because a push made with
+`GITHUB_TOKEN` does not trigger a workflow run — GitHub suppresses it to stop recursion — so
+the commit reaches `main` and, on its own, nothing builds. It is independent of whether
+anything was committed because the site has a clock as well as a distance: `BUILD_DATE` in
+`src/lib/today.ts` feeds the countdown, `patchState`, `patchWall` and `nextRace`, and every one
+of those turns over at Singapore midnight whether or not the owner trained. Firing only on a
+commit froze the home page's countdown for as long as the owner rested. A failed fetch or a
+failed push must not cost the day's build either: the dispatch names a ref, so CI checks out
+`main` and builds whatever is on it, and the runner's own checkout never reaches the deploy.
+
+The dispatch step does not wait for the run it asks for. Green there means the build was
+*asked for*, never that it passed; read the CI run itself for that.
+
+## Asking for a run on demand
+
+The schedule does not use up the day. The workflow takes `workflow_dispatch`, so a run can be
+asked for at any time and as often as you like — the **Run workflow** button on the Actions
+tab, or:
+
+```bash
+gh workflow run strava-progress.yml --ref main
+```
+
+There is no cooldown and nothing to reset. That is the answer to "I rode after this morning's
+cron".
+
+## Which values are variables, and which are secrets
+
+The split follows this test: **does the value ship publicly?** — not "does it feel private".
+
+| Name | Kind | Why |
+|---|---|---|
+| `STRAVA_ATHLETE_ID` | Repository **variable** | Public on the site's own Strava links |
+| `STRAVA_CLIENT_ID` | Repository **variable** | Public by protocol — it is a query parameter of the OAuth authorize URL, so anyone who has connected the app has already seen it in their address bar |
+| `STRAVA_CLIENT_SECRET` | Repository **secret** | It authenticates |
+| `STRAVA_REFRESH_TOKEN` | Repository **secret** | It authenticates |
+
+Storing a public value as a secret costs something real and buys nothing. GitHub masks it, so
+it prints as `***` exactly when you are trying to read what the job sent, and a secret cannot
+be read back at all, which makes drift against the 1Password copy undetectable.
+
+The scripts hold no configuration of their own. Every name above arrives in the environment:
+from the repository's variables and secrets in CI, and from `.env.op` locally.
+
+## 1Password is the source of truth; the GitHub secrets are a copy
+
+That reads backwards until you notice that a GitHub secret cannot be read back. It can be
+compared with nothing and recovered from nothing, so the readable store — the
+`calvindotsg-strava` item — is the only one that can be authoritative.
+
+What follows from it:
+
+- Only a caller that can reach 1Password may **change** either credential.
+- It writes 1Password **before** re-copying to GitHub. A GitHub secret written first is a
+  credential whose only readable copy is already stale, which is the state this whole model
+  exists to prevent.
+
+`scripts/strava-auth.mjs` is where both rules live. Strava may return a new refresh token on a
+refresh, and the old one is spent the moment it does — so the script compares rather than
+assumes, and when it sees a rotation it persists it: 1Password first, then the GitHub copy.
+
+**When it cannot persist a rotation it writes nothing and throws.** CI is that case by design.
+The runner cannot reach 1Password, and the refusal is deliberate rather than incidental: a
+workflow that gained the 1Password CLI would be able to write the truth from a context nobody
+watches. A rotation there kills the chain in **both** stores at once — the token in the GitHub
+secret and the token in 1Password are each spent — and a sync would then push a dead credential
+over a dead credential. Recovery is a fresh OAuth authorize against the Strava app by hand, and
+only then `pnpm strava:sync -- --write`. Do not sync first.
+
+That is the accepted cost of a static-secret posture, not a gap in it. The alternative — letting
+CI write its own credentials — buys a self-healing chain and pays for it with a secret-writing
+path that runs unattended every night. So CI fails loudly on the day it happens, which is the
+only day the message can still be useful.
+
+The client secret has no re-copy tool, because nothing rotates it: it changes only when a
+person changes it in the Strava app, and then both stores are updated by hand.
+
+Locally, a locked 1Password does not announce itself. The command hangs for about a minute
+waiting for a desktop approval nobody gave and then fails with `authorization timeout`, which
+reads like a network or account problem. Unlock the desktop app and run the command again;
+nothing here retries.
+
+## `.env.op` holds references, not values
+
+Every credential line in it is an `op://` address, which is why the file is committed. An
+address is not a secret — reading it needs an authenticated 1Password session that the file
+cannot supply — and `.gitignore` lists `.env`, `.env.production` and `.env.local` as exact
+names with no wildcard, so this file is committed on purpose rather than by omission. Do not
+"fix" that by adding `.env*`; the reference file is what makes the credential path
+discoverable at all.
+
+`op run --env-file=.env.op -- <command>` resolves each reference and hands the command the
+secret in its environment, so no Strava credential is ever written to disk here or pasted into
+a shell:
+
+```bash
+# Scaffold a race module from the Strava activities it was recorded as.
+op run --env-file=.env.op -- pnpm race:add 12058884605 12058885236
+
+# Re-copy the refresh token from 1Password onto the GitHub secret. Dry by default:
+# this prints the plan and touches nothing.
+op run --env-file=.env.op -- pnpm strava:sync
+
+# Do it, then spend the credential once to prove it is live. That is the only
+# verification that exists — nothing can read a GitHub secret back to compare it, so
+# whether GitHub holds those same bytes is proved by the next bot run and by nothing
+# in this repository.
+op run --env-file=.env.op -- pnpm strava:sync -- --write
+
+# Hold every recorded row in EVENTS against the activity it names. Opt-in, because
+# `pnpm test` is the change gate and a network call in the default run would hand
+# Strava a vote on whether this repository can deploy.
+op run --env-file=.env.op -- env STRAVA_VERIFY=1 pnpm vitest run tests/strava-verify.test.ts
+```
+
+`.env.op` also carries, as plain values rather than references, which 1Password item is the
+truth and which repository holds the copy. Those are addresses rather than credentials, and
+they are read only on the paths that **write** a credential — `pnpm strava:sync`, and the
+rotation branch in `scripts/strava-auth.mjs`. A process that lacks them cannot persist a
+rotation, which is the correct behaviour in CI and is why they are supplied here and nowhere
+else.
+
+## The athlete id has more than one sanctioned home
+
+It appears in the repository's configuration and in its content, doing different jobs. The
+`STRAVA_ATHLETE_ID` repository variable decides *whose kilometres* are fetched;
+`STRAVA_PROFILE_URL` in `src/content/site.ts` decides *where the site's Strava link goes*.
+Changing accounts means editing both. Updating only the variable publishes the new athlete's
+distances while the link still points at the old profile, and nothing in the build or the suite
+can catch that.
+
+## Recording a race you have just run
+
+There is an ordering hazard, and it belongs to the race procedure rather than to this workflow:
+whether you fetch first or write the module first depends on whether the race is already
+listed, and taking the wrong arm counts the race's distance twice.
+`src/data/races/README.md` has the rule, both of its arms, and the measurement. Read it before
+doing either.

@@ -60,7 +60,7 @@ block above it before giving either consumer the other's list.
   - a **current-state** document (this file, `README.md`, `plans/README.md`'s
     baseline table, every comment under `src/`) may state facts and is gated for
     accuracy — a path, a `pnpm` script or a configured name in backticks must
-    exist; `README.md` must name every suite; this file must name every shortcut
+    exist; this file must name every shortcut
     and how many there are, by **canonical phrase**: the number is derived from
     `uno.config.ts` and the sentence must contain it spelled out (`four
     shortcuts`), so reword around it freely and never edit the number by hand
@@ -78,6 +78,14 @@ block above it before giving either consumer the other's list.
     beside `isProposal` in `tests/docs-drift.test.ts`
   - measurement and rationale are ungated everywhere; `plans/done/` is exempt as
     an archive. When one of these goes red, the document is what is wrong
+- **A SUITE SAYS WHAT IT IS FOR, ABOVE ITS OWN FIRST `describe(`.** `README.md`
+  used to carry a complete list of the suites and was gated on it, which put an
+  enumeration of `tests/` in prose on the front page — the exact failure the rest
+  of `docs-drift` exists to catch. The explanation moved to the suite instead, so
+  a reader asking what one is for opens it, and a suite added without a reason is
+  red rather than merely unmentioned. The floor is measured rather than chosen;
+  the argument and the measurement sit beside the gate in
+  `tests/docs-drift.test.ts`
 - **`pnpm test` does not cover the DNS zone.** What a plan would actually do to
   `calvin.sg` — that Email Routing's `MX` records, the `read_only` DKIM key and
   `_dmarc` all survive the reject lists, and that `pagerules` stays off so the
