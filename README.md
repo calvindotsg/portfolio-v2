@@ -110,6 +110,29 @@ A personal portfolio website built with [Astro](https://astro.build), showcasing
    than the goal; `total_goal` stays in `src/data/goals.ts` and caps the
    displayed figure.
 
+   **The schedule does not use up the day.** The workflow takes
+   `workflow_dispatch`, so a run can be asked for at any time and as often as you
+   like — the Run workflow button on the Actions tab, or
+   `gh workflow run strava-progress.yml --ref main`. That is the answer to "I rode
+   after this morning's cron": there is no cooldown and nothing to reset.
+
+   Two things about an on-demand run are worth knowing before you read its log as a
+   failure. **A run that commits nothing is the ordinary outcome**, because the
+   script re-reads the year-to-date totals in full every time rather than tracking
+   what it last saw — if the kilometres have not moved it writes byte-identical
+   JSON, `git diff --quiet` passes, and there is nothing to push. `updated_at`
+   stays put with them, since it means the day the kilometres last *moved* rather
+   than the day they were last checked. And **the deploy is dispatched either
+   way**: the last step runs unless the run was cancelled, so an on-demand run
+   rebuilds the site even when it banks no distance — which is how `BUILD_DATE` in
+   `src/lib/today.ts`, and with it the countdown and the patch wall, turns over on
+   a rest day. Green here means the build was *asked for*; read
+   `.github/workflows/ci.yml`'s own run for whether it landed.
+
+   One ordering trap belongs to the race procedure rather than to this workflow: if
+   the race you have just run is already in `EVENTS`, fetching first counts its
+   distance twice. `src/data/races/README.md` has the order and the measurement.
+
    The variable/secret split follows the one test: **does the value ship
    publicly?** The athlete id is on the site's Strava links, and a Strava client
    id is a query parameter of the OAuth authorize URL, so both are public and
