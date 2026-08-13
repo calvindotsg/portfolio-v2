@@ -1,400 +1,156 @@
-<!-- PROJECT LOGO -->
-<br />
-<p align="center">
-  <h1 align="center">👋 Hi, I'm Calvin</h1>
-</p>
-<!-- PROJECT LOGO -->
+# calvin.sg
 
-[![GitHub commit activity (branch)](https://img.shields.io/github/commit-activity/w/calvindotsg/portfolio-v2/main)](https://github.com/calvindotsg/portfolio-v2/commits/main/)
-[![GitHub license](https://img.shields.io/github/license/calvindotsg/portfolio-v2)](./LICENSE)
-[![CI](https://github.com/calvindotsg/portfolio-v2/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/calvindotsg/portfolio-v2/actions/workflows/ci.yml)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/calvindotsg/portfolio-v2)
+[![calvin.sg live](https://img.shields.io/website?url=https%3A%2F%2Fcalvin.sg&label=calvin.sg&up_message=live&down_message=down)](https://calvin.sg)
+[![Build status](https://img.shields.io/github/actions/workflow/status/calvindotsg/portfolio-v2/ci.yml?branch=main&label=build)](https://github.com/calvindotsg/portfolio-v2/actions/workflows/ci.yml)
+[![Last commit](https://img.shields.io/github/last-commit/calvindotsg/portfolio-v2/main?label=last%20commit)](https://github.com/calvindotsg/portfolio-v2/commits/main/)
+[![License](https://img.shields.io/github/license/calvindotsg/portfolio-v2)](./LICENSE)
+
+Hi, I am Calvin. Business Systems Analyst by day, road cyclist before sunrise. This is my
+[landing page](https://calvin.sg): who I am, what I am working on now, and a live tracker for
+this year's cycling and running goals.
+
+[![The calvin.sg home page](public/preview.jpg)](https://calvin.sg)
 
 ## Overview
 
-A personal portfolio website built with [Astro](https://astro.build), showcasing my skills, projects, and interests.
+| Page | What is on it |
+| --- | --- |
+| [`/`](https://calvin.sg) | A bento grid: an introduction, my career, a few interests, what I am doing now, and a card per goal showing how far along it is, the weekly rate it still asks for, and the countdown to my next race |
+| [`/patches`](https://calvin.sg/patches) | Every race I have entered, in any year, drawn as a race bib. A finished race carries a patch; an outline is one still booked, or one I started and did not finish. A prerendered page per sport |
 
-![Portfolio Preview](public/preview.jpg)
+Dark and light themes, applied before first paint. Sized in text-relative units, so the layout
+grows with the reader's font size instead of clipping it. No client-side UI framework and no
+JavaScript bundle; animation is CSS only. And the distances are not typed in — a scheduled job
+reads them from Strava overnight and commits whatever changed.
 
-## Features
+## Background
 
-- Bento-style, minimal design: a single-screen home page, plus **My events** at
-  `/patches` — every race entered, in any year, drawn as bibs, one prerendered page
-  per sport. A *Finisher Patch* is a race completed and earned, so the page is headed
-  by the events and only the earned bibs are patches; "patch wall" survives as the URL
-  and the metaphor, not as anything the site calls itself. The goal cards stay scoped
-  to the goal year while the wall keeps everything
-- **Two accounts of a race, side by side.** Where an organiser has published a result,
-  the bib carries a ledger: the official distance and time on one row, the recorded ride
-  on the next, each source's figures kept together so nothing invites a reader to divide
-  one source's distance into another's clock. A certified course and a GPS trace disagree
-  by design; the bib publishes the disagreement rather than picking a winner. The
-  results page is linked above the Strava activity, because it is the one a reader who
-  is not logged in can actually open
-- Fully responsive layout
-- Dark/Light mode support
-- Optimized for performance, accessibility, and SEO
-- CI/CD on [GitHub Actions](https://github.com/calvindotsg/portfolio-v2/actions),
-  deployed to [Cloudflare Pages](https://pages.cloudflare.com/)
+I wanted one link to hand people who ask what I do, and I wanted it to still be true on the day
+they open it rather than the day I last edited it. The goal tracker came out of the same
+impulse: if the kilometres sit on a public page that updates itself while I sleep, a skipped
+week is something I have to look at. The rest of the site is that idea applied to work — what I
+do, what I am building now, and where to find me.
 
-## Tech Stack
+## Tech stack
 
-- [Astro](https://astro.build)
-- [UnoCSS](https://unocss.dev/)
-- [Iconify](https://iconify.design/) (Font Awesome 6 Brands + Remix Icon sets)
-- [Umami](https://umami.is/)
-- [Vitest](https://vitest.dev/)
-- [Cloudflare Pages](https://pages.cloudflare.com/)
-- [octoDNS](https://github.com/octodns/octodns) (the `calvin.sg` DNS zone, kept
-  in `dns/` and applied by `.github/workflows/dns.yml`)
+[Astro](https://astro.build), building to static output with no adapter and no serverless
+function; [UnoCSS](https://unocss.dev/) for atomic CSS, configured in `uno.config.ts`;
+[Iconify](https://iconify.design/) for icons; [Vitest](https://vitest.dev/) as the change gate;
+[Umami](https://umami.is/) for analytics; [Cloudflare Pages](https://pages.cloudflare.com/) for
+hosting; and [octoDNS](https://github.com/octodns/octodns) for the `calvin.sg` zone under `dns/`.
 
-## Getting Started
+## Getting started
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/calvindotsg/portfolio-v2
-   ```
+Node and pnpm are both pinned — Node in `.nvmrc`, pnpm in `package.json` under `packageManager`.
 
-2. Navigate to the project directory:
-   ```bash
-   cd portfolio-v2
-   ```
+```sh
+git clone https://github.com/calvindotsg/portfolio-v2
+cd portfolio-v2
+pnpm install
+pnpm dev
+```
 
-3. Install dependencies (this repo pins pnpm; `npm install` would ignore
-   `pnpm-lock.yaml`):
-   ```bash
-   pnpm install
-   ```
+Use pnpm rather than npm: the lockfile is `pnpm-lock.yaml`, and `npm install` would ignore it.
+Analytics is optional locally — copy `.env.example` to `.env` if you want the tracking id to
+render; without it the page works and simply records nothing.
 
-4. Copy the environment template — `UMAMI_ID` enables the analytics snippet and
-   can be left as-is for local development:
-   ```bash
-   cp .env.example .env
-   ```
-
-5. Start the development server:
-   ```bash
-   pnpm dev
-   ```
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Dev server on http://localhost:4321 |
+| `pnpm build` | Static build into `dist/` |
+| `pnpm preview` | Serves the built `dist/` |
+| `pnpm check` | Type-checks the project |
+| `pnpm eslint` | Lints the components and the scripts |
+| `pnpm test` | Builds, then runs the test suite |
 
 ## Configuration
 
-1. Update your personal details under `src/content/` and `src/data/`, which are
-   split by KIND rather than by page, so each is found by looking where its kind
-   lives:
-   - `src/content/home.ts` — the home page's cards: the welcome lines, the about
-     bullets, the career entries, the open-source list and the Now card.
-   - `src/content/site.ts` — the copy every page wears plus the 404 page: the
-     social links, the theme toggle's name, the footer and the SEO metadata.
-   - `src/content/races.ts` — the racing copy: the patch wall's prose and the
-     next-race countdown with the control beneath it.
-   - `src/data/goals.ts` — both goals (cycling and running): the targets, the
-     names, the icons, the units, and `GOAL_YEAR`, the one year a goal card is
-     about. `src/lib/goal.ts` is what the cards read, and it derives everything
-     there from this — including the clamp, so read a figure through it rather
-     than from here.
-   - `src/data/races/` — one module per race, so adding one is writing a file
-     rather than editing a list. The procedure for adding a race, and every field
-     a race may carry, are in `src/data/races/README.md` — read that rather than
-     this, because it sits beside the data and is gated against `src/lib/race.ts`
-     in both directions.
-2. Modify the `site` and other relevant properties in `astro.config.mjs`.
-3. The goals' `current_progress` figures are the one exception: they are
-   bot-owned. A daily GitHub Actions run
-   (`.github/workflows/strava-progress.yml`) writes Strava's year-to-date ride
-   and run totals to `src/data/strava-progress.json`, which `src/data/goals.ts`
-   imports. Its only inputs are the `STRAVA_ATHLETE_ID` and `STRAVA_CLIENT_ID`
-   repository *variables* and the `STRAVA_CLIENT_SECRET` and
-   `STRAVA_REFRESH_TOKEN` repository *secrets* — the script holds no
-   configuration of its own. To bump a figure by hand, edit that JSON rather
-   than the goal; `total_goal` stays in `src/data/goals.ts` and caps the
-   displayed figure.
+A configurable value lives either in a GitHub repository secret or variable, or in the
+repository's own content under `src/content/` and `src/data/`. Scripts and workflows hold none
+of their own.
 
-   **The schedule does not use up the day.** The workflow takes
-   `workflow_dispatch`, so a run can be asked for at any time and as often as you
-   like — the Run workflow button on the Actions tab, or
-   `gh workflow run strava-progress.yml --ref main`. That is the answer to "I rode
-   after this morning's cron": there is no cooldown and nothing to reset.
+| Where | What you edit there |
+| --- | --- |
+| `src/content/home.ts` | The home page's cards — the introduction, career, interests, and what I am doing now |
+| `src/content/site.ts` | Copy every page wears: social links, footer, the 404 page, SEO metadata |
+| `src/content/races.ts` | The racing copy and the next-race line |
+| `src/data/goals.ts` | The year's targets and `GOAL_YEAR` |
+| `src/data/races/` | One module per race. The procedure, and every field a race may carry, are in [`src/data/races/README.md`](src/data/races/README.md) — read that rather than this |
+| `astro.config.mjs` | `site`, the origin the sitemap and the canonical URLs are built from. `METADATA.site_url` in `src/content/site.ts` carries the same origin for the structured data, so change both |
 
-   Two things about an on-demand run are worth knowing before you read its log as a
-   failure. **A run that commits nothing is the ordinary outcome**, because the
-   script re-reads the year-to-date totals in full every time rather than tracking
-   what it last saw — if the kilometres have not moved it writes byte-identical
-   JSON, `git diff --quiet` passes, and there is nothing to push. `updated_at`
-   stays put with them, since it means the day the kilometres last *moved* rather
-   than the day they were last checked. And **the deploy is dispatched either
-   way**: the last step runs unless the run was cancelled, so an on-demand run
-   rebuilds the site even when it banks no distance — which is how `BUILD_DATE` in
-   `src/lib/today.ts`, and with it the countdown and the patch wall, turns over on
-   a rest day. Green here means the build was *asked for*; read
-   `.github/workflows/ci.yml`'s own run for whether it landed.
+**Goal progress.** The current figures are bot-owned: `.github/workflows/strava-progress.yml`
+fetches them from Strava overnight, writes `src/data/strava-progress.json`, and dispatches a
+deploy. To bump a figure by hand, edit that JSON rather than the goal — `total_goal` stays in
+`src/data/goals.ts`. The credentials that workflow needs, and where they are kept, are in
+[scripts/README.md](scripts/README.md).
 
-   One ordering trap belongs to the race procedure rather than to this workflow: if
-   the race you have just run is already in `EVENTS`, fetching first counts its
-   distance twice. `src/data/races/README.md` has the order and the measurement.
+The athlete id has two homes doing two different jobs: `STRAVA_ATHLETE_ID` decides whose
+kilometres are fetched, and `STRAVA_PROFILE_URL` in `src/content/site.ts` decides where the
+site's Strava link points. Changing accounts means editing both.
 
-   The variable/secret split follows the one test: **does the value ship
-   publicly?** The athlete id is on the site's Strava links, and a Strava client
-   id is a query parameter of the OAuth authorize URL, so both are public and
-   both are variables. Only the client secret and the refresh token authenticate,
-   so only those are secrets.
-
-   **1Password is the source of truth for those two, and the GitHub secrets are a
-   copy.** That reads backwards until you notice that a GitHub secret cannot be
-   read back: it can be compared with nothing and recovered from nothing, so the
-   readable store — the `calvindotsg-strava` item — is the only one that can be
-   authoritative. Two rules follow. Only a caller that can reach 1Password may
-   *change* either credential, and it writes 1Password *before* re-copying to
-   GitHub. `scripts/strava-auth.mjs` is where both live: it is the one place
-   anything here gets an access token, it notices when Strava rotates the refresh
-   token, and in CI — which cannot reach the truth — it persists nothing and fails
-   loudly, because a rotation there kills the chain in both stores at once and the
-   only way back is a fresh OAuth authorize.
-
-   `.env.op` holds `op://` **references** rather than values, which is why it is
-   committed. `op run --env-file=.env.op -- <command>` resolves them, so no
-   credential is ever written to disk here:
-
-   ```bash
-   # Scaffold a race module from the Strava activities it was recorded as.
-   op run --env-file=.env.op -- pnpm race:add 12058884605 12058885236
-
-   # Re-copy the refresh token from 1Password onto the GitHub secret. Dry by
-   # default; `-- --write` does it and then spends the credential once to prove it
-   # is live, which is the only verification that exists — nothing can read a
-   # GitHub secret back to compare it.
-   op run --env-file=.env.op -- pnpm strava:sync
-   ```
-
-   Note that the athlete id appears in two of the three sanctioned homes, for two
-   different jobs: the `STRAVA_ATHLETE_ID` variable decides *whose kilometres* are
-   fetched, and the `STRAVA_PROFILE_URL` constant in `src/content/site.ts` decides
-   *where the site's Strava link goes*. Changing accounts means editing both. Updating only
-   the variable publishes the new athlete's distances while the link still points at
-   the old profile, and nothing in the build or the suite can catch that.
-4. Analytics is the `UMAMI_ID` repository *variable*, read at build time by
-   `BasicLayout.astro`. It is deliberately a variable and not a secret: the id is
-   served in the HTML of every page, so it is already public, and marking it secret
-   would mask it in build logs while protecting nothing — and a secret cannot be read
-   back, so drift becomes undetectable.
-
-   **It fails open**, which is the reason CI asserts on it. When the value is unset the
-   `data-website-id` attribute is dropped entirely and the Umami `<script>` still loads,
-   so the page looks correct, returns 200, and records nothing. The `build` job in
-   `.github/workflows/ci.yml` therefore greps *every* built page for the id's exact
-   value — not one page, and not a pattern — because the tag comes from the shared
-   layout and a build-wide property asked of `index.html` alone would miss the other
-   three. That step is skipped for fork PRs and for Dependabot, which are never
-   deployed and may not be able to read the variable at all.
+**Analytics.** `UMAMI_ID` is a repository variable, read at build time by
+`src/layouts/BasicLayout.astro`.
 
 ## Testing
 
-```bash
-# Run the full suite once
-pnpm test
-
-# Re-run on change
+```sh
+pnpm test        # builds first, then asserts against the real output
 pnpm test:watch
 ```
 
-Suites live under `tests/`, with shared helpers in `tests/helpers/`. The three
-that carry most of the weight:
+`pnpm check` and `pnpm eslint` run alongside it in CI, and each of them gates the deploy.
 
-- `tests/rendered-html.test.ts` — renders `src/pages/index.astro` in-process with
-  Astro's Container API and asserts on the result: page title, meta description,
-  canonical link, the JSON-LD block, and that every entry under `src/content/`
-  (welcome lines, about bullets, career entries and dates, links, the Now card,
-  footer) and every goal figure reaches the page.
-- `tests/content.test.ts` — data invariants for the copy under `src/content/`,
-  the goals in `src/data/goals.ts` and what `src/lib/goal.ts` derives from them:
-  link URLs are absolute or root-relative, icon names come from an installed
-  Iconify collection, each goal's figures are finite and within range, and the SEO
-  title and description stay within useful lengths — the description has to name
-  every goal's target, which is the gate a 3000km-vs-5000km drift bought.
-- `tests/build-output.test.ts` — asserts on what `pnpm build` actually emits into
-  `dist/`: `robots.txt` pointing at the sitemap, the sitemap index, zero external
-  JavaScript, no serverless function, and the public assets the page links to.
-- `tests/data-contract.test.ts` — everything that must hold of the race data for ANY
-  valid calendar, in the two halves that question has. The rows first: dates that are
-  readable and ordered, no finishing time or published result on a day that has not
-  happened, no Strava activity claimed by two recordings, and a split race's span no
-  shorter than the parts inside it. Not one of them pins a digit, which is what separates
-  them from `projection` — an editor adding a race can tell "you typed something
-  impossible" from "the page's figures moved, as they were always going to".
-
-  And then the one module per race under `src/data/races/`, held to the three things an
-  array used to say for free. That every
-  module is in the array: the collector globs its siblings, and a file the pattern
-  misses is an absence rather than an error, invisible to every other assertion here.
-  That each filename's date is the `date` inside it, so the name stays a convenience
-  and never becomes a second, unchecked copy of the field the collector sorts on. And
-  that `src/data/races/README.md` names every field the type declares and no field it
-  does not — derived from `src/lib/race.ts` through the TypeScript checker rather than
-  from the data, so an optional field no current race carries cannot drop out of the
-  set. It also holds that README's two edit orders and its booked-race rule by
-  canonical phrase, in the shape `docs-drift` holds `CLAUDE.md`'s shortcut count.
-
-One suite has `scripts/` as its subject rather than the site:
-
-- `tests/strava-scripts.test.ts` — the three scripts that talk to Strava, held offline
-  with the network stubbed. The credential half exercises `scripts/strava-auth.mjs`: that
-  it reads the environment when CALLED rather than at import — a top-level read there
-  would throw during collection of every suite that imports the bot script, on every
-  machine without Strava secrets — and that it REFUSES a rotated refresh token it cannot
-  persist instead of half-writing one from CI. The arithmetic half holds
-  `scripts/scaffold-race.mjs` to three mistakes that were each made by hand more than
-  once: `metres` copied verbatim rather than converted, a split race's clock taken as the
-  span from first start to last stop rather than the sum of its parts, and recordings
-  ordered by when they were ridden rather than by the order the ids were pasted.
-
-The rest are geometry and content gates — `page-fit`, `card-fill`,
-`control-geometry`, `icon-alignment`, `mobile-hero-contrast`, `patch-wall`,
-`projection`, `clock-split` and `llms-dnf-fixture` — plus `workflow-guards` and
-`dns-config`, which read `.github/workflows/` rather than the site and execute
-those workflows' `if:` guards in GitHub's own expression evaluator: the deploy
-gate and the DNS apply gate respectively. Deliberately no counts in prose, of
-suites or of assertions: read them from `pnpm test`.
-
-One suite WRITES a document rather than only asserting against one:
-
-- `tests/derived-figures.test.ts` — computes the projection's derived figures at the
-  frozen reference in `tests/helpers/reference.ts` (the required rate, the rate that
-  ignores races, the observed and de-raced paces, and a census of the days where
-  rounding to nearest would under-state the requirement) and holds
-  `src/lib/derived-figures.md` against them. Those figures used to be typed into a
-  comment where nothing could check them, and every one of them except the ceiled required
-  rate was wrong at once with the suite green; regenerate with `pnpm test -u`, spelled
-  `pnpm test:update` in `package.json`, and read the diff. It also writes down what each
-  figure MEANS, which is what a reader reverse-engineering one from a shipped value has
-  no way to recover.
-
-A suite that MOCKS A MODULE gets a file of its own, and `clock-split` and
-`llms-dnf-fixture` are why that rule is written down rather than assumed. Both
-forge a fact the live data does not currently hold — a bot stamp lagging the build
-day, and a race abandoned before anything was recorded — because in each case the
-gates around it could only discriminate on data the calendar happens not to
-contain, so they were passing without proving anything. `vi.mock` is file-scoped,
-and one that leaked into a suite comparing against `dist/` would redden it on
-correct code.
-
-One suite is OPT-IN and reaches the network, which is why it is listed apart:
-
-- `tests/strava-verify.test.ts` — holds every Strava activity named in `EVENTS` against
-  that activity, over the API: its distance, its elapsed time, and that it was recorded on
-  the race's own day. A race recorded in parts names several, so it also holds the RACE's
-  own two figures — its distance against the summed metres, and its elapsed time against
-  the span from the first recording's start to the last one's stop, which is not any single
-  activity's figure and cannot be checked anywhere else. It skips unless `STRAVA_VERIFY=1`, and
-  gets its token from `scripts/strava-auth.mjs` like everything else here, so it needs the same
-  three credentials in the environment — supply them with
-  `op run --env-file=.env.op`, never as bare assignments on a command line. **Running it is not
-  a read-only act**: a refresh that rotates the token makes `accessToken` write 1Password and
-  then the GitHub secret, because dropping a rotation kills the credential in both stores.
-  Deliberately not part of the
-  default run: `pnpm test` gates both deploys, so a rate limit or an expired token would read
-  as a broken site. It is the ONLY thing that can catch a mistyped `metres`, which no offline
-  test can see: a row stores the API's own figure and the kilometres a reader sees for the ride
-  are computed from it by `raceKm`, so the conversion is unit-tested offline and the stored
-  input is what needs a witness. It also catches the older failure, a figure read off a
-  screenshot before the activity was edited. The token needs `activity:read_all`; a detailed read answers 404,
-  not 403, when the scope is missing, so an under-scoped token looks exactly like a wrong id.
-
-  **It is not the only hand-typed figure on a bib any more, and the others have no witness at
-  all.** A ledger prints the ORGANISER's account beside the rider's, and that side is
-  transcribed from a results sheet by hand: `advertised_km` goes to the page unconverted, and
-  `net_time` and `gun_time` with it. Nothing can check them — there is no API behind a timing
-  provider's page, and this suite deliberately does not compare a recorded race against its
-  advertised route, because for the ride the activity is the authority. What guards them is
-  shape and sense rather than truth (`H:MM:SS`, a gun time no shorter than its own net time, a
-  race that is actually over), so a transposed digit off the sheet ships. That is an accepted
-  hole, named here so it is not rediscovered as a surprise.
-
-One suite has the repository itself as its subject rather than the site:
-
-- `tests/docs-drift.test.ts` — asserts this README, `CLAUDE.md`, `.devin/wiki.json`
-  and the comments under `src/` against the code they describe. Nothing else here
-  can: a comment naming a deleted file, a README naming a renamed script, or a wiki
-  counting two of something there are now three of all build, lint, type-check and
-  deploy green.
-
-  It treats three kinds of document differently, which is the whole design. A
-  **current-state document** — this README, `CLAUDE.md`, the baseline table in
-  `plans/README.md`, every comment under `src/` — describes the repository as it is
-  today, so it may state facts and is gated for **accuracy**: paths, `pnpm` scripts
-  and configured names in backticks must exist, this section must name every suite,
-  and `CLAUDE.md` must name every UnoCSS shortcut and how many there are.
-
-  A **standing-instruction document** is read on every future run against a codebase
-  that has moved, and nothing prompts anyone to revisit it. `.devin/wiki.json` is the
-  one here — it configures the generated [DeepWiki](https://deepwiki.com/calvindotsg/portfolio-v2).
-  A fact written there is a fact nobody will check again, so it is gated for
-  **durability** instead: it may state no count, no component filename and no exported
-  constant, and every page it specifies has to say where the generator should read
-  those things at generation time. What it carries instead is what a generator cannot
-  derive — the audience, the traps that make a careful reading come out wrong anyway,
-  and where the non-derivable knowledge is written down.
-
-  A **proposal** describes a repository that does not exist yet. A numbered plan under
-  `plans/` is the one here, and it needs neither gate: naming the files it intends to
-  create is its entire subject, so it is exempt from the three checks that hold a name
-  against the tree that exists, and gated for everything else. `plans/README.md` is the
-  living index rather than a proposal and is held to the same standard as this file.
-
-  Measurement and rationale are deliberately left alone in all three. `plans/done/` is
-  exempt entirely: it is an archive, and a plan that stopped naming what it deleted
-  would stop being a record of the deletion.
-
-  This is why the suite list above has to stay complete — that enumeration is one of
-  the things the suite checks, so a new suite is red until this section mentions it.
-
-`pnpm test` runs `pnpm build` once as a global setup so the build-output suite
-has real artifacts. Set `SKIP_BUILD=1` to reuse an existing `dist/` while
-iterating.
+The suite asserts the built site rather than the source: that pages stay legible when a reader
+enlarges their text, that every link is perceivable as one, that the content matches the types
+describing it, that the workflows keep the ordering the deploy depends on, and that this
+documentation still says what the code does. Suites live under `tests/`; the conventions for
+adding one are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Deployment
 
-The site builds to a fully static `dist/` directory — no adapter, no serverless
-function — and `.github/workflows/ci.yml` is the only thing that builds it.
+The site builds to a static `dist/` directory, and `.github/workflows/ci.yml` is the only thing
+that builds it. Its build job runs the checks above and uploads `dist/`; the deploy jobs
+download that same artifact and hand it to wrangler. A pull request opened from this repository
+gets a preview deploy, and a push to `main` — or a manual dispatch from it, which is the path
+the overnight Strava run uses — goes to production.
 
-One `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test` (the suite runs
-`pnpm build` itself), then uploads that `dist/` as an artifact. Two deploy jobs
-download **that same artifact** and publish it to Cloudflare Pages with
-`wrangler pages deploy` — a preview per pull request, production on a push to
-`main`. Neither rebuilds, so what ships is what the suite asserted against, and
-both sit behind `needs: build`, so a red run of any of the three commands blocks
-the deploy. That edge is the whole of the gate; `tests/workflow-guards.test.ts`
-is what stops a refactor dropping it quietly.
-
-DNS is in git as well, and separately: `dns/zones/calvin.sg.yaml` is the
-`calvin.sg` zone, and `.github/workflows/dns.yml` plans it against Cloudflare on
-every pull request touching `dns/` and again weekly, so drift shows up as a red
-check rather than a surprise. Applying is a manual dispatch from `main` that has
-to quote the checksum its own plan printed, and the plan and apply jobs hold
-different Cloudflare tokens — read and edit — so nothing scheduled, and nothing
-running on a pull request, can change a record. Details in
-[`dns/README.md`](dns/README.md).
+The `calvin.sg` zone is in git under `dns/`, planned by `.github/workflows/dns.yml` on every
+pull request that touches it and again weekly, so drift between the repository and the live
+zone shows up as a red check. What it manages and how it is applied are in
+[`dns/README.md`](dns/README.md); a fork inherits the directory, so repoint `dns/zones/` at
+your own zone or leave it unused.
 
 To deploy your own copy:
 
-1. Fork this repository.
-2. Create a Cloudflare Pages project and point `PAGES_PROJECT` in `ci.yml` at it.
-3. Add the `CLOUDFLARE_API_TOKEN` secret (scoped `Cloudflare Pages: Edit`) to a
-   `production` and a `preview` [environment], and the `CLOUDFLARE_ACCOUNT_ID`
-   and `UMAMI_ID` repository variables. The account id is a variable rather than
-   a secret on purpose — it appears in every dashboard URL, so masking it would
-   redact that substring from unrelated log lines while protecting nothing.
+1. Fork the repository, then set your own origin in `astro.config.mjs` and `src/content/site.ts`.
+2. Create a Cloudflare Pages project whose production branch is `main`, and point
+   `PAGES_PROJECT` in `.github/workflows/ci.yml` at it.
+3. Add `CLOUDFLARE_API_TOKEN` as an environment secret in a `production` and a `preview`
+   [environment][env], and add the `CLOUDFLARE_ACCOUNT_ID` and `UMAMI_ID` repository variables.
+4. For the goal cards to move, add the Strava variables and secrets named in
+   [scripts/README.md](scripts/README.md).
 
-[environment]: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
+[env]: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
+
+## Contributing
+
+Issues and pull requests are welcome. How a change gets landed here — the gates it has to pass,
+the branch and commit conventions, and what merging to `main` means — is in
+[CONTRIBUTING.md](CONTRIBUTING.md). For a generated tour of the codebase, there is
+[DeepWiki](https://deepwiki.com/calvindotsg/portfolio-v2).
 
 ## Contact
 
-For any questions or feedback, feel free to [open an issue](https://github.com/calvindotsg/portfolio-v2/issues) in the repository.
-
-## Support 💗
-
-- This project is open-source. Feel free to fork it and customize it with your details as described in the **Configuration** section.
-- If you like the project, don't forget to star ⭐ the repository.
+Calvin Loh — [calvin.sg](https://calvin.sg) ·
+[LinkedIn](https://www.linkedin.com/in/calvin-loh/) ·
+[résumé](https://calvin.sg/resume.pdf) · hello[at]calvin.sg ·
+[open an issue](https://github.com/calvindotsg/portfolio-v2/issues)
 
 ## Acknowledgements
 
-This portfolio is inspired by [Gianmarco's work](https://github.com/Ladvace) and deployed at [calvin.sg](https://calvin.sg).
+This started as a fork of [Gianmarco Cavallo's](https://github.com/Ladvace) bento portfolio
+template and has diverged a long way since. Fork it and make it yours; a star is welcome.
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE), whose copyright covers the upstream authors as well as me.
