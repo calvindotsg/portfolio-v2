@@ -3,6 +3,7 @@ import {join, resolve} from "node:path";
 import {describe, expect, it} from "vitest";
 
 import unoConfig from "../uno.config";
+import {CAREER} from "../src/content/home";
 
 /**
  * THE PROSE IS NOT GATED BY ANYTHING ELSE IN THIS SUITE, AND IT IS THE LARGEST
@@ -85,9 +86,17 @@ import unoConfig from "../uno.config";
  * src/components that does not exist; a document telling the reader to run a pnpm
  * script that is not in package.json (typecheck — the very name CLAUDE.md warns
  * about); a document naming an undeclared constant; a fifth shortcut added to
- * `uno.config.ts`; a new suite added without a README mention; a frozen count written
- * into the wiki; a component filename written into the wiki; and a wiki page stripped
- * of its derivation directive.
+ * `uno.config.ts`; a suite whose pre-`describe` header is too short to explain it;
+ * a frozen count written into the wiki; a component filename written into the wiki;
+ * and a wiki page stripped of its derivation directive.
+ *
+ * ONE ENTRY IN THAT LIST WENT STALE, which is the same defect this file exists to
+ * catch and is worth leaving on the record rather than quietly rewriting. It used to
+ * read "a new suite added without a README mention", and that gate was deleted in
+ * #151 along with the README's suite list; the mutation named here reddened nothing
+ * for as long as the sentence survived it. A calibration log is a claim about what
+ * this file covers, so it rots exactly like any other fact — and it rots the most
+ * quietly, because a reader takes it as evidence rather than as prose.
  *
  * Note that the first two of those had to be written WITHOUT backticks here. Putting a
  * fake path or command in backticks in this comment makes it a claim like any other and
@@ -326,20 +335,23 @@ describe("documentation, against the code it describes", () => {
      * record of the deletion; these are the live documents doing the same job.
      *
      * AN ENTRY IS THE LAST RESORT RATHER THAN THE CHEAP WAY OUT. When this list was written the
-     * rule reported nine sites for these two names: six were records and three were ordinary rot
+     * rule reported nine sites for two names: six were records and three were ordinary rot
      * in a comment, and all three were fixed rather than covered. Excusing them would have been a
      * green suite over the exact defect the rule was added to find.
+     *
+     * AND AN ENTRY OUTLIVES ITS REASON, which is why the gate below asks each scope to still be
+     * carrying one. The second name here was the pre-rename spelling of content.test.ts — written
+     * without backticks here for the reason the head of this file gives, since the whole point is
+     * that no such file exists; its `why` said the suite-list gate named it "to record the hole that rename
+     * walked into". #151 deleted that gate, and with it the only sentence anywhere that named the
+     * file — leaving an excuse that excused nothing, in a list whose whole value is that a reader
+     * can tell a live scope from a leftover. It went unnoticed because a dead excuse is green.
      */
     const GONE: readonly Excuse[] = [
         {
             name: "constants.ts",
             where: ["plans/README.md", "tests/docs-drift.test.ts", "tests/rendered-html.test.ts"],
             why: "split into src/content/ and src/data/ by plan 021 and deleted. The plans index names it as that plan's own title and in its dated audit findings; this file names it in the rule's rationale; the rendered-HTML suite quotes what two past failures said, and repointing those would make the record false",
-        },
-        {
-            name: "constants.test.ts",
-            where: ["tests/docs-drift.test.ts"],
-            why: "renamed to content.test.ts by the same plan. The suite-list gate below names it to record the hole that rename walked into, which is the reason that gate has its current shape",
         },
     ];
 
@@ -376,27 +388,27 @@ describe("documentation, against the code it describes", () => {
     const NAMED_AS_ABSENT: readonly Excuse[] = [
         {
             name: "public/llms.txt",
-            where: ["README.md", "CLAUDE.md", "src/content/home.ts", "src/pages/llms.txt.ts", "tests/build-output.test.ts", "plans/README.md", ".devin/wiki.json"],
+            where: ["src/content/home.ts", "src/pages/llms.txt.ts", "tests/build-output.test.ts", "plans/README.md"],
             why: "replaced by the generated endpoint src/pages/llms.txt.ts in PR #108; named in several places precisely to record that the hand-written file is gone",
         },
         {
             name: "public/404.html",
-            where: ["src/pages/404.astro", "tests/build-output.test.ts", "plans/README.md"],
+            where: ["src/pages/404.astro"],
             why: "the alternative src/pages/404.astro rejects in its own comment — a static copy of the shell outside the theme, the analytics tag and the build-date stamp",
         },
         {
             name: "public/.well-known/",
-            where: [".github/workflows/ci.yml", "tests/build-output.test.ts"],
+            where: [".github/workflows/ci.yml"],
             why: "ci.yml names it as the ordinary way a dot-prefixed path would come to exist under dist/, where upload-artifact would silently drop it. There is no such file today, which is the point",
         },
         {
             name: "src/content.config.ts",
-            where: ["CLAUDE.md", "tests/docs-drift.test.ts"],
+            where: ["CLAUDE.md"],
             why: "CLAUDE.md names both spellings of Astro's content-collection config to say that NEITHER may be added: src/content/ is a directory Astro reserves, and the modules there are ordinary source only while no collection config exists. The absence IS the permission",
         },
         {
             name: "src/content/config.ts",
-            where: ["CLAUDE.md", "tests/docs-drift.test.ts"],
+            where: ["CLAUDE.md"],
             why: "the legacy spelling of the same config, named in the same sentence and absent for the same reason",
         },
     ];
@@ -589,13 +601,34 @@ describe("documentation, against the code it describes", () => {
      * AN EXCUSE POINTS AT DOCUMENTS, AND THOSE ROT TOO. A `where` naming a document that has been
      * renamed or deleted silently widens nothing and hides nothing — it simply stops meaning
      * anything, and the next reader cannot tell a scope from a leftover.
+     *
+     * EXISTING IS THE WEAKER HALF, AND ON ITS OWN IT MISSES THE COMMON CASE. A document is far
+     * likelier to stop NAMING something than to stop existing: the sentence gets rewritten and the
+     * scope entry survives it, still pointing at a live file that says nothing on the subject. That
+     * is the same leftover in the same list, and it was green here — #151 rewrote README.md without
+     * its mention of the generated endpoint and left the scope behind. Measured when this half was
+     * added: nine dead scopes across five entries, one of them the last scope of an excuse whose
+     * `why` cited a gate that #151 had deleted, so the entry as a whole excused nothing anywhere.
+     *
+     * SO THE GATE ASKS BOTH, and it asks the naming question in the gate's own vocabulary —
+     * BACKTICKED tokens, because that is the only thing the rule ever reads. A name written as
+     * bare prose is invisible to the rule and therefore needs no excuse, which is why three of
+     * those nine were dead from the day they were written rather than rotted into.
+     *
+     * A DIRECTORY SCOPE IS EXEMPT FROM THE SECOND HALF and nothing here uses one today: it excuses
+     * a whole subtree, so there is no single document that must carry the name.
      */
-    it("scopes every excuse to documents that exist", () => {
+    it("scopes every excuse to documents that still name it", () => {
         for (const {name, where} of [...NAMED_AS_ABSENT, ...GONE, ...NOT_A_FILE_OF_OURS]) {
             expect(where, `${name} has no scope, which is the global form this shape replaced`).not.toEqual([]);
+            const bare = name.replace(/\/$/, "");
             for (const w of where) {
                 expect(hasPath(w.replace(/\/$/, "")),
                     `${name} is excused in ${w}, which does not exist`).toBe(true);
+                if (w.endsWith("/")) continue;
+                const named = backticked(w).some(({token}) => token.replace(/:\d+(-\d+)?$/, "").replace(/\/$/, "") === bare);
+                expect(named, `${name} is excused in ${w}, which no longer names it in backticks — `
+                    + `delete the scope, or restore the sentence that needed it`).toBe(true);
             }
         }
     });
@@ -674,6 +707,48 @@ describe("documentation, against the code it describes", () => {
     });
 
     /**
+     * NAMING A REAL SCRIPT IS NOT THE SAME AS NAMING THE RIGHT SET OF THEM, and the gate above
+     * cannot tell the difference: every command in CONTRIBUTING.md's change-gate block would stay
+     * green if a fourth check joined the build job tomorrow and the document never learned about
+     * it. What the reader is promised there is not "these commands exist" but "these are the ones
+     * that decide whether your change can land", and that promise is a claim about `ci.yml`.
+     *
+     * WHY THIS DOCUMENT AND NOT THE OTHERS. CONTRIBUTING.md is the only place that states the gate
+     * as an executable list — README.md describes it in prose and CLAUDE.md explains what each arm
+     * reaches, and gating a sentence would be gating a paraphrase. The list is also the one thing
+     * in that file a contributor will copy verbatim, so it is the one where being a step behind
+     * costs them a red CI run they were told they had already passed.
+     *
+     * THE ORDER IS ASSERTED, not just the set. The block is a sequence somebody types top to
+     * bottom, and the build job's order is the one that fails cheapest first — a type error before
+     * a lint pass before a build-and-assert. Two documents agreeing on the members while disagreeing
+     * on the order is still one of them being wrong about the pipeline.
+     *
+     * `install` is excluded because it is setup rather than a gate: it is how CI gets a tree to
+     * check, and the contributor already has one by the time they read this.
+     */
+    it("keeps CONTRIBUTING.md's change gate in step with the build job", () => {
+        const ci = read(".github/workflows/ci.yml");
+        const rest = ci.slice(ci.indexOf("\n  build:") + 1);
+        const end = rest.search(/\n {2}[a-z][a-z0-9-]*:\n/);
+        const build = end === -1 ? rest : rest.slice(0, end);
+        const gates = [...build.matchAll(/^ {6}- run: pnpm ([a-z][a-z0-9:-]*)/gm)]
+            .map((m) => m[1]).filter((s) => s !== "install");
+        expect(gates.length, "no pnpm step found in ci.yml's build job — this gate is vacuous")
+            .toBeGreaterThan(1);
+
+        const doc = read("CONTRIBUTING.md");
+        const heading = doc.indexOf("## The change gate");
+        expect(heading, "CONTRIBUTING.md has no change-gate section to hold").toBeGreaterThan(-1);
+        const fence = /```bash\n([\s\S]*?)```/.exec(doc.slice(heading));
+        expect(fence, "the change-gate section carries no fenced block of commands").not.toBeNull();
+
+        const told = [...fence![1].matchAll(/^pnpm ([a-z][a-z0-9:-]*)$/gm)].map((m) => m[1]);
+        expect(told, "CONTRIBUTING.md's change gate no longer matches the build job in "
+            + ".github/workflows/ci.yml — the deploy is behind whichever list is shorter").toEqual(gates);
+    });
+
+    /**
      * EVERY CONFIGURED NAME A DOCUMENT NAMES IS DECLARED SOMEWHERE. Upper-case-with-
      * underscores is this repository's spelling for exactly two things — a module-level
      * constant and a GitHub secret, variable or environment input — and the CLAUDE.md rule
@@ -739,6 +814,45 @@ describe("documentation, against the code it describes", () => {
             "CLAUDE.md does not name every shortcut in uno.config.ts").toEqual([]);
         expect(text.toLowerCase(), `CLAUDE.md must contain the phrase "${NUMBER_WORDS[names.length]} shortcuts"`)
             .toContain(`${NUMBER_WORDS[names.length]} shortcuts`);
+    });
+
+    /**
+     * THE JOB TITLE IS ONE FACT WITH MANY SURFACES, AND A TYPED COPY OF IT HAS BEEN WRONG TWICE.
+     * `CAREER[0].job_name` is the site's only record of the current job; the head of that module
+     * lists the surfaces that DERIVE from it, and everything on that list moves when it does. The
+     * README's lede does not — it is prose, typed by hand, and #151 put a fresh copy of the title
+     * into it on the front page of the repository.
+     *
+     * BOTH HALVES ARE MODELLED ON REAL DEFECTS RATHER THAN IMAGINED ONES. The site once shipped
+     * the PREVIOUS employer's title in the intro card's own largest type, character-identical to
+     * `CAREER[1].job_name`, while the role card below announced the current one — the note above
+     * WELCOME in src/content/home.ts records it. And on 2026-08-08 both entries' titles were
+     * corrected at once, which is precisely the moment a hand-typed copy elsewhere goes stale. So
+     * this asks for the current title AND refuses a past one, and it asks in the lede rather than
+     * anywhere in the file, because "somewhere in the README" is satisfied by a sentence about
+     * 2022.
+     *
+     * A PAST TITLE IS LOOKED FOR ONLY IN WHAT IS LEFT once the current one is removed. Titles
+     * nest — a promotion to "Senior Business Analyst" contains the junior title verbatim — and a
+     * gate that reddened on that would be punishing the correct edit it exists to encourage.
+     *
+     * ONE SURFACE STAYS OUT OF REACH AND IS RECORDED RATHER THAN GATED: public/resume.pdf states
+     * the job too, and it is not checkable from this repository. Measured — the PDF's fonts are
+     * subset, so the string is absent from every inflated content stream and only an external
+     * tool such as poppler can recover it. It is owed by hand, and the note on CAREER says so.
+     */
+    it("keeps the README's lede in step with the current job title", () => {
+        const current = CAREER[0].job_name;
+        expect(current.length, "CAREER[0] has no job title — this gate is vacuous").toBeGreaterThan(3);
+
+        const lede = read("README.md").split(/^## /m)[0];
+        expect(lede, `README.md's lede must say the job CAREER[0] records, which is "${current}"`)
+            .toContain(current);
+
+        const stale = CAREER.slice(1).map((job) => job.job_name)
+            .filter((past) => past !== current && lede.split(current).join(" ").includes(past));
+        expect(stale, "README.md's lede states a job title held in the past as though it were "
+            + "current — the site shipped exactly this defect once, in the intro card").toEqual([]);
     });
 
     /**

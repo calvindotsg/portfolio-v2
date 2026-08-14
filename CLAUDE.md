@@ -51,14 +51,24 @@ block above it before giving either consumer the other's list.
 - `pnpm preview` serves the built `dist/` directory locally on
   http://localhost:4321 — the site is a static build with no adapter, and the
   deploy jobs upload the very `dist/` the suite asserted against rather than
-  rebuilding, so the preview is byte-identical to production
+  rebuilding. **What that buys is a property of CI, not of your machine**: it is
+  the artifact the suite gated that ships, so nothing is rebuilt between the
+  green check and the deploy. A LOCAL preview is not those bytes. Two inputs are
+  read at build time and neither is yours: `UMAMI_ID` comes from a repository
+  variable, so the analytics tag in `BasicLayout.astro` renders without its id
+  and the whole attribute is dropped; and `src/lib/today.ts` stamps the day the
+  build ran, so a page built today differs from one built yesterday by
+  construction. Use the preview to check what you changed, and a preview deploy
+  to check what will ship
 - **`pnpm test` gates the prose too, and it is the only thing that does.**
-  `tests/docs-drift.test.ts` reads this file, `README.md`, `.devin/wiki.json` and
-  every comment under `src/`, and holds each against the code. **Which gate applies
-  depends on what kind of document it is**, and that distinction is the design
-  rather than a detail:
-  - a **current-state** document (this file, `README.md`, `plans/README.md`'s
-    baseline table, every comment under `src/`) may state facts and is gated for
+  `tests/docs-drift.test.ts` **discovers** its subjects rather than listing them —
+  `liveDocs` walks the tree, so a document added today is gated the moment it
+  lands, and a new file that no gate reaches is treated as the same defect as a
+  stale one. **Which gate applies depends on what kind of document it is**, and
+  that distinction is the design rather than a detail:
+  - a **current-state** document (this file, `README.md`, `CONTRIBUTING.md`,
+    `scripts/README.md`, `plans/README.md`'s baseline table, every comment under
+    `src/`) may state facts and is gated for
     accuracy — a path, a `pnpm` script or a configured name in backticks must
     exist; this file must name every shortcut
     and how many there are, by **canonical phrase**: the number is derived from
@@ -70,7 +80,15 @@ block above it before giving either consumer the other's list.
     and every page it specifies must say where to derive those at generation
     time. Do not "helpfully" add a fact to it — the right fix for a fact that
     could go stale is to delete the claim and name its source. That file once
-    said the site's client JS was two inline scripts when the build shipped three
+    said the site's client JS was two inline scripts when the build shipped three.
+    **It is the only member of this class, and widening it is the tempting wrong
+    move**: two of the four durability predicates are wiki-specific by their own
+    rationale — a generator can look up whatever a thing is called today, and a
+    contributor setting a secret cannot. Run against the Markdown, they read a
+    CLI flag as a CSS custom property and a repository variable as an exported
+    constant. Measured: `CONTRIBUTING.md` 3 findings, `README.md` 10,
+    `scripts/README.md` 20, and every one of the 33 is prose the document exists
+    to carry
   - a numbered plan under `plans/` is a **proposal** — it describes a repository
     that does not exist yet, so it is exempt from the three gates that check a name
     against the tree that does, and gated for everything else. `plans/README.md` is
@@ -78,6 +96,12 @@ block above it before giving either consumer the other's list.
     beside `isProposal` in `tests/docs-drift.test.ts`
   - measurement and rationale are ungated everywhere; `plans/done/` is exempt as
     an archive. When one of these goes red, the document is what is wrong
+- **A DOCUMENT THAT RESTATES A LIST THE CODE OWNS IS HELD TO THAT LIST.** Naming a
+  real `pnpm` script is not the same as naming the right SET of them, so
+  `CONTRIBUTING.md`'s change-gate block is asserted against the steps in
+  `.github/workflows/ci.yml`'s `build` job, in order. Add a check to CI and that
+  document reddens until it learns about it — which is the point, since it is the
+  one list a contributor copies verbatim
 - **A SUITE SAYS WHAT IT IS FOR, ABOVE ITS OWN FIRST `describe(`.** `README.md`
   used to carry a complete list of the suites and was gated on it, which put an
   enumeration of `tests/` in prose on the front page — the exact failure the rest
@@ -269,6 +293,18 @@ collection config, that stops being true**, and these modules move rather than t
 collection. Do not add one without reading this first.
 
 The entries below are the ones carrying non-obvious constraints:
+- `WELCOME`, and everything else the intro card renders: **`public/preview.jpg` is a render
+  of that card**, and it is both README's hero and the site's `og:image`. Nothing builds it,
+  so it went stale invisibly twice. `tests/content.test.ts` now fingerprints what the card
+  depicts — the h1 stack, the greeting mark, the link out to the wall, the social glyphs in
+  order and the portrait's bytes — so editing any of them reddens the suite until the hero is
+  regenerated. **The recipe is beside that gate**, and it is acceptance criteria rather than
+  advice: a regeneration that cannot reproduce the composition is recomposing the hero. A
+  restyle still slips past, because the fingerprint watches the copy rather than the drawing
+- `CAREER[0].job_name`: the site's only record of the current job. Most surfaces derive from
+  it; `README.md`'s lede and `public/resume.pdf` are typed copies, and one of them has been
+  wrong before. The README is gated — including against a title from further down the list,
+  which is the defect the intro card once shipped. The PDF cannot be, and is owed by hand
 - `NEXT_RACE`: the goal cards' countdown ladder and the control's label — width-budgeted,
   and the label is also the heading of the page it opens; see the note there
 - `EVENTS`: every race entered, in any year, collected from `src/data/races/` by the

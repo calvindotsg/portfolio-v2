@@ -32,6 +32,13 @@ import type {GOALS} from "../lib/goal"
  * ONE THING IS NOT AUTOMATIC: the title has a width budget, so a longer job title can fail
  * `tests/content.test.ts` with a measured overflow. That is the gate working, not a bug — read
  * the note on {@link METADATA.title} before shortening anything to get past it.
+ *
+ * AND TWO SURFACES ARE NOT DERIVED AT ALL — they are typed copies, and a typed copy of this fact
+ * has been wrong before. `README.md`'s lede says the job in prose; it is held to this value by a
+ * gate in `tests/docs-drift.test.ts`, which also refuses a title from further down this list, so
+ * that one fails loudly. `public/resume.pdf` says it too and CANNOT be gated from here: its fonts
+ * are subset, so the string is absent from the PDF's inflated content streams and only an external
+ * tool recovers it. That one is owed by hand, and it disagreed with this field for a while in 2026.
  */
 export const CAREER: {
     company: string
@@ -152,8 +159,11 @@ export const ABOUT_ME: {
  * pays for the longer job line: the stack is three h1s where it was four.
  *
  * ANY EDIT HERE OWES A `public/preview.jpg` REGENERATION. That file is both the OG/social image and
- * README's hero, and it is a render of this very card, so it goes stale invisibly — nothing builds
- * it and no test reads what it depicts. The recipe is recorded with the file.
+ * README's hero, and it is a render of this very card. It used to go stale invisibly — nothing
+ * builds it, and this note said the recipe was recorded with the file when no such record had ever
+ * been written, so the warning pointed at nothing. Both halves are fixed in `tests/content.test.ts`:
+ * a fingerprint over the content this card renders reddens when the depiction changes, and the
+ * recipe sits beside it. A restyle still slips through — the gate watches the copy, not the drawing.
  */
 export const WELCOME: {
     greeting_icon: string
