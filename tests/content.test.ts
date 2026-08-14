@@ -1,6 +1,10 @@
+import {createHash} from "node:crypto";
+import {readFileSync} from "node:fs";
+
 import {describe, expect, it} from "vitest";
 
 import {ABOUT_ME, CAREER, NOW, WELCOME} from "../src/content/home";
+import {NEXT_RACE, PATCHES} from "../src/content/races";
 import {FOOTER, LINKS, METADATA, THEME_TOGGLE} from "../src/content/site";
 import {clampToGoal, GOALS, goalForSport, type Sport} from "../src/lib/goal";
 import {kmFromMetres, type RaceEvent, raceKm, type Recording, recordingKm} from "../src/lib/race";
@@ -326,6 +330,64 @@ describe("prose blocks", () => {
         expect(ABOUT_ME.description.length).toBeGreaterThan(0);
         expect(NOW.description.length).toBeGreaterThan(0);
         expect((FOOTER.prefix + FOOTER.suffix).length).toBeGreaterThan(0);
+    });
+});
+
+/**
+ * `public/preview.jpg` IS A RENDER OF THE INTRO CARD, AND NOTHING BUILDS IT. It is used twice —
+ * README.md's hero and the site's `og:image`/`twitter:image` through METADATA.image_url — so it is
+ * the first thing both a GitHub visitor and a link unfurl see, and it is the one artefact here
+ * that no build step produces and no other assertion reads. It has gone stale silently twice: once
+ * three design changes behind (an emoji greeting the icon migration had replaced), and again in
+ * #149, where both job titles were corrected and the hero went on showing the old one.
+ *
+ * THE FIX IS NOT A LOUDER COMMENT. There was already a comment — the note above WELCOME in
+ * src/content/home.ts says any edit there owes a regeneration — and the hero went stale anyway,
+ * because a comment cannot fail. This records WHAT THE IMAGE DEPICTS as a fingerprint over the
+ * content that reaches that card, so changing any of it turns the suite red with the recipe in
+ * hand rather than shipping a hero that disagrees with the page.
+ *
+ * WHAT IS IN THE FINGERPRINT is exactly what a screenshot would differ over: the three lines of
+ * the h1 stack, the greeting mark beside the first of them, the words and mark of the link out to
+ * the wall, the social glyphs IN ORDER, and the portrait's own bytes. Names and URLs are
+ * deliberately out — an `sr-only` name and an `href` change no pixel, and a gate that reddened on
+ * them would train the next reader to update the constant without looking at the image.
+ *
+ * AND WHAT IS NOT, stated so nobody reads more into a green run: this watches the CONTENT, not the
+ * drawing. A theme token, a font size, the card's padding, the control geometry — every one of
+ * those restyles the hero without moving this fingerprint. The honest claim is that the commonest
+ * cause of staleness, an edit to the copy, can no longer ship unnoticed.
+ *
+ * THE RECIPE, kept here because the record the home.ts note used to point at was never written.
+ * Confirmed unchanged across #113 and #149, so treat these as the acceptance criteria of a RETAKE
+ * rather than as history — a regeneration that cannot reproduce them is recomposing the hero:
+ *
+ *   Build, serve `dist/`, and capture the intro card — `main > div:first-child`, asserted to
+ *   contain an `<img>` rather than assumed — in the DARK theme at a 1200px-wide viewport at least
+ *   ~848px tall, with animations frozen (the cards run an entrance with per-child delays).
+ *   The card measures 824x357. Capture at 4x and DOWNSCALE, never up: resize to 1180x511 and
+ *   composite at (10, 63) on a 1200x630 canvas filled with #111111. 1200x630 is the OG aspect
+ *   ratio and is load-bearing; the 1.43x enlargement is what makes it a recognisable hero.
+ *   Encode with `sharp` — already a devDependency — at `{quality: 82, chromaSubsampling: "4:4:4",
+ *   mozjpeg: true}`, which lands around 54-56 KB. 4:4:4 because the subject is UI text and icon
+ *   edges. Then diff the new render against the committed file and look at the BOUNDING BOX of
+ *   the changed pixels, not a whole-image metric: a copy change should move one band the height
+ *   of one line. Anything taller means the composition moved.
+ */
+describe("public/preview.jpg", () => {
+    it("still depicts the content the intro card renders", () => {
+        const depicted = JSON.stringify({
+            lines: WELCOME.description,
+            greeting: WELCOME.greeting_icon,
+            wall: [PATCHES.heading, NEXT_RACE.icon],
+            glyphs: LINKS.map(({logo}) => logo),
+            portrait: createHash("sha256").update(readFileSync("src/assets/me.webp")).digest("hex"),
+        });
+        const fingerprint = createHash("sha256").update(depicted).digest("hex").slice(0, 16);
+
+        expect(fingerprint, "the intro card's content has changed, so public/preview.jpg now "
+            + "disagrees with the page it is a render of. Regenerate it by the recipe above, then "
+            + `record the new fingerprint here: ${fingerprint}`).toBe("1719ed42abd3422c");
     });
 });
 
