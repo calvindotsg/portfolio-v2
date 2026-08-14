@@ -38,11 +38,12 @@ import type {GOALS} from "../lib/goal"
  * gate in `tests/docs-drift.test.ts`, which also refuses a title from further down this list, so
  * that one fails loudly. `public/resume.pdf` says it too and CANNOT be gated from here: measured,
  * the title is absent from every inflated content stream in that file, so no check written against
- * the bytes can see it and an external PDF tool is required. **IT DISAGREES WITH THIS FIELD TODAY,
- * on both entries** — the résumé says "Founding Solutions Engineer" from Sep 2023 where this says
- * Business Systems Analyst from Aug 2023, and gives the NCS role the title this one gives HeyMax.
- * That file is the maintainer's to regenerate, so the disagreement is recorded rather than fixed
- * here; do not "correct" `CAREER` to match it.
+ * the bytes can see it and an external PDF tool is required. As of the 2026-08-14 revision it
+ * agrees with every field here — both titles and all four dates — having disagreed on both titles
+ * and on this role's start month before it. That history is the point of writing this down: the
+ * file is the maintainer's to regenerate, nothing here can, and the only way to know which way it
+ * currently sits is to look. `pdftotext public/resume.pdf -` and read the section; grepping for a
+ * word two roles share returns the wrong row, which is how the previous check got it backwards.
  */
 export const CAREER: {
     company: string

@@ -840,8 +840,9 @@ describe("documentation, against the code it describes", () => {
      * the job too, and it is not checkable from this repository. Measured rather than assumed —
      * the title appears in none of that file's inflated content streams, so a check written
      * against the bytes finds nothing and an external PDF tool is needed to read it at all. It is
-     * the maintainer's file to regenerate, it disagrees with CAREER today, and the note on that
-     * constant carries the detail. Do not resolve the disagreement by editing CAREER.
+     * the maintainer's file to regenerate — it has both agreed and disagreed with CAREER, so read
+     * it rather than assuming either, and never resolve a disagreement by editing CAREER. The note
+     * on that constant carries the state and the way to check it.
      */
     it("keeps the README's lede in step with the current job title", () => {
         const current = CAREER[0].job_name;
