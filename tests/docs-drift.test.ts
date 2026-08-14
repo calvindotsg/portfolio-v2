@@ -837,9 +837,11 @@ describe("documentation, against the code it describes", () => {
      * gate that reddened on that would be punishing the correct edit it exists to encourage.
      *
      * ONE SURFACE STAYS OUT OF REACH AND IS RECORDED RATHER THAN GATED: public/resume.pdf states
-     * the job too, and it is not checkable from this repository. Measured — the PDF's fonts are
-     * subset, so the string is absent from every inflated content stream and only an external
-     * tool such as poppler can recover it. It is owed by hand, and the note on CAREER says so.
+     * the job too, and it is not checkable from this repository. Measured rather than assumed —
+     * the title appears in none of that file's inflated content streams, so a check written
+     * against the bytes finds nothing and an external PDF tool is needed to read it at all. It is
+     * the maintainer's file to regenerate, it disagrees with CAREER today, and the note on that
+     * constant carries the detail. Do not resolve the disagreement by editing CAREER.
      */
     it("keeps the README's lede in step with the current job title", () => {
         const current = CAREER[0].job_name;
