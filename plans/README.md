@@ -705,3 +705,11 @@ mutation-tested, what each preview-vs-production diff showed, and every plan def
 found during execution. Read it when you need to
 know *why* something was done a particular way, or before assuming a past
 decision was arbitrary.
+
+[`done/pr-index.md`](done/pr-index.md) resolves every `PR #N` citation in this
+repository. This repo left its upstream fork network on 2026-08-16, which does not
+retain pull requests, so those numbers no longer resolve on GitHub — and they are
+cited from live source as well as from the archive. The index maps each number to
+its title and squash SHA; the `done/pr-archive-*.md` files beside it carry the
+bodies and the discussion verbatim. Squash commit messages were never at risk and
+remain the primary record: they are git objects.
