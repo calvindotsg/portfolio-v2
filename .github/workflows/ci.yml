@@ -125,8 +125,9 @@ jobs:
       # nothing, while guessing wrong reddens every one of them. Keyed on the ACTOR,
       # not on `pull_request.user.login` — secret availability tracks whoever triggered
       # the run, so a human pushing onto a dependabot branch correctly gets the check
-      # back. (Moot until someone enables Dependabot: this repo is a fork, see
-      # `.github/dependabot.yml`.)
+      # back. This is live rather than hypothetical: `.github/dependabot.yml` declares
+      # three ecosystems and started opening pull requests once the repository left the
+      # fork network.
       #
       # Asserted over EVERY built page and against the id's actual VALUE. The tag comes
       # from `BasicLayout.astro`, which wraps all four pages, so asking `dist/index.html`

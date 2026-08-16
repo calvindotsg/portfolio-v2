@@ -86,9 +86,12 @@ block above it before giving either consumer the other's list.
     rationale — a generator can look up whatever a thing is called today, and a
     contributor setting a secret cannot. Run against the Markdown, they read a
     CLI flag as a CSS custom property and a repository variable as an exported
-    constant. Measured: `CONTRIBUTING.md` 3 findings, `README.md` 10,
-    `scripts/README.md` 20, and every one of the 33 is prose the document exists
-    to carry
+    constant. Measured by running those four predicates — they are in
+    `tests/docs-drift.test.ts` — over the three documents: `CONTRIBUTING.md` 2
+    findings, `README.md` 10, `scripts/README.md` 20, and every one of the 32 is
+    prose the document exists to carry. **Re-derive rather than trust: nothing
+    gates these four figures**, so an edit to any of the three moves them
+    silently — which has now happened twice
   - a numbered plan under `plans/` is a **proposal** — it describes a repository
     that does not exist yet, so it is exempt from the three gates that check a name
     against the tree that does, and gated for everything else. `plans/README.md` is

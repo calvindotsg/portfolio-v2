@@ -1,8 +1,12 @@
 # Implementation Plans
 
-**Nothing is executable: `plans/` is empty of proposals and run 6 is closed.** Plans 024–026 are
-merged, archived and live. A "continue the refactor" request means re-audit or ask — there is no
-queue.
+**One plan is live: 027, and it did not come from an audit run.** It came from the maintainer
+resolving a repository-level event — this repository left the GitHub fork network on 2026-08-16 —
+in the same way plan 015 came from him resolving DIRECT-01. It is written and executed in the
+same branch, which is the `plan <description>` shape of the upstream skill rather than the
+audit-then-plan one; the plan is still written for a zero-context executor, because that is what
+makes it reviewable. Run 6 is closed and plans 024–026 are merged, archived and live. A "continue
+the refactor" request still means re-audit or ask — 027 is not a queue.
 
 Run 6 audited **this directory** rather than the source: every archived plan, this index, and
 `done/README.md` were swept for items deferred, "recorded not fixed" or accepted as a coverage
@@ -137,8 +141,17 @@ recreated.
 | 024 | Refresh the lockfile in-range, taking the audit from eight highs to two unpatchable ones | P1 | S | — | **DONE** (`c2558be`) |
 | 025 | Assert what forced colours PAINT a mark, not merely that some rule reaches it | P2 | S | — | **DONE** (`4b9d5ea`) |
 | 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | **DONE** (`557af8f`) |
+| 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **IN PROGRESS** (written and executed in one branch; archive on merge) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
+
+**027 is the first plan whose premise was an event rather than a defect**, and that changes what
+the plan has to guard. An audit finding is true until someone fixes it; this one was true only
+while the repository sat outside the fork network, so the plan carries a STOP condition on
+`.fork` reading `true` — because if the premise is wrong, every edit it prescribes makes the
+documentation wrong in the OPPOSITE direction rather than merely failing. It is also the first
+to record an operator section it cannot execute itself: three repository-settings writes that
+need admin credentials.
 
 **Run 6's three plans touched disjoint files** — one moved only `pnpm-lock.yaml`, one added an
 assertion to `tests/build-output.test.ts`, one changed `tests/docs-drift.test.ts`. They were

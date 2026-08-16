@@ -92,11 +92,14 @@ export const CAREER: {
  * THE SOURCE IS CALVIN'S OWN PROFILE README (github.com/calvindotsg/calvindotsg), read
  * 2026-07-30 — his selection, in his wording, because `llms.txt` is a self-description
  * and the alternative is me summarising a summary. DO NOT REBUILD IT FROM THE GITHUB
- * REPOS API: that gets the membership wrong in both directions, because it needs an
- * invented inclusion rule ("public, not a fork, has a description") which pulls in tools
- * he does not lead with and drops `portfolio-v2` and `homebrew-tap`, which he does. A
- * curated list is not a stale API — it is the answer to a different question, and it is
- * the question `llms.txt` asks.
+ * REPOS API: that gets the membership wrong, because it needs an invented inclusion rule
+ * ("public, has a description") which pulls in tools he does not lead with — and because
+ * a rule of that shape answers from repository METADATA rather than from his editorial
+ * choice, so its membership moves whenever the metadata does and nobody decides anything.
+ * This note used to make that point with a "not a fork" predicate that dropped
+ * `portfolio-v2`; leaving the fork network inverted it, which demonstrates the failure
+ * mode rather than being an exception to it. A curated list is not a stale API — it is
+ * the answer to a different question, and it is the question `llms.txt` asks.
  *
  * ONE PUBLIC REPO IS DELIBERATELY ABSENT, and the reason changed on 2026-08-16.
  * `granola-to-minutes` used to be absent because the README omitted it — noted here as an

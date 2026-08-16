@@ -985,8 +985,8 @@ describe("documentation, against the code it describes", () => {
      * AND THE OTHER HALF OF THE SAME RULE: taking the facts out only helps if something
      * tells the generator where to get them. A page spec with no derivation directive is
      * one that either states facts or leaves the generator to invent them, and inventing
-     * is this repository's documented failure mode — it is a fork whose earlier generated
-     * docs described upstream features as present because they sounded plausible.
+     * is this repository's documented failure mode — it began as a fork, and its earlier
+     * generated docs described upstream features as present because they sounded plausible.
      *
      * Deliberately a weak check: it asks whether each page tells the generator to go and
      * look, not whether it does so well. A strong version would be a gate on writing.
