@@ -35,7 +35,7 @@ jobs:
       # This is a PIN, not an upgrade: the SHA is exactly what `@v5` resolved to.
       # Dependabot can bump a SHA but cannot convert a tag into one, so any new
       # `uses:` line has to be written pinned by hand.
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Fetch YTD totals and write src/data/strava-progress.json
         # ubuntu-latest ships node >= 20 preinstalled (22.x on 24.04) —
         # built-in fetch, zero deps, no setup-node needed.
