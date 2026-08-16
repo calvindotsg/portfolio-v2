@@ -1,12 +1,16 @@
 # Implementation Plans
 
-**One plan is live: 027, and it did not come from an audit run.** It came from the maintainer
-resolving a repository-level event — this repository left the GitHub fork network on 2026-08-16 —
-in the same way plan 015 came from him resolving DIRECT-01. It is written and executed in the
-same branch, which is the `plan <description>` shape of the upstream skill rather than the
-audit-then-plan one; the plan is still written for a zero-context executor, because that is what
-makes it reviewable. Run 6 is closed and plans 024–026 are merged, archived and live. A "continue
-the refactor" request still means re-audit or ask — 027 is not a queue.
+**Nothing is executable: `plans/` is empty of proposals again.** Plans 024–027 are merged,
+archived and live. A "continue the refactor" request means re-audit or ask — there is no queue.
+
+**027 did not come from an audit run**, which makes it the second of its kind after 015: it came
+from the maintainer resolving a repository-level event — this repository left the GitHub fork
+network on 2026-08-16 — rather than from a finding. It used the `plan <description>` shape of the
+upstream skill rather than audit-then-plan, and was written and executed in the same branch. It
+is still written for a zero-context executor, because that is what made it reviewable, and a
+five-lens panel did review it. See [`done/README.md`](done/README.md) § "Plan 027" for the
+outcome, including the three follow-ups that panel measured and this plan deliberately did not
+take.
 
 Run 6 audited **this directory** rather than the source: every archived plan, this index, and
 `done/README.md` were swept for items deferred, "recorded not fixed" or accepted as a coverage
@@ -141,7 +145,7 @@ recreated.
 | 024 | Refresh the lockfile in-range, taking the audit from eight highs to two unpatchable ones | P1 | S | — | **DONE** (`c2558be`) |
 | 025 | Assert what forced colours PAINT a mark, not merely that some rule reaches it | P2 | S | — | **DONE** (`4b9d5ea`) |
 | 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | **DONE** (`557af8f`) |
-| 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **IN PROGRESS** (written and executed in one branch; archive on merge) |
+| 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **DONE** (`8e91ec2`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
