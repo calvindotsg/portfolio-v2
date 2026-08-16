@@ -1,5 +1,5 @@
 # Pinned exactly, not floated, because the safety argument in `config.yaml` is an argument
 # about these versions' behaviour. `test_filters.py` re-proves that behaviour on whatever is
 # installed, so a bump that breaks it goes red here rather than in the zone.
-octodns==1.21.0
+octodns==1.21.1
 octodns-cloudflare==1.2.0
