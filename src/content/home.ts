@@ -98,10 +98,13 @@ export const CAREER: {
  * curated list is not a stale API — it is the answer to a different question, and it is
  * the question `llms.txt` asks.
  *
- * TWO PUBLIC REPOS ARE DELIBERATELY ABSENT because the README omits them:
- * `granola-to-minutes` (3 stars, his most-starred) and `cc-menubar`. That is his editorial
- * call to revisit, not a bug to fix here — but it is written down so the next person does
- * not "helpfully" re-add them from the API and undo the curation.
+ * ONE PUBLIC REPO IS DELIBERATELY ABSENT, and the reason changed on 2026-08-16.
+ * `granola-to-minutes` used to be absent because the README omitted it — noted here as an
+ * editorial call to revisit. It was revisited: the README added it, so this list did too,
+ * and the two agree again. `cc-menubar` stays out on different grounds — it was archived
+ * that day and deprecated in the tap, so listing it as current work would be the same
+ * drift pointing the other way. Neither is a gap to "helpfully" close from the repos API,
+ * which is what the paragraph above is about.
  *
  * MAINTAINED BY HAND, with the cost named. The obvious alternative is the pattern
  * {@link GOALS} uses — a scheduled job writing a bot-owned JSON — and it was built here
@@ -117,6 +120,10 @@ export const PROJECTS: {
     name: "portfolio-v2",
     description: "My personal landing page calvin.sg: who I am, what I'm working on now, and a live tracker for this year's cycling and running goals.",
     repo_url: "https://github.com/calvindotsg/portfolio-v2"
+}, {
+    name: "granola-to-minutes",
+    description: "Why should a year of meeting notes stay locked in one vendor's storage? A CLI that migrates Granola's AI summaries, transcripts and human notes into Minutes-native markdown you keep.",
+    repo_url: "https://github.com/calvindotsg/granola-to-minutes"
 }, {
     name: "mac-upkeep",
     description: "Why do dev tools scatter caches and updates across macOS with no coordinated cleanup? A zero-config CLI that runs unified maintenance on boot and weekly via launchd.",
