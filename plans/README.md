@@ -149,9 +149,10 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 the plan has to guard. An audit finding is true until someone fixes it; this one was true only
 while the repository sat outside the fork network, so the plan carries a STOP condition on
 `.fork` reading `true` — because if the premise is wrong, every edit it prescribes makes the
-documentation wrong in the OPPOSITE direction rather than merely failing. It is also the first
-to record an operator section it cannot execute itself: three repository-settings writes that
-need admin credentials.
+documentation wrong in the OPPOSITE direction rather than merely failing. It also records an
+operator section it cannot execute itself: three repository-settings writes that need admin
+credentials. Plan 015 had one too — its preconditions were delivered separately and only
+verified; 027 carries the commands themselves.
 
 **Run 6's three plans touched disjoint files** — one moved only `pnpm-lock.yaml`, one added an
 assertion to `tests/build-output.test.ts`, one changed `tests/docs-drift.test.ts`. They were

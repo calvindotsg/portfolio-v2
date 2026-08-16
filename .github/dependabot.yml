@@ -9,9 +9,11 @@
 #                          SHA is what `sha_pinning_required` demands, but a pin with nothing
 #                          bumping it decays into an outdated dependency. Dependabot updates
 #                          the SHA and rewrites the trailing version comment to match.
-#   npm (/)                the site's build tree. pnpm is read through the `npm` ecosystem,
-#                          which supports the v9 lockfile this repository carries — there is
-#                          no separate pnpm ecosystem to declare.
+#   npm (/)                the site's build tree. pnpm is read through the `npm` ecosystem —
+#                          the reference lists pnpm v7-v10 under SUPPORTED VERSIONS, which is
+#                          the pnpm TOOL version rather than the lockfile format, and
+#                          `package.json` pins `pnpm@10.32.1`. There is no separate pnpm
+#                          ecosystem to declare.
 #   pip (/dns)             `dns/requirements.txt`, which was ungoverned until this entry
 #                          existed. It is the strongest case of the three rather than an
 #                          afterthought: the same two packages are installed into the job
@@ -21,8 +23,13 @@
 # WHY THE pip ENTRY IS SAFE TO OPEN AT ALL, since it is the one that touches DNS. A bump to
 # `dns/requirements.txt` is already fully gated by machinery that predates it: `dns.yml`
 # fires on that path, its first job runs on every trigger with no credentials and executes
-# `dns/test_filters.py` plus a config validation, and the two jobs that can read the zone are
-# both closed to `dependabot[bot]` by an actor test. So the proof `dns/requirements.txt`
+# `dns/test_filters.py` plus a config validation, and neither job that can read the zone is
+# reachable from that pull request — but by two DIFFERENT mechanisms, and the difference is
+# worth stating because a future reader deciding whether some guard is redundant will lean on
+# it: `plan` carries an explicit `github.actor != 'dependabot[bot]'` test, while `apply` carries
+# no actor test at all and needs none, being `workflow_dispatch`-only from `refs/heads/main`
+# with a required checksum input — and it `needs:` `plan`, so it skips whenever `plan` does.
+# So the proof `dns/requirements.txt`
 # appeals to in its own comment — that the pinned behaviour is re-proved on whatever is
 # actually installed — is exactly what runs on the bot's pull request. Nothing new had to be
 # built to make this entry reviewable.

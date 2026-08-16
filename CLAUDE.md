@@ -91,7 +91,8 @@ block above it before giving either consumer the other's list.
     findings, `README.md` 10, `scripts/README.md` 20, and every one of the 32 is
     prose the document exists to carry. **Re-derive rather than trust: nothing
     gates these four figures**, so an edit to any of the three moves them
-    silently — which has now happened twice
+    silently — as one did here, deleting a single paragraph from
+    `CONTRIBUTING.md` and taking the total from 33 to 32 with nothing reddening
   - a numbered plan under `plans/` is a **proposal** — it describes a repository
     that does not exist yet, so it is exempt from the three gates that check a name
     against the tree that does, and gated for everything else. `plans/README.md` is

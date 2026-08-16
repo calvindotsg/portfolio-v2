@@ -6,7 +6,7 @@
 > done, update the status row for this plan in `plans/README.md`.
 >
 > **Drift check (run first)**:
-> `git diff --stat daffa04..HEAD -- .github/ CLAUDE.md CONTRIBUTING.md .devin/wiki.json src/content/home.ts tests/docs-drift.test.ts`
+> `git diff --stat daffa04..HEAD -- .github/ CLAUDE.md CONTRIBUTING.md .devin/wiki.json src/content/home.ts tests/docs-drift.test.ts plans/`
 > If any in-scope file changed since this plan was written, compare the "Current state"
 > excerpts against the live code before proceeding; on a mismatch, treat it as a STOP
 > condition.
@@ -40,7 +40,7 @@ Files in scope, each with one line on its role:
   block asserts the file is inert because the repository is a fork.
 - `.github/workflows/ci.yml` — the only builder. Line ~128 ends a Dependabot comment
   with a parenthetical calling the guard moot.
-- `CONTRIBUTING.md` — lines 19-21 instruct contributors to pass `--repo` to `gh pr create`.
+- `CONTRIBUTING.md` — lines 20-22 instruct contributors to pass `--repo` to `gh pr create`.
 - `CLAUDE.md` — lines ~89-90 carry a measured census of durability-predicate hits.
 - `.devin/wiki.json` — page-notes entry asserting present-tense fork status.
 - `tests/docs-drift.test.ts` — a comment asserting the same.
@@ -64,7 +64,7 @@ Excerpts as they exist at `daffa04`:
       # `.github/dependabot.yml`.)
 ```
 
-`CONTRIBUTING.md:19-21`
+`CONTRIBUTING.md:20-22`
 ```
 `origin` is itself a fork of an upstream template, so **`gh pr create` targets upstream by
 default** — pass `--repo calvindotsg/portfolio-v2` or your PR opens on someone else's
@@ -135,7 +135,13 @@ installing a second copy. `.gitignore` carries both spellings so the link stays 
 - `.devin/wiki.json`
 - `tests/docs-drift.test.ts` (comment only)
 - `src/content/home.ts` (comment only)
-- `plans/README.md` (status row)
+- `plans/027-retire-the-fork-premise.md` — this file. It ships with the change it
+  describes, so it is in its own scope; the executor updates it if reality diverges.
+- `plans/README.md` — the status row, **and** the lede, which currently asserts that
+  `plans/` holds no live proposal. That sentence stops being true the moment this plan
+  lands, so it has to move with it. That file's own rule reserves it for the reviewer;
+  this is the condition-triggered carve-out the file itself describes, and the executor
+  should say in the PR that it edited it and why.
 
 **Out of scope** (do NOT touch, even though they look related):
 
@@ -147,9 +153,9 @@ installing a second copy. `.gitignore` carries both spellings so the link stays 
   statements were true when written. Leaving a historical document in the past tense is
   correct; editing it is not.
 - The two stale action SHA pins (`pnpm/action-setup@0ebf471`, and
-  `actions/checkout@fbc6f39` in `strava-progress.yml`). **Deliberately left unbumped**:
-  the first grouped bot pull request is the end-to-end proof this change worked, and
-  bumping them by hand destroys that signal.
+  `actions/checkout@fbc6f39` in `strava-progress.yml`). **Deliberately left unbumped** so
+  the first grouped bot pull request would be the end-to-end proof rather than something
+  this plan asserted — and it was: PR #159 bumped both. Do not bump them by hand.
 - Every fork-PR guard in `.github/workflows/ci.yml` and `.github/workflows/dns.yml`, and
   their fixtures in `tests/workflow-guards.test.ts` and `tests/dns-config.test.ts`.
   These are about *other people* forking this repository, which is still possible. They
@@ -175,13 +181,16 @@ argue for them. The three surfaces and the reason each is here:
 
 - `github-actions` at `/` — the `uses:` pins under `.github/workflows/`.
 - `npm` at `/` — the build tree. pnpm is read through the `npm` ecosystem, which
-  supports the v9 lockfile this repository carries. There is no separate pnpm ecosystem.
+  lists pnpm v7-v10 under SUPPORTED VERSIONS — that is the pnpm TOOL version, not the
+  lockfile format, and `package.json` pins `pnpm@10.32.1`. There is no separate pnpm ecosystem.
 - `pip` at `/dns` — `dns/requirements.txt`. This is the strongest of the three, not an
   afterthought: the same two packages are installed into the `dns.yml` job that holds
   the Cloudflare DNS write token. It is already reviewable for free — `dns.yml` fires on
   `paths: dns/**`, its first job runs credential-free and executes `dns/test_filters.py`
-  plus `octodns-validate`, and the two jobs that can read the zone already exclude
-  `dependabot[bot]` by actor.
+  plus `octodns-validate`, and neither job that can read the zone is reachable from the
+  bot's pull request — `plan` by an explicit `github.actor != 'dependabot[bot]'` test, and
+  `apply` by carrying no actor test at all and needing none: it is `workflow_dispatch`-only
+  from `refs/heads/main` with a required checksum, and it `needs:` `plan`.
 
 Target shape (full block style in the file):
 
@@ -257,12 +266,15 @@ a fork …)". The rest of that comment explains why the analytics step is keyed 
 `github.actor != 'dependabot[bot]'` and is correct — it becomes live rather than
 hypothetical. Replace the parenthetical with a sentence saying so.
 
-**Verify**: `git diff .github/workflows/ci.yml | grep -E '^[+-]\s*(if:|-)'` → no output
-(comment-only change; no `if:` line and no step moved).
+**Verify**: `git diff -U0 .github/workflows/ci.yml | grep -E '^[+-][^+-]' | grep -vcE '^[+-]\s*#'`
+→ `0`. Every changed line must be a comment line. **Do not write the leading-character test
+as `^[+-]` alone** — the unified-diff headers `--- a/...` and `+++ b/...` match it, so a
+naive form can never return nothing and the step passes vacuously in the direction that
+matters.
 
 ### Step 3: Delete the `gh pr create` paragraph from `CONTRIBUTING.md`
 
-Remove lines 19-21 entirely, leaving the `## Setup` heading directly after the bullet
+Remove lines 20-22 entirely, leaving the `## Setup` heading directly after the bullet
 list above it. With no parent repository there is nothing for `gh` to resolve to but
 `origin`, so the instruction now sends a contributor chasing a flag they do not need.
 
@@ -312,7 +324,10 @@ the paragraph below it. The repair is an opportunity rather than a loss: what th
 demonstrates is that a metadata rule and an editorial one answer different questions, and
 this is what it looks like when the metadata moves.
 
-**Verify**: `grep -c 'not a fork' src/content/home.ts` → `0`
+**Verify**: `grep -c '"public, not a fork, has a description"' src/content/home.ts` → `0`.
+Note it is the QUOTED RULE that must go, not the phrase: the repaired sentence names the
+old predicate in the past tense, so a bare `grep -c 'not a fork'` correctly returns `1` and
+is the wrong check.
 
 ### Step 7: Run the gate
 
@@ -377,7 +392,12 @@ ALL must hold:
       `github-actions`, `npm`, `pip`
 - [ ] Every key in it is known to `https://json.schemastore.org/dependabot-2.0.json`,
       including the `cooldown` and `groups` sub-keys
-- [ ] `grep -rn 'this repo is a fork\|is a fork of\|not a fork' --include='*.md' --include='*.yml' --include='*.ts' --include='*.json' . | grep -v plans/done` returns nothing outside an explicitly past-tense sentence
+- [ ] The present-tense fork claims are gone, as a MACHINE CHECK rather than a judgement —
+      `grep -rn 'this repo is a fork\|is a fork of Ladvace\|"public, not a fork' --include='*.md' --include='*.yml' --include='*.ts' --include='*.json' . | grep -v node_modules | grep -v '^\./plans/'`
+      exits 1 (no matches). **`plans/` is excluded because this plan quotes the old text
+      verbatim as its own "Current state" excerpts** — an earlier draft of this criterion
+      omitted that and self-tripped on five of its own lines, and it ended in "outside an
+      explicitly past-tense sentence", which is a human judgement the template forbids
 - [ ] `grep -c -- '--repo' CONTRIBUTING.md` returns `0`
 - [ ] `git diff .github/workflows/ci.yml` shows no change to any `if:` expression
 - [ ] The attribution is intact: `grep -c 'Gianmarco' src/content/site.ts README.md LICENSE` finds all three
@@ -402,9 +422,14 @@ Stop and report back (do not improvise) if:
 
 ## Maintenance notes
 
-- **The first grouped `chore(deps)` pull request is the real verification, and it is
-  deferred by a month.** Until it appears, "Dependabot is live" is inference from
-  GitHub's documented fork rule, not measurement. Record it that way.
+- **VERIFIED ON DETACHMENT, NOT DEFERRED — and this is the one prediction in this plan
+  that reality beat.** Dependabot ran its initial check as soon as the repository left the
+  fork network and opened **#159** (grouped `actions` bump: `pnpm/action-setup` to v6.0.10
+  and `actions/checkout` to v7.0.1, CI green, `deploy preview` correctly skipped by the
+  actor guard). That is the end-to-end proof, and it arrived under the OLD single-ecosystem
+  config, two minutes after this plan's own head commit. What is still unobserved is the
+  first `npm` and `pip` run, which is a month out — including whether a Dependabot-rewritten
+  `pnpm-lock.yaml` satisfies `pnpm install --frozen-lockfile` in `ci.yml`. Watch that one.
 - **Do not use the presence of a "Dependabot Updates" workflow as an early proxy.**
   Measured across the maintainer's 20 repositories that carry a `dependabot.yml`, only 2
   have that workflow entry, so its absence does not discriminate live from dark.
@@ -417,3 +442,25 @@ Stop and report back (do not improvise) if:
 - Deferred out of this plan on purpose: clearing the two surviving `pnpm audit` highs.
   They come from an orphaned optional peer and need a whole-tree re-resolution with its
   own `dist/` comparison, which is its own plan.
+
+**Three follow-ups a review panel MEASURED against this branch. None is fixed here — the
+first two touch the workflow guards, which this plan's Scope reserves — and all three are
+recorded so they are not re-derived:**
+
+- **A step-level `if:` in `.github/workflows/ci.yml` is held by nothing.** Mutating one to
+  a never-true expression leaves the full suite green (measured, three mutations); the
+  same mutation on a JOB-level guard in `dns.yml` IS caught, so the hole is specific.
+  Root cause read at `tests/workflow-guards.test.ts`: the failing-step helper never applies
+  the always-runs check. **This plan is what makes that hole matter** — it promotes the
+  analytics step's `github.actor != 'dependabot[bot]'` clause from moot to load-bearing, and
+  PR #159 is a real run that exercised it. Highest-value follow-up on this list.
+- **A typo in `directory:` silently disables an ecosystem.** Changing `/dns` to `/dnsx`
+  leaves the suite green AND passes the SchemaStore validation this plan nominates as the
+  backstop, because `directory` is an unconstrained string. A gate that would catch it
+  parses `dependabot.yml` and asserts each entry's directory exists and holds the manifest
+  its ecosystem implies — without restating the config.
+- **`semver-major-days: 30` under `interval: monthly` straddles the cycle.** A major
+  released just after a check waits out its cooldown and then waits for the NEXT check, so
+  the real deferral is 30-60 days rather than 30. That is defensible for a major, and it is
+  written down here rather than tuned, because nothing has measured which behaviour is
+  wanted. If it proves too slow, 14 is the value that lands majors on the next check.
