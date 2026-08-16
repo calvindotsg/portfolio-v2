@@ -17,10 +17,6 @@ yours belongs in your copy rather than in this one.
   not — that is the maintainer's own record, and the answer will usually be "fork it".
   Open an issue first if a refusal would waste your time.
 
-`origin` is itself a fork of an upstream template, so **`gh pr create` targets upstream by
-default** — pass `--repo calvindotsg/portfolio-v2` or your PR opens on someone else's
-project.
-
 ## Setup
 
 The README's **Getting Started** section. It is not repeated here.

@@ -1,49 +1,144 @@
-# Keeps SHA-pinned actions from going stale.
+# Keeps this repository's declared dependencies from going stale, across all three of the
+# places it has them.
 #
-# Pinning to a commit SHA is what `sha_pinning_required` demands, but a pin with
-# nothing bumping it decays into an outdated dependency. Dependabot updates the SHA
-# and rewrites the trailing `# vN` comment to match. That is the whole of what this
-# file buys — action pins, nothing else. It declares only the `github-actions`
-# ecosystem, so the npm tree is NOT covered here and Dependabot alerts and security
-# updates are both switched off on this repository; #92 ("refresh lockfile in-range,
-# clearing one brace-expansion HIGH") was a manual chore for that reason and the next
-# one will be too. Turning either on is a separate decision, not something this file
-# quietly implies.
+# THREE ECOSYSTEMS, AND EACH IS HERE FOR ITS OWN REASON — this file governed only the first
+# until the repository left the fork network, which is the event that made any of it run at
+# all (see the go-live note below):
 #
-# THIS FILE IS INERT UNTIL SOMEONE CLICKS ENABLE, because this repository is a FORK
-# (of Ladvace/astro-bento-portfolio). GitHub: "Version updates are not automatically
-# enabled on forks when a `dependabot.yml` configuration file is present" — on a fork
-# you must also enable it under Settings > Advanced Security > Dependabot version
-# updates. Merging this file therefore opens no pull request and bumps no pin. Until
-# that click happens the pins it exists to refresh go stale anyway, which is the one
-# failure mode worth knowing about: it looks configured and does nothing.
+#   github-actions (/)     the `uses:` pins under `.github/workflows/`. Pinning to a commit
+#                          SHA is what `sha_pinning_required` demands, but a pin with nothing
+#                          bumping it decays into an outdated dependency. Dependabot updates
+#                          the SHA and rewrites the trailing version comment to match.
+#   npm (/)                the site's build tree. pnpm is read through the `npm` ecosystem —
+#                          the reference lists pnpm v7-v10 under SUPPORTED VERSIONS, which is
+#                          the pnpm TOOL version rather than the lockfile format, and
+#                          `package.json` pins `pnpm@10.32.1`. There is no separate pnpm
+#                          ecosystem to declare.
+#   pip (/dns)             `dns/requirements.txt`, which was ungoverned until this entry
+#                          existed. It is the strongest case of the three rather than an
+#                          afterthought: the same two packages are installed into the job
+#                          that holds `CLOUDFLARE_DNS_WRITE_TOKEN`, so they are the
+#                          highest-privilege dependency here.
 #
-# WHAT IT CANNOT DO EVEN THEN: convert a tag into a SHA. A `uses:` line written as
-# `@v5` stays a tag forever as far as Dependabot is concerned, and would fail the
-# pinning policy. New actions must be added pinned by hand.
+# WHY THE pip ENTRY IS SAFE TO OPEN AT ALL, since it is the one that touches DNS. A bump to
+# `dns/requirements.txt` is already fully gated by machinery that predates it: `dns.yml`
+# fires on that path, its first job runs on every trigger with no credentials and executes
+# `dns/test_filters.py` plus a config validation, and neither job that can read the zone is
+# reachable from that pull request — but by two DIFFERENT mechanisms, and the difference is
+# worth stating because a future reader deciding whether some guard is redundant will lean on
+# it: `plan` carries an explicit `github.actor != 'dependabot[bot]'` test, while `apply` carries
+# no actor test at all and needs none, being `workflow_dispatch`-only from `refs/heads/main`
+# with a required checksum input — and it `needs:` `plan`, so it skips whenever `plan` does.
+# So the proof `dns/requirements.txt`
+# appeals to in its own comment — that the pinned behaviour is re-proved on whatever is
+# actually installed — is exactly what runs on the bot's pull request. Nothing new had to be
+# built to make this entry reviewable.
 #
-# Monthly, not weekly: this repository has three workflows and a solo maintainer, so a
-# weekly cadence produces noise rather than signal. Cadence alone does not buy that,
-# though — the default is one pull request PER dependency, and there are six distinct
-# actions across those three files, so an active month would open six PRs, each
-# spawning its own CI run. `groups` is what makes the monthly claim true: one pull
-# request, every action in it.
+# COOLDOWN IS THE ONE GENUINELY NEW IDEA HERE, and it is a supply-chain control rather than a
+# tidiness one: a release is not adopted until it has been public long enough for a
+# compromised publish to be noticed and yanked. It delays VERSION updates only and never
+# security updates, so it buys latency against an attacker without spending any against an
+# advisory. GitHub now applies a short default even when this key is absent — it is written
+# out anyway, because a default is not a decision and this one would change silently.
+# `github-actions` supports only the flat form; `npm` and `pip` also support per-bump
+# figures, which is why the two shapes below differ.
 #
-# THESE COUNTS ARE THE REASON FOR THE CADENCE, not decoration — a new workflow or a new
-# action moves them, and a stale count quietly turns a considered choice into an
-# arbitrary one. Re-derive rather than trust: `ls .github/workflows/` for the first, and for
-# the second — anchored to the list item, because an unanchored `uses:` also matches the word
-# inside a prose comment and silently returns one too many:
+# ONE GROUP PER ECOSYSTEM, AND DELIBERATELY NO `applies-to` KEY. That option defaults to
+# version updates, so these groups cannot capture a security update — which is the intent,
+# not an oversight. Security advisories keep GitHub's default one-pull-request-per-dependency
+# shape: those are exempt from `open-pull-requests-limit` and unlimited in number, so each
+# stays independently mergeable. AN EARLIER DRAFT ADDED `applies-to: security-updates` GROUPS
+# and justified them as stopping advisories queueing behind a routine bump. That reasoning
+# was self-refuting — the exemption is what precludes the queueing — and what those groups
+# would really have done is bundle every concurrent advisory into one pull request nobody can
+# merge in pieces, which is the same property the npm split below exists to avoid.
+#
+# THE npm GROUP TAKES minor AND patch ONLY, so majors fall out into pull requests of their
+# own. A major of the framework, the type checker or the linter is a migration with its own
+# reading and its own failures; bundling one with a batch of patches produces a pull request
+# that cannot be merged as a unit and so is not merged at all.
+#
+# NO `versioning-strategy`, AND THE REASON IS NOT THE OBVIOUS ONE. It would be a no-op on
+# both manifests. Dependabot's app-versus-library heuristic cannot classify this
+# `package.json` as a library because it has no `description` field, and cannot classify
+# `dns/requirements.txt` as one because that check requires a pyproject file and `dns/` has
+# none — so the default already resolves to the increase strategy on both. Setting it would
+# state a preference that is doing nothing and invite a false explanation for why.
+#
+# WHAT DEPENDABOT CANNOT DO EVEN NOW: convert a tag into a SHA. A `uses:` line written as
+# `@v5` stays a tag forever as far as Dependabot is concerned, and would fail the pinning
+# policy. New actions must be added pinned by hand.
+#
+# WHY THIS FILE ONLY STARTED WORKING IN AUGUST 2026. It was merged on a repository that was
+# then a fork, and GitHub withholds version updates from forks whose configuration file
+# arrived that way — so it looked configured and did nothing, which is the failure mode worth
+# knowing about. Leaving the fork network is what armed it; no setting was changed here. The
+# evidence it had been dark is still in the tree at the time of writing: two workflows pinned
+# different majors of the same action for weeks with no pull request offered.
+#
+# MONTHLY ON ALL THREE, and the counts are the argument rather than decoration. A weekly
+# cadence produces noise rather than signal for a solo maintainer, and grouping is what makes
+# the monthly claim true — the default is one pull request PER dependency, so an active month
+# would otherwise open one per action, per package and per pinned Python requirement. Urgency
+# does not live on this axis at all: security updates ignore `schedule` entirely.
+#
+# RE-DERIVE THESE RATHER THAN TRUST THEM — a new workflow, a new action or a new dependency
+# moves them, and a stale count turns a considered choice into an arbitrary one:
+#   ls .github/workflows/
 #   grep -rhoP '^\s*-\s*uses:\s*\K[^@ ]+' .github/workflows/ | sort -u
+#   node -e 'const p=require("./package.json");console.log(Object.keys({...p.dependencies}).length,Object.keys({...p.devDependencies}).length)'
+#   grep -c '^[^#]' dns/requirements.txt
+# The `uses:` grep is anchored to the list item on purpose: an unanchored form also matches
+# the word inside a prose comment and silently returns one too many.
 version: 2
+
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 2
     commit-message:
       prefix: chore(deps)
+    cooldown:
+      default-days: 7
     groups:
       actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+    cooldown:
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      npm-routine:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: pip
+    directory: /dns
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore(deps)
+    cooldown:
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
+    groups:
+      octodns:
         patterns:
           - "*"
