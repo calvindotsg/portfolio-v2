@@ -1449,3 +1449,67 @@ Deferred with reasons in `../README.md` § "Run 6": `main()` in the Strava write
 untested; the pre-paint theme script's unguarded `localStorage.getItem`; the entrance-stagger
 middle rung; `max-h-[415px]` on the portrait; and the `<project>.pages.dev` duplicate, restated
 against the current host rather than dropped.
+
+## Plan 027 — retire the fork premise, and govern all three dependency surfaces
+
+Merged as `8e91ec2` (#158), with `5f01dc6` (#164) as its follow-up. Not from an audit: the
+repository left the GitHub fork network on 2026-08-16, and six live files reasoned from the
+premise that it had not.
+
+**The premise was worth a plan because one of the six was costing something.**
+`.github/dependabot.yml` had been inert since it landed on 2026-07-30 — GitHub withholds version
+updates from a fork whose config arrived that way — so the SHA pins had something that looked
+like it was refreshing them and was not. The rebuild took it from one ecosystem to three:
+`github-actions` (`/`), `npm` (`/`), and `pip` (`/dns`, the octoDNS pins installed into the job
+that holds the Cloudflare DNS write token).
+
+**Every design claim was measured within minutes of merging, which is unusual and worth
+recording.** Dependabot ran its initial check on detachment rather than on the monthly cycle:
+
+| claim | evidence |
+|---|---|
+| the config was genuinely dark | #159 opened 2026-08-16T16:40Z under the OLD config, bumping both stale pins |
+| the `pip` entry resolves and groups | #160, `octodns 1.21.0 → 1.21.1 in /dns in the octodns group` |
+| a bump to `dns/requirements.txt` is reviewable with no credentials | #160: `filter semantics` **pass** (11s), `plan` and `apply` both **skipped** |
+| the `npm` group batches minor+patch | #161, "bump the npm-routine group with 2 updates", `chore(deps)` |
+| majors fall OUT of the group into their own PRs | #162 `eslint-plugin-astro 1.7.0 → 3.0.1`, #163 `lint-staged 16.4.0 → 17.0.8`, both `chore(deps-dev)` |
+| `prefix-development` works | the two majors above carry `chore(deps-dev)`, #161 carries `chore(deps)` |
+| a Dependabot-rewritten `pnpm-lock.yaml` survives `--frozen-lockfile` | #161 rewrote it +351/-277 and `build and test` **passed** |
+| the `dependabot[bot]` actor guards hold | every bot PR: `deploy preview` and `deploy production` **skipped**, `build and test` green |
+
+That last row also closes the residual the review panel raised — dependabot-core **#14202**, which
+reports group patterns marking dependencies handled regardless of `update-types` and so
+suppressing majors. It did not happen here: both majors were raised individually.
+
+**A five-lens panel with truth-only skeptics reviewed the branch** (10 agents, 2 planted controls,
+both judged correctly; 5/5 lenses identified which of two calibration claims the author had never
+executed). It found five false claims, of which the sharpest were a comment crediting `dns.yml`'s
+`apply` job with an actor test it does not have — it is closed by being dispatch-only with a
+required checksum instead — and a derivation that read the reference's "supported versions" column
+as lockfile versions when it is the pnpm TOOL version. Plan 027 also failed three of its own
+gates, all corrected before merge.
+
+**Three follow-ups the panel MEASURED and this plan deliberately did not take**, because its scope
+reserved the workflow guards:
+
+- **A step-level `if:` in `ci.yml` is held by nothing.** Mutating one to never-true leaves the
+  suite green (three mutations); the same mutation on a JOB-level guard in `dns.yml` IS caught, so
+  the hole is specific to steps. Plan 027 is what makes it matter — it promoted the analytics
+  step's `github.actor != 'dependabot[bot]'` clause from moot to load-bearing, and five bot PRs
+  have now exercised it. Highest-value of the three.
+- **A typo in `directory:` silently disables an ecosystem** and passes both the suite and the
+  SchemaStore pre-flight, because `directory` is an unconstrained string. GitHub's own
+  `.github/dependabot.yml` check now runs on PRs that touch the file, which is a stronger backstop
+  than was credited at the time, but it has not been tested against this mutation.
+- **`semver-major-days: 30` under `interval: monthly` straddles the cycle**, so a major is
+  deferred 30–60 days rather than 30. Written down rather than tuned; 14 is the value that lands
+  majors on the next check.
+
+**One defect landed on `main` and was fixed by #164**, and it is the class this repository keeps
+meeting: #159 moved `actions/checkout` from the v5 SHA to v7.0.1, and the comment above it still
+read "This is a PIN, not an upgrade: the SHA is exactly what `@v5` resolved to." The docs gate
+resolves NAMES against the tree, never the truth of a claim, so a bot can rewrite a pin and its
+trailing marker while leaving the prose above asserting the opposite. The bump also crossed two
+majors on the one job that pushes to `main` unattended; `persist-credentials` still defaults to
+`true` — read out of the action's own input manifest at both the old and new SHA — so it was
+inert, and that is now written down with its failure mode.
