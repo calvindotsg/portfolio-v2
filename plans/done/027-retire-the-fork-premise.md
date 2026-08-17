@@ -430,9 +430,20 @@ Stop and report back (do not improvise) if:
   config, two minutes after this plan's own head commit. What is still unobserved is the
   first `npm` and `pip` run, which is a month out — including whether a Dependabot-rewritten
   `pnpm-lock.yaml` satisfies `pnpm install --frozen-lockfile` in `ci.yml`. Watch that one.
-- **Do not use the presence of a "Dependabot Updates" workflow as an early proxy.**
+- ~~**Do not use the presence of a "Dependabot Updates" workflow as an early proxy.**
   Measured across the maintainer's 20 repositories that carry a `dependabot.yml`, only 2
-  have that workflow entry, so its absence does not discriminate live from dark.
+  have that workflow entry, so its absence does not discriminate live from dark.~~
+  **CORRECTED 2026-08-17 — that measurement was wrong and its conclusion is inverted.** The
+  probe used to build the denominator reported a `dependabot.yml` for every repository it was
+  asked about, because `gh api` writes its 404 body to stdout and the emptiness guard never
+  fired. Re-derived properly: of the maintainer's 40 repositories, **3** carry a
+  `dependabot.yml` — this one and the two archived CLI templates — and **all 3 now show the
+  workflow.** This repository lacked it for exactly as long as its config was dark and gained
+  it on going live. So the presence of that workflow is a PLAUSIBLE liveness signal, not a
+  discredited one; n=3 plus one temporal observation is too thin to call it reliable, but the
+  earlier dismissal was a detector run over 37 repositories that had no config to be live or
+  dark about. Recorded rather than deleted because the mistake is the lesson: **a null result
+  over the wrong population manufactures a false negative.**
 - A reviewer should scrutinise: that no `if:` expression moved in `ci.yml`; that the
   `CLAUDE.md` figures were re-measured rather than copied from this plan; and that the
   attribution is untouched.
