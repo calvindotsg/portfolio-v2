@@ -1,7 +1,10 @@
 # Implementation Plans
 
-**Nothing is executable: `plans/` is empty of proposals again.** Plans 024–027 are merged,
-archived and live. A "continue the refactor" request means re-audit or ask — there is no queue.
+**One plan is executable: 028.** It is written and NOT executed — deliberately handed to a fresh
+session rather than run by its author, which is the upstream advisor/executor split this
+directory has otherwise only used in one direction. Plans 024–027 are merged, archived and live.
+A "continue the refactor" request still means re-audit or ask; 028 is a specific handoff, not a
+queue.
 
 **027 did not come from an audit run**, which makes it the second of its kind after 015: it came
 from the maintainer resolving a repository-level event — this repository left the GitHub fork
@@ -146,6 +149,7 @@ recreated.
 | 025 | Assert what forced colours PAINT a mark, not merely that some rule reaches it | P2 | S | — | **DONE** (`4b9d5ea`) |
 | 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | **DONE** (`557af8f`) |
 | 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **DONE** (`8e91ec2`) |
+| 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

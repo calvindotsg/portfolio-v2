@@ -34,14 +34,30 @@
 # actually installed — is exactly what runs on the bot's pull request. Nothing new had to be
 # built to make this entry reviewable.
 #
-# COOLDOWN IS THE ONE GENUINELY NEW IDEA HERE, and it is a supply-chain control rather than a
-# tidiness one: a release is not adopted until it has been public long enough for a
-# compromised publish to be noticed and yanked. It delays VERSION updates only and never
-# security updates, so it buys latency against an attacker without spending any against an
-# advisory. GitHub now applies a short default even when this key is absent — it is written
-# out anyway, because a default is not a decision and this one would change silently.
-# `github-actions` supports only the flat form; `npm` and `pip` also support per-bump
-# figures, which is why the two shapes below differ.
+# COOLDOWN IS THE ONE GENUINELY NEW IDEA HERE, and it is INTENDED as a supply-chain control
+# rather than a tidiness one: a release should not be adopted until it has been public long
+# enough for a compromised publish to be noticed and yanked. It delays VERSION updates only
+# and never security updates, so it is meant to buy latency against an attacker without
+# spending any against an advisory. GitHub applies a short default even when the key is
+# absent — it is written out anyway, because a default is not a decision and this one would
+# change silently. `github-actions` supports only the flat form; `npm` and `pip` also support
+# per-bump figures, which is why the two shapes below differ.
+#
+# **DO NOT TREAT THIS AS A GUARANTEE — THE ONE OBSERVATION AVAILABLE CONTRADICTS IT.** On the
+# first `npm` run, #161 proposed `astro` 7.1.3 → 7.2.2 while 7.2.2 was THREE days old, under
+# `semver-minor-days: 7`. Read against dependabot-core, that should not happen: the bump type
+# is computed from current→new (7.1→7.2 is minor), the days come from the matching semver key,
+# and the window is measured from the new release's own publish time, which the npm fetcher
+# populates from the registry. By those semantics 7.2.2 was ineligible until day 7 and 7.2.0
+# — ten days old — was the version that should have been offered.
+#
+# The gap is UNEXPLAINED rather than explained away. Candidates not ruled out: the hosted
+# service running a different version from dependabot-core's main branch; something specific
+# to the grouped-update path; or the first run after a config change behaving differently.
+# WHAT TO DO ABOUT IT: on the next `npm` minor, compare the proposed version's publish date
+# against the window this file asks for. If it is short again, the control is not doing what
+# this comment says and the honest fix is to say so here rather than to raise the numbers,
+# which would be tuning a mechanism nobody has confirmed is running.
 #
 # ONE GROUP PER ECOSYSTEM, AND DELIBERATELY NO `applies-to` KEY. That option defaults to
 # version updates, so these groups cannot capture a security update — which is the intent,
