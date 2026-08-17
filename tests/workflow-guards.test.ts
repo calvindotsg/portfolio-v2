@@ -42,7 +42,16 @@ interface Step {
     name?: string;
     uses?: string;
     run?: string;
-    if?: string;
+    /**
+     * `string | boolean`, LIKE `continue-on-error` BELOW AND FOR THE SAME REASON. `if: false`
+     * is legal YAML and legal GitHub, and `parse()` hands back a BOOLEAN rather than the
+     * string "false" — so typing this `string` alone made the `typeof` test in
+     * `stepAlwaysRuns` read a never-true guard as NO GUARD AT ALL, and the step counted as
+     * always-running. MEASURED on the analytics step: `if: false` left the whole suite green,
+     * which is the unsafe direction — the gate reports a step as reachable on a payload where
+     * GitHub skips it.
+     */
+    if?: string | boolean;
     env?: Record<string, string>;
     with?: Record<string, string>;
     /**
@@ -169,10 +178,21 @@ const NEUTERED = (v: boolean | string | undefined) => v === true || v === "true"
  */
 const PUBLISHING_PATHS = ["same-repo PR from a human", "push to main"] as const;
 
-/** Does this step's own `if:` let it run wherever the site can be published? */
+/**
+ * Does this step's own `if:` let it run wherever the site can be published?
+ *
+ * THE ABSENT KEY IS THE ONLY THING THAT MEANS "UNGUARDED", and separating that from the two
+ * spellings that merely LOOK unguarded is the whole of this helper. A step with no `if:` runs
+ * everywhere, so `true` is right for it. Everything else is a guard and gets evaluated, even
+ * when YAML has already turned it into something that is not a string: `if: false` arrives as
+ * a BOOLEAN, and the `typeof` test this line used to carry sent it down the ungarded path.
+ * MEASURED, before and after this file learned to check step guards at all: `if: false` on the
+ * analytics step leaves the suite fully green. That is a fix that looks applied and is not.
+ */
 const stepAlwaysRuns = (s: Step): boolean => {
-    if (typeof s.if !== "string") return true;
-    return PUBLISHING_PATHS.every((name) => evaluate(s.if as string, CONTEXTS[name]));
+    if (s.if === undefined) return true;
+    const guard = String(s.if);
+    return PUBLISHING_PATHS.every((name) => evaluate(guard, CONTEXTS[name]));
 };
 
 const stepsRunning = (id: string, command: string): Step[] =>
@@ -309,11 +329,26 @@ describe("a red suite still blocks a deploy", () => {
      * make AND to be able to exit non-zero — and `exit 1` is looked for with comments stripped,
      * the same discipline `stepsRunning` already uses, because a step whose only `exit 1` sits
      * in a `#` comment cannot fail anything.
+     *
+     * AND THE STEP'S OWN `if:` IS ASKED THE SAME QUESTION, which is the discipline this
+     * predicate was missing while the one above it had it. A step that cannot RUN cannot fail
+     * anything either — exactly the reasoning the `#` comment clause already gives — so the
+     * protection this file offered was one-sided: mutate a JOB-level guard to something
+     * never-true and the suite went red, mutate a STEP-level `if:` the same way and it stayed
+     * green. MEASURED against the analytics step, whose `github.actor != 'dependabot[bot]'`
+     * clause plan 027 promoted from hypothetical to load-bearing: `if: github.event_name ==
+     * 'workflow_dispatch'` left all 543 tests passing while deleting the only check that the
+     * shipped pages carry the right `data-website-id`.
+     *
+     * THE ASYMMETRY IS THE LESSON, NOT THE LINE. Both helpers read as covered from their test
+     * names, and only one was. When adding any future guard assertion, ask which of the two it
+     * is and whether the helper it uses applies `stepAlwaysRuns`.
      */
     const failingRunSteps = (id: string, mustMention: RegExp[]): Step[] =>
         (CI.jobs[id]?.steps ?? []).filter((s) => {
             const live = (s.run ?? "").split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
-            return mustMention.every((re) => re.test(live))
+            return stepAlwaysRuns(s)
+                && mustMention.every((re) => re.test(live))
                 && /(^|\s)exit\s+[1-9]/.test(live)
                 && !NEUTERED(s["continue-on-error"]);
         });
@@ -358,6 +393,20 @@ describe("a red suite still blocks a deploy", () => {
 // The guards, executed rather than read.
 // ─────────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * `${{ … }}` IS A LEGAL WRAPPER ON ANY `if:` AND MEANS THE SAME THING, so both parser entry
+ * points in this file strip it and NEITHER owns a second copy of the rule.
+ *
+ * It lived only on the step-guard path, which is how the job/step-reachability path came to
+ * CRASH on a spelling GitHub accepts. MEASURED: `if: ${{ false }}` on the analytics step took
+ * five assertions down — four of them about `pnpm test`, `pnpm check` and `pnpm eslint`, none
+ * of which the mutation touched — with `Unexpected symbol: '${{'`, a message about this
+ * harness's own lexer rather than about the workflow. That is the failure mode the
+ * `always()` block above already names and fixes for status functions: a guard the gate
+ * cannot parse must be reported as a guard, not as a broken test.
+ */
+const unwrapExpression = (expr: string): string => expr.trim().replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
+
 const toData = (v: unknown): data.ExpressionData => {
     if (v === null || v === undefined) return new data.Null();
     if (typeof v === "string") return new data.StringData(v);
@@ -384,7 +433,7 @@ const toData = (v: unknown): data.ExpressionData => {
  * and this was invisible there; `pnpm check` found it the first time the file was checked.
  */
 const evaluate = (expr: string, github: unknown): boolean => {
-    const parser = new Parser(new Lexer(expr).lex().tokens, ["github"], []);
+    const parser = new Parser(new Lexer(unwrapExpression(expr)).lex().tokens, ["github"], []);
     const context = new data.Dictionary({key: "github", value: toData(github)});
     return truthy(new Evaluator(parser.parse(), context).evaluate());
 };
@@ -714,22 +763,24 @@ const statusFunctions = (situation: {failed: boolean; cancelled: boolean}): Map<
     }]));
 };
 
-/**
- * `${{ … }}` IS A LEGAL WRAPPER ON AN `if:` AND MEANS THE SAME THING — GitHub evaluates a
- * bare `if:` as an expression already, and both forms appear in real workflows. Lexing the
- * braces would be a parse error reported as a broken guard.
- */
+/** The wrapper is stripped by `unwrapExpression`, which says why and is the only copy. */
 const evaluateStep = (expr: string, situation: {failed: boolean; cancelled: boolean}): boolean => {
     const funcs = statusFunctions(situation);
     const infos = [...funcs.values()].map(({name, minArgs, maxArgs}) => ({name, minArgs, maxArgs}));
-    const bare = expr.trim().replace(/^\$\{\{([\s\S]*)\}\}$/, "$1");
-    const parser = new Parser(new Lexer(bare).lex().tokens, ["github"], infos);
+    const parser = new Parser(new Lexer(unwrapExpression(expr)).lex().tokens, ["github"], infos);
     const context = new data.Dictionary({key: "github", value: toData({})});
     return truthy(new Evaluator(parser.parse(), context, funcs).evaluate());
 };
 
-/** A step with no `if:` runs under `success()`. See above — this default IS the gate. */
-const guardOfStep = (step: Step): string => step.if ?? "success()";
+/**
+ * A step with no `if:` runs under `success()`. See above — this default IS the gate.
+ *
+ * `String(…)` FOR THE REASON `stepAlwaysRuns` GIVES: `if: false` is legal and arrives from
+ * `parse()` as a boolean, which `??` does not catch — it is neither null nor undefined — so
+ * the boolean reached the lexer and crashed it. A YAML boolean is handed on as its own
+ * spelling and answered by the evaluator, which reads `false` as the literal it is.
+ */
+const guardOfStep = (step: Step): string => String(step.if ?? "success()");
 
 /**
  * DISCOVERED FROM WHAT THE STEP DOES, not from a workflow path or a step name, for the reason

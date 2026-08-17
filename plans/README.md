@@ -1,10 +1,18 @@
 # Implementation Plans
 
-**One plan is executable: 028.** It is written and NOT executed — deliberately handed to a fresh
-session rather than run by its author, which is the upstream advisor/executor split this
-directory has otherwise only used in one direction. Plans 024–027 are merged, archived and live.
-A "continue the refactor" request still means re-audit or ask; 028 is a specific handoff, not a
-queue.
+**No plan is executable. 028 has been executed** — it was written and handed to a fresh session
+rather than run by its author, which is the upstream advisor/executor split this directory had
+otherwise only used in one direction, and that separation is what paid off: the executor found
+three defects in the plan by measuring what it asserted, including a Step 1 mutation whose STOP
+condition would have retired a live defect as already-closed. Plans 024–027 are merged, archived
+and live. A "continue the refactor" request means re-audit or ask.
+
+**What the handoff actually proved.** A plan is a claim about a repository, and the only thing
+that tests a claim is running it. 028's own worked example is worth keeping: it told the executor
+to mutate a step guard to `${{ false }}` and read a red suite as "the hole is already closed". The
+suite does go red on that spelling — as a LEXER CRASH, in the helper the plan was about to fix —
+so obeying the plan meant abandoning the defect it was written to close. The advisor could not
+have known that without executing it, and the executor could not have missed it while measuring.
 
 **027 did not come from an audit run**, which makes it the second of its kind after 015: it came
 from the maintainer resolving a repository-level event — this repository left the GitHub fork
@@ -149,7 +157,7 @@ recreated.
 | 025 | Assert what forced colours PAINT a mark, not merely that some rule reaches it | P2 | S | — | **DONE** (`4b9d5ea`) |
 | 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | **DONE** (`557af8f`) |
 | 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **DONE** (`8e91ec2`) |
-| 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **TODO** |
+| 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **DONE** (executed from a fresh session; archive on merge) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -559,13 +567,33 @@ Killed by the run-2 skeptic pass or advisor review — do not re-audit:
   author contact data (his voice/intent, plans 005 and 007 both left it), so
   deletion is the maintainer's call; its self-referential test is 3 harmless
   lines. Recorded, not planned.
-- **eslint-plugin-astro 1.7.0 → 3.0.1.** Lints clean today; the upgrade forces
-  new Node engine ranges and parser peers for zero articulable gain on a
-  10-file .astro repo. Not worth doing now.
+- **eslint-plugin-astro 1.7.0 → 3.0.1. REVERSED 2026-08-17 — MERGED as #162; do not read the
+  rejection below as standing policy.** What changed is not the argument but who was making it:
+  the repository left the fork network on 2026-08-16, Dependabot armed, and the upgrade arrived
+  as a pull request that had already run `pnpm eslint` in CI. That turned "the parser peers are
+  a risk" into a measured fact — v3 parses `.astro` with Astro's Rust compiler, and the job
+  passed, so the compiler accepted every file here. The engine range (`^22.22.3 || ^24.16.0 ||
+  >=26.3.0`) is satisfied by `.nvmrc`, and the parser peer floor was real: v2 requires
+  `@typescript-eslint/parser >=8.61.0` while this repo declared `^8.58.0`, corrected in the same
+  change. The rest is recorded as it stood: *lints clean today; the upgrade forces new Node
+  engine ranges and parser peers for zero articulable gain on a 10-file .astro repo.* One
+  residual — `eslint.config.js` still sets `astro/valid-compile`, which v3 DEPRECATED and dropped
+  from `recommended`. Deprecated is not deleted, which is why lint stays green, and it is why the
+  DX-04 entry below still reads true.
 - **typescript 6.0.2 → 7.x (native compiler).** `@astrojs/check` /
   `@typescript-eslint` compatibility unestablished, and the repo has almost no
   hand-written TS. Investigate-only; no leverage.
-- **lint-staged 16 → 17.** No changelog signal affecting the hook. Skipped.
+- **lint-staged 16 → 17. REVERSED 2026-08-17 — MERGED as #163.** The original reading survives
+  contact: *no changelog signal affecting the hook.* Checked rather than assumed this time — the
+  Node and Git floors are satisfied, and the `yaml` optional-dependency change does not apply
+  because the configuration is the inline `lint-staged` key in `package.json` rather than a YAML
+  file. The one behavioural risk is the staging path, which churned across the whole 17.0.x
+  range, and it is unreachable from CI by construction: this tool runs only in
+  `.husky/pre-commit`. So it was verified by hand, twice — once under the shipped config, and
+  once with a task rewritten to genuinely MODIFY the staged file, because none of the four
+  eslint rules configured here is fixable and `eslint --fix` therefore never modifies anything.
+  Both left the file correctly staged. **A check that cannot reach the path it names is not a
+  check** — the shipped-config run alone would have proved only that lint-staged starts.
 - **Security headers (CSP etc.) via the host's headers file.** Static one-pager, no
   forms/auth/cookies/user input; a real CSP needs `unsafe-inline` plus a
   cloud.umami.is allow-list. Marginal value, deliberately not raised. (Raised against
