@@ -19,6 +19,36 @@
 - **Depends on**: none
 - **Category**: tests (A), dependencies (B, C)
 - **Planned at**: commit `6f231f7`, 2026-08-17
+- **Executed at**: commit `15630ab`, 2026-08-17, from a fresh session. See "What execution
+  changed about this plan" below before reading any step as written.
+
+## What execution changed about this plan
+
+Four things in this file were wrong, and they are corrected in place rather than annotated,
+because a plan is read as instructions and a footnote does not stop anyone following the line
+above it. Recorded here so the corrections are not mistaken for the original reasoning.
+
+1. **Step 1 named a mutation that inverts its own STOP condition.** `if: ${{ false }}` makes the
+   suite RED *before* any fix — not as an assertion, but as a lexer crash inside `stepAlwaysRuns`
+   that takes down four assertions the mutation never touched. Step 1 says a red baseline means
+   the hole is already closed and the work package is obsolete, so following this plan literally
+   retired a live defect. The mutation is now the spelling the test file's own comment already
+   records as MEASURED.
+2. **Two further never-true spellings were not anticipated**, and the done criterion says ANY of
+   them must redden. `if: false` is a YAML BOOLEAN, so the `typeof` test read it as *no guard* and
+   the step counted as always-running — green, in the unsafe direction. `if: ${{ … }}` was
+   stripped by only one of the two parser entry points. Both are fixed in
+   `tests/workflow-guards.test.ts`, which is why the diff is larger than adding one conjunct to
+   `failingRunSteps`.
+3. **Step 3 omitted `pnpm-lock.yaml` from scope.** Raising a declared range without it makes
+   `pnpm install --frozen-lockfile` fail in CI, so the lockfile is not optional here.
+4. **Step 4's stated reason was factually wrong for the version it decided.** See that step.
+
+One thing outside this plan's scope reddened `main` during execution: merging #162 and #163 back
+to back produced a textually-clean, semantically broken `pnpm-lock.yaml`, because the second bot
+branch was cut from the base the first had not yet changed. Both were green on their own base and
+nothing tested the pair. `needs: build` held and no deploy shipped from it. The repair rides this
+change.
 
 ## Why this matters
 
@@ -147,7 +177,15 @@ reach the built output.
 
 - `tests/workflow-guards.test.ts` (work package A)
 - `package.json` — the `@typescript-eslint/parser` floor only (work package B)
-- `plans/README.md` — status row, and the lede if it still claims no live proposal
+- `pnpm-lock.yaml` — as a CONSEQUENCE of that floor, never as a separate refresh. A declared
+  range that the lockfile's `importers` block disagrees with fails `pnpm install
+  --frozen-lockfile`, which is CI's first step. Check the diff is the specifier line and nothing
+  else; a version that moved is a different change wearing this one's clothes
+- `plans/README.md` — status row, and the lede if it still claims no live proposal. **Also the
+  run-2 rejection list**, which carries "eslint-plugin-astro … Not worth doing now" and
+  "lint-staged 16 → 17 … Skipped": merging either bump makes the living index tell the next run
+  the repository is still on the old version. Reverse them in place, in the idiom the DX-01 entry
+  in the same list already uses
 - `plans/028-close-the-step-guard-hole-and-take-two-majors.md` — this file
 
 **Out of scope**:
@@ -176,12 +214,22 @@ reach the built output.
 Do not fix first. Establish the baseline, or you cannot tell a fix from a coincidence.
 
 In a scratch copy of the tree, change the analytics step's `if:` in
-`.github/workflows/ci.yml` to something never-true — `if: ${{ false }}` is enough — and run
+`.github/workflows/ci.yml` to `if: github.event_name == 'workflow_dispatch'` and run
 `SKIP_BUILD=1 pnpm test`.
 
+**USE THAT SPELLING, NOT `${{ false }}`, AND NOT `false`.** All three are never-true on the
+publishing paths and only one of them tests what this step is testing.
+`${{ false }}` goes red *before* any fix — a lexer crash in a helper this plan is about to
+change, not an assertion — which trips the STOP condition below and retires a live defect as
+already-closed. Bare `false` is a YAML boolean rather than a string and was silently inert. The
+spelling above is a real guard, is a string, evaluates cleanly, and is the one
+`tests/workflow-guards.test.ts` already records as MEASURED in its own comment.
+
 **Verify**: the suite is GREEN with that mutation in place. That green run is the defect.
-Record the test-file and test counts. **If it is already RED, STOP** — the hole is closed and
-this work package is obsolete; report that and move to Step 3.
+Record the test-file and test counts. **If it is already RED, STOP** — but read the failure
+first: a red run whose message is about this harness's own parser is the trap above, not a
+closed hole. Only an ASSERTION failure naming the analytics check means the work package is
+obsolete; report that and move to Step 3.
 
 ### Step 2 (A): apply the always-runs check, and re-run the same mutation
 
@@ -190,11 +238,25 @@ predicate so it matches the discipline `stepsRunning` already uses. Extend the c
 it to say why — a step that cannot run cannot fail anything, which is the same reasoning the
 existing comment already gives for ignoring `exit 1` inside a `#` comment.
 
+**That conjunct alone does not satisfy the done criterion below**, which says ANY never-true
+step `if:` must redden. `stepAlwaysRuns` has to be able to ANSWER for the three spellings first:
+
+- `if: false` arrives from `parse()` as a BOOLEAN, so `typeof s.if !== "string"` treats a
+  never-true guard as no guard at all and the step counts as always-running — a green run in the
+  unsafe direction. Widen `Step["if"]` to `string | boolean` (the interface already does exactly
+  this for `continue-on-error`, for the same reason) and test for the key's ABSENCE instead.
+  `guardOfStep` needs the same treatment or the boolean reaches the lexer.
+- `if: ${{ … }}` is a legal wrapper that only `evaluateStep` stripped, so the reachability path
+  crashed on it. Give the strip one home and call it from both parser entry points — a second
+  copy of that rule is the drift class this repository has a doctrine about.
+
 **Verify**, in this order:
 
 1. With the Step 1 mutation still applied: `SKIP_BUILD=1 pnpm test` → **RED**, naming the
-   analytics assertion.
-2. With the mutation reverted: `pnpm test` → **GREEN**, with the same counts as the Step 1
+   analytics assertion — and failing ONLY that assertion. Collateral failures mean the gate is
+   crashing rather than answering.
+2. Repeat for `if: ${{ false }}` and `if: false`. Both must fail the same single assertion.
+3. With the mutation reverted: `pnpm test` → **GREEN**, with the same counts as the Step 1
    baseline.
 
 Both directions are required. A gate that is red on everything is not a gate.
@@ -216,10 +278,25 @@ is green.
 Confirm the pull request is still green and still contains only the dependency change, then
 merge it.
 
+**NOT for the reason an earlier draft of this plan gave.** It named the switch to
+`git update-index --again` as the one behavioural change that could bite. That landed in 17.0.0
+and was REVERTED to `git add` in 17.0.6 for performance on large repositories, so 17.0.8 does not
+carry it. What is worth checking is that the staging path was churned across the whole range —
+17.0.3 (implicit commits and pathspecs), 17.0.4 (task modifications across multiple commits),
+17.0.8 (merge-conflict status handling) — in a tool no CI job can cover, because it runs only in
+`.husky/pre-commit`.
+
 **Verify**: after merging and pulling, make a trivial staged edit to a file matching the
-`lint-staged` globs and run `pnpm lint-staged` directly. It must exit 0 and leave the staged
-file staged. This exercises the one behavioural change that could bite — the switch to
-`git update-index --again` — which no CI job can cover, because this tool never runs there.
+`lint-staged` globs and run `pnpm lint-staged` directly. It must exit 0 and leave the staged file
+staged.
+
+**THAT RUN DOES NOT REACH THE PATH THIS STEP IS ABOUT, and a second one is required.** The
+property at risk is that a task which MODIFIES a staged file gets that modification restaged —
+and none of the four eslint rules configured here is fixable, so `eslint --fix` never modifies
+anything and the shipped configuration proves only that lint-staged starts. Temporarily point the
+`scripts/**/*.mjs` task at a command that always rewrites its arguments, stage a file, run
+`pnpm lint-staged`, and assert the rewrite is present in the STAGED blob
+(`git show :<path>`) and not merely in the working tree. Revert the configuration afterwards.
 
 ## Test plan
 
@@ -238,18 +315,22 @@ run in Step 4, which is deliberate: it covers a hook that CI structurally cannot
 
 ALL must hold:
 
-- [ ] `pnpm check` exits 0 with `0 errors`
-- [ ] `pnpm eslint` exits 0 with no output
-- [ ] `pnpm test` exits 0, every test file passing or skipped
-- [ ] Mutating any step-level `if:` in `.github/workflows/ci.yml` to a never-true expression
+- [x] `pnpm check` exits 0 with `0 errors`
+- [x] `pnpm eslint` exits 0 with no output
+- [x] `pnpm test` exits 0, every test file passing or skipped — **19 files / 543 tests**
+- [x] Mutating any step-level `if:` in `.github/workflows/ci.yml` to a never-true expression
       makes `SKIP_BUILD=1 pnpm test` RED, and the unmutated tree is GREEN with the counts
-      recorded in Step 1
-- [ ] `grep -c 'stepAlwaysRuns' tests/workflow-guards.test.ts` returns at least `3` — the
-      definition plus both call sites
-- [ ] `grep -c '8.61' package.json` returns `1`
-- [ ] Pull requests #162 and #163 are MERGED or CLOSED with a stated reason, not left open
-- [ ] No file outside the in-scope list is modified (`git status`)
-- [ ] `plans/README.md` status row updated
+      recorded in Step 1. Measured for all three spellings; each fails exactly one assertion,
+      and the unmutated tree stays at the same 19/543
+- [x] `grep -c 'stepAlwaysRuns' tests/workflow-guards.test.ts` returns at least `3` — the
+      definition plus both call sites. Returns `6`
+- [x] `grep -c '8.61' package.json` returns `1`
+- [x] `pnpm install --frozen-lockfile` exits 0. **Added during execution** — it did not, on
+      `main`, and nothing in this plan would have caught that
+- [x] Pull requests #162 and #163 are MERGED or CLOSED with a stated reason, not left open —
+      both MERGED, each with its breaking-change analysis in the merge commit body
+- [x] No file outside the in-scope list is modified (`git status`)
+- [x] `plans/README.md` status row updated
 
 ## STOP conditions
 
@@ -278,3 +359,15 @@ Stop and report back (do not improvise) if:
   `plans/done/README.md`.
 - After #162 lands, the next `astro` major is the one to watch — the linter now parses with
   the same Rust compiler the build uses, so the two can now disagree in new ways.
+- **`eslint.config.js` still sets `astro/valid-compile`, which v3 DEPRECATED** and dropped from
+  `recommended`. Deprecated is not deleted, which is why lint stays green and why nothing here
+  reddened — but it is a rule on borrowed time, and `plans/README.md`'s DX-04 rejection cites it
+  as live evidence that the config can block something. Left alone deliberately: out of this
+  plan's scope, and the replacement (`pnpm check`) is already in CI.
+- **NEVER MERGE TWO LOCKFILE-TOUCHING BOT PULL REQUESTS BACK TO BACK.** Each bot branch is cut
+  from the base it saw, so the second one's lockfile never contained the first one's changes; git
+  merges the file TEXTUALLY, resolves without conflict, and produces a lockfile that is
+  syntactically fine and semantically broken. Both pull requests are honestly green, because
+  nothing tests the pair. Merge one, then rebase the next and wait for its new run. The gate that
+  caught it was `needs: build` — the failing install meant the deploy jobs never ran — which is
+  the same edge `tests/workflow-guards.test.ts` exists to hold.
