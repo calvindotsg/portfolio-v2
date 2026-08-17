@@ -11,7 +11,19 @@ export default [
       "no-console": "warn",
       "no-debugger": "error",
       "astro/no-unused-define-vars-in-style": "error",
-      "astro/valid-compile": "error",
+      /*
+       * `astro/valid-compile` IS GONE FROM HERE BECAUSE THE PLUGIN DEPRECATED IT, not because
+       * the check stopped mattering. eslint-plugin-astro v3 parses `.astro` with Astro's Rust
+       * compiler and dropped this rule from `recommended`; it still resolves, so setting it
+       * stayed green, which is exactly why it would have sat here until the release that
+       * deletes it turned a silent deprecation into `Definition for rule not found`.
+       *
+       * WHAT REPLACES IT IS ALREADY IN THE GATE. `pnpm check` runs `astro check` over 76
+       * files, and the compiler now rejects at parse time what this rule used to report — so
+       * removing it narrows what eslint claims, not what CI enforces. `.github/workflows/ci.yml`
+       * runs `check` and `eslint` as separate steps for this reason: they cover different
+       * files, and `tests/workflow-guards.test.ts` holds both against every publishing path.
+       */
     },
   },
   /*

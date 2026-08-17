@@ -1,11 +1,16 @@
 # Implementation Plans
 
-**No plan is executable. 028 has been executed** — it was written and handed to a fresh session
-rather than run by its author, which is the upstream advisor/executor split this directory had
-otherwise only used in one direction, and that separation is what paid off: the executor found
-three defects in the plan by measuring what it asserted, including a Step 1 mutation whose STOP
-condition would have retired a live defect as already-closed. Plans 024–027 are merged, archived
-and live. A "continue the refactor" request means re-audit or ask.
+**No plan is executable.** Plans 024–028 are merged, archived and live, and nothing is queued. A
+"continue the refactor" request means re-audit or ask.
+
+**028 is the one that was handed to a fresh session** rather than run by its author — the upstream
+advisor/executor split this directory had otherwise only used in one direction — and that
+separation is what paid off. Every correction the executor made came from measuring something the
+plan asserted rather than from reading it, which is the argument for the split stated as an
+outcome. The corrections themselves are listed at the top of
+[`done/028-close-the-step-guard-hole-and-take-two-majors.md`](done/028-close-the-step-guard-hole-and-take-two-majors.md);
+do not re-count them here, because a figure in this file and a list in that one is the
+enumeration-in-two-places failure this directory has a rule about.
 
 **What the handoff actually proved.** A plan is a claim about a repository, and the only thing
 that tests a claim is running it. 028's own worked example is worth keeping: it told the executor
@@ -157,7 +162,7 @@ recreated.
 | 025 | Assert what forced colours PAINT a mark, not merely that some rule reaches it | P2 | S | — | **DONE** (`4b9d5ea`) |
 | 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | **DONE** (`557af8f`) |
 | 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **DONE** (`8e91ec2`) |
-| 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **DONE** (executed from a fresh session; archive on merge) |
+| 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **DONE** (`c941e3a`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -577,9 +582,11 @@ Killed by the run-2 skeptic pass or advisor review — do not re-audit:
   `@typescript-eslint/parser >=8.61.0` while this repo declared `^8.58.0`, corrected in the same
   change. The rest is recorded as it stood: *lints clean today; the upgrade forces new Node
   engine ranges and parser peers for zero articulable gain on a 10-file .astro repo.* One
-  residual — `eslint.config.js` still sets `astro/valid-compile`, which v3 DEPRECATED and dropped
-  from `recommended`. Deprecated is not deleted, which is why lint stays green, and it is why the
-  DX-04 entry below still reads true.
+  residual, since CLOSED — `eslint.config.js` still set `astro/valid-compile`, which v3
+  DEPRECATED and dropped from `recommended`. Deprecated is not deleted, so lint stayed green and
+  nothing reddened; the rule was removed anyway, because the alternative was discovering it on
+  the release that deletes it. See the DX-04 entry below, which is the reason it needed a
+  decision rather than a sweep.
 - **typescript 6.0.2 → 7.x (native compiler).** `@astrojs/check` /
   `@typescript-eslint` compatibility unestablished, and the repo has almost no
   hand-written TS. Investigate-only; no leverage.
@@ -640,11 +647,16 @@ re-audited next run:
   workflow on 2026-07-21 and chose to skip it; plan 002 instead made the *existing*
   pipeline run `pnpm check && pnpm test`, which closed the gap at the time.
 - **DX-04 — the eslint config and pre-commit hook cannot block anything.** False.
-  `no-undef`, `no-debugger`, `astro/no-unused-define-vars-in-style` and
-  `astro/valid-compile` are all set to `error`, and a probe through the real
-  config exits non-zero. The `.ts` coverage gap the finding worries about is
-  largely closed by `astro check`, which reads 22 files including the root
-  configs.
+  `no-undef`, `no-debugger` and `astro/no-unused-define-vars-in-style` are all set
+  to `error`, and a probe through the real config exits non-zero. The `.ts`
+  coverage gap the finding worries about is largely closed by `astro check`, which
+  reads the root configs as well as the source. **The refutation lost one of its
+  four rules on 2026-08-17 and still holds**: `astro/valid-compile` was the fourth,
+  and eslint-plugin-astro v3 deprecated it and dropped it from `recommended`, so it
+  was removed from `eslint.config.js` rather than left to fail on the release that
+  deletes it. What it used to report the Astro compiler now rejects at parse time,
+  which is `pnpm check` rather than `pnpm eslint` — a different step of the same
+  gate, not a gap. Do not read the missing rule as this entry weakening.
 
 ## Deliberately not planned
 

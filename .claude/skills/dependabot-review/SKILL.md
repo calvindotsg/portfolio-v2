@@ -144,6 +144,20 @@ release notes do not reliably state defaults.
   already paid for once. Only a human should suppress an update permanently. `@dependabot rebase`
   and `@dependabot recreate` are safe; `@dependabot merge` no longer exists.
 - **Never merge with a check red, missing, or pending.**
+- **NEVER MERGE A SECOND LOCKFILE-TOUCHING PULL REQUEST WITHOUT REBASING IT FIRST.** Each bot
+  branch is cut from the `main` it saw, so the second one's lockfile never contained the first
+  one's changes. Git merges a lockfile TEXTUALLY, resolves it without a conflict, and produces a
+  file that is syntactically fine and semantically broken — a package still depended on in the
+  resolved graph with its `packages:` entry deleted. `pnpm install --frozen-lockfile` then fails,
+  which is CI's FIRST step, so nothing downstream runs.
+  **Both pull requests are honestly green, because a check runs against its own base and nothing
+  tests the pair.** This is the one failure the floor below cannot see: green is not a claim about
+  what happens after the merge before it.
+  Merge one, comment `@dependabot rebase` on the next, and wait for its NEW run. If you have
+  already merged both, repair on a branch with `pnpm install --no-frozen-lockfile`, confirm
+  `git diff pnpm-lock.yaml` restored entries and moved no version, then re-assert with
+  `pnpm install --frozen-lockfile`. Measured here on 2026-08-17 (#162 then #163): `main` went red
+  and no deploy shipped, because `needs: build` held.
 - **Never bump a pin by hand to "help".** The bot owns those lines.
 - **Never commit to `main`.** Any fix you make gets a branch and a worktree, per `CONTRIBUTING.md`.
 

@@ -186,7 +186,7 @@ reach the built output.
   "lint-staged 16 → 17 … Skipped": merging either bump makes the living index tell the next run
   the repository is still on the old version. Reverse them in place, in the idiom the DX-01 entry
   in the same list already uses
-- `plans/028-close-the-step-guard-hole-and-take-two-majors.md` — this file
+- this file
 
 **Out of scope**:
 
