@@ -1513,3 +1513,67 @@ trailing marker while leaving the prose above asserting the opposite. The bump a
 majors on the one job that pushes to `main` unattended; `persist-credentials` still defaults to
 `true` — read out of the action's own input manifest at both the old and new SHA — so it was
 inert, and that is now written down with its failure mode.
+
+## Plan 028 — close the step-guard hole, and decide the two held major bumps
+
+Merged as `c941e3a` (#168), after `862bb2c` (#162) and `15630ab` (#163). It closes the first of
+the three follow-ups plan 027's panel measured and reserved, and decides the two majors that panel
+raised.
+
+**It is the first plan written by one session and executed by another**, which is the upstream
+advisor/executor split used in the direction this directory had never used it. That is the finding
+worth carrying forward, because it paid immediately: every correction below came from measuring
+something the plan asserted, and none of them is visible by reading it.
+
+### The plan was wrong in four places, and one of them was self-sealing
+
+| defect | what it would have caused |
+|---|---|
+| Step 1 prescribed mutating a step guard to `${{ false }}` and treating a red baseline as "hole already closed" | The suite DOES go red on that spelling — as a lexer crash inside the helper the plan was about to fix, because only one of the file's two parser entry points stripped the `${{ }}` wrapper. Obeying the plan retires a live defect |
+| Step 2 prescribed only adding `stepAlwaysRuns(s) &&` | Insufficient for the plan's OWN done criterion: `if: false` is a YAML **boolean**, so a `typeof` test read a never-true guard as *no guard* and the step counted as always-running |
+| Step 3's scope named `package.json` but not `pnpm-lock.yaml` | A declared range the lockfile disagrees with fails `pnpm install --frozen-lockfile`, CI's first step |
+| Step 4 named `git update-index --again` as lint-staged's one risky change | It landed in 17.0.0 and was REVERTED to `git add` in 17.0.6. The version being decided did not carry it |
+
+**The generalisable rule: a baseline mutation must FAIL FOR THE REASON THE BASELINE IS ABOUT.** A
+STOP condition keyed on "is it red?" is keyed on the wrong predicate; key it on which assertion
+failed. All three spellings were measured in both directions rather than one:
+
+| analytics-step `if:` | before the fix | after |
+|---|---|---|
+| `github.event_name == 'workflow_dispatch'` | GREEN — the defect | RED, 1 assertion |
+| `${{ false }}` | RED — lexer crash, 5 assertions | RED, 1 assertion |
+| `false` | GREEN — silently inert | RED, 1 assertion |
+
+Unmutated: 19 files / 543 tests, unchanged across the fix. The corrected gate was also checked
+against the workflow AS IT IS rather than only against mutations — in #168's own run the analytics
+step's conclusion is `success`, not `skipped`, so the second STOP condition does not fire.
+
+### A verification that cannot reach the path it names
+
+Step 4's manual check — a trivial staged edit, confirm `pnpm lint-staged` exits 0 and the file is
+still staged — passes and is nearly vacuous. The property at risk is that a task which MODIFIES a
+staged file gets that modification RESTAGED, and **none of the four eslint rules configured here is
+fixable**, so `eslint --fix` never modifies anything. It was re-run with the task repointed at a
+command that always rewrites its arguments, asserting the rewrite lands in the STAGED blob
+(`git show :<path>`) rather than only the working tree. Both pass. Before running a prescribed
+verification, ask what would have to be true for it to FAIL.
+
+### What the merge itself broke, and what caught it
+
+Squash-merging #162 then #163 back to back put `main` in a red state: #163's branch was cut from
+the base #162 had not yet changed, so git merged `pnpm-lock.yaml` **textually** and cleanly into a
+semantically broken file — `find-process@2.1.1` still depending on `commander@14.0.3` with that
+`packages:` entry deleted. **Both pull requests were honestly green, because a check runs against
+its own base and nothing tests the pair.** `pnpm install --frozen-lockfile` failed, so `build`
+never ran, so `needs: build` held and no deploy shipped — the same edge
+`tests/workflow-guards.test.ts` exists to protect, catching a defect that had nothing to do with
+workflows. The rule is now in `.claude/skills/dependabot-review/SKILL.md` under "Never".
+
+### Follow-ups taken in the same pass
+
+- `astro/valid-compile` removed from `eslint.config.js`. v3 deprecated it and dropped it from
+  `recommended`; deprecated is not deleted, so it stayed green and would have sat there until the
+  release that deletes it. `pnpm check` is what covers it now. The DX-04 refutation in
+  `../README.md` cited it as one of four rules and was retargeted rather than left to rot.
+- `@typescript-eslint/parser` floor raised to `^8.61.0`, matching the peer minimum
+  eslint-plugin-astro v2 declares. The caret already resolved above it; only the declaration moved.
