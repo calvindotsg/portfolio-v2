@@ -2122,6 +2122,56 @@ describe("no on-demand rendering output", () => {
     });
 });
 
+/**
+ * THE ARTIFACT IS THE ONLY PLACE THE BUILD'S MODE CAN BE ASKED ABOUT HONESTLY.
+ *
+ * `pnpm test` builds the site through `tests/setup/build.ts`, CI runs no other build, and
+ * both deploy jobs publish that exact directory without rebuilding — so whatever mode this
+ * `dist/` was drawn in is the mode visitors get. It was drawn in development mode for as long
+ * as nothing asked: vitest mirrors its own `import.meta.env` into the environment, the spawned
+ * build inherited it, and the live home page served an attribute astro puts on an image only
+ * under a development build. No assertion read it, so the defect arrived silently and a revert
+ * would too.
+ *
+ * IT ASKS THE ARTIFACT AND NOT THE SPAWN, which is why it lives here rather than beside the
+ * code it protects. A gate on `tests/setup/build.ts` would hold one build invocation, and a
+ * second one added to CI tomorrow could ship in whatever mode it liked with this suite green.
+ * What the deploy needs is a property of the bytes.
+ *
+ * ONE MARKER, BECAUSE ONE IS WHAT THIS SITE EMITS. Measured whole-tree with `diff -rq` between
+ * a build in each mode: the trees differ in `dist/index.html` alone, by this 28-byte attribute.
+ * Naming markers a static build cannot produce — a dev-server client script, a dev toolbar —
+ * would read as thorough and be unexercised. The class is larger than the marker and latent:
+ * astro carries development branches in client modules this site does not load yet, so the day
+ * anything here adds a router or prefetch the marker stops being the whole of it.
+ *
+ * THE FLOOR IS THE STIMULUS RATHER THAN A BYTE COUNT. "This page does not contain that string"
+ * is true of a page containing nothing, and true of a page with no processed image on it — so
+ * the same assertion holds that the home page still ships the element the marker would ride on.
+ * An absence is evidence only where the thing could have been present.
+ */
+describe("the artifact that ships was drawn in production mode", () => {
+    it("carries no development-only marker on any page, and still ships what would carry one", () => {
+        const pages = builtPages();
+        expect(pages.length, "no page was walked, so this gate would be vacuous").toBeGreaterThan(0);
+
+        for (const page of pages) {
+            expect(read(page), `${page} carries \`data-image-component\`, which astro puts on an image `
+                + `only under a development build — so the build that produced this dist/ ran in `
+                + `development mode, and CI publishes this directory without rebuilding it. Look at the `
+                + `environment tests/setup/build.ts hands the spawn: vitest mirrors DEV into the `
+                + `environment and astro reads the environment as import.meta.env, so NODE_ENV alone `
+                + `does not decide this.`).not.toContain("data-image-component");
+        }
+
+        const decorated = read("dist/index.html").match(/<img[^>]*srcset="[^"]*\/_astro\/[^"]*"[^>]*>/g) ?? [];
+        expect(decorated.length, "the home page ships no astro-processed image, so the absence asserted "
+            + "above is not evidence of anything — the marker rides on exactly that element. If the "
+            + "portrait moved or stopped being processed, this gate needs a new stimulus rather than "
+            + "deleting.").toBeGreaterThan(0);
+    });
+});
+
 describe("source hygiene", () => {
     /**
      * These class names look like utilities but generate no CSS rule at all —

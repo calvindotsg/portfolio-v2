@@ -194,6 +194,11 @@ this — STOP and report.
 
 ### Step 2: build in production mode
 
+> **READ "Execution notes" AT THE FOOT OF THIS FILE BEFORE FOLLOWING THIS STEP.** What it
+> prescribes is half the fix and its own verification command fails against it: `NODE_ENV` is not
+> the only thing telling the build it is in development mode. The step is left as written because
+> this file is the record of what was proposed; the notes are the record of what was true.
+
 Set `NODE_ENV=production` on the `execFileSync` call in `tests/setup/build.ts` — the child's
 environment, not the parent's, so nothing else in the suite changes mode. Carry a comment saying
 what it is for: that vitest sets `NODE_ENV=test`, that Vite reads `isProduction` from it, and that
@@ -331,3 +336,54 @@ Stop and report back — do not improvise — if:
   lockfile behind a sparse checkout, which costs the "no repository source in the runner" property
   the deploy jobs currently have. Not worth that trade for a graph whose executing and re-resolving
   sets are disjoint. Revisit only if that intersection stops being empty.
+
+## Execution notes
+
+Written by the executor. Kept because the one thing this plan got wrong is the thing the next
+reader of `tests/setup/build.ts` most needs to know.
+
+**Drift check**: clean. None of the five files had moved since `847d4a7`.
+
+**Step 1 reproduced exactly**: `0` / `1` / `1`. The blast radius was re-established rather than
+trusted — stripping the 28-byte attribute from the test-mode `index.html` makes it `cmp`-identical
+to the production one, and `diff -rq` finds no other file in the tree.
+
+**STEP 2 AS WRITTEN DOES NOT FIX THE DEFECT, and it is green-looking while it fails.** `NODE_ENV`
+is only half the mechanism. `vitest.config.ts` builds its config with astro's `getViteConfig`, and
+loading it mirrors vitest's own `import.meta.env` into the process environment — `DEV=1`, `PROD=`,
+`MODE=test`, `TEST=true`, plus `BASE_URL` and `SITE`. Astro surfaces the environment as
+`import.meta.env` for the server build (which is how `UMAMI_ID` reaches the layout without a
+prefix), so an inherited `DEV=1` tells the prerender it is a development build and no mode setting
+can outvote it. Measured, four builds, counting the marker in the emitted home page:
+
+| | `DEV` inherited | `DEV` stripped |
+|---|---|---|
+| `NODE_ENV=test` | 1 — what CI ships today | 1 |
+| `NODE_ENV=production` | **1 — the plan's step 2 alone** | 0 |
+
+Both halves are independently load-bearing, so the shipped fix sets the mode *and* strips the
+mirrored names, and says why in place. The plan's own measurement was taken with
+`NODE_ENV=production vitest run`, which sets the value on the **parent** — that does work, because
+astro then mirrors a production `import.meta.env` instead. The plan then prescribed a different
+implementation (child-level, correctly, for the reasons its scope section gives) without
+re-measuring it. Nothing here needed the audit artifacts; the mechanism came out of the tree.
+
+**The acceptance test was strengthened to match.** `dist/` after a plain `pnpm test` is now
+`diff -rq`-identical to `dist/` after a plain `pnpm build` — a whole-tree property rather than one
+attribute, which is what "the artifact CI gates is a production artifact" actually means.
+
+**Three mutations, not one.** The build-output gate was shown red against `NODE_ENV: "test"`, red
+against the strip disabled, and red against a floor that cannot find its stimulus. The
+workflow-guards gate was shown red with the flag removed from one deploy (it names
+`ci.yml → deploy-preview → wrangler pages deploy (preview)`) and red again with the flag moved
+*after* the package specifier, which is the failure a substring match would have called a pass.
+
+**Step 6's property was re-derived rather than restated.** It holds: the install-script packages in
+wrangler's graph are reached only by exact versions, so no fresh resolve can substitute one. The
+first derivation said otherwise — it counted `devDependencies` and `peerDependencies` edges, which
+are never installed for a transitive package. Read the corrected comment's re-derivation recipe, not
+that first answer.
+
+**Two scope notes.** The workflow gate sweeps every file in `.github/workflows/`, not just `ci.yml`:
+the deploy is not the only job here holding a credential, and only `ci.yml` matches today. The
+production deploy step carries no copy of the rewritten comment and did not grow one.

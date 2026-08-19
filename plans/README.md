@@ -173,7 +173,7 @@ recreated.
 | 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | **DONE** (`557af8f`) |
 | 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **DONE** (`8e91ec2`) |
 | 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **DONE** (`c941e3a`) |
-| 029 | Build the gated artifact in production mode, and bound the deploy step | P1 | S | — | **TODO** |
+| 029 | Build the gated artifact in production mode, and bound the deploy step | P1 | S | — | **DONE** (executed from a fresh session; archive on merge) |
 | 030 | Make every workflow gate cover every workflow | P1 | M | 029 | **TODO** |
 | 031 | Validate what the two script seams accept | P2 | M | — | **TODO** |
 | 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **TODO** |

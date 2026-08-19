@@ -280,17 +280,36 @@ jobs:
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler.json
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        # WHAT THE VERSION PIN BUYS, STATED HONESTLY: it pins wrangler's own version and
-        # NOT its dependency tree. `npx --yes` resolves ~91 packages with no lockfile and no
-        # integrity pinning, 23 of them on floating ranges, two with install scripts — in
-        # the same process as the deploy token, while every `uses:` above is SHA-pinned for
-        # exactly that threat. The control that actually bounds this is the token's scope:
-        # `Cloudflare Pages: Edit` on one account, which cannot touch DNS, zones or Workers.
-        # Closing it properly needs a committed lockfile and therefore a checkout, which
-        # trades away the property described at the top of this block. Cloudflare's own
+        # WHAT THE VERSION PIN BUYS, STATED HONESTLY: it pins wrangler's own version and NOT
+        # its dependency tree. `npx` consults no lockfile, so nothing in this repository holds
+        # an integrity expectation for a single package it resolves — and it resolves them in
+        # this step, beside the deploy token, while every `uses:` above is SHA-pinned for
+        # exactly that threat. That fact is durable and does not depend on how big the tree is,
+        # which is why no count is written here any more: the last one had rotted, and while it
+        # was wrong it also pointed the reader at the safe half of the graph.
+        #
+        # WHAT KEEPS THIS LOW IS AN INTERSECTION RATHER THAN THE PIN. Two sets: the packages
+        # that can re-resolve on any deploy because something names them by a range, and the
+        # packages that run code at install time. They are disjoint today — every install-script
+        # package is reached only by exact versions, so a fresh resolve cannot substitute one.
+        # NOTHING OBSERVES THAT, so re-derive it rather than trusting this line. Adding the same
+        # wrangler pin to an empty directory with pnpm names the install-script packages
+        # outright, in an "Ignored build scripts" line, because pnpm refuses to run them; then
+        # read the range each of their dependents declares. The day one of them is named by a
+        # range instead, this paragraph is wrong and the step is no longer LOW.
+        #
+        # `--ignore-scripts` below closes the executing half whatever that intersection does,
+        # and `tests/workflow-guards.test.ts` is what keeps the flag on both deploys across a
+        # version bump — Dependabot moves WRANGLER_VERSION without re-checking any of this.
+        #
+        # The token's scope bounds the blast radius and does NOT bound this: `Cloudflare Pages:
+        # Edit` on one account cannot touch DNS, zones or Workers, but it can publish arbitrary
+        # content to the project that serves calvin.sg, which is the thing being protected here.
+        # Closing the resolve properly needs a committed lockfile and therefore a checkout,
+        # which trades away the property described at the top of this block. Cloudflare's own
         # `wrangler-action` has the same shape.
         run: |
-          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy dist \
+          npx --yes --ignore-scripts "wrangler@${WRANGLER_VERSION}" pages deploy dist \
             --project-name="${PAGES_PROJECT}" \
             --branch="pr-${PR_NUMBER}" \
             --commit-hash="${HEAD_SHA}"
@@ -413,7 +432,7 @@ jobs:
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler.json
           HEAD_SHA: ${{ github.sha }}
         run: |
-          npx --yes "wrangler@${WRANGLER_VERSION}" pages deploy dist \
+          npx --yes --ignore-scripts "wrangler@${WRANGLER_VERSION}" pages deploy dist \
             --project-name="${PAGES_PROJECT}" \
             --branch=main \
             --commit-hash="${HEAD_SHA}"
