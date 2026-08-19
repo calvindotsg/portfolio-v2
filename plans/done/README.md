@@ -1577,3 +1577,85 @@ workflows. The rule is now in `.claude/skills/dependabot-review/SKILL.md` under 
   `../README.md` cited it as one of four rules and was retargeted rather than left to rot.
 - `@typescript-eslint/parser` floor raised to `^8.61.0`, matching the peer minimum
   eslint-plugin-astro v2 declares. The caret already resolved above it; only the declaration moved.
+
+## Plan 029 — ship the artifact you gated, and bound the deploy step
+
+Merged as `eae05af` (#171), the first of the six plans the two-run security audit produced. Handed
+to a fresh session like 028, and it repeated 028's result: the correction that mattered came from
+measuring something the plan asserted, and is invisible to anyone reading it.
+
+### Production was served a development build, and NODE_ENV was only half the reason
+
+`pnpm test` builds through `tests/setup/build.ts`, CI runs no other build, and both deploy jobs
+publish that directory unchanged — so the mode that spawn runs in is the mode visitors get. It ran
+in development mode, and `https://calvin.sg/` served `data-image-component="true"` to prove it.
+
+The plan named `NODE_ENV` and stopped there. **Setting it does not fix the defect**, and the plan's
+own verification command is what says so. `vitest.config.ts` builds its config with astro's
+`getViteConfig`, and loading it mirrors vitest's `import.meta.env` into the process environment —
+`DEV=1`, `PROD=`, `MODE=test`, `TEST=true`, `VITEST=true`, plus `BASE_URL` and `SITE`. Astro
+surfaces the environment AS `import.meta.env` for the server build, which is how `UMAMI_ID` reaches
+the layout without a prefix; it is also how an inherited `DEV=1` tells the prerender it is a
+development build. **A variable outvotes the mode, because it is not read as a flag at all.**
+
+| | `DEV` inherited | `DEV` stripped |
+|---|---|---|
+| `NODE_ENV=test` | 1 — what CI shipped | 1 |
+| `NODE_ENV=production` | **1 — the plan's step 2 alone** | 0 |
+
+Both halves are load-bearing. The shipped fix sets the mode and strips the whole mirrored set rather
+than the one name that moves a byte: an artifact still describing itself as a test run is the same
+defect waiting for a different reader.
+
+**How a right measurement produced a wrong instruction.** The plan measured
+`NODE_ENV=production vitest run`, which sets the value on the PARENT — that genuinely works, because
+astro then mirrors a *production* `import.meta.env`. It then prescribed a child-level change, for
+sound scoping reasons, and never re-measured that form. **A premise and a remedy are two claims and
+a plan usually measures only the first.** "Verified, not proposed" means the fix was tested — ask in
+which form, and run the plan's own verify command immediately after applying its step.
+
+### Verified as a property of the tree, then on the wire
+
+`dist/` after `pnpm test` is `diff -rq`-identical to `dist/` after a plain `pnpm build` — the
+whole-tree form of the claim, rather than one attribute. Before the fix the two trees differed in
+`index.html` alone and were `cmp`-identical once the 28-byte attribute was stripped.
+
+Five mutations, each shown red and restored: `NODE_ENV: "test"`; the strip disabled; the floor
+pointed at a directory that does not exist; `--ignore-scripts` removed from one deploy (it names
+`ci.yml → deploy-preview → wrangler pages deploy (preview)`); and the flag merely MOVED after the
+package specifier, which is the failure a substring match calls a pass — only the leading run of
+options is npm's.
+
+The preview deploy is what proved the flag rather than the local `--version` check: the step ran a
+real resolve under it in 24s. After the production deploy, `https://calvin.sg/` returns 0 for the
+marker and its hashed-asset set matches the local build.
+
+### The comment that pointed at the safe half
+
+The block above the preview deploy claimed 23 floating packages and gestured at the two
+install-script packages as the risk. The count had rotted, and those two are the exact-pinned, safe
+half. It now carries the durable fact — `npx` consults no lockfile, so nothing here holds an
+integrity expectation for anything it resolves — names the property the LOW rating rests on (the
+re-resolving set and the install-script set are disjoint) and names how to re-derive it. Re-derived
+while writing it: both install-script packages are reached only by exact versions. **The first
+derivation said otherwise** and was wrong — it counted `devDependencies` and `peerDependencies`
+edges, which are never installed for a transitive package.
+
+### What a read-only pre-flight of 030–034 measured
+
+Run while archiving this plan, against `eae05af`. Premises hold nearly everywhere; three defects in
+030 do not, and all three were measured rather than reasoned.
+
+| plan | finding |
+|---|---|
+| 030 step 2 | **Breaks 030's own existing assertions.** `publishingJobs` is literally "jobs whose serialised YAML names `secrets.CLOUDFLARE_API_TOKEN`". The canary step adds that name to `build`, so `build` is classified as publishing: the `toEqual` job-list assertion fails, and "every publishing job waits transitively on a job that runs `pnpm test`" fails because `build` reaches nothing. The step's verification is "`pnpm test` green" |
+| 030 step 2 | **Its rationale is false.** It says a repository-level copy "would turn any fork pull request into a production-site takeover". `ci.yml` triggers on `pull_request`, and GitHub withholds secrets from fork PRs — the exposure is same-repo branches and Dependabot. The canary is still worth adding; the sentence selling it is not |
+| 030 step 3 | **Reddens on day one, and its fix is out of scope.** Six of seven jobs declare job-level `permissions:`; `strava-progress.yml`'s `update` job has workflow-level only. Word it "runs under an explicit block, workflow- or job-level" |
+| 030 step 5 | The `dist/` root list omits the two directories (`_astro`, `patches`), which trips the plan's own STOP on the first `ls` |
+| 032 § A | Over-claims. `raw_progress` is not "asserted nowhere" — `tests/content.test.ts:436-437` checks finiteness and a lower bound. Only the UPPER bound is missing, which is what the poisoning scenario needs |
+| 032 | Its `plans/README.md` line references are ~37 lines stale since `e19f550` |
+
+Verified sound and worth not re-deriving: 031's three injection payloads all reproduce live against
+`scaffold-race.mjs`, and its note that a published fourth payload does NOT work is correct; every
+action in every workflow is already SHA-pinned, so 030 step 1 cannot redden; no `run:` body in any
+workflow contains a `${{` expression; Rocket Loader was still on, so 034's preconditions were unmet.
