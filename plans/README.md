@@ -1,21 +1,24 @@
 # Implementation Plans
 
-**Six plans are queued: 029–034.** They come from a two-run security audit of this repository
-completed on 2026-08-18, and they are the first proposals here since 028 landed. Plans 024–028 are
-merged, archived and live.
+**Five plans are queued: 030–034.** They come from a two-run security audit of this repository
+completed on 2026-08-18, and they were the first proposals here since 028 landed. 029 was the sixth
+and is merged, archived and live; plans 024–028 are too.
 
-**029 and 030 are the two that matter**; 031 is disjoint from every other plan and may run in
-parallel with any of them; 033 is genuinely optional. **034 cannot go green until three Cloudflare
-zone settings are off** — it names them as preconditions and stops rather than weakening an
-assertion to pass. Read each plan's own Status block for its dependencies; do not infer them from
-the numbering, which is leverage order rather than a chain.
+**030 is now the one that matters**, and it is the one to read before dispatching anything: a
+read-only pre-flight run while archiving 029 measured three defects in it, and one of them makes its
+own verification step unreachable. See [`done/README.md`](done/README.md) § "Plan 029" for what was
+measured, in that plan and in the rest of the queue. 031 is disjoint from every other plan and may
+run in parallel with any of them; 033 is genuinely optional. **034 cannot go green until three
+Cloudflare zone settings are off** — it names them as preconditions and stops rather than weakening
+an assertion to pass; they were still on when 029 landed. Read each plan's own Status block for its
+dependencies; do not infer them from the numbering, which is leverage order rather than a chain.
 
 **The audit stopped short of a plan on purpose, and its artifacts live outside this repository.**
 Every plan below inlines what it needs, so an executor does not have to find them.
 
-**028 is the one that was handed to a fresh session** rather than run by its author — the upstream
+**028 was the FIRST plan handed to a fresh session** rather than run by its author — the upstream
 advisor/executor split this directory had otherwise only used in one direction — and that
-separation is what paid off. Every correction the executor made came from measuring something the
+separation is what paid off. 029 was the second and repeated the result exactly. Every correction the executor made came from measuring something the
 plan asserted rather than from reading it, which is the argument for the split stated as an
 outcome. The corrections themselves are listed at the top of
 [`done/028-close-the-step-guard-hole-and-take-two-majors.md`](done/028-close-the-step-guard-hole-and-take-two-majors.md);
@@ -173,7 +176,7 @@ recreated.
 | 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | **DONE** (`557af8f`) |
 | 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **DONE** (`8e91ec2`) |
 | 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **DONE** (`c941e3a`) |
-| 029 | Build the gated artifact in production mode, and bound the deploy step | P1 | S | — | **DONE** (executed from a fresh session; archive on merge) |
+| 029 | Build the gated artifact in production mode, and bound the deploy step | P1 | S | — | **DONE** (`eae05af`) |
 | 030 | Make every workflow gate cover every workflow | P1 | M | 029 | **TODO** |
 | 031 | Validate what the two script seams accept | P2 | M | — | **TODO** |
 | 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **TODO** |
