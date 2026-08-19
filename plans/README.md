@@ -1,7 +1,17 @@
 # Implementation Plans
 
-**No plan is executable.** Plans 024–028 are merged, archived and live, and nothing is queued. A
-"continue the refactor" request means re-audit or ask.
+**Six plans are queued: 029–034.** They come from a two-run security audit of this repository
+completed on 2026-08-18, and they are the first proposals here since 028 landed. Plans 024–028 are
+merged, archived and live.
+
+**029 and 030 are the two that matter**; 031 is disjoint from every other plan and may run in
+parallel with any of them; 033 is genuinely optional. **034 cannot go green until three Cloudflare
+zone settings are off** — it names them as preconditions and stops rather than weakening an
+assertion to pass. Read each plan's own Status block for its dependencies; do not infer them from
+the numbering, which is leverage order rather than a chain.
+
+**The audit stopped short of a plan on purpose, and its artifacts live outside this repository.**
+Every plan below inlines what it needs, so an executor does not have to find them.
 
 **028 is the one that was handed to a fresh session** rather than run by its author — the upstream
 advisor/executor split this directory had otherwise only used in one direction — and that
@@ -163,8 +173,35 @@ recreated.
 | 026 | Close the bare-filename gate's case gap, and give a foreign name a list of its own | P2 | M | — | **DONE** (`557af8f`) |
 | 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **DONE** (`8e91ec2`) |
 | 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **DONE** (`c941e3a`) |
+| 029 | Build the gated artifact in production mode, and bound the deploy step | P1 | S | — | **TODO** |
+| 030 | Make every workflow gate cover every workflow | P1 | M | 029 | **TODO** |
+| 031 | Validate what the two script seams accept | P2 | M | — | **TODO** |
+| 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **TODO** |
+| 033 | The six remaining hardenings | P3 | S | 029, 030 | **TODO** |
+| 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
+
+**Why 029–034 are six files rather than one.** Twenty-nine items in one pull request is not
+reviewable, and the precedent here is a numbered chain of small ones — 019–023 was five. They are
+numbered in leverage order. 031 shares no file with any of the others, which is what makes it
+parallel-safe, and it is the same mechanism run 6 relied on: each plan re-measures its own baseline
+in its own worktree and **none asserts an absolute suite total**.
+
+**Two of these plans carry work this repository cannot do.** 034 has Cloudflare zone preconditions,
+and its retention step is the only permanently irreversible action in the set — it deletes preview
+deployments, with the enumerate-and-report phase separated from the delete phase for that reason.
+032 edits this file's prose beyond a status row, which is normally the reviewer's alone; the
+maintainer waived that for two specific corrections and the plan names them.
+
+**What was deliberately NOT planned**, so it is not re-derived: the audit re-raised
+`Person.nationality` (refuted as CORRECT-02 below), deleting `METADATA.email_obfuscated` (DEBT-01,
+the maintainer's call), the published race calendar (the maintainer's, and the point of the site)
+and `rel="noopener noreferrer"` (refuted as SEC-04 below). Branch protection on `main` was
+considered and declined on a measurement rather than an opinion — a required status check breaks the
+nightly bot's push, and a push-via-PR redesign needs a long-lived credential strictly more powerful
+than the run-scoped `GITHUB_TOKEN` it would replace, because a `GITHUB_TOKEN` pull request does not
+trigger workflows. Plan 032 records that reasoning in the tree.
 
 **027 is the first plan whose premise was an event rather than a defect**, and that changes what
 the plan has to guard. An audit finding is true until someone fixes it; this one was true only
