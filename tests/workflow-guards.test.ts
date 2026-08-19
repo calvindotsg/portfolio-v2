@@ -869,3 +869,80 @@ describe("the unattended deploy's own guard", () => {
         }
     });
 });
+
+/**
+ * A STEP'S COMMANDS, WITH THE STEP'S OWN COMMENTS TAKEN OUT. A `run:` body here carries `#`
+ * lines explaining the command below them, and a gate that read those as commands would be
+ * holding the prose rather than the invocation. `stepsRunning` above strips them for the same
+ * reason; the semantics are shared deliberately rather than written twice.
+ */
+const commandLines = (step: Step): string[] =>
+    (step.run ?? "").split("\n").filter((line) => !/^\s*#/.test(line)).map((line) => line.trim());
+
+/** `npx` as a command, rather than the word appearing inside one. */
+const INVOKES_NPX = /(?:^|[|&;(]\s*)npx(?=\s|$)/;
+
+/**
+ * EVERY LINE IN EVERY WORKFLOW THAT FETCHES A PACKAGE AND RUNS IT, discovered from what the
+ * step does rather than from which job it sits in — `publishingJobs` and `dispatchers` above
+ * are discovered the same way and say why in the same words. Naming the two deploy jobs would
+ * hold the two invocations that exist today and review nothing added tomorrow, in this file or
+ * in the next workflow. The whole directory is swept for the second half of that: the deploy
+ * is not the only job here that holds a credential.
+ */
+const npxCommands = readdirSync(WORKFLOW_DIR)
+    .filter((file) => /\.ya?ml$/.test(file))
+    .flatMap((file) => {
+        const doc = parse(readFileSync(`${WORKFLOW_DIR}/${file}`, "utf8")) as {jobs?: Record<string, Job>};
+        return Object.entries(doc.jobs ?? {}).flatMap(([job, definition]) =>
+            (definition.steps ?? []).flatMap((step) => commandLines(step)
+                .filter((line) => INVOKES_NPX.test(line))
+                .map((line) => ({where: `${file} → ${job} → ${step.name ?? "(unnamed step)"}`, line}))));
+    });
+
+/**
+ * THE OPTIONS npx ITSELF READS, WHICH IS THE WHOLE OF THE QUESTION AND NOT A SUBSTRING OF IT.
+ * npm hands everything after the package specifier to the package, so an `--ignore-scripts`
+ * written after it is passed to wrangler — which has no such flag and ignores it — while
+ * reading, to grep and to a reviewer, exactly like the fix. Only the leading run of options
+ * belongs to npm, so only the leading run is looked at.
+ */
+const npxOptions = (line: string): string[] => {
+    const options: string[] = [];
+    for (const token of line.slice(line.indexOf("npx") + "npx".length).trim().split(/\s+/)) {
+        if (!token.startsWith("-")) break;
+        options.push(token);
+    }
+    return options;
+};
+
+/**
+ * THE DEPLOY RESOLVES ITS OWN TOOLCHAIN AT RUN TIME, IN THE PROCESS THAT HOLDS THE TOKEN.
+ *
+ * `npx` consults no lockfile, so nothing in this repository carries an integrity expectation
+ * for any of the packages it resolves — and it resolves them in the same step that exports
+ * `CLOUDFLARE_API_TOKEN`, while every `uses:` in the same file is SHA-pinned against exactly
+ * that threat. `--ignore-scripts` does not close the gap. It closes the half that can execute
+ * with nobody running anything, and that half costs one word.
+ *
+ * IT IS ASSERTED BECAUSE A VERSION BUMP IS WHERE IT WOULD GO MISSING. What makes the exposure
+ * low today is a property of a dependency graph rather than of the pin: the packages that
+ * re-resolve on every deploy and the packages that run install scripts are disjoint sets.
+ * Dependabot moves `WRANGLER_VERSION` without re-checking that, and this flag is what makes
+ * such a bump safe to merge on green. Nothing else here would notice it being dropped.
+ */
+describe("nothing a workflow fetches may run its own install scripts", () => {
+    it("passes --ignore-scripts to every npx invocation, ahead of the package it names", () => {
+        expect(npxCommands.length, "no workflow step invokes npx, so this gate is vacuous. If the deploy "
+            + "stopped fetching wrangler at run time the exposure is gone and this block should go with "
+            + "it; if it merely moved, follow it").toBeGreaterThan(0);
+
+        for (const {where, line} of npxCommands) {
+            expect(npxOptions(line), `${where} runs npx without --ignore-scripts among npm's own options. `
+                + "That step holds the Cloudflare deploy token and npx resolves its packages with no "
+                + "lockfile, so an install script anywhere in that graph executes beside the credential. "
+                + "The flag must sit before the package specifier — after it, npm passes it to the "
+                + "package instead and the guard is decorative.").toContain("--ignore-scripts");
+        }
+    });
+});
