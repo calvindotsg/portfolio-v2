@@ -74,6 +74,13 @@ type Permissions = string | Record<string, string>;
 interface Job {
     needs?: string | string[];
     if?: string;
+    /**
+     * A JOB MAY CARRY ITS OWN `env:`, and it overrides the workflow's. Absent from this shape
+     * until the telemetry gate needed it — which is the point: a value moved from the workflow
+     * block down to a job is still correct, and a gate that reads only the workflow level would
+     * call that correct move a regression.
+     */
+    env?: Record<string, string>;
     environment?: string | {name?: string; url?: string};
     permissions?: Permissions;
     steps?: Step[];
@@ -109,7 +116,7 @@ const commandLines = (step: Step): string[] =>
  */
 const WORKFLOW_DIR = ".github/workflows";
 const CI_PATH = `${WORKFLOW_DIR}/ci.yml`;
-const CI = parse(readFileSync(CI_PATH, "utf8")) as {permissions?: Permissions; jobs: Record<string, Job>};
+const CI = parse(readFileSync(CI_PATH, "utf8")) as {env?: Record<string, string>; permissions?: Permissions; jobs: Record<string, Job>};
 
 const jobIds = Object.keys(CI.jobs);
 const needsOf = (id: string): string[] => {
@@ -1409,6 +1416,69 @@ describe("the flags the deploy path depends on and nothing read", () => {
      * line is a second home for the version, and the two homes then disagree the first time one
      * of them is bumped.
      */
+    /**
+     * THE BUILD'S ONE OUTBOUND CALL, AND THE LINE THAT STOPS IT.
+     *
+     * `astro build` POSTs once per build to Astro's telemetry endpoint. The payload is anonymous
+     * — tool versions, OS and CPU, config KEYS without their values, a hash of the first commit —
+     * and the response is never read, so this is not sold as a security control. What it is: the
+     * only egress from the job that executes fork-pull-request-authored code, the single thing
+     * between this build and being hermetic, and a call that fires on every unattended nightly.
+     *
+     * IT SHIPPED UNGATED AND THAT IS WHY THIS EXISTS. Deleting the variable from `ci.yml` left the
+     * whole suite green — measured — which is the same silence the rest of this block was written
+     * to end. A one-line environment value with no assertion behind it is a line that comes back
+     * out in the next refactor and nothing reports it.
+     *
+     * ASKED OF THE JOB THAT BUILDS, NOT OF THE WORKFLOW BLOCK. `pnpm test` builds the site before
+     * asserting (its `globalSetup` shells out to `astro build`), so the process that phones home is
+     * the suite step. The value therefore has to be visible THERE, and GitHub composes that from
+     * three levels — workflow, job, step — each overriding the last. Reading only the workflow's
+     * `env:` would redden on someone moving the value down to the job, which is a correct edit.
+     *
+     * `isCI` DOES NOT ALREADY DO THIS, which is the assumption that makes the line look redundant.
+     * Measured by reading the installed telemetry package: the record is suppressed only by an
+     * explicit opt-out — the variable below, its unprefixed sibling, or a persisted choice on the
+     * machine — while `isCI` gates just the interactive first-run notice.
+     *
+     * NON-EMPTY RATHER THAN "1", AND THE PACKAGE IS WHY. Its check is `Boolean(a || b)` over the
+     * raw strings, so **every** non-empty value disables telemetry — including `"0"` and
+     * `"false"`, which read like switches in the ON position and are not. That is a trap worth
+     * knowing rather than a licence: the assertion holds the mechanism, and anyone writing `"0"`
+     * here has written something that works and means the opposite of what it says.
+     */
+    const TELEMETRY_OFF_VARS = ["ASTRO_TELEMETRY_DISABLED", "TELEMETRY_DISABLED"] as const;
+
+    it("disables the build's one outbound call, in the job that actually builds", () => {
+        const [suiteJob] = jobIds.filter(runsTheSuite);
+        expect(suiteJob, "no job runs the suite, so there is no build to keep offline here")
+            .toBeDefined();
+
+        const testStep = (CI.jobs[suiteJob].steps ?? [])
+            .find((step) => commandLines(step).some((line) => /\bpnpm\s+(?:run\s+)?test\b/.test(line)));
+        expect(testStep, `job "${suiteJob}" is the one this suite calls the suite-running job, but no step `
+            + "in it invokes `pnpm test` — the merge below would compose the environment of nothing")
+            .toBeDefined();
+
+        // WORKFLOW, THEN JOB, THEN STEP — GitHub's own precedence, narrowest last.
+        const seen: Record<string, unknown> = {
+            ...(CI.env ?? {}), ...(CI.jobs[suiteJob].env ?? {}), ...(testStep!.env ?? {}),
+        };
+
+        const disabling = TELEMETRY_OFF_VARS.filter((name) => {
+            const value = seen[name];
+            // `KEY:` with nothing after it parses as null and reaches the runner as the empty
+            // string, which is falsy to the package. Absent and blank are the same defect here.
+            return value !== undefined && value !== null && String(value) !== "";
+        });
+
+        expect(disabling.length, `nothing in the environment of \`pnpm test\` in job "${suiteJob}" disables `
+            + "Astro's telemetry, so this build POSTs to telemetry.astro.build once per run. That is the only "
+            + "outbound call the build makes and it leaves the one job that executes fork-authored code. Set "
+            + "ASTRO_TELEMETRY_DISABLED to any non-empty value in the workflow's env: block — `isCI` does not "
+            + "suppress the record, only the interactive notice").toBeGreaterThan(0);
+    });
+
     it("resolves wrangler through the workflow's version variable rather than a literal", () => {
         /*
          * ASSERTED ON THE SPECIFIER, ACROSS EVERY COMMAND, and each half of that is a hole this
