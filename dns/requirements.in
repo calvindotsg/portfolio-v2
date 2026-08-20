@@ -1,0 +1,30 @@
+# THE TWO PACKAGES THIS REPOSITORY ACTUALLY ASKS FOR. Everything else in
+# `dns/requirements.txt` is their transitive tree, and that file is COMPILED FROM THIS ONE —
+# do not hand-edit it, and in particular never hand-write a hash line:
+#
+#     uv pip compile --generate-hashes --universal --python-version 3.13 \
+#         dns/requirements.in -o dns/requirements.txt
+#
+# PINNED EXACTLY, NOT FLOATED, because the safety argument in `config.yaml` is an argument
+# about these versions' BEHAVIOUR — that a reject list refuses to touch a record rather than
+# deleting it, and that `pagerules` stays off so the www redirect is invisible rather than
+# removed. `test_filters.py` re-proves that behaviour on whatever is actually installed, so a
+# bump that breaks it goes red in `dns.yml` rather than in the zone.
+#
+# THE COMPILED FILE CARRIES A HASH FOR EVERY DISTRIBUTION, and that is a different claim from
+# this one. Two exact pins leave eleven transitive packages resolving to whatever PyPI serves
+# that minute, in the `apply` job — the one process in this repository where third-party code
+# shares an interpreter with a write credential to the domain's DNS, in a repository that
+# SHA-pins every GitHub Action for exactly that threat.
+#
+# `--require-hashes` ON THE INSTALL COVERS THE CASE THE HASHES THEMSELVES CANNOT. pip already
+# refuses a file that has hashes for some packages and not others. What it does NOT refuse is a
+# file with no hashes at all — still exactly pinned, installs clean, exit 0 — which is what a
+# recompile without `--generate-hashes` produces. The flag turns that into a failed job.
+#
+# `--python-version 3.13` IS `dns.yml`'s `PYTHON_VERSION` AND MUST STAY THAT WAY. It is the
+# floor a universal resolution is computed against; `tests/dns-config.test.ts` holds the two
+# together, because a lock resolved for an interpreter the workflow no longer runs is a lock
+# proving nothing about the install that happens.
+octodns==1.21.1
+octodns-cloudflare==1.2.0

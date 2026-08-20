@@ -24,6 +24,22 @@
 # so the realistic job of this workflow is to NOTICE when the zone and the repository disagree,
 # weekly, and say so. A drift run that finds changes fails on purpose.
 #
+# EVERY INSTALL BELOW IS HASH-CHECKED, AND `--require-hashes` IS STATED RATHER THAN INFERRED.
+# pip turns hash-checking on by itself as soon as ONE requirement carries a hash, and then demands
+# one from ALL of them — so a file that loses a SINGLE package's hashes already fails loudly, with
+# or without this flag. MEASURED, both ways, on pip 26.2.1.
+#
+# WHAT THE FLAG BUYS IS THE OTHER FAILURE: a file that loses ALL of them. A bad recompile, a hand
+# rewrite, or a bot regenerating without `--generate-hashes` produces a requirements file that is
+# still perfectly pinned and carries no hash at all — and pip installs it happily, exit 0, with
+# every job green while downloading whatever it is served. MEASURED: identical file, no flag exit
+# 0; with the flag, `Hashes are required in --require-hashes mode` and exit 1. The flag is the
+# difference between that going unnoticed and it stopping the run.
+#
+# `dns/requirements.txt` is compiled from `dns/requirements.in`; see the header there for why the
+# transitive tree is pinned at all, and `tests/dns-config.test.ts` for the gate that holds every
+# job to the same install.
+#
 # EVERY `permissions:` BLOCK BELOW REPLACES THE DEFAULTS WHOLESALE; an unlisted scope is `none`.
 
 name: DNS
@@ -91,7 +107,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - run: pip install -r dns/requirements.txt
+      - run: pip install --require-hashes -r dns/requirements.txt
 
       - run: python dns/test_filters.py
 
@@ -143,7 +159,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - run: pip install -r dns/requirements.txt
+      - run: pip install --require-hashes -r dns/requirements.txt
 
       # NO `--checksum` ON THIS LINE, EVER. See the header. The read-only token is the second
       # lock on the same door, not a substitute for this one.
@@ -244,7 +260,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - run: pip install -r dns/requirements.txt
+      - run: pip install --require-hashes -r dns/requirements.txt
 
       - name: octodns-sync (apply the reviewed plan)
         env:

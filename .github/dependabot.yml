@@ -14,11 +14,16 @@
 #                          the pnpm TOOL version rather than the lockfile format, and
 #                          `package.json` pins `pnpm@10.32.1`. There is no separate pnpm
 #                          ecosystem to declare.
-#   pip (/dns)             `dns/requirements.txt`, which was ungoverned until this entry
-#                          existed. It is the strongest case of the three rather than an
-#                          afterthought: the same two packages are installed into the job
-#                          that holds `CLOUDFLARE_DNS_WRITE_TOKEN`, so they are the
-#                          highest-privilege dependency here.
+#   pip (/dns)             `dns/requirements.in`, and the `dns/requirements.txt` compiled
+#                          from it. It is the strongest case of the three rather than an
+#                          afterthought: the same packages are installed into the job that
+#                          holds `CLOUDFLARE_DNS_WRITE_TOKEN`, so they are the
+#                          highest-privilege dependency here. WHAT TO WATCH ON THE NEXT BUMP:
+#                          the lock is hash-pinned, so a bot that edits the `.in` file must
+#                          also recompile the `.txt`. Whether Dependabot does that here is
+#                          UNOBSERVED — if it opens a pull request touching only one of the
+#                          two, recompile by hand with the command in the `.in` header rather
+#                          than dropping the hashes to make it merge.
 #
 # WHY THE pip ENTRY IS SAFE TO OPEN AT ALL, since it is the one that touches DNS. A bump to
 # `dns/requirements.txt` is already fully gated by machinery that predates it: `dns.yml`
@@ -103,7 +108,7 @@
 #   ls .github/workflows/
 #   grep -rhoP '^\s*-\s*uses:\s*\K[^@ ]+' .github/workflows/ | sort -u
 #   node -e 'const p=require("./package.json");console.log(Object.keys({...p.dependencies}).length,Object.keys({...p.devDependencies}).length)'
-#   grep -c '^[^#]' dns/requirements.txt
+#   grep -c '^[^#]' dns/requirements.in
 # The `uses:` grep is anchored to the list item on purpose: an unanchored form also matches
 # the word inside a prose comment and silently returns one too many.
 version: 2

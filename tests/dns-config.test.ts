@@ -70,6 +70,27 @@ const ZONE_TEXT = readFileSync(ZONE_PATH, "utf8");
 const ZONE = parse(ZONE_TEXT) as Record<string, unknown>;
 
 const REQUIREMENTS = readFileSync("dns/requirements.txt", "utf8");
+const DIRECT_REQUIREMENTS = readFileSync("dns/requirements.in", "utf8");
+
+/**
+ * THE LOCK, READ AS WHAT IT IS: one entry per distribution, each an exact pin followed by its
+ * own indented `--hash=` lines and a `# via` annotation. Parsed rather than regex-swept over
+ * the whole text, because the two properties below are per-ENTRY — "every line is a pin" and
+ * "every pin has a hash" are different claims from "the file contains pins and contains
+ * hashes", and only the first pair says anything if a single entry loses its hashes.
+ */
+const lockEntries = (): {name: string; version: string; hashes: number}[] => {
+    const entries: {name: string; version: string; hashes: number}[] = [];
+    for (const line of REQUIREMENTS.split("\n")) {
+        const pin = /^([A-Za-z0-9._-]+)==(\S+?)(?: \\)?$/.exec(line);
+        if (pin) {
+            entries.push({name: pin[1], version: pin[2], hashes: 0});
+        } else if (/^\s+--hash=/.test(line) && entries.length > 0) {
+            entries[entries.length - 1].hashes += 1;
+        }
+    }
+    return entries;
+};
 
 const needsOf = (id: string): string[] => {
     const n = WF.jobs[id]?.needs;
@@ -544,10 +565,82 @@ describe("the zone file holds what it claims and nothing it excluded", () => {
 });
 
 describe("the toolchain is pinned, because the safety argument is about versions", () => {
-    it("pins every requirement exactly", () => {
-        const lines = REQUIREMENTS.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+    /**
+     * EVERY DISTRIBUTION, NOT EVERY LINE THE FILE ASKED FOR. This assertion used to iterate the
+     * non-comment lines and require each to look like `name==version`, which was the right shape
+     * for a file holding two hand-written pins and the wrong one for a lock: the two exact pins
+     * left ELEVEN transitive packages resolving to whatever PyPI served that minute, into the
+     * `apply` job — the one process here that shares an interpreter with a write credential to
+     * the domain's DNS, in a repository that SHA-pins every GitHub Action against that same
+     * threat. The file is now compiled with hashes, and this checks what that buys.
+     *
+     * A COUNT IS NOT A SAMPLE, which is why the entries are parsed. `REQUIREMENTS` matching
+     * `--hash=` somewhere says nothing about the entry that lost its own, and the entry that
+     * loses its own is exactly the failure a hand-edit makes.
+     */
+    it("pins every distribution exactly, and gives each one a hash", () => {
+        const entries = lockEntries();
+        expect(entries.length, "the lock parsed to nothing, so everything below is vacuous")
+            .toBeGreaterThan(2);
+        for (const {name, version, hashes} of entries) {
+            expect(version, `${name} is not pinned to an exact version`).toMatch(/^[0-9]/);
+            expect(hashes, `${name}==${version} carries no hash, so pip would download anything`)
+                .toBeGreaterThan(0);
+        }
+    });
+
+    /**
+     * THE COMPILED FILE IS NOT THE ONE A HUMAN EDITS, and the split is the point: a bump is a
+     * one-line change to the `.in` plus a recompile, rather than a hand-authored hash list. So
+     * the direct requirements are held to the exact-pin rule where they are actually written.
+     */
+    it("keeps the direct requirements exactly pinned in the file they are written in", () => {
+        const lines = DIRECT_REQUIREMENTS.split("\n").map((l) => l.trim())
+            .filter((l) => l && !l.startsWith("#"));
         expect(lines.length).toBeGreaterThan(0);
-        for (const line of lines) expect(line, `"${line}" is not an exact pin`).toMatch(/^[A-Za-z0-9._-]+==[0-9]/);
+        for (const line of lines) {
+            expect(line, `"${line}" is not an exact pin`).toMatch(/^[A-Za-z0-9._-]+==[0-9]/);
+            expect(REQUIREMENTS, `${line} is asked for but is not in the compiled lock`)
+                .toContain(`${line} \\`);
+        }
+    });
+
+    /**
+     * STATED, NOT INFERRED. pip enables hash-checking as soon as it sees one hash, which makes
+     * the mode a property of the FILE — so a requirements file that loses its hashes silently
+     * loses the checking too, and every job stays green while downloading whatever it is served.
+     * Naming the flag turns that into a failed install. Discovered across every job rather than
+     * asserted of one, for the same reason the Python version is: an install added to a fourth
+     * job is exactly the one nobody remembers to protect.
+     */
+    it("hash-checks every install, in every job", () => {
+        const installs = Object.keys(WF.jobs).flatMap((id) =>
+            runCommands(id).split("\n").filter((l) => /\bpip\s+install\b/.test(l)).map((l) => ({id, l})),
+        );
+        expect(installs.length, "no job installs the toolchain, so this case is vacuous")
+            .toBe(Object.keys(WF.jobs).length);
+        for (const {id, l} of installs) {
+            expect(l, `job "${id}" installs without --require-hashes`).toContain("--require-hashes");
+            expect(l, `job "${id}" installs from something other than the compiled lock`)
+                .toContain("-r dns/requirements.txt");
+        }
+    });
+
+    /**
+     * THE LOCK'S OWN PROVENANCE, HELD AGAINST THE INTERPRETER THAT USES IT. A universal
+     * resolution is computed against a FLOOR Python version, and `uv` records the command in the
+     * file's header. If `PYTHON_VERSION` moves and the lock is not recompiled, the resolution
+     * proves nothing about the install that actually happens — the same defect this file already
+     * closes for the three `setup-python` steps, one level further down.
+     */
+    it("resolved the lock against the Python the jobs run", () => {
+        const header = REQUIREMENTS.split("\n").filter((l) => l.startsWith("#")).join("\n");
+        expect(header, "the lock has no header naming how it was produced")
+            .toContain("uv pip compile");
+        expect(header, "the lock was resolved against a different Python than the jobs use")
+            .toContain(`--python-version ${WF.env?.PYTHON_VERSION}`);
+        expect(header, "the lock names a source other than the file the direct pins live in")
+            .toContain("dns/requirements.in");
     });
 
     it("names octodns and the cloudflare provider", () => {
