@@ -106,6 +106,16 @@ block above it before giving either consumer the other's list.
     beside `isProposal` in `tests/docs-drift.test.ts`
   - measurement and rationale are ungated everywhere; `plans/done/` is exempt as
     an archive. When one of these goes red, the document is what is wrong
+- **`.claude/skills/` IS EXECUTABLE CONTENT, AND IS GATED AS SUCH.** A skill is
+  tracked, so it is on disk for anyone who checks out a branch, and it can run shell
+  at load time before the agent reads the policy in it.
+  `tests/skill-guards.test.ts` holds what any skill may declare and what a
+  merge-capable one must say; its header states which of its assertions are
+  structural and which are shape checks over prose that cannot read meaning. **The
+  trap that is not discoverable from the code: a rule against a phrase is enforced by
+  matching that phrase, so the document may not QUOTE the exception it refuses** —
+  state the rule instead. That is measured rather than hypothetical, and reddened on
+  correct prose the first time
 - **A DOCUMENT THAT RESTATES A LIST THE CODE OWNS IS HELD TO THAT LIST.** Naming a
   real `pnpm` script is not the same as naming the right SET of them, so
   `CONTRIBUTING.md`'s change-gate block is asserted against the steps in

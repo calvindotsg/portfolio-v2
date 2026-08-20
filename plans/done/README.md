@@ -2018,12 +2018,29 @@ return the three new headers, `cache-control` on `/` byte-identical to before, a
 rule intact and single-valued on a hashed asset — which is the plan's STOP condition asked directly
 rather than reasoned about.
 
-**Recorded, not fixed**, so it is not re-derived: two of the six steps have no gate at all. Deleting
+**Recorded, not fixed at the time, and CLOSED IN A FOLLOW-UP** — kept here because the gap is the
+useful part of the record. As 033 shipped it, two of the six steps had no gate at all: deleting
 `ASTRO_TELEMETRY_DISABLED` from `.github/workflows/ci.yml`, or restoring the Dependabot skill's
-standing-consent carve-out, both leave the suite green — the plan scoped assertions to
+standing-consent carve-out, both left the suite green. The plan had scoped assertions to
 `tests/build-output.test.ts` and `tests/data-contract.test.ts` only, and gating a workflow constant
-would have meant `tests/workflow-guards.test.ts`, which was out of scope. The telemetry line is the
-one worth closing. Also left standing deliberately: no `Content-Security-Policy`, whose rejection now
+would have meant `tests/workflow-guards.test.ts`, which was out of scope.
+
+Both are gated now. The telemetry flag joined the existing "flags the deploy path depends on and
+nothing read" block, asked of the job that BUILDS rather than of the workflow's `env:` — moving the
+value down to the job is a correct edit and must stay green, which is calibrated. The skill half
+needed a new subject rather than a new assertion: `tests/skill-guards.test.ts` holds `.claude/skills/`
+as executable content that travels with a branch, and its own header states which of its six
+assertions are structural and which are shape checks over prose that cannot read meaning.
+
+**The finding that came out of writing it**: the consent gate went red on the skill's own sentences
+EXPLAINING why standing consent had been removed. Nothing was granted — the prose was warning about
+the thing — and no pattern over words can tell a grant from a warning. The reword is the fix, and the
+document is better for it: state the rule rather than quote the exception you are refusing. A second
+one followed the same shape — the data-not-instructions gate initially rested on a single heading, so
+rewording that heading would have reddened correct content, and it now accepts either of two anchors
+that both live in the section whose deletion is the edit worth catching.
+
+Also left standing deliberately: no `Content-Security-Policy`, whose rejection now
 has no premise and wants a measurement nobody has reproduced; `strict-transport-security`, which the
 zone sends and `calvindotsg.pages.dev` does not; and `CONTRIBUTING.md` saying nothing about
 `.claude/skills/` being executable content that travels with an untrusted branch, which the plan
