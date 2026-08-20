@@ -1739,3 +1739,114 @@ the two rounds, each shown red and restored.
 here** before the lesson took: the restore point is HEAD, not "before this mutation". Commit first.
 The tell is silence — a mutation whose anchor no longer exists replaces nothing and prints a clean
 run, which is indistinguishable from a gate that does not work.
+## Plan 031 — the two script seams validate what they accept
+
+Merged as `6f8fbfe` (#175), the third of the six plans the two-run security audit produced, and the
+one the audit rated LOW. It is worth reading anyway, because the defect it closes was demonstrated
+end to end and because the fix committed the very defect it was fixing.
+
+### What was actually exploitable
+
+`scripts/scaffold-race.mjs` writes a module into `src/data/races/`, and `index.ts` loads that
+directory with `import.meta.glob(..., {eager: true})` — so the generated file **executes at every
+build**. Three API-derived fields reach it and only the activity title was defended. All three
+payloads were rendered, written to disk and imported:
+
+- `distance: "(globalThis.PWNED = 1, 17908.4)"` is emitted UNQUOTED, so it runs on import — and
+  `metres` still evaluates to 17908.4, so `tests/data-contract.test.ts` saw an ordinary race.
+- `id: '1", metres: (globalThis.P=1, 5), z: "'` leaves the recording row's string literal.
+- `id: "1*/ globalThis.P3=1; /*"` closes the module's JSDoc block.
+
+Reaching them needs control of an HTTPS response from `www.strava.com`, which is why it is LOW.
+
+### The plan's fix closed the third sink only by accident
+
+**The id is read TWICE and only one read was in `recordingsFrom`.** `main` built `titles`
+separately, so a guard in `recordingsFrom` alone closed the JSDoc sink purely through the order the
+object literal's properties happen to evaluate in — reorder `recordings:` and `titles:` and the
+case goes green over a live breakout. The evidence line is now `titlesFrom`, **a third function
+extracted from `main` for the third time for the same reason that file already records twice**:
+while it was a line in there, nothing could ask it anything. The plan's maintenance note —
+"`recordingsFrom` is the single validation point for everything the scaffold copies from the API" —
+was false as written.
+
+Four further plan defects, each measured: step 6 would have reddened
+`tests/dns-config.test.ts`'s "pins every requirement exactly" (**267 of 280 lines** fail its regex
+once hashes exist), a file the plan does not list and no STOP condition covers; step 6 edits
+`dns.yml`, also unlisted, where `pip install` appears **three** times rather than one; step 5
+falsifies `.env.op`'s header, which the plan puts out of scope; and step 6's "you cannot verify
+this locally" is false — `uv venv --python 3.13`, `pip install --require-hashes`,
+`dns/test_filters.py` (13/0) and `octodns-validate` (0) all run on a laptop, and real pip refuses a
+lock with a tampered hash.
+
+### A comment documenting the attack committed the attack
+
+Quoting the JSDoc-breakout payload PLAINLY inside a new docblock closed the comment it was written
+in. The words after it — `globalThis.P3=1;` — became a **live top-level statement**, and the text
+after that reopened a comment, so the delimiters balanced and the file parsed. `node --check`
+passed, `pnpm check` reported 0 errors, `pnpm eslint` was silent, and all 570 assertions were green
+while importing the module set a global. **Counting delimiters cannot detect it**: a close-then-
+reopen balances.
+
+The gate that does imports every script in a **fresh child process**. The in-process version was
+written first and was GREEN ON THE LIVE DEFECT, because this suite imports the script at its own
+top and the pollution predated the snapshot — a cache-busting query does not help, since the side
+effect had already happened.
+
+### The review panel found two blockers in the fix
+
+Five finder dimensions, one adversarial skeptic each, 11 agents.
+
+**An EMPTY `refresh_token` passed the new guard and overwrote both credential stores.**
+`typeof "" === "string"`, and `""` can never equal the token the request carried because `required`
+refuses an empty one — so the comparison read it as a ROTATION and `persistRotation` ran
+`op item edit … refresh_token[concealed]=` and `gh secret set` with empty stdin. The guard's own
+message said "no usable refresh_token" while accepting the one string shape that is unusable.
+Confirmed by mutation: reverting the new half fails with `Missing env: STRAVA_OP_VAULT`, i.e. the
+empty token really did reach `persistRotation`.
+
+**`scripts/README.md` still told the reader to revert the change.** It documented the deleted
+three-name ignore block and said "Do not 'fix' that by adding `.env*`". `docs-drift` cannot see it —
+its name gates check that a backticked path EXISTS, and `.env.production` is not a file that ever
+did. The executor's own pre-flight census missed it by piping the grep through `head -20`.
+
+### Two reasons that were false, and one that was false in three places
+
+- `distanceOf` **coerced where its own comment said it throws**. It read `Number(activity.distance)`
+  and checked the RESULT — a coercion wearing a validation. Measured: `null`/`""`/`[]`/`false` → 0,
+  `true` → 1, `"0x10"` → 16, `"17908.4"` → a CONVERTED 17908.4, which is a stored `f(source)` inside
+  a function whose docblock forbids exactly that. A race from `distance: true` shipped `metres: 1`
+  past every data-contract assertion.
+- **The pip reason was wrong.** The shipped comment claimed a requirement losing its hashes turns
+  checking off for the whole install and the job stays green. Measured on pip 26.2.1: a PARTIAL
+  strip is refused **with or without** the flag, because pip auto-enables hash-checking when any
+  hash is present and then demands one from all. What `--require-hashes` buys is the TOTAL strip — a
+  file that has lost every hash is still exactly pinned, installs clean at exit 0, and is refused
+  only with the flag.
+- `.env.op` claimed deleting `!.env.op` "un-commits it in silence". **An ignore rule has no effect
+  on a tracked file**, so it does not — which also makes the plan's own step-5 probe
+  (`git check-ignore -q .env.op`) unable to fail either way, so its evidence proved nothing.
+
+### And four gates that claimed more than they held
+
+The two discovery gates read `scripts/` **non-recursively** under docblocks claiming directory
+discovery. The import probe's docblock said "changes nothing outside it" while comparing only
+NEWLY ADDED `globalThis` keys — overwriting `fetch`, writing `process.env` and patching a prototype
+all passed it. The `.env.op` assertion hand-rolled a dotenv parser that would redden on `export`,
+single quotes or a trailing comment — spellings `op run` accepts. And the second assertion in each
+injection case was a tautology: reached only after `.toThrow()` had passed, over a pure function,
+so it could only ever see the empty string.
+
+### Outcome
+
+Suite **572 passed / 7 skipped of 579**, up from 561/568. In CI both DNS jobs installed the
+hash-pinned lock on Linux/py3.13 — including a `manylinux` wheel, which was the platform risk a
+`--universal` resolution compiled on macOS carries — `test_filters.py` reported 13 passed / 0
+failed, and `plan` reported no zone changes.
+
+**Recorded, not fixed**, so it is not re-derived: `sportOf` resolves off `Object.prototype`, so
+`sport_type: "constructor"` renders garbage instead of being refused (pre-existing, outside the
+diff, and `pnpm check` catches the output); `main`'s composition is ungated, so reverting the
+`titlesFrom` call site leaves the suite green; a Dependabot pip bump may strip the lock header and
+redden the new provenance gate; `lockEntries` has never been exercised on the marker/extras line
+shape `--universal` exists to emit; and `--only-binary=:all:` is absent from the three pip installs.

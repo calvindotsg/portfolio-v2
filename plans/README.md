@@ -1,14 +1,14 @@
 # Implementation Plans
 
-**Four plans are queued: 031–034.** They come from a two-run security audit of this repository
-completed on 2026-08-18, and they were the first proposals here since 028 landed. 029 and 030 are
-merged, archived and live; plans 024–028 are too.
+**Three plans are queued: 032–034.** They come from a two-run security audit of this repository
+completed on 2026-08-18, and they were the first proposals here since 028 landed. 029, 030 and 031
+are merged, archived and live; plans 024–028 are too.
 
-**All three pre-flight defects measured in 030 were real, and the executor worked around each rather
-than obeying the plan** — which is the third consecutive time the advisor/executor split has paid
-for itself. See [`done/README.md`](done/README.md) § "Plan 030" for what that cost and for the
-regression a review panel then found in the fix. 031 is disjoint from every other plan and may run
-in parallel with any of them; 033 is genuinely optional. **034 cannot go green until three
+**Every plan in this set so far has carried defects its executor had to measure rather than read,
+and 031 carried five** — the fourth consecutive time the advisor/executor split has paid for
+itself. See [`done/README.md`](done/README.md) § "Plan 030" and § "Plan 031" for what that cost,
+and for the regression each plan's review panel then found in its own fix. 033 is genuinely
+optional. **034 cannot go green until three
 Cloudflare zone settings are off** — it names them as preconditions and stops rather than weakening
 an assertion to pass; they were still on when 030 landed. Read each plan's own Status block for its
 dependencies; do not infer them from the numbering, which is leverage order rather than a chain.
@@ -178,7 +178,7 @@ recreated.
 | 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **DONE** (`c941e3a`) |
 | 029 | Build the gated artifact in production mode, and bound the deploy step | P1 | S | — | **DONE** (`eae05af`) |
 | 030 | Make every workflow gate cover every workflow | P1 | M | 029 | **DONE** (`85d5ff3`) |
-| 031 | Validate what the two script seams accept | P2 | M | — | **DONE** (unmerged; sha at merge) |
+| 031 | Validate what the two script seams accept | P2 | M | — | **DONE** (`6f8fbfe`) |
 | 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **TODO** |
 | 033 | The six remaining hardenings | P3 | S | 029, 030 | **TODO** |
 | 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **TODO** |
@@ -187,7 +187,7 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 
 **Why 029–034 are six files rather than one.** Twenty-nine items in one pull request is not
 reviewable, and the precedent here is a numbered chain of small ones — 019–023 was five. They are
-numbered in leverage order. 031 shares no file with any of the others, which is what makes it
+numbered in leverage order. 031 shared no file with any of the others, which is what made it
 parallel-safe, and it is the same mechanism run 6 relied on: each plan re-measures its own baseline
 in its own worktree and **none asserts an absolute suite total**.
 
