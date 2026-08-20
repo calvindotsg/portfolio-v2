@@ -182,6 +182,7 @@ recreated.
 | 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **TODO** |
 | 033 | The six remaining hardenings | P3 | S | 029, 030 | **TODO** |
 | 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **TODO** |
+| 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
