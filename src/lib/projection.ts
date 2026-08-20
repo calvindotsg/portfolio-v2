@@ -123,6 +123,50 @@ export function parseIsoDate(iso: string): number {
 }
 
 /**
+ * HOW FAR BEHIND THE BUILD DAY THE BOT'S STAMP HAS FALLEN, in whole days.
+ *
+ * THE TWO CLOCKS ARE ALLOWED TO DIFFER — the block at the top of this file argues that at
+ * length, and nothing here reopens it. What has no bound at all is HOW MUCH. The stamp and
+ * the build day drift apart on their own: a deploy is guaranteed every night whether or not
+ * the fetch succeeded (`.github/workflows/strava-progress.yml` runs its dispatch under
+ * `if: '!cancelled()'`, deliberately, because the CLOCK turns over even when the kilometres
+ * do not), so `BUILD_DATE` advances every day and `UPDATED_AT` advances only when the
+ * kilometres move.
+ *
+ * WHAT GOES WRONG IS THE REQUIRED RATE, and it goes wrong in the flattering direction.
+ * {@link goalStatus} divides the deficit by the days remaining measured FROM THE STAMP, so a
+ * stamp `n` days behind hands the arithmetic `n` days of denominator that have already been
+ * spent. The card prints a smaller number than the truth, under a heading that says how much
+ * is left. Nothing on the page contradicts it; the dateline shows the stamp, which is honest
+ * and is not the same as being noticed.
+ *
+ * THE CAUSE IS NOT KNOWABLE FROM HERE, AND DOES NOT NEED TO BE. It is tempting to read a
+ * stale stamp as "the Strava credential died", and it can be that — but `nextProgress` in
+ * `scripts/fetch-strava-progress.mjs` stamps the date only when the kilometres CHANGE (it has
+ * to: the workflow commits on a diff, and stamping unconditionally would make the file differ
+ * every night and deploy every night). So a stamp that has not moved in a month is equally
+ * consistent with a month of not riding. The two are indistinguishable from this side, and
+ * the reason that is acceptable is that THE HARM IS IDENTICAL: in both cases the published
+ * rate has been divided by a window that ended `n` days ago.
+ *
+ * FAILS THE SUITE RATHER THAN THE BUILD, and the choice is deliberate rather than obvious.
+ * Throwing here would take the whole site down over a number being wrong, and a dead site is
+ * a worse answer than a flattering one. Rendering a visible staleness note was the other
+ * candidate and was rejected for saying to the READER what needs saying to the OWNER — the
+ * reader cannot restart a workflow. So this stays a pure, exported measurement and
+ * `tests/data-contract.test.ts` holds it to a bound. That gate blocks the deploy, which IS
+ * the loud failure; read the bound's own comment there for the number and for what to do
+ * when it fires.
+ *
+ * NaN ON EITHER SIDE ANSWERS NaN rather than a number, so a malformed stamp cannot read as
+ * fresh. Every comparison against a bound is then false, and the assertion that reads this
+ * is written to fail on a non-finite answer for exactly that reason.
+ */
+export function stampLagDays(stamp: string = UPDATED_AT, iso: string = BUILD_DATE): number {
+    return (parseIsoDate(iso) - parseIsoDate(stamp)) / MS_PER_DAY
+}
+
+/**
  * THE ONE SCOPE RULE ON THIS SITE, AND EVERY DEFAULT BELOW IS AN APPLICATION OF IT:
  *
  *     the patch wall is the WHOLE calendar; a goal card is GOAL_YEAR alone.

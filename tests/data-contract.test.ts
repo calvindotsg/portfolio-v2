@@ -5,7 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import {EVENTS} from "../src/data/races";
 import {GOALS} from "../src/lib/goal";
-import {parseIsoDate, patchState} from "../src/lib/projection";
+import {parseIsoDate, patchState, stampLagDays} from "../src/lib/projection";
 import {raceKm, recordingsOf} from "../src/lib/race";
 import type {RaceEvent} from "../src/lib/race";
 import {BUILD_DATE} from "../src/lib/today";
@@ -598,5 +598,149 @@ describe("EVENTS", () => {
         // applying and the docblock above owes an edit, not this line.
         expect(checked, "no split race reached the comparison above, so this gate held nothing")
             .toBeGreaterThan(0);
+    });
+});
+
+/** One day, for the two date windows below. Both bounds are counted in whole days. */
+const DAY_MS = 86_400_000;
+
+/**
+ * A RACE ENTERED AND THEN NEVER RESOLVED, WHICH THE WALL PUBLISHES AS EARNED.
+ *
+ * `patchState` falls through to `today > end ? "finished" : "booked"`, so a row with no
+ * recording, no finishing time and no `outcome` becomes a solid bib the morning after its
+ * date — on the calendar alone, with nothing behind it. That is the correct default and
+ * must not change: the alternative directions are worse, and the reasoning is written out
+ * above the function. A booked race that WAS run and simply has not been typed up yet is
+ * finished, and the wall saying so is right.
+ *
+ * WHAT IS WRONG IS LEAVING IT THAT WAY. The claim is only honest while the entry is on its
+ * way; a row that has sat past its own date for a month with none of the three fields is a
+ * race nobody recorded, and the wall is asserting a result on the strength of a date.
+ *
+ * A BUILD CAN SEE THIS, WHICH IS THE PART THAT WAS DOUBTED. The row is fully visible: an end
+ * date well past, and all three of the resolving fields absent. It is the same shape as the
+ * three assertions above it, pointed the other way — those refuse a RESULT on a race that has
+ * not happened, this refuses SILENCE on a race that has.
+ *
+ * THE GRACE WINDOW IS A HUMAN'S TURNAROUND, not an inference from data. There is none to
+ * infer from: every race module in this repository was written in the single migration
+ * commit that created the directory, so git holds no distribution of "days between racing
+ * and recording it" to derive a number from. What it has to cover is an organiser publishing
+ * a results sheet and the owner making the two-step edit described above `EVENTS`, on a
+ * calendar where those things happen at weekends. Thirty days covers that with room and is
+ * still inside the month the wrong claim starts being made.
+ *
+ * THE FAILURE DIRECTION IS DELIBERATE, and it is why the window is generous rather than
+ * tight: a red suite blocks the deploy, so this must not fire on a race that is merely
+ * being written up slowly. If it fires, the answer is in the data — record the race, or
+ * mark it `outcome: "dnf"` — never in this number.
+ */
+describe("a race that has been and gone says what became of it", () => {
+    /** See the docblock: the owner's turnaround, not a measured distribution. */
+    const RESOLUTION_GRACE_DAYS = 30;
+
+    it("leaves no long-past race with nothing behind its bib", () => {
+        const today = parseIsoDate(BUILD_DATE);
+        const overdue = EVENTS.filter((e) => {
+            const end = parseIsoDate(e.end_date ?? e.date);
+            return !Number.isNaN(end) && today - end > RESOLUTION_GRACE_DAYS * DAY_MS;
+        });
+        // WITHOUT THIS THE FILTER IS THE ASSERTION. An empty list satisfies every property,
+        // and the day a typo in the window or in the date comparison empties it, the gate
+        // would report the calendar as clean. The count only ever grows.
+        expect(overdue.length, `no race ended more than ${RESOLUTION_GRACE_DAYS} days before `
+            + `${BUILD_DATE}, so this gate examined nothing`).toBeGreaterThan(0);
+
+        const unresolved = overdue.filter((e) =>
+            e.elapsed_time === undefined && recordingsOf(e).length === 0 && e.outcome === undefined);
+        expect(unresolved.map((e) => `${e.date} ${e.name}`),
+            `these races ended more than ${RESOLUTION_GRACE_DAYS} days ago and carry no recording, no `
+            + "elapsed_time and no outcome, so patchState draws each of them as an earned Finisher Patch "
+            + "on the strength of the calendar alone. Record the race, or say it was abandoned with "
+            + 'outcome: "dnf"').toEqual([]);
+    });
+});
+
+/**
+ * THE BOT'S STAMP, BOUNDED — the one thing the two-clock split left unmeasured.
+ *
+ * `src/lib/projection.ts` argues at length that `UPDATED_AT` and `BUILD_DATE` answer different
+ * questions and must be allowed to differ. Nothing said how far. The build day advances every
+ * night by construction — the nightly workflow dispatches a build whether or not the fetch
+ * worked — while the stamp advances only when the kilometres move, so the gap opens on its own
+ * and closes only when the owner rides.
+ *
+ * WHAT THE GAP COSTS IS THE PUBLISHED REQUIRED RATE. It divides the deficit by the days
+ * remaining measured from the STAMP, so `n` days of lag is `n` days of already-spent
+ * denominator, and the card prints a smaller number than the truth under a heading that says
+ * how much is left. `stampLagDays` measures it; the number lives here because this is where it
+ * bites.
+ *
+ * THIRTY DAYS, AND HERE IS WHY THAT NUMBER. The bot has never been near it: across its whole
+ * history to date the largest gap between successive stamps is four days, and
+ * `tests/clock-split.test.ts` builds its fixture on nine as "an ordinary rest week plus a
+ * weekend". Thirty is several times either, so it cannot fire on a rest week, a holiday or a
+ * bad fortnight.
+ *
+ * THE COMPARISON IS STRICT — a lag OF thirty days is already too far, not the last acceptable
+ * value. That is the difference between a limit and a target, and it is the spelling that
+ * makes "a stamp thirty days behind reddens the suite" true as written rather than off by
+ * one day.
+ *
+ * IT CAN STILL FIRE ON SOMEBODY WHO SIMPLY STOPPED RIDING, and that is the honest limit of
+ * this gate rather than a hole in it. The stamp cannot distinguish a dead credential from a
+ * month off — `nextProgress` in `scripts/fetch-strava-progress.mjs` moves it only when the
+ * kilometres change — so the bound is on the CONSEQUENCE, which is identical either way: a
+ * month-old numerator over a today-sized window is a misleading rate whatever caused it.
+ *
+ * WHAT TO DO WHEN IT FIRES, since a red suite blocks the deploy and the temptation will be to
+ * raise the number. Do not. Check the nightly workflow first — a failed fetch is the cause
+ * that is fixable, and the run is red. If the fetch is healthy and the kilometres genuinely
+ * have not moved in a month, the rate on the goal cards is the thing that is wrong, and it is
+ * a real one.
+ */
+describe("the bot's stamp, against the day the build ran", () => {
+    /** See the docblock: measured against the bot's own history, not chosen. */
+    const STAMP_LAG_LIMIT_DAYS = 30;
+
+    it("has not fallen further behind the build day than the rate can survive", () => {
+        const lag = stampLagDays();
+        // Non-finite rather than large is the malformed-stamp case, and it must not read as
+        // fresh: every `<=` against a NaN is false, so this is asserted before the bound.
+        expect(Number.isFinite(lag), `the bot's stamp or the build day is unreadable — stampLagDays `
+            + "answered a non-number, so nothing below could have compared it").toBe(true);
+        expect(lag, `the kilometres were last updated ${lag} days before this build. The required rate `
+            + "divides the deficit by the days left measured from that stamp, so it is understating by "
+            + "that many days of denominator. Check the nightly workflow before touching this bound")
+            .toBeLessThan(STAMP_LAG_LIMIT_DAYS);
+    });
+
+    it("measures the lag from the days it is given, not from whatever today is", () => {
+        /*
+         * PINNED LITERALS RATHER THAN A MODULE MOCK, and the difference from
+         * `tests/clock-split.test.ts` is worth stating because that file is the pattern this
+         * one was pointed at. It mocks the JSON because the functions it tests read their
+         * days from module-level DEFAULTS, so forcing a divergence is the only way to make
+         * them discriminate. `stampLagDays` takes both days as parameters, so handing it two
+         * is the same forcing with none of the reach — a `vi.mock` here is file-scoped and
+         * would reach every other assertion in this file, several of which compare against a
+         * `dist/` built with the real stamp.
+         *
+         * WITHOUT THIS the assertion above passes on a stamp that equals the build day, which
+         * is what today's data looks like, and would go on passing if the bound were deleted
+         * or the subtraction reversed.
+         */
+        expect(stampLagDays("2026-07-01", "2026-07-31"), "thirty days behind must measure thirty")
+            .toBe(30);
+        expect(stampLagDays("2026-07-31", "2026-07-31"), "a stamp on the build day has no lag").toBe(0);
+        // THE BOUNDARY, BOTH SIDES OF IT, because an off-by-one here is a silent month of grace.
+        expect(stampLagDays("2026-07-02", "2026-07-31") < STAMP_LAG_LIMIT_DAYS,
+            "a stamp twenty-nine days behind is inside the bound").toBe(true);
+        expect(stampLagDays("2026-07-01", "2026-07-31") < STAMP_LAG_LIMIT_DAYS,
+            "a stamp thirty days behind must FAIL the bound — the comparison is strict, and a "
+            + "`<=` here would quietly grant a thirtieth day").toBe(false);
+        expect(Number.isFinite(stampLagDays("not-a-date", "2026-07-31")),
+            "an unreadable stamp must not answer a number, or it would compare as fresh").toBe(false);
     });
 });
