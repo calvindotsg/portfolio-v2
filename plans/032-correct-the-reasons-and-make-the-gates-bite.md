@@ -429,7 +429,9 @@ Machine-checkable. ALL must hold:
 - [ ] `grep -n 'toBeGreaterThanOrEqual(0)' tests/data-contract.test.ts` → no match on the split-race counter
 - [ ] Changing `[...sport].astro`'s heading constant reddens the destination-heading assertion
 - [ ] `grep -n 'no email address appears' dns/config.yaml` → no match
-- [ ] `grep -n 'deliberately deleted' plans/README.md` → no match
+- [ ] `grep -n 'deliberately deleted' plans/README.md` → no match, or a match that does not state
+      it as fact — the permissive form its neighbour below already uses, and the one the sibling
+      criterion above only satisfies by accident of where the line wraps
 - [ ] `grep -n 'unsafe-inline' plans/README.md` → no match, or a match that does not state it as a requirement
 - [ ] `pdfinfo public/resume.pdf` → `Title: Calvin_Loh_Business_Systems_Analyst_Resume`
 - [ ] `pdftotext` output of the new PDF is identical to the old one
@@ -472,7 +474,20 @@ Four corrections, all from measuring something the plan asserted.
    displayed figure through `clampToGoal`, and "caps an overshot year at the goal" already
    exercises an overshoot directly and repeats that very bound. A third copy would have restated a
    rule two assertions own. The docblock says so and names them.
-4. **Step 5's gate does more than the plan's regex.** `public/resume.pdf` carries **four** `/Title`
+4. **Two statements the branch itself falsified had to be corrected outside the plan's scope list.**
+   Gating `public/resume.pdf`'s `/Title` makes two other notes wrong the moment it lands:
+   `CLAUDE.md` said "The PDF cannot be, and is owed by hand", and `src/content/home.ts` said the file
+   "CANNOT be gated from here" — the latter being exactly where this plan's own new prose in
+   `tests/docs-drift.test.ts` sends the reader. `src/content/` is on this plan's out-of-scope list,
+   which was written to forbid regenerating content rather than to preserve a claim the plan's own
+   work refutes. Both are narrowed to the body text. Leaving them would have shipped the plan's
+   headline defect in the pull request whose purpose is removing it.
+5. **Three near-verbatim copies of the corrected `metres` sentence survived elsewhere.** Step 4
+   named `CLAUDE.md` only. The same claim sat in `src/data/races/README.md` — the field reference a
+   contributor writing a race module actually reads — and twice in `tests/data-contract.test.ts`.
+   Fixing one instance of a false statement and leaving three is fixing the instance rather than the
+   class.
+6. **Step 5's gate does more than the plan's regex.** `public/resume.pdf` carries **four** `/Title`
    keys — one in the information dictionary, three in the outline the exporter wrote (`EDUCATION `
    and two UTF-16 hex strings). The plan's `re.search` finds the right one only because Google Docs
    emits the information dictionary as object 1 at the top of the file, which is a fact about one

@@ -90,7 +90,7 @@ processors:
       - '/\._domainkey$/'
       # DMARC. WHAT IS TRUE IS THE PLAIN FACT: the record is live and correct, and it is simply
       # not managed from git. Bringing it under octoDNS is a decision nobody has taken, which is
-      # not the same as one taken against — see the note in plans/README.md.
+      # not the same as one taken against.
       #
       # THE PRIVACY ARGUMENT THAT USED TO SIT HERE WAS FALSE, and it is named rather than
       # quietly dropped because it is exactly the kind of reason a future reader would act on.

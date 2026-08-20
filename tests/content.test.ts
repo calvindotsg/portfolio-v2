@@ -106,13 +106,24 @@ describe("public/resume.pdf", () => {
      * which is a fact about one exporter rather than about PDF. Following /Info is what makes the
      * gate about the field it names.
      *
-     * EVERY FAILURE PATH THROWS RATHER THAN RETURNING EMPTY, which is the whole point of writing
-     * it this way. A PDF whose cross-reference section is a stream has no `trailer` keyword and
-     * may hold its information dictionary inside an object stream, where none of this can reach
-     * it — a future export in that shape must fail loudly and be given a real reader, not pass
-     * silently as "no title, therefore no mismatch".
+     * EVERY UNHANDLED SHAPE THROWS RATHER THAN RETURNING A GUESS, which is the whole point of
+     * writing it this way, and it is a stronger requirement than "never returns empty". A reader
+     * that hands back a confidently wrong string is worse than one that hands back nothing: the
+     * assertions below would then compare the wrong title and report a mismatch in the wrong file.
+     * So each step below either resolves unambiguously or stops.
+     *
+     * IT DOES NOT PARSE THE CROSS-REFERENCE TABLE, and that is the one limit worth naming, because
+     * it is what the second throw is for. A PDF may be updated INCREMENTALLY — a new revision of an
+     * object appended after the old one, with the xref deciding which is current. This reader has no
+     * way to make that decision, so it refuses rather than taking whichever came first. An earlier
+     * draft did take the first, which would have read a superseded title with total confidence.
+     * Likewise a file whose xref section is a stream has no `trailer` keyword at all and may hold
+     * its information dictionary inside an object stream, where none of this can reach.
      */
     const declaredTitle = (path: string): string => {
+        // latin1 is chosen for one property: it round-trips every byte to a distinct code unit, so
+        // a regex over this string is a regex over the bytes. It is not a claim about the encoding
+        // of anything inside the file.
         const bytes = readFileSync(path).toString("latin1");
 
         const trailer = bytes.lastIndexOf("trailer");
@@ -123,16 +134,40 @@ describe("public/resume.pdf", () => {
         if (info === null) throw new Error(`${path}'s trailer names no /Info, so the export dropped `
             + "the document information dictionary and the title a reader sees is now the filename");
 
-        const object = new RegExp(`(?:^|[\\r\\n])${info[1]}\\s+${info[2]}\\s+obj\\b([\\s\\S]*?)endobj`)
-            .exec(bytes);
-        if (object === null) throw new Error(`${path}'s /Info points at object ${info[1]}, which is `
+        const objects = [...bytes.matchAll(
+            new RegExp(`(?:^|[\\r\\n])${info[1]}\\s+${info[2]}\\s+obj\\b([\\s\\S]*?)endobj`, "g"))];
+        if (objects.length === 0) throw new Error(`${path}'s /Info points at object ${info[1]}, which is `
             + "not at the top level of the file — it is inside an object stream. Give the gate a real PDF reader");
+        if (objects.length > 1) throw new Error(`${path} defines object ${info[1]} ${objects.length} times, `
+            + "so it has been incrementally updated. Deciding which revision is current means reading the "
+            + "cross-reference table, which this reader does not do. Give the gate a real PDF reader");
+        const dictionary = objects[0][1];
 
-        const title = /\/Title\s*\(((?:\\.|[^)\\])*)\)/.exec(object[1]);
+        // `\\[\s\S]` rather than `\\.` so a backslash-newline line continuation — legal, and legal
+        // in the middle of a title — does not end the match and send the reader down the throw below
+        // with a diagnosis about hex strings that would be false.
+        const title = /\/Title\s*\(((?:\\[\s\S]|[^)\\])*)\)/.exec(dictionary);
         if (title === null) throw new Error(`${path}'s information dictionary carries no literal `
             + "/Title. If the exporter now writes it as a hex string, this reader needs that case");
 
-        return title[1].replace(/\\([()\\\r\n])/g, "$1");
+        // A LITERAL MAY HOLD BALANCED PARENTHESES UNESCAPED, and this reader stops at the first `)`
+        // whether or not it is the real end of the string. Left alone that truncates silently, and a
+        // truncation is worse than a miss here: "Calvin (Business Systems Analyst) CV" would come
+        // back as "Calvin (Business Systems Analyst", still contain the current title, and leave the
+        // past-title check below inspecting an empty remainder. So the end is checked rather than
+        // assumed — what follows a title must be another key or the close of the dictionary.
+        const after = dictionary.slice(title.index + title[0].length);
+        if (!/^\s*(?:\/|>>)/.test(after)) throw new Error(`${path}'s /Title literal holds an unescaped `
+            + "parenthesis, so this reader stopped short of the real end of the string rather than "
+            + "reading a truncated title as the whole one. Give the gate a real PDF reader");
+
+        // One pass, because two would decode their own output: an escaped backslash followed by
+        // digits is not an octal escape, and a second `.replace` could not tell.
+        const LITERAL: Record<string, string> = {n: "\n", r: "\r", t: "\t", b: "\b", f: "\f"};
+        return title[1].replace(/\\(\r\n|[\r\n])|\\([0-7]{1,3})|\\([\s\S])/g,
+            (_, continuation, octal, escaped) => continuation !== undefined ? ""
+                : octal !== undefined ? String.fromCharCode(parseInt(octal, 8))
+                    : LITERAL[escaped] ?? escaped);
     };
 
     /** Punctuation-blind, because the title is filename-shaped and the job title is not. */
@@ -209,11 +244,20 @@ describe("GOALS", () => {
      * FITNESS. It is a multiple of the maintainer's own target, because that target is the only
      * statement of the year's scale this repository holds — a bound tight enough to judge a
      * season would redden on a good one, which is punishing the very edit this gate exists to
-     * let through. What a loose bound still catches is the whole class that has ever gone wrong
-     * here: a unit slip writing metres into a kilometre field, a fetch that summed more than one
-     * athlete, a hand-typed digit. Every one of those clears ten times the target by orders of
-     * magnitude. A year that genuinely beat 5000 km ten times over is the maintainer's news, not
-     * this suite's problem, and moving the multiple is the correct response to it.
+     * let through.
+     *
+     * SO BE EXACT ABOUT WHAT IT EARNS, because a loose bound is easy to credit with more than it
+     * does. What it catches is the unit slip — metres written into a kilometre field, a factor of
+     * a thousand — which reddens from a true figure of 6 km running or 50 km cycling upward, i.e.
+     * effectively always. What it does NOT catch is any small multiple, and that is arithmetic
+     * rather than luck: a corruption of factor k only clears the bound once the true figure has
+     * already passed ten times the target divided by k. A hand-typed extra digit is a factor of
+     * ten, so it stays invisible until the year's own target is beaten; a fetch that summed a
+     * second athlete is a factor of two, invisible until five times the target. Those are the
+     * maintainer's to notice, and the multiple is deliberately not tightened to reach them,
+     * because a bound close enough to see a doubled athlete would redden on a good season. A year
+     * that genuinely beat its target ten times over is news, not a test failure — move the
+     * multiple then, on purpose.
      */
     it("bounds the unclamped figure the bot writes", () => {
         expect(GOALS.length, "no goals were walked, so this bound is vacuous").toBeGreaterThan(0);

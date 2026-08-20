@@ -89,8 +89,9 @@ the checklist, and `tests/data-contract.test.ts` holds it against that file in b
   ridden. A list, because a mechanical or a dead watch splits one race across several files.
   - `id` — the activity id, as a string.
   - `metres` — that activity's distance exactly as the API's `distance` reported it. Copy the
-    number; do not convert it, round it, or read it off a page. Nothing offline can catch a
-    mistyped one — only `tests/strava-verify.test.ts` can, and it is opt-in.
+    number; do not convert it, round it, or read it off a page. Whether an offline run catches a
+    mistyped one depends on the race's year — see the note on `EVENTS` in `CLAUDE.md`, which is
+    where that rule is stated rather than restated here.
   - `elapsed_time` — **required**, `H:MM:SS`. THIS ACTIVITY's clock, not the race's: the bib's
     hero runs first start to last stop, and each link prints the part it actually opens, so a
     reader who follows one is never promised the summed figure.
