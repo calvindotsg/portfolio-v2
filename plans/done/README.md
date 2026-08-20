@@ -1936,3 +1936,97 @@ the hash-based `script-src` measurement against the live Rocket Loader is what w
 `raw_progress` ceiling cannot see a corruption smaller than a factor of ten, deliberately; and the
 `/Title` gate reads only the document information dictionary, so an exporter that writes the title as
 a hex string, or moves it into an object stream, fails loudly and needs a real PDF reader.
+
+## Plan 033 — the six remaining hardenings, each with the assertion that keeps it
+
+Merged as `cca3d8b` (#184), the last of the four plans the two-run security audit produced and the
+one it rated optional. Nothing in it was a live risk. What makes it worth an entry is that **two of
+its six steps rested on a mechanism the plan had wrong**, and both were caught by measuring rather
+than by reading — the fifth consecutive run in which that is the story.
+
+### Cloudflare `_headers` has no most-specific-match, and the plan's fix depended on believing it did
+
+The plan's STOP condition warned that a `/*` block could "shadow" the `/_astro/*` rule and that
+Cloudflare Pages "applies the most specific match". Read out of `pages-shared/asset-server/handler.ts`
+in Cloudflare's own `workers-sdk`, which the documentation does not state: **every** rule whose path
+matches applies, in the order written in the file, and the host keeps a set of the names it has
+already written. The first rule to set a name REPLACES whatever the platform put there; a later rule
+setting the same name **APPENDS** to it.
+
+So a narrower rule cannot override a broader one, and the real failure mode is concatenation rather
+than shadowing — a second `cache-control` anywhere in the file yields
+`public, max-age=31536000, immutable, <the other one>` and hands every hashed asset a header no cache
+was asked to reconcile. **Both rules are individually correct and the defect exists only in their
+combination**, which is why the gate that landed is "no header name is set by two rules" rather than
+the exclusivity the plan asked for. That is strictly stronger, and it is the one an editor will trip.
+
+The same reading is what made the explicit `Referrer-Policy` safe rather than a duplicate: writing a
+header the platform already sends, at the value it already sends, replaces rather than appends.
+Confirmed on the wire afterwards — the preview and production origins each return it exactly once.
+
+### A stale bot stamp does not mean a dead credential
+
+The plan read a frozen `UPDATED_AT` as a Strava credential that had died. It can be that.
+`nextProgress` in `scripts/fetch-strava-progress.mjs` stamps the date **only when the kilometres
+change** — it has to, because the workflow commits on a diff and an unconditional stamp would deploy
+every night — so a stamp that has not moved in a month is equally consistent with a month off the
+bike. The two are indistinguishable from inside the site.
+
+The bound was therefore written against the **consequence**, which is identical either way: the
+required rate divides the deficit by the days remaining measured from the stamp, so `n` days of lag
+is `n` days of already-spent denominator and the card prints a flatteringly small number. Thirty
+days, against a bot whose largest observed gap is four and a suite fixture that already treats nine
+as an ordinary rest week. The comparison is strict, so thirty is already too far rather than the last
+acceptable value.
+
+It reads its days from parameters rather than from a mocked module, which departs from the pattern
+the plan named and for a reason that pattern states about itself: `tests/clock-split.test.ts` mocks
+because its subjects take their days from module-level defaults, and a file-scoped `vi.mock` in
+`tests/data-contract.test.ts` would reach assertions that compare against a `dist/` built with the
+real stamp.
+
+### The audit's unverified breakout reproduces
+
+The plan recorded the JSON-LD breakout as claimed but not verified, and told the executor to treat
+the fix as sound and the reproduction as unproven. It reproduces: with the escape removed and
+`</script><img src=x>` in a content field, the built page carries a real `<img>` element outside the
+script. With the escape in place the same content ships inert and the block still parses. **The
+markup breakout is now measured; nothing beyond it was attempted**, and whether an agent would comply
+with an injected instruction — the decisive link in the Dependabot finding — is still asserted rather
+than demonstrated, exactly as the plan said.
+
+### A gate that is honest about being vacuous
+
+"The emitted `ld+json` contains no raw `<`" is the property a reader actually receives, and it passes
+with the escape deleted, because no content field contains a `<` today. Rather than drop it or dress
+it up, it ships beside a source-side assertion that the stringify is not handed to `set:html` bare —
+which fails the moment the escape goes, with the content unchanged. The docblock says which half has
+the floor. **A gate that admits what it cannot see is worth more than one that quietly cannot fail.**
+
+### Outcome
+
+Suite **581 passed / 7 skipped of 588**, up from 573/580. Every new assertion was calibrated by
+mutation and reverted: a third `_headers` rule, a duplicated `cache-control`, `x-frame-options:
+ALLOWALL`, a long-past race carrying none of the three resolving fields, a stamp exactly thirty days
+behind, and the escape removed both with benign and with hostile content. One calibration first came
+back red for the wrong reason — the fixture race used a named export where the collector's glob wants
+`default`, so the build crashed and the test never ran. **A dead stimulus reads exactly like a caught
+defect**; it was redone.
+
+Verified on the wire rather than only in the suite. The preview deployment and then production both
+return the three new headers, `cache-control` on `/` byte-identical to before, and the `/_astro/*`
+rule intact and single-valued on a hashed asset — which is the plan's STOP condition asked directly
+rather than reasoned about.
+
+**Recorded, not fixed**, so it is not re-derived: two of the six steps have no gate at all. Deleting
+`ASTRO_TELEMETRY_DISABLED` from `.github/workflows/ci.yml`, or restoring the Dependabot skill's
+standing-consent carve-out, both leave the suite green — the plan scoped assertions to
+`tests/build-output.test.ts` and `tests/data-contract.test.ts` only, and gating a workflow constant
+would have meant `tests/workflow-guards.test.ts`, which was out of scope. The telemetry line is the
+one worth closing. Also left standing deliberately: no `Content-Security-Policy`, whose rejection now
+has no premise and wants a measurement nobody has reproduced; `strict-transport-security`, which the
+zone sends and `calvindotsg.pages.dev` does not; and `CONTRIBUTING.md` saying nothing about
+`.claude/skills/` being executable content that travels with an untrusted branch, which the plan
+named as the maintainer's sentence to write rather than an executor's step. The `allowed-tools`
+declaration is a bound on `Bash` and is not a sandbox; its enforcement was not measured, and the list
+was chosen to cover every command the skill documents so it is safe under either reading.

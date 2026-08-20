@@ -1,18 +1,19 @@
 # Implementation Plans
 
-**Three plans are queued: 033, 034 and 035.** The first two come from a two-run security audit of
+**Two plans are queued: 034 and 035.** The first comes from a two-run security audit of
 this repository completed on 2026-08-18, which produced the first proposals here since 028 landed;
-035 does not. 029 through 032 are merged, archived and live; plans 024–028 are too.
+035 does not. 029 through 033 are merged, archived and live; plans 024–028 are too.
 
 **Every plan in this set so far has carried defects its executor had to measure rather than read,
 and 032 is the first whose executor DELETED one of the plan's own findings** — it claimed a gate was
 vacuous, the mutation it named to prove that came back red, and the step was not taken. That makes
-five consecutive runs in which the advisor/executor split has paid for itself. See
+six consecutive runs in which the advisor/executor split has paid for itself. See
 [`done/README.md`](done/README.md) § "Plan 030", § "Plan 031" and § "Plan 032" for what that cost,
-and for the regression each plan's review panel then found in its own fix. 033 is genuinely
-optional. **034 cannot go green until three
-Cloudflare zone settings are off** — it names them as preconditions and stops rather than weakening
-an assertion to pass; they were still on when 030 landed. Read each plan's own Status block for its
+and for the regression each plan's review panel then found in its own fix. 033 was the audit's
+optional tail and is done: two of its six steps rested on a mechanism it had stated wrongly, and
+both were caught by measuring rather than by reading. **034 cannot go green until three Cloudflare
+zone settings are off** — it names them as preconditions and stops rather than weakening an
+assertion to pass; they were still on when 030 landed. Read each plan's own Status block for its
 dependencies; do not infer them from the numbering, which is leverage order rather than a chain.
 
 **The audit stopped short of a plan on purpose, and its artifacts live outside this repository.**
@@ -182,7 +183,7 @@ recreated.
 | 030 | Make every workflow gate cover every workflow | P1 | M | 029 | **DONE** (`85d5ff3`) |
 | 031 | Validate what the two script seams accept | P2 | M | — | **DONE** (`6f8fbfe`) |
 | 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **DONE** (`4583bd1`) |
-| 033 | The six remaining hardenings | P3 | S | 029, 030 | **IN PROGRESS** |
+| 033 | The six remaining hardenings | P3 | S | 029, 030 | **DONE** (`cca3d8b`) |
 | 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **TODO** |
 | 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **TODO** |
 

@@ -185,7 +185,11 @@ detection.
   need does not exist and minting one is a decision, not a step.
 - An automated zone-settings drift check. It needs a `zone_settings:read` credential this repository
   does not have. Record the configuration (step 6); do not invent a token to poll it.
-- `public/_headers` — that is `plans/033-the-remaining-hardenings.md`.
+- `public/_headers` — that was `plans/done/033-the-remaining-hardenings.md`, which has landed. The
+  file now carries a `/*` block of security headers as well as the `/_astro/*` cache rule, and
+  `tests/build-output.test.ts` holds the rule SET exactly. **Adding a header there is no longer a
+  one-file edit**, and a header name may appear in exactly one rule — read that file's own comment
+  before touching it.
 - The deploy steps' existing wrangler invocation and output assertions.
 - Anything under `src/`.
 - Deleting the production deployment, or any preview whose pull request is still open. See STOP
