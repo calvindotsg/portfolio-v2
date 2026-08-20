@@ -836,13 +836,25 @@ describe("documentation, against the code it describes", () => {
      * nest — a promotion to "Senior Business Analyst" contains the junior title verbatim — and a
      * gate that reddened on that would be punishing the correct edit it exists to encourage.
      *
-     * ONE SURFACE STAYS OUT OF REACH AND IS RECORDED RATHER THAN GATED: public/resume.pdf states
-     * the job too, and it is not checkable from this repository. Measured rather than assumed —
-     * the title appears in none of that file's inflated content streams, so a check written
-     * against the bytes finds nothing and an external PDF tool is needed to read it at all. It is
-     * the maintainer's file to regenerate — it has both agreed and disagreed with CAREER, so read
-     * it rather than assuming either, and never resolve a disagreement by editing CAREER. The note
-     * on that constant carries the state and the way to check it.
+     * ONE SURFACE IS HALF OUT OF REACH, AND THE HALF THAT IS NOT NOW HAS ITS OWN GATE.
+     * public/resume.pdf states the job twice: once as body text, and once as the document's own
+     * /Title, which is what a browser tab and a search result show for a public URL.
+     *
+     * THE BODY TEXT REALLY IS UNREACHABLE. Measured rather than assumed — the title appears in
+     * the raw bytes zero times and in none of that file's ten inflated content streams, because
+     * the fonts are subsetted and the text is stored as glyph indices. A check written against
+     * the bytes finds nothing and an external PDF tool is needed to read a word of it.
+     *
+     * THE /Title WAS NEVER OUT OF REACH, and this note used to say the whole file was — a
+     * conclusion drawn from the body measurement and then stated about everything in the file,
+     * which is the wider-than-the-measurement move the rest of this suite exists to catch. It is
+     * a plain literal in the document information dictionary and needs no dependency to read;
+     * "holds the résumé's declared title to the job CAREER records" in tests/content.test.ts
+     * follows /Info from the trailer and does exactly that.
+     *
+     * It stays the maintainer's file to regenerate — it has both agreed and disagreed with CAREER,
+     * so read it rather than assuming either, and never resolve a disagreement by editing CAREER.
+     * The note on that constant carries the state and the way to check it.
      */
     it("keeps the README's lede in step with the current job title", () => {
         const current = CAREER[0].job_name;

@@ -77,6 +77,91 @@ describe("LINKS", () => {
     });
 });
 
+/**
+ * THE RÉSUMÉ DECLARES A TITLE OF ITS OWN, AND IT IS PUBLISHED. public/resume.pdf is tracked,
+ * served at the site's own root and linked from the home page, and a PDF's /Title — not its
+ * filename — is what a browser tab and a search result put in front of a reader. It shipped
+ * reading Calvin_Loh_Technical_Customer_Support_Resume while every surface the site renders
+ * said Business Systems Analyst.
+ *
+ * WHAT IS REACHABLE HERE IS THE METADATA AND NOT THE DOCUMENT. The job title appears in the raw
+ * bytes zero times and in none of this file's ten inflated content streams — the fonts are
+ * subsetted and the text is stored as glyph indices, so no check written against the bytes can
+ * see a word of the body. The note beside "keeps the README's lede in step with the current job
+ * title" in tests/docs-drift.test.ts used to conclude from that measurement that the whole file
+ * was out of reach. Half of it is; this half is a plain literal in the document information
+ * dictionary and needs no dependency to read.
+ *
+ * IT IS THE FIRST THING IN THIS REPOSITORY TO READ A BINARY, so it is deliberately a few
+ * regexes over bytes decoded as latin1 — that encoding is byte-faithful, which is the only
+ * property being asked of it — rather than a PDF library the site would then have to carry.
+ */
+describe("public/resume.pdf", () => {
+    /**
+     * IT RESOLVES THE TRAILER RATHER THAN TAKING THE FIRST /Title IN THE FILE, and that is not
+     * fastidiousness. This document carries FOUR /Title keys: one is the information dictionary
+     * and the other three are outline entries the exporter wrote — a literal reading "EDUCATION "
+     * and two UTF-16 hex strings. A first-match regex picks the right one today only because
+     * Google Docs happens to emit the information dictionary as object 1 at the top of the file,
+     * which is a fact about one exporter rather than about PDF. Following /Info is what makes the
+     * gate about the field it names.
+     *
+     * EVERY FAILURE PATH THROWS RATHER THAN RETURNING EMPTY, which is the whole point of writing
+     * it this way. A PDF whose cross-reference section is a stream has no `trailer` keyword and
+     * may hold its information dictionary inside an object stream, where none of this can reach
+     * it — a future export in that shape must fail loudly and be given a real reader, not pass
+     * silently as "no title, therefore no mismatch".
+     */
+    const declaredTitle = (path: string): string => {
+        const bytes = readFileSync(path).toString("latin1");
+
+        const trailer = bytes.lastIndexOf("trailer");
+        if (trailer < 0) throw new Error(`${path} has no trailer keyword, so its cross-reference `
+            + "section is a stream and this reader cannot follow it. Give the gate a real PDF reader");
+
+        const info = /\/Info\s+(\d+)\s+(\d+)\s+R/.exec(bytes.slice(trailer));
+        if (info === null) throw new Error(`${path}'s trailer names no /Info, so the export dropped `
+            + "the document information dictionary and the title a reader sees is now the filename");
+
+        const object = new RegExp(`(?:^|[\\r\\n])${info[1]}\\s+${info[2]}\\s+obj\\b([\\s\\S]*?)endobj`)
+            .exec(bytes);
+        if (object === null) throw new Error(`${path}'s /Info points at object ${info[1]}, which is `
+            + "not at the top level of the file — it is inside an object stream. Give the gate a real PDF reader");
+
+        const title = /\/Title\s*\(((?:\\.|[^)\\])*)\)/.exec(object[1]);
+        if (title === null) throw new Error(`${path}'s information dictionary carries no literal `
+            + "/Title. If the exporter now writes it as a hex string, this reader needs that case");
+
+        return title[1].replace(/\\([()\\\r\n])/g, "$1");
+    };
+
+    /** Punctuation-blind, because the title is filename-shaped and the job title is not. */
+    const words = (s: string): string => s.replace(/[^A-Za-z0-9]+/g, " ").trim().toLowerCase();
+
+    it("holds the résumé's declared title to the job CAREER records", () => {
+        const current = CAREER[0].job_name;
+        expect(current.length, "CAREER[0] has no job title — this gate is vacuous").toBeGreaterThan(3);
+
+        const title = declaredTitle("public/resume.pdf");
+        expect(title.length, "public/resume.pdf declares an empty /Title, so a browser tab and a "
+            + "search result fall back to the filename — and an empty string would satisfy every "
+            + "comparison below without asserting anything").toBeGreaterThan(0);
+
+        expect(words(title), `public/resume.pdf declares itself "${title}", which does not state the `
+            + `job CAREER[0] records ("${current}"). This is the maintainer's file to re-export — never `
+            + "resolve the disagreement by editing CAREER").toContain(words(current));
+
+        // The same nesting rule the README's lede gate uses: a past title is looked for only in
+        // what is left once the current one is removed, so a promotion that contains the junior
+        // title verbatim is not punished for being correct.
+        const remainder = words(title).split(words(current)).join(" ");
+        const stale = CAREER.slice(1).map((job) => job.job_name)
+            .filter((past) => past !== current && remainder.includes(words(past)));
+        expect(stale, `public/resume.pdf declares a job title held in the past as though it were `
+            + "current. The file has both agreed and disagreed with CAREER before").toEqual([]);
+    });
+});
+
 describe("GOALS", () => {
     it("is non-empty", () => {
         expect(GOALS.length).toBeGreaterThan(0);
@@ -105,10 +190,42 @@ describe("GOALS", () => {
         }
     });
 
-    it("keeps progress within [0, total_goal]", () => {
+    /**
+     * THE FIGURE A POISONED FEED ACTUALLY MOVES IS THE UNCLAMPED ONE, and nothing bounded it.
+     *
+     * What stood here bounded current_progress against total_goal. current_progress IS
+     * `Math.min(raw_progress, total_goal)`, so that was a value compared against its own
+     * second argument — true for every input this codebase can produce. Measured rather than
+     * argued: setting a goal's km in src/data/strava-progress.json to 9999999.9 left the whole
+     * suite green and the card rendering as met.
+     *
+     * THE CLAMP IS STILL STATED, TWICE, AND NOT HERE. Further down this file, "feeds
+     * current_progress from the bot-owned JSON" compares the displayed figure through
+     * {@link clampToGoal}, and "caps an overshot year at the goal" exercises an overshoot
+     * directly and repeats the upper bound on current_progress. A third copy in this file would
+     * restate a rule two other assertions already own.
+     *
+     * THE CEILING IS LOOSE ON PURPOSE, AND IT IS A CLAIM ABOUT CORRUPTION RATHER THAN ABOUT
+     * FITNESS. It is a multiple of the maintainer's own target, because that target is the only
+     * statement of the year's scale this repository holds — a bound tight enough to judge a
+     * season would redden on a good one, which is punishing the very edit this gate exists to
+     * let through. What a loose bound still catches is the whole class that has ever gone wrong
+     * here: a unit slip writing metres into a kilometre field, a fetch that summed more than one
+     * athlete, a hand-typed digit. Every one of those clears ten times the target by orders of
+     * magnitude. A year that genuinely beat 5000 km ten times over is the maintainer's news, not
+     * this suite's problem, and moving the multiple is the correct response to it.
+     */
+    it("bounds the unclamped figure the bot writes", () => {
+        expect(GOALS.length, "no goals were walked, so this bound is vacuous").toBeGreaterThan(0);
         for (const goal of GOALS) {
-            expect(goal.current_progress, `${goal.goal_name} current_progress`).toBeGreaterThanOrEqual(0);
-            expect(goal.current_progress, `${goal.goal_name} current_progress`).toBeLessThanOrEqual(goal.total_goal);
+            expect(goal.raw_progress, `${goal.goal_name} raw_progress`).toBeGreaterThanOrEqual(0);
+            expect(
+                goal.raw_progress,
+                `${goal.goal_name} raw_progress is ${goal.raw_progress} ${goal.measurable_unit} against a `
+                + `${goal.total_goal} ${goal.measurable_unit} target — more than ten times the scale the year `
+                + "was authored at. Read it as a corrupt figure in src/data/strava-progress.json rather than a "
+                + "season, and if the season is real, move the multiple deliberately",
+            ).toBeLessThanOrEqual(goal.total_goal * 10);
         }
     });
 

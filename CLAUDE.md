@@ -326,9 +326,13 @@ The entries below are the ones carrying non-obvious constraints:
   carrying no recordings. Every consumer reads `raceKm`, which rounds the metres DOWN to two
   places — Strava's own rule, and the input is the API's `distance` rather than anything
   Strava renders. That rounding has been reversed twice and is now one line in `kmFromMetres`
-  rather than a figure in every row, which is the point of storing the metres. Nothing
-  offline can catch a mistyped `metres`; only `tests/strava-verify.test.ts` can, and it is
-  opt-in.
+  rather than a figure in every row, which is the point of storing the metres. **WHETHER an
+  offline run catches a mistyped `metres` depends on the race's YEAR**, and knowing which
+  half you are editing is the useful part: a row inside `GOAL_YEAR` feeds the projection's
+  published figures, so `tests/derived-figures.test.ts` reddens on it — measured by adding a
+  kilometre to one recording, which took exactly that one test red. A past-year row — the
+  majority of the list — feeds no derived figure and is green everywhere; only
+  `tests/strava-verify.test.ts` reads the API, and it is opt-in.
   **`advertised_km` IS THE ORGANISER'S DISTANCE AND MAY SIT BESIDE THE METRES**, which is the
   one guard the ledger cost: that field was `km?: never` on a recorded race, so the compiler
   refused the pair. It cannot now, because the pair is the ledger's whole subject. What the

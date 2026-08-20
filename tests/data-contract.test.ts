@@ -587,6 +587,13 @@ describe("EVENTS", () => {
             ).toBe(true);
             checked++;
         }
-        expect(checked, "split races checked").toBeGreaterThanOrEqual(0);
+        // THE FLOOR IS `>` BECAUSE `>= 0` COUNTED NOTHING. `checked` starts at zero and only
+        // increments, so the old spelling was satisfied by a loop that skipped every race — and
+        // it sat under a docblock calling this the only offline constraint on the field. The
+        // whole worth of that claim is that some race reaches the comparison above. If this
+        // reddens because the last split race left EVENTS, the constraint has genuinely stopped
+        // applying and the docblock above owes an edit, not this line.
+        expect(checked, "no split race reached the comparison above, so this gate held nothing")
+            .toBeGreaterThan(0);
     });
 });
