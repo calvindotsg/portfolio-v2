@@ -279,7 +279,7 @@ Measured — the archive mentions none of `control-geometry`, `page-fit`,
 | output mode | `static` — no adapter, no SSR function, no middleware |
 | astro integrations | `sitemap()`, `UnoCSS({injectReset: true})` — that is all |
 | direct dependencies | derive: `jq '(.dependencies + .devDependencies) | length' package.json` (**21** at 2026-08-07) |
-| client JavaScript | **zero external files**, which is not the same as none. **Three first-party scripts, all inline**: the pre-paint theme resolver and the press-hold (`data-leaving`) listener, both in `BasicLayout.astro` and on every page, plus `ThemeSwitcher`'s toggle listener, inlined as a module on the home page only. The ~525 B figure quoted here before was the theme resolver alone, and it was labelled as the total. **Nothing gates this row** — a census gate was written and then deliberately deleted, because pinning a count is what puts a rotting fact somewhere nobody revisits. Re-derive it from the script elements in `dist/` when you touch it |
+| client JavaScript | **zero external files**, which is not the same as none. **Three first-party scripts, all inline**: the pre-paint theme resolver and the press-hold (`data-leaving`) listener, both in `BasicLayout.astro` and on every page, plus `ThemeSwitcher`'s toggle listener, inlined as a module on the home page only. The ~525 B figure quoted here before was the theme resolver alone, and it was labelled as the total. **Nothing gates this row**, and the general reason is enough: pinning a count is what puts a rotting fact somewhere nobody revisits. This entry used to add that a census gate "was written and then deliberately deleted", which git does not support — `git log --all -S 'querySelectorAll("script")' -- tests/` returns exactly one commit, and that commit ADDED the inline-script filter still live in `tests/rendered-html.test.ts`. No such gate has ever existed, so the row was resting a correct instruction on an event that did not happen. Re-derive the count from the script elements in `dist/` when you touch it |
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
 | components | 15 `.astro` files (11 components, 1 layout, 3 page routes → **5 prerendered pages**: `/`, `/patches`, `/patches/cycling`, `/patches/running` and `/404`, plus the `robots.txt` and `llms.txt` endpoints); **no UI framework**, no `.svelte`, no islands |
 | `uno.config.ts` | derive: `wc -l uno.config.ts` (**700** at 2026-08-08) — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale. The figure here read 719 until run 6 re-derived it; the file was 700 lines at `219dcde` too, so that number was never right rather than having gone stale — which is what "derive" in this cell is for |
@@ -643,10 +643,19 @@ Killed by the run-2 skeptic pass or advisor review — do not re-audit:
   Both left the file correctly staged. **A check that cannot reach the path it names is not a
   check** — the shipped-config run alone would have proved only that lint-staged starts.
 - **Security headers (CSP etc.) via the host's headers file.** Static one-pager, no
-  forms/auth/cookies/user input; a real CSP needs `unsafe-inline` plus a
-  cloud.umami.is allow-list. Marginal value, deliberately not raised. (Raised against
+  forms/auth/cookies/user input. Marginal value, deliberately not raised. (Raised against
   `netlify.toml`; the file that would carry it now is `public/_headers`, and the
   reasoning is unchanged by the move.)
+  **THE SECOND HALF OF THIS ENTRY'S REASONING IS WITHDRAWN AND NOT REPLACED.** It used to
+  claim a real CSP here needs `unsafe-inline`, and a later audit run reported measuring a
+  hash-based `script-src` working under the live Rocket Loader with a non-degeneracy control
+  — which contradicts it. **That measurement has not been reproduced**, and the run's own
+  notes call it the most load-bearing unreproduced claim it made, so it is not installed here
+  either: swapping a wrong reason for an unverified one is the same defect twice. What stands
+  is that the ground is unmeasured. Settling it means reproducing the hash-based `script-src`
+  against the deployed site with Rocket Loader in its current state, including a control that
+  fails when the hashes are wrong — and only then rewriting this decision, in either
+  direction. The decision itself is untouched by this correction.
 - **DX micro-items** — silencing the two `astro(4000)` is:inline hints (they
   communicate intent), `.editorconfig`, widening the eslint glob (settled:
   constants.ts is test-gated), pre-commit check/test duplication, a Umami
