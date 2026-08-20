@@ -118,6 +118,18 @@ The floor is not the whole toolkit. Escalate when one of these is true:
   that does not, and this repository deploys the exact artifact the suite asserted against.
 - **You disagree with CI.** Check out the branch, symlink `node_modules` from the main checkout
   rather than installing a second copy, and run `pnpm check`, `pnpm eslint` and `pnpm test`.
+- **The bump is to something CI NEVER EXECUTES.** This is the trigger the other three cannot
+  fire, because nothing looks wrong: the checks are green, and green is a claim about the build
+  and the suite rather than about the tool. `lint-staged` is the standing instance — it runs only
+  from `.husky/pre-commit`, so no job in `.github/workflows/ci.yml` ever starts it, and a bump
+  that rewrites its git staging path lands on a full set of ticks. Verify it by hand, and verify
+  it TWICE: once under the shipped configuration, and again with the task rewritten to genuinely
+  MODIFY the staged file. **The second run is the one that matters** — none of the eslint rules
+  configured here is fixable, so `eslint --fix` never modifies anything and the shipped
+  configuration proves only that the tool starts. Then add a third, because a staging path fails
+  most expensively when a task FAILS: run one against a partially staged file and require a
+  non-zero exit with the staged blob AND the unstaged remainder both byte-identical afterwards.
+  `plans/README.md` records where this standard came from and why it was set.
 
 ## Majors: what to do instead of merging
 

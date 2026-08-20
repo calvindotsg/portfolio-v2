@@ -64,6 +64,21 @@
 # this comment says and the honest fix is to say so here rather than to raise the numbers,
 # which would be tuning a mechanism nobody has confirmed is running.
 #
+# THAT NEXT RUN HAS HAPPENED AND IT SETTLED NOTHING — read this before concluding the key
+# works. #176 (2026-08-20) proposed three dev dependencies, all minor, at 9.5, 17.7 and 19.9
+# days old against the 7 this file asks for. None was short. That is still NOT evidence the
+# window is enforced, because every one of the three was ALREADY THE NEWEST STABLE RELEASE
+# on the registry when the pull request opened: there was nothing newer for a cooldown to
+# decline, so the strict reading and the anomalous one above predict this exact pull request
+# and the observation cannot tell them apart. A run where nothing is declined proves only
+# that nothing needed declining.
+#
+# THE OBSERVATION THAT WOULD ACTUALLY DISCRIMINATE is a bump where a newer release EXISTS
+# and is still inside the window. Offered the older version, the key is doing what this
+# comment says; offered the newer one, it is not. Anything else is a run to record and move
+# past. Until such a run appears the astro gap stays open, and neither the numbers below nor
+# this comment should move.
+#
 # ONE GROUP PER ECOSYSTEM, AND DELIBERATELY NO `applies-to` KEY. That option defaults to
 # version updates, so these groups cannot capture a security update — which is the intent,
 # not an oversight. Security advisories keep GitHub's default one-pull-request-per-dependency
