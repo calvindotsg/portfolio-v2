@@ -1659,3 +1659,83 @@ Verified sound and worth not re-deriving: 031's three injection payloads all rep
 `scaffold-race.mjs`, and its note that a published fourth payload does NOT work is correct; every
 action in every workflow is already SHA-pinned, so 030 step 1 cannot redden; no `run:` body in any
 workflow contains a `${{` expression; Rocket Loader was still on, so 034's preconditions were unmet.
+
+## Plan 030 — every workflow gate covers every workflow
+
+Merged as `85d5ff3` (#173), the second of the six plans the two-run security audit produced. Handed
+to a fresh session like 028 and 029, and it repeated their result a third time: every correction
+that mattered came from measuring something rather than reading it.
+
+### The plan's three pre-flight defects were all real, and none was obeyed
+
+Measured while archiving 029 and recorded above; the executor re-derived each before working around
+it. Step 2's canary genuinely does break `publishingJobs`, whose predicate was literally "this job's
+YAML names `secrets.CLOUDFLARE_API_TOKEN`" — so the fix had to be step 7's widening done in the same
+change, plus an exclusion for a step that names a secret only to prove it absent. Step 2's rationale
+was false and the shipped comment says the true thing: forks and Dependabot get no secrets, so what
+a repository-level copy costs is the `production` branch policy, not a fork-PR takeover. Step 3 was
+worded "workflow-level or job-level", so `strava-progress.yml` passes without editing any
+`permissions:` value.
+
+### A review panel found the fix had a regression worse than the gap
+
+Five finder dimensions, one adversarial skeptic per finding, 21 agents: **29 findings, 10 major,
+none refuted.** Three dimensions independently filed the same one, which is what convergence is for.
+
+`absenceCanary` exempted a step from the publishing-job classifier because it names a secret in
+order to prove it absent. **Testing a value and using it are not exclusive.** A real Pages deploy
+job wrapped in `if [ -n "$TOKEN" ]; then npx wrangler pages deploy dist; else exit 1; fi` matched the
+exemption and left the whole suite green — a switch that removed a publishing job from every gate in
+the file, which is strictly worse than the narrow detector it replaced.
+
+Three traps in the obvious fix, each measured rather than reasoned:
+
+- **a line is not a command.** `[ -n "$T" ] && wrangler pages deploy` defeats a per-line first-token
+  allow-list, so each line is split on the operators that begin a new command.
+- **quoted text is not syntax.** The real canary's `::error::` message contains a literal `;`, so a
+  naive segmenter reads the tail of an English sentence as a command and reddens the CORRECT
+  workflow — 18 assertions, the same 18 that fire when the exemption is removed outright, since both
+  make `build` a publishing job. Red on correct code is what trains a reader to loosen a gate.
+- **`echo` is on the allow-list**, so `echo "$(npx wrangler pages deploy dist)"` is a deploy wearing
+  it. Command substitution is rejected outright.
+
+Ten further holes were confirmed and closed: a job-level `uses:` (a reusable-workflow call has no
+`steps:`) escaped the SHA sweep entirely while `secrets: inherit` named no secret for any regex to
+find; `canPublish` read the job's own `permissions:` while `effectivePermissions` in the same file
+read the effective ones; the canary could be neutered with `if:` or `continue-on-error`, and could
+be pointed at a secret name nothing holds; the ref guard accepted a prefix, and `main-mirror` is a
+branch anyone with push access can create; `--frozen-lockfile` was anchored to the start of a line;
+the wrangler pin was two separately-satisfiable claims; the toolchain check rejected names
+containing `setup-`, a naming convention wearing a capability check.
+
+### What the panel got wrong, and why re-derivation is not optional
+
+Two of its own numbers did not survive re-measurement — "17 assertions" was 18 in one place and 14
+in the other — and one skeptic's prescribed remedy was measured green against the very bypass it was
+meant to close. **`remedy_is_sound` earned its place in the schema again**: the shipped fix came from
+skeptics who applied their own remedy and reported it failing.
+
+One finding pointed at a claim the executor had falsified *while writing it*: a new comment said
+`grep -rn "scripts/" .github/workflows/` returns one `run:` line. It returns three, and this plan
+added one of them.
+
+### The canary is verified on the wire, not only in the suite
+
+`build`'s canary ran on a real GitHub runner and printed its pass line with no `::error::`, which is
+stronger than the API listing: the invariant holds in the environment that actually resolves the
+secret. Repository secrets are `CLOUDFLARE_DNS_READ_TOKEN`, `STRAVA_CLIENT_SECRET`,
+`STRAVA_REFRESH_TOKEN`; environments are `dns`, `preview`, `production`.
+
+The ref test added to `strava-progress.yml` costs the nightly nothing, and that is two facts rather
+than one: GitHub runs a scheduled workflow only on the default branch, and all 40 historical runs of
+that workflow — 29 cron, 11 manual — carried `head_branch=main`.
+
+### Suite
+
+538 passed / 7 skipped of 545 before, **561 passed / 7 skipped of 568** after. 25 mutations across
+the two rounds, each shown red and restored.
+
+**A harness that restores with `git checkout --` eats uncommitted work, and it did so three times
+here** before the lesson took: the restore point is HEAD, not "before this mutation". Commit first.
+The tell is silence — a mutation whose anchor no longer exists replaces nothing and prints a clean
+run, which is indistinguishable from a gate that does not work.
