@@ -1850,3 +1850,89 @@ diff, and `pnpm check` catches the output); `main`'s composition is ungated, so 
 `titlesFrom` call site leaves the suite green; a Dependabot pip bump may strip the lock header and
 redden the new provenance gate; `lockEntries` has never been exercised on the marker/extras line
 shape `--universal` exists to emit; and `--only-binary=:all:` is absent from the three pip installs.
+
+## Plan 032 — the reasons corrected, and the gates that could not fail
+
+Merged as `4583bd1` (#182), the fourth of the plans the two-run security audit produced. It is the
+first in this set whose executor **deleted one of the plan's own findings** rather than implementing
+it, and the panel that reviewed the result then found the executor had committed the plan's headline
+defect five more times in the course of fixing it.
+
+### The plan was wrong about one of its three vacuous assertions
+
+Item C claimed that `tests/build-output.test.ts`'s destination-heading pairing compares two
+expressions built from one constant and therefore cannot fail, and it named the mutation that would
+prove it. Run against a full build, that mutation is **red**: the assertion reads the control's text
+out of the built `dist/index.html` and the `<h1>` out of the built destination page — two rendered
+strings from two files — so re-templating either endpoint reddens it. The other mutation, changing
+`NEXT_RACE.control` itself, is green **and correctly so**: a control and the page it opens are meant
+to be renamed in one edit, and an assertion that reddened there would punish the correct change.
+
+So `tests/build-output.test.ts` was never touched and the plan repaired three assertions rather than
+four. **A plan that asserts a gate is vacuous owes the same measurement as one that asserts a gate
+bites**, and this is the case that proves it — the plan's own STOP conditions covered "cannot be made
+red" and had no branch for "reddens exactly as it should".
+
+### What the other two repairs were
+
+The goal bound asserted `current_progress`, which is `Math.min(raw_progress, total_goal)` compared
+against its own second argument. It now bounds `raw_progress`. The split-race counter's floor was
+`toBeGreaterThanOrEqual(0)` on a counter that starts at zero, under a docblock calling itself the
+only offline constraint on that field.
+
+The plan asked for a `current_progress <= total_goal` line to be kept beside the new bound. It was
+not, and should not have been: `tests/content.test.ts` already compares the displayed figure through
+`clampToGoal` and already exercises an overshoot directly, repeating that very bound. A third copy
+would have restated a rule two live assertions own.
+
+### The first thing here to read a binary
+
+`public/resume.pdf`'s declared `/Title` is now held to `CAREER[0].job_name`, and it refuses a past
+title the way the README's lede gate does. It is a few regexes over bytes decoded as latin1 — chosen
+for one property, that it round-trips every byte to a distinct code unit — with no PDF dependency.
+
+The plan specified a first-match regex for `/Title`. **That file carries four of them**: one in the
+information dictionary and three in the outline the exporter wrote. A first match is right today only
+because Google Docs emits the information dictionary as object 1 at the top of the file, which is a
+fact about one exporter rather than about PDF, so the gate follows `/Info` from the trailer instead.
+
+**The first draft of that reader was still wrong twice, and both were silent.** It resolved `/Info`
+and then took the first definition of that object anywhere in the file, so an incrementally updated
+PDF read back its **superseded** title with total confidence; and a title holding unescaped balanced
+parentheses truncated at the first `)`, which still contained the current title *and* emptied the
+remainder the past-title refusal inspects, so that half of the gate asserted nothing. Both now throw.
+The invariant the docblock states was strengthened accordingly: not "never returns empty" but **never
+returns a guess** — a reader that hands back a confidently wrong string is worse than one that hands
+back nothing.
+
+### And five statements the fix itself made false
+
+The panel's most valuable finding was that the branch shipped the very defect it was written to
+remove. Gating the `/Title` falsified `CLAUDE.md`'s "The PDF cannot be, and is owed by hand" and
+`src/content/home.ts`'s "CANNOT be gated from here" — the latter being exactly where the branch's own
+new prose in `tests/docs-drift.test.ts` sends the reader. Correcting the `metres` sentence in
+`CLAUDE.md` left three near-verbatim copies standing, one of them in `src/data/races/README.md`, the
+field reference a contributor writing a race module actually reads. A newly written docblock claimed
+all three named corruption classes clear ten times the target "by orders of magnitude" when only the
+metres-for-km slip does — measured, an extra digit lands at 2448 and 26022 and a doubled athlete at
+490 and 5204, against ceilings of 6000 and 50000. `CLAUDE.md` called past-year races "the majority of
+the list" when they are 5 of 14. And a cross-reference to `plans/README.md` was invented, pointing at
+a note that does not exist in a file whose only DMARC line points back the other way.
+
+**Correcting a false statement is where false statements get authored**, and nothing in the suite can
+see prose that is merely wrong. The panel is what caught all five.
+
+### Outcome
+
+Suite **573 passed / 7 skipped of 580**, up from 572/579 — the one new test is the `/Title` gate. The
+résumé swap was metadata-only, verified by `pdftotext` byte-identity and confirmed end to end by
+fetching `/resume.pdf` from the preview deployment: identical SHA-256 to the committed file, with the
+corrected title.
+
+**Recorded, not fixed**, so it is not re-derived: `dns/config.yaml`'s DKIM and `_dmarc` exclusions are
+still not managed from git and the decision to bring them under octoDNS has not been taken, only its
+false reason deleted; the CSP rejection's premise is withdrawn without a replacement, and reproducing
+the hash-based `script-src` measurement against the live Rocket Loader is what would settle it; the
+`raw_progress` ceiling cannot see a corruption smaller than a factor of ten, deliberately; and the
+`/Title` gate reads only the document information dictionary, so an exporter that writes the title as
+a hex string, or moves it into an object stream, fails loudly and needs a real PDF reader.

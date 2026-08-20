@@ -1,12 +1,14 @@
 # Implementation Plans
 
-**Three plans are queued: 032–034.** They come from a two-run security audit of this repository
-completed on 2026-08-18, and they were the first proposals here since 028 landed. 029, 030 and 031
-are merged, archived and live; plans 024–028 are too.
+**Three plans are queued: 033, 034 and 035.** The first two come from a two-run security audit of
+this repository completed on 2026-08-18, which produced the first proposals here since 028 landed;
+035 does not. 029 through 032 are merged, archived and live; plans 024–028 are too.
 
 **Every plan in this set so far has carried defects its executor had to measure rather than read,
-and 031 carried five** — the fourth consecutive time the advisor/executor split has paid for
-itself. See [`done/README.md`](done/README.md) § "Plan 030" and § "Plan 031" for what that cost,
+and 032 is the first whose executor DELETED one of the plan's own findings** — it claimed a gate was
+vacuous, the mutation it named to prove that came back red, and the step was not taken. That makes
+five consecutive runs in which the advisor/executor split has paid for itself. See
+[`done/README.md`](done/README.md) § "Plan 030", § "Plan 031" and § "Plan 032" for what that cost,
 and for the regression each plan's review panel then found in its own fix. 033 is genuinely
 optional. **034 cannot go green until three
 Cloudflare zone settings are off** — it names them as preconditions and stops rather than weakening
@@ -179,7 +181,7 @@ recreated.
 | 029 | Build the gated artifact in production mode, and bound the deploy step | P1 | S | — | **DONE** (`eae05af`) |
 | 030 | Make every workflow gate cover every workflow | P1 | M | 029 | **DONE** (`85d5ff3`) |
 | 031 | Validate what the two script seams accept | P2 | M | — | **DONE** (`6f8fbfe`) |
-| 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **IN PROGRESS** |
+| 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **DONE** (`4583bd1`) |
 | 033 | The six remaining hardenings | P3 | S | 029, 030 | **TODO** |
 | 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **TODO** |
 | 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **TODO** |
@@ -195,8 +197,8 @@ in its own worktree and **none asserts an absolute suite total**.
 **Two of these plans carry work this repository cannot do.** 034 has Cloudflare zone preconditions,
 and its retention step is the only permanently irreversible action in the set — it deletes preview
 deployments, with the enumerate-and-report phase separated from the delete phase for that reason.
-032 edits this file's prose beyond a status row, which is normally the reviewer's alone; the
-maintainer waived that for two specific corrections and the plan names them.
+032 edited this file's prose beyond a status row, which is normally the reviewer's alone; the
+maintainer waived that for two specific corrections, and they landed in a commit of their own.
 
 **What was deliberately NOT planned**, so it is not re-derived: the audit re-raised
 `Person.nationality` (refuted as CORRECT-02 below), deleting `METADATA.email_obfuscated` (DEBT-01,
@@ -205,7 +207,7 @@ and `rel="noopener noreferrer"` (refuted as SEC-04 below). Branch protection on 
 considered and declined on a measurement rather than an opinion — a required status check breaks the
 nightly bot's push, and a push-via-PR redesign needs a long-lived credential strictly more powerful
 than the run-scoped `GITHUB_TOKEN` it would replace, because a `GITHUB_TOKEN` pull request does not
-trigger workflows. Plan 032 records that reasoning in the tree.
+trigger workflows. Plan 032 recorded that reasoning in the tree.
 
 **027 is the first plan whose premise was an event rather than a defect**, and that changes what
 the plan has to guard. An audit finding is true until someone fixes it; this one was true only
