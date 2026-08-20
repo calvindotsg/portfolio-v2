@@ -177,7 +177,7 @@ recreated.
 | 027 | Retire the fork premise, and govern all three dependency surfaces | P1 | M | — | **DONE** (`8e91ec2`) |
 | 028 | Close the step-guard hole, and decide the two held major bumps | P1 | M | — | **DONE** (`c941e3a`) |
 | 029 | Build the gated artifact in production mode, and bound the deploy step | P1 | S | — | **DONE** (`eae05af`) |
-| 030 | Make every workflow gate cover every workflow | P1 | M | 029 | **TODO** |
+| 030 | Make every workflow gate cover every workflow | P1 | M | 029 | **IN PROGRESS** (implemented and verified on a branch; DONE and its commit on merge) |
 | 031 | Validate what the two script seams accept | P2 | M | — | **TODO** |
 | 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **TODO** |
 | 033 | The six remaining hardenings | P3 | S | 029, 030 | **TODO** |

@@ -63,13 +63,44 @@ interface Step {
     "continue-on-error"?: boolean | string;
 }
 
+/**
+ * A UNION, BECAUSE `read-all` AND `write-all` ARE LEGAL AND A MAPPING IS ONLY THE ORDINARY FORM.
+ * Typing this as the record alone lets `Object.entries` on the shorthand compile and then read
+ * the STRING'S INDICES as scope names — a shape error that type-checks, and one that would make
+ * `write-all`, the single most permissive spelling GitHub accepts, read as granting nothing.
+ */
+type Permissions = string | Record<string, string>;
+
 interface Job {
     needs?: string | string[];
     if?: string;
     environment?: string | {name?: string; url?: string};
+    permissions?: Permissions;
     steps?: Step[];
+    /**
+     * A JOB CAN CALL A REUSABLE WORKFLOW INSTEAD OF HAVING STEPS, and that shape has no `steps:` at
+     * all — so every sweep here that walks `job.steps` sees nothing in it. MEASURED: a job-level
+     * `uses: some-org/some-repo/.github/workflows/publish.yml@v1` with `secrets: inherit` left the
+     * whole suite green, unpinned and holding every secret this repository has.
+     */
+    uses?: string;
+    /** `secrets: inherit` hands the called workflow EVERY secret, without naming one. */
+    secrets?: string | Record<string, string>;
     "continue-on-error"?: boolean | string;
 }
+
+/**
+ * A STEP'S COMMANDS, WITH THE STEP'S OWN COMMENTS TAKEN OUT. A `run:` body here carries `#`
+ * lines explaining the command below them, and a gate that read those as commands would be
+ * holding the prose rather than the invocation. `stepsRunning` below strips them for the same
+ * reason; the semantics are shared deliberately rather than written twice.
+ *
+ * IT SITS HERE RATHER THAN BESIDE ITS FIRST READER because `publishingJobs` now needs it, and a
+ * `const` is not hoisted — reading it from further down the file is a temporal-dead-zone crash
+ * at import, not a lint complaint.
+ */
+const commandLines = (step: Step): string[] =>
+    (step.run ?? "").split("\n").filter((line) => !/^\s*#/.test(line)).map((line) => line.trim());
 
 /**
  * The directory, module-scoped because two blocks below sweep it for different reasons — the
@@ -78,7 +109,7 @@ interface Job {
  */
 const WORKFLOW_DIR = ".github/workflows";
 const CI_PATH = `${WORKFLOW_DIR}/ci.yml`;
-const CI = parse(readFileSync(CI_PATH, "utf8")) as {jobs: Record<string, Job>};
+const CI = parse(readFileSync(CI_PATH, "utf8")) as {permissions?: Permissions; jobs: Record<string, Job>};
 
 const jobIds = Object.keys(CI.jobs);
 const needsOf = (id: string): string[] => {
@@ -88,21 +119,161 @@ const needsOf = (id: string): string[] => {
 
 /**
  * DISCOVERED FROM THE CAPABILITY, NOT FROM A LIST OR A NAME. A job that can publish the
- * site is exactly a job that can read the Cloudflare deploy token; without it wrangler
- * cannot authenticate and nothing reaches the host. Keying on `deploy-` in the job id
+ * site is exactly a job that can obtain a credential; without one wrangler cannot
+ * authenticate and nothing reaches the host. Keying on `deploy-` in the job id
  * would instead be a naming convention, and a third publishing job called
  * `release-production` would slip past every assertion below while looking reviewed.
  * `tests/control-geometry.test.ts` discovers controls from the CSS signature for the same
  * reason and says so in the same words.
+ *
+ * IT USED TO KEY ON ONE SECRET'S NAME, WHICH IS THE SAME DEFECT ONE LEVEL DOWN. The
+ * predicate was `secrets.CLOUDFLARE_API_TOKEN appears in this job's YAML`, and this file's
+ * own docblock argues against exactly that — a publishing job authenticating through OIDC,
+ * or through a differently-named token after a provider change, is not classified as
+ * publishing, and the `toEqual` assertion listing the two deploy jobs goes on passing while
+ * the new job's guard is never executed by anything. So the question asked is now "can this
+ * job obtain a credential at all", in the three shapes GitHub offers: it declares an
+ * `environment:`, it references any secret, or it asks for an OIDC token.
+ *
+ * THE FALSE-POSITIVE DIRECTION IS THE SAFE ONE and is chosen deliberately. `GITHUB_TOKEN`
+ * is a secret by this test, so a future job merely reading it is held to the publishing
+ * job's standards — which is loud, visible in review, and fixed by an argument. A false
+ * NEGATIVE is a job that can reach the host with nothing checking when it runs, and that is
+ * the error this whole file exists to prevent.
  */
 /**
  * BOTH SPELLINGS, because GitHub accepts both and a substring match on the dot form is a
- * naming convention wearing a capability check. `secrets['CLOUDFLARE_API_TOKEN']` and
- * `secrets["CLOUDFLARE_API_TOKEN"]` are exactly equivalent index syntax, and a job spelled
- * that way was invisible to every assertion in this file.
+ * naming convention wearing a capability check. `secrets['NAME']` and `secrets["NAME"]` are
+ * exactly equivalent index syntax, and a job spelled that way was invisible to every
+ * assertion in this file.
  */
-const TOKEN_REFERENCE = /secrets\s*(?:\.\s*CLOUDFLARE_API_TOKEN\b|\[\s*(['"])CLOUDFLARE_API_TOKEN\1\s*])/;
-const publishingJobs = jobIds.filter((id) => TOKEN_REFERENCE.test(JSON.stringify(CI.jobs[id])));
+const SECRET_REFERENCE = /secrets\s*(?:\.\s*[A-Za-z_][A-Za-z0-9_]*|\[\s*(['"])[^'"\n]+\1\s*])/;
+
+/**
+ * A STEP THAT NAMES A SECRET IN ORDER TO PROVE IT CANNOT READ ONE, which is not a capability
+ * and must not be counted as one.
+ *
+ * `ci.yml`'s `build` job carries exactly such a step: it reads `CLOUDFLARE_API_TOKEN` into the
+ * environment and fails when the value is NON-empty, which is how the "exists only as an
+ * environment secret" half of the branch-policy invariant stopped being GitHub-side and
+ * untestable. Counting that reference as a capability would classify `build` as a publishing
+ * job — and then `build` would have to wait transitively on a job running `pnpm test`, which it
+ * cannot, being that job. MEASURED before this predicate existed: adding the step reddened the
+ * job-list assertion and the transitive-suite assertion together, and the plan that prescribed
+ * the step gave its verification as "`pnpm test` green".
+ *
+ * DERIVED FROM THE STEP'S OWN TEXT, NOT FROM ITS NAME, which is the same discipline
+ * `failingRunSteps` applies further down and for the same reason: a name is a convention and a
+ * convention is what this file replaces. A step qualifies only when EVERY secret it pulls into
+ * its environment is one it goes on to test, and when it can exit non-zero — so a deploy step
+ * that happens to test some unrelated variable is not mistaken for a canary, and a canary whose
+ * `exit` was deleted stops being one.
+ *
+ * `-n` AND NOT `-z`, AND THE DIFFERENCE IS THE WHOLE MEANING RATHER THAN A SPELLING. A step that
+ * fails when the value is EMPTY is asserting the credential is PRESENT, because it is about to
+ * use it; a step that fails when the value is NON-EMPTY is asserting it is absent. MEASURED: a
+ * first draft accepted both, and `dns.yml`'s `octodns-sync` step — which names a write-scoped DNS
+ * token, checks `-z`, exits 1, and then writes DNS with it — was classified as proving that token
+ * unreadable. That is the classifier inverting the one fact it exists to establish.
+ *
+ * A CANARY IS A STEP THAT DOES NOTHING ELSE, and that clause is the one this predicate shipped
+ * without. Testing a value and USING it are not mutually exclusive, so "names a secret and tests
+ * it for emptiness" describes a real deploy step as accurately as it describes a canary:
+ *
+ *     if [ -n "$TOKEN" ]; then npx wrangler pages deploy dist; else exit 1; fi
+ *
+ * MEASURED, on a complete extra Cloudflare Pages deploy job added to `ci.yml`: wrapped that way it
+ * left the whole suite green, and it now fails 14 assertions. The exemption was a switch anyone
+ * could flick to remove a publishing job from every gate in this file. So the step's whole
+ * vocabulary is now allow-listed: a canary may test, print and exit, and anything else
+ * disqualifies it.
+ *
+ * A LINE IS NOT A COMMAND, which is where the obvious version of that allow-list fails. `&&`, `||`,
+ * `;`, `|`, `then` and `do` all begin a new command mid-line, so checking each line's FIRST token
+ * accepts `[ -n "$TOKEN" ] && npx wrangler pages deploy dist` — measured green. Each line is split
+ * into segments and every segment must be inert.
+ *
+ * QUOTED TEXT IS NOT SHELL SYNTAX, and this is the part a naive segmenter gets exactly backwards.
+ * The real canary's `::error::` message contains a literal `;` ("Delete the repository-level
+ * secret; the token belongs to…"), so splitting the raw line hands the segmenter the tail of an
+ * English sentence as a command, disqualifies the real canary, and reports `build` as a job that
+ * can read the deploy token — on a CORRECT, unmodified workflow. That is 18 assertions red, the
+ * same 18 that fire when the exemption is removed outright, since both make `build` publishing.
+ * Red on correct code is the failure this file's own `failingRunSteps` docblock says trains a
+ * reader to loosen a gate, so quotes are blanked before splitting.
+ *
+ * AND COMMAND SUBSTITUTION IS REJECTED OUTRIGHT, because `echo` is on the allow-list and
+ * `echo "$(npx --yes wrangler@… pages deploy dist)"` is a deploy wearing it. MEASURED: with the
+ * vocabulary check alone and no substitution check, that step passed all 66 assertions in this file.
+ *
+ * `-n` AND NOT `-z`, AND THE DIFFERENCE IS THE WHOLE MEANING RATHER THAN A SPELLING. A step that
+ * fails when the value is EMPTY is asserting the credential is PRESENT, because it is about to
+ * use it; a step that fails when the value is NON-EMPTY is asserting it is absent. MEASURED: a
+ * first draft accepted both, and `dns.yml`'s `octodns-sync` step — which names a write-scoped DNS
+ * token, checks `-z`, exits 1, and then writes DNS with it — was classified as proving that token
+ * unreadable. That is the classifier inverting the one fact it exists to establish. A canary
+ * written the other way round (`-z … else … exit 1`) is REJECTED rather than accepted, which
+ * classifies its job as publishing: the safe direction, since an unusually-written future canary
+ * fails loudly in review instead of silently exempting a job.
+ *
+ * Returns the variables proven absent, so a caller can assert the set is non-empty rather than
+ * trusting a boolean that is indistinguishable from "there was nothing to prove".
+ */
+const INERT_SEGMENT = /^(?:if\b|elif\b|else\b|fi\b|then\b|do\b|done\b|\[|test\b|echo\b|printf\b|exit\s+\d|true\b|:\s*$|$)/;
+
+/** Quoted text is prose, not syntax — see the note above. Blanked rather than removed so offsets stay sane. */
+const unquoted = (line: string): string => line.replace(/"[^"]*"|'[^']*'/g, '""');
+
+const absenceCanary = (step: Step): string[] => {
+    const named = Object.entries(step.env ?? {})
+        .filter(([, value]) => SECRET_REFERENCE.test(String(value)))
+        .map(([key]) => key);
+    if (named.length === 0) return [];
+    const lines = commandLines(step);
+    const live = lines.join("\n");
+    if (!/(^|\s)exit\s+[1-9]/.test(live)) return [];
+    // A substitution can run anything while the surrounding command stays on the allow-list.
+    if (/\$\(|`/.test(live)) return [];
+    const segments = lines.flatMap((line) => unquoted(line).split(/&&|\|\||[;|]|\bthen\b|\bdo\b/).map((s) => s.trim()));
+    if (!segments.every((segment) => INERT_SEGMENT.test(segment))) return [];
+    const proven = named.filter((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)
+        && new RegExp(`-n\\s+"?\\$\\{?${name}\\b`).test(live));
+    return proven.length === named.length ? proven : [];
+};
+
+/**
+ * Takes a `Job` rather than a job id so the classifier can be put to synthetic jobs and shown
+ * to discriminate — the same reason `evaluate` is exercised on bare literals further down. A
+ * detector nobody calibrates is how the one it replaced stayed narrow for as long as it did.
+ */
+const canPublish = (job: Job | undefined, workflowPermissions?: Permissions): boolean => {
+    if (job === undefined) return false;
+    if (job.environment !== undefined) return true;
+    /*
+     * THE EFFECTIVE BLOCK, NOT THE JOB'S OWN. A `permissions:` block at workflow level applies to
+     * every job that declares none, so reading `job.permissions` alone answers "did this job write
+     * it down" rather than "what can its token do".
+     *
+     * MEASURED, on a job added to `ci.yml` with no `permissions:` of its own under a workflow-level
+     * `id-token: write`: reading the job's own block, 7 assertions fire; reading the effective one,
+     * 20. The 13 in between are every gate this file applies to a publishing job — an environment,
+     * a branch policy, the stale-artifact stamp, the transitive wait on the suite — none of which
+     * ran against a job that can mint an OIDC token and publish with it.
+     *
+     * `effectivePermissions` further down this file already read the workflow level, which is what
+     * made the inconsistency findable: two predicates in one file answering the same question
+     * differently is a defect one of them is having on its own.
+     */
+    const permissions = job.permissions ?? workflowPermissions;
+    if (permissions === "write-all") return true;
+    if (typeof permissions === "object" && permissions["id-token"] === "write") return true;
+    // `secrets: inherit` hands over every secret without naming one, so no name-matching regex sees it.
+    if (job.secrets === "inherit") return true;
+    const carrying = {...job, steps: (job.steps ?? []).filter((step) => absenceCanary(step).length === 0)};
+    return SECRET_REFERENCE.test(JSON.stringify(carrying));
+};
+
+const publishingJobs = jobIds.filter((id) => canPublish(CI.jobs[id], CI.permissions));
 
 /** Every job reachable from `id` by following `needs`, `id` excluded. */
 const upstreamOf = (id: string): Set<string> => {
@@ -289,11 +460,20 @@ describe("a red suite still blocks a deploy", () => {
     /**
      * `ci.yml` states this as prose and calls it the thing that keeps the production branch
      * policy meaningful: `CLOUDFLARE_API_TOKEN` exists only as an ENVIRONMENT secret, so a
-     * job that omits `environment:` cannot read it. That half is GitHub-side and untestable
-     * from here. The file half is testable and is where the mistake would actually be made —
-     * copy a deploy job, drop the `environment:` block, and the job silently falls back to
-     * inheriting a repository-level secret of the same name if one is ever added, with the
-     * branch policy void and nothing reporting it.
+     * job that omits `environment:` cannot read it. This assertion holds the file half, which
+     * is where the mistake would actually be made — copy a deploy job, drop the `environment:`
+     * block, and the job silently falls back to inheriting a repository-level secret of the
+     * same name if one is ever added, with the branch policy void and nothing reporting it.
+     *
+     * THE OTHER HALF IS NO LONGER UNTESTABLE, and this sentence used to say it was. It is a
+     * fact about GitHub's settings rather than about this repository's files, so no assertion
+     * here can reach it — but a STEP can: `build` declares no `environment:`, so it reads the
+     * empty string for that secret exactly while the invariant holds, and a real value the
+     * moment it does not. `ci.yml`'s first `build` step is that canary, `absenceCanary` above
+     * is what stops it being mistaken for a capability, and the block "the canary that makes
+     * the environment-secret invariant testable" below asserts it is still there and still
+     * shaped like a canary. A stale reason outlives every review that trusts it, which is why
+     * this paragraph replaced the claim rather than sitting beside it.
      */
     it("gives every publishing job an environment, which is what binds its token to a branch policy", () => {
         for (const id of publishingJobs) {
@@ -371,10 +551,16 @@ describe("a red suite still blocks a deploy", () => {
     /*
      * TARGETED AT THE SUITE-RUNNING JOB RATHER THAN AT `publishingJobs`, and that distinction is
      * the whole reason this is a second assertion instead of another loop above. The analytics
-     * check lives in `build`, which never touches the Cloudflare token and is therefore NEVER a
-     * member of `publishingJobs` — a loop over that set would inspect nothing and pass forever.
-     * `jobIds.filter(runsTheSuite)` is asserted to have length 1 further down this file, so it
-     * names the same job without hardcoding the string `build`.
+     * check lives in `build`, which is NEVER a member of `publishingJobs` — a loop over that set
+     * would inspect nothing and pass forever. `jobIds.filter(runsTheSuite)` is asserted to have
+     * length 1 further down this file, so it names the same job without hardcoding `build`.
+     *
+     * THE REASON MOVED, THOUGH THE FACT DID NOT. This used to say `build` "never touches the
+     * Cloudflare token", and that stopped being true the day the canary step was added: `build`
+     * names that secret now, deliberately, in order to prove it reads as empty. What keeps the job
+     * out of `publishingJobs` is `absenceCanary` excluding that one step, not the absence of any
+     * mention — and a stale reason outlives every review that trusts it, which is why this
+     * paragraph replaced the claim rather than sitting beside it.
      */
     it("keeps the analytics check on the job that runs the suite", () => {
         const [suiteJob] = jobIds.filter(runsTheSuite);
@@ -870,15 +1056,6 @@ describe("the unattended deploy's own guard", () => {
     });
 });
 
-/**
- * A STEP'S COMMANDS, WITH THE STEP'S OWN COMMENTS TAKEN OUT. A `run:` body here carries `#`
- * lines explaining the command below them, and a gate that read those as commands would be
- * holding the prose rather than the invocation. `stepsRunning` above strips them for the same
- * reason; the semantics are shared deliberately rather than written twice.
- */
-const commandLines = (step: Step): string[] =>
-    (step.run ?? "").split("\n").filter((line) => !/^\s*#/.test(line)).map((line) => line.trim());
-
 /** `npx` as a command, rather than the word appearing inside one. */
 const INVOKES_NPX = /(?:^|[|&;(]\s*)npx(?=\s|$)/;
 
@@ -943,6 +1120,711 @@ describe("nothing a workflow fetches may run its own install scripts", () => {
                 + "lockfile, so an install script anywhere in that graph executes beside the credential. "
                 + "The flag must sit before the package specifier — after it, npm passes it to the "
                 + "package instead and the guard is decorative.").toContain("--ignore-scripts");
+        }
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// The properties that are true of EVERY workflow — and were each held against ONE of them.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE DIRECTORY, PARSED ONCE, BECAUSE THE BLIND SPOT THESE BLOCKS CLOSE IS "DISCOVERED WITHIN A
+ * SINGLE FILE".
+ *
+ * Every gate below was, before this, either absent or scoped to whichever workflow the suite
+ * that grew it happened to read. The sharpest case: the only assertion in the repository that
+ * every `uses:` is pinned to a commit SHA lived in `tests/dns-config.test.ts` and iterated
+ * `dns.yml` — so `ci.yml`, which deploys production, and `strava-progress.yml`, which holds
+ * `contents: write` and both Strava secrets, had no such gate at all. Nothing was wrong with
+ * those two files; the point is that nothing would have said so.
+ *
+ * The three sweeps above this line — the Node version's homes, the dispatchers, the npx
+ * invocations — each re-derive this list for themselves. They are deliberately left alone here:
+ * collapsing them is a refactor of working gates rather than a gap being closed, and this change
+ * is already the widest one this file has taken. A fourth copy is what is avoided.
+ */
+interface WorkflowFile {
+    file: string;
+    doc: {env?: Record<string, string>; permissions?: Permissions; jobs?: Record<string, Job>};
+}
+
+const WORKFLOWS: WorkflowFile[] = readdirSync(WORKFLOW_DIR)
+    .filter((file) => /\.ya?ml$/.test(file))
+    .map((file) => ({file, doc: parse(readFileSync(`${WORKFLOW_DIR}/${file}`, "utf8")) as WorkflowFile["doc"]}));
+
+/** Every job in the directory, carrying the file it came from so a failure can name it. */
+const ALL_JOBS = WORKFLOWS.flatMap(({file, doc}) =>
+    Object.entries(doc.jobs ?? {}).map(([id, job]) => ({where: `${file} → ${id}`, file, doc, id, job})));
+
+const ALL_STEPS = ALL_JOBS.flatMap(({where, job}) =>
+    (job.steps ?? []).map((step) => ({where: `${where} → ${step.name ?? step.uses ?? "(unnamed step)"}`, step})));
+
+/**
+ * EVERY `uses:` IN THE DIRECTORY, AND A JOB HAS ONE TOO. A job that calls a reusable workflow
+ * carries `uses:` on the JOB and has no `steps:` at all, so a sweep over `job.steps` — which is
+ * what this gate shipped with — cannot see it. MEASURED: a job-level
+ * `uses: some-org/some-repo/.github/workflows/publish.yml@v1` paired with `secrets: inherit` left
+ * the whole suite green: unpinned, moveable, and holding every secret this repository has. That is
+ * the single worst shape the pin gate exists to refuse, and it was the one shape it could not see.
+ */
+const ALL_USES = [
+    ...ALL_JOBS.filter(({job}) => job.uses !== undefined)
+        .map(({where, job}) => ({where: `${where} (reusable workflow call)`, uses: String(job.uses)})),
+    ...ALL_STEPS.filter(({step}) => step.uses !== undefined)
+        .map(({where, step}) => ({where, uses: String(step.uses)})),
+];
+
+describe("every action every workflow runs is pinned to a commit", () => {
+    const used = ALL_USES;
+
+    /**
+     * THE FLOOR IS THE WHOLE POINT OF MOVING THE ASSERTION. A directory sweep that matched
+     * nothing passes silently and reads exactly like a clean run — which is the failure mode of
+     * the single-file constant it replaces, arrived at from the other direction.
+     *
+     * COUNTED OVER THE FILES THE `uses:` STEPS CAME FROM, not over the files the glob matched,
+     * because those are different claims and only the first one is the defect. This gate
+     * regressed to reviewing one workflow once already; a glob that finds three files and reads
+     * actions out of one of them has regressed to exactly that while reporting three.
+     */
+    it("reaches actions in more than one workflow, which is the property that regressed before", () => {
+        const files = [...new Set(used.map(({where}) => where.split(" → ")[0]))].sort();
+        expect(used.length, `no step in ${WORKFLOW_DIR} declares \`uses:\`, so the assertion below inspects `
+            + "nothing and passes").toBeGreaterThan(0);
+        expect(files.length, `every \`uses:\` this gate can see comes from ${JSON.stringify(files)}. That is `
+            + "how this assertion spent its first life — scoped to one workflow while reading as a property "
+            + "of the repository.").toBeGreaterThan(1);
+    });
+
+    /**
+     * A TAG IS A MOVEABLE POINTER AND THAT IS THE WHOLE OBJECTION. `@v7` resolves to whatever the
+     * action's owner last pushed it to, so a compromised or merely careless release runs inside a
+     * job holding this repository's credentials, with no review and no diff. A SHA cannot move.
+     *
+     * NO EXEMPTION FOR A LOCAL OR DOCKER `uses:`, and that is deliberate rather than an oversight.
+     * Neither shape exists here today; adding one is a design change to argue for in review, not a
+     * carve-out to write into the gate ahead of time — and a carve-out written now is one nobody
+     * re-reads when the shape it excuses stops being hypothetical.
+     */
+    it("pins every one of them to a full commit SHA rather than to a tag", () => {
+        for (const {where, uses} of used) {
+            expect(uses, `${where} runs \`${uses}\`, which is not pinned to a 40-character commit SHA. `
+                + "A tag is a pointer its owner can move, so the code this job runs is whatever was pushed there "
+                + "last — inside a runner that holds this repository's credentials. Dependabot can bump a SHA but "
+                + "cannot convert a tag into one, so a new `uses:` line has to be written pinned by hand.")
+                .toMatch(/@[0-9a-f]{40}$/);
+        }
+    });
+});
+
+/**
+ * GITHUB'S OWN SCOPE LIST, so a typo is a failure rather than a scope silently granted `none`.
+ * A misspelled key is not rejected by GitHub — it is simply not a scope, and every scope the
+ * block does not name is `none`, so `content: write` (singular) reads as a job that asked for
+ * write access and got nothing. That fails at run time, on whichever path nobody watches.
+ */
+const KNOWN_SCOPES = new Set([
+    "actions", "artifact-metadata", "attestations", "checks", "code-quality", "contents",
+    "deployments", "discussions", "id-token", "issues", "models", "packages", "pages",
+    "pull-requests", "repository-projects", "security-events", "statuses", "vulnerability-alerts",
+]);
+
+/**
+ * WORKFLOW-LEVEL COUNTS, and it has to. `ci.yml` and `dns.yml` write a block on every job;
+ * `strava-progress.yml` writes one at the top and none on its single job, which is equally
+ * explicit and equally replaces the defaults. An assertion worded "every job declares a
+ * `permissions:` block" reddens on that file on the day it lands, and the fix — adding a block
+ * the workflow does not need — is a change this gate has no business demanding.
+ */
+const effectivePermissions = (entry: {doc: WorkflowFile["doc"]; job: Job}): Permissions | undefined =>
+    entry.job.permissions ?? entry.doc.permissions;
+
+describe("every job runs under an explicit permissions block", () => {
+    it("finds jobs to inspect at all", () => {
+        expect(ALL_JOBS.map((j) => j.where).length, "no workflow declares a job, so every assertion in this "
+            + "block is vacuous").toBeGreaterThan(1);
+    });
+
+    /**
+     * `ci.yml` ARGUES THIS IN PROSE AND NOTHING EXECUTED IT. Its header says a `permissions:`
+     * block replaces the defaults wholesale, so an unlisted scope is `none` — which is the
+     * intent, and is also how a job loses a scope it silently depended on. The corollary is the
+     * part worth gating: a job with NO block anywhere inherits the repository's
+     * `default_workflow_permissions`, a setting that lives outside this repository, can be
+     * changed without a commit, and applies to `build` — the one job that executes
+     * pull-request-authored code.
+     */
+    it("gives every job a block, workflow-level or job-level, so none inherits a repository default", () => {
+        for (const entry of ALL_JOBS) {
+            expect(effectivePermissions(entry), `${entry.where} declares no permissions: block and sits in a `
+                + "workflow that declares none either, so its token's scopes come from the repository's "
+                + "default_workflow_permissions setting — which is not in this repository, is not in this diff, "
+                + "and can be widened without a commit.").toBeDefined();
+        }
+    });
+
+    /**
+     * THE SHAPE, BECAUSE A KEY GITHUB DOES NOT RECOGNISE IS NOT AN ERROR — IT IS A `none`.
+     * Asserting presence alone accepts `permissions: {contnets: read}` and reports it reviewed.
+     */
+    it("writes every block out of scopes GitHub actually recognises", () => {
+        for (const entry of ALL_JOBS) {
+            const permissions = effectivePermissions(entry);
+            if (typeof permissions === "string") {
+                expect(["read-all", "write-all"], `${entry.where} sets permissions: ${permissions}, which is `
+                    + "neither a mapping nor one of GitHub's two shorthands").toContain(permissions);
+                continue;
+            }
+            for (const [scope, value] of Object.entries(permissions ?? {})) {
+                expect([...KNOWN_SCOPES], `${entry.where} asks for "${scope}", which is not a scope GitHub `
+                    + "recognises. It is not rejected — it is simply not granted, so a job that needs the scope "
+                    + "this was meant to spell runs with `none` and fails wherever it uses it.").toContain(scope);
+                expect(["read", "write", "none"], `${entry.where} sets ${scope}: ${value}`).toContain(String(value));
+            }
+        }
+    });
+
+    /**
+     * THE ONE VALUE THE FILE SINGLES OUT, PINNED. `ci.yml`'s header states that `contents: read`
+     * is all `build` needs — nothing writes to the repository and nothing comments on the PR —
+     * and `build` is the job that executes fork-pull-request-authored code. Presence alone would
+     * accept `contents: write` there and read as reviewed.
+     *
+     * NAMED WITHOUT HARDCODING THE STRING `build`, the way the analytics assertion above does:
+     * the job that runs the suite is asserted to be exactly one further up this file, so it is
+     * the job's role that is pinned rather than its id.
+     *
+     * DELIBERATELY NOT GENERALISED TO "every block is MINIMAL". Minimality is a judgement rather
+     * than a predicate, and encoding today's judgement would redden on a legitimate future need
+     * — a job that must comment on a pull request, say. Presence plus this one explicit value is
+     * the durable half.
+     */
+    it("keeps the fork-code-executing job at contents: read, which is what its own file says it needs", () => {
+        const [suiteJob] = jobIds.filter(runsTheSuite);
+        expect(suiteJob).toBeDefined();
+        expect(CI.jobs[suiteJob].permissions, `job "${suiteJob}" runs the suite, which means it checks out and `
+            + "executes code authored in a pull request. ci.yml states that contents: read is all it needs. Any "
+            + "wider scope here is a scope that PR-authored code can reach.").toEqual({contents: "read"});
+    });
+});
+
+describe("no workflow interpolates an expression into a shell", () => {
+    /*
+     * `script:` IS A `run:` THAT LOOKS LIKE A PARAMETER. `actions/github-script` takes a body of
+     * JavaScript through `with: script:` and GitHub substitutes `${{ }}` into it before the
+     * runtime sees it, exactly as for a shell — so an expression there is the same injection with
+     * the same reach, and a gate reading `run:` alone reports it as absent. MEASURED:
+     * `${{ github.event.pull_request.title }}` inside a `with: script:` block stayed green.
+     * Nothing in this repository uses that action today, which is the point of adding it now
+     * rather than after the first one lands.
+     */
+    const runSteps = ALL_STEPS
+        .map(({where, step}) => ({where, body: step.run ?? (step.with ?? {}).script}))
+        .filter(({body}) => body !== undefined);
+
+    it("finds run: bodies to inspect", () => {
+        expect(runSteps.length, "no step in any workflow has a `run:` body, so this gate is vacuous")
+            .toBeGreaterThan(0);
+    });
+
+    /**
+     * `${{ }}` INSIDE A `run:` IS A TEXTUAL SUBSTITUTION PERFORMED BEFORE THE SHELL EXISTS.
+     * GitHub pastes the value into the script, so a value containing a quote, a newline or a
+     * `;` is not an argument that happens to be odd — it is more script. Every `run:` in this
+     * repository already takes its values through `env:` and reads them as `"$VAR"`, where the
+     * shell's own quoting applies and nothing can escape it.
+     *
+     * A PROPERTY OF THE TEXT HELD BY CONVENTION IS THE THING THIS FILE REPLACES. The two-run
+     * security audit reported "zero `${{` in any `run:` body" as a finding-free result; it was
+     * true of the text on the day it was read and nothing kept it true. Asserted across the
+     * whole directory rather than over `ci.yml`, because the next `run:` body may well be in a
+     * workflow that does not exist yet.
+     */
+    it("takes every value through env: instead, where the shell's own quoting applies", () => {
+        for (const {where, body} of runSteps) {
+            expect(body, `${where} interpolates a \${{ }} expression directly into its script. GitHub `
+                + "substitutes the text before any shell runs, so a value carrying a quote or a newline stops "
+                + "being an argument and becomes more script. Pass it through the step's env: block and read "
+                + 'it as "$VAR".').not.toContain("${{");
+        }
+    });
+});
+
+describe("the flags the deploy path depends on and nothing read", () => {
+    /**
+     * THREE ONE-WORD PROPERTIES, EACH LOAD-BEARING, EACH PREVIOUSLY HELD BY A COMMENT.
+     * `grep -rn 'wrangler\|WRANGLER' tests/` returned six hits before this block and every one
+     * of them was inside a comment — this suite discussed the deploy at length and asserted
+     * nothing about how it is invoked.
+     */
+    /*
+     * EXTRACTED AS AN INVOCATION, NOT MATCHED AS A LINE. Anchoring `pnpm install` to the start of a
+     * trimmed line asks whether the command is the first thing on its line, which is not the
+     * question — MEASURED green, both times with a real unfrozen resolve: `cd tools && pnpm install`
+     * and `sudo pnpm install --prod`. So the sweep finds the invocation wherever a command can
+     * begin, and the assertion is made against the invocation the failure message quotes.
+     */
+    const INVOKES_PNPM_INSTALL = /(?:^|[|&;(]+\s*|\b(?:sudo|then|do|else)\s+)(pnpm(?:\s+-[-\w]+(?:[= ]\S+)?)*\s+(?:install|i)\b[^|&;)]*)/g;
+    const installLines = ALL_STEPS.flatMap(({where, step}) =>
+        commandLines(step).flatMap((line) => [...line.matchAll(INVOKES_PNPM_INSTALL)]
+            .map((m) => ({where, line: m[1].trim()}))));
+
+    it("makes every pnpm install honour the lockfile", () => {
+        expect(installLines.length, "no workflow step runs `pnpm install`, so this assertion inspects nothing")
+            .toBeGreaterThan(0);
+        for (const {where, line} of installLines) {
+            expect(line, `${where} runs \`${line}\`. Without --frozen-lockfile, pnpm RESOLVES rather than `
+                + "installs: a dependency whose range admits a newer version silently gets it, the tree CI "
+                + "gates is not the tree the lockfile describes, and the artifact that ships was built against "
+                + "packages nobody reviewed.").toContain("--frozen-lockfile");
+        }
+    });
+
+    /**
+     * THE FLAG THE ARTIFACT'S IDENTITY RESTS ON. `ci.yml` calls it "what makes the identity claim
+     * above TRUE": the deploy jobs publish the uploaded artifact unchanged, so anything the
+     * upload drops is present for every assertion the suite made and absent from what ships.
+     * The action defaults it to `false`, and `if-no-files-found: error` cannot see the
+     * difference — that fires only when the whole path is empty.
+     */
+    const uploads = ALL_STEPS.filter(({step}) => /^actions\/upload-artifact@/.test(step.uses ?? ""));
+
+    it("uploads hidden files with the rest of the artifact", () => {
+        expect(uploads.length, "no workflow uploads an artifact, so this assertion inspects nothing")
+            .toBeGreaterThan(0);
+        for (const {where, step} of uploads) {
+            expect(String(step.with?.["include-hidden-files"]), `${where} uploads an artifact without `
+                + "include-hidden-files: true. The action defaults it to false, so any dot-prefixed path under "
+                + "dist/ — a public/.well-known/ entry is the ordinary way one appears — is asserted against "
+                + "locally and then silently missing from what the deploy publishes.").toBe("true");
+        }
+    });
+
+    /**
+     * THE PIN IS ASSERTED AS A REFERENCE, NEVER AS A VALUE. Dependabot moves `WRANGLER_VERSION`,
+     * and a test that pins the number turns every routine bump red — which trains a reader to
+     * edit the gate, which is how a gate stops meaning anything. What must not change is that
+     * the version comes from the workflow's own `env:` at all: a literal written into the deploy
+     * line is a second home for the version, and the two homes then disagree the first time one
+     * of them is bumped.
+     */
+    it("resolves wrangler through the workflow's version variable rather than a literal", () => {
+        /*
+         * ASSERTED ON THE SPECIFIER, ACROSS EVERY COMMAND, and each half of that is a hole this
+         * gate shipped with. The old pair — "no `wrangler@` followed by a digit" plus "a
+         * `WRANGLER_VERSION` reference appears somewhere on the line" — is satisfied by a line
+         * carrying BOTH, and by `wrangler@latest`, which begins with no digit at all. And
+         * filtering to `npx` invocations missed `pnpm dlx wrangler@4.0.0 pages deploy dist`
+         * entirely. MEASURED: all three stayed green. Every `wrangler@…` anywhere in any workflow
+         * command must therefore BE the variable reference — one claim rather than two that can be
+         * satisfied separately, and it does not care which fetch-and-run tool spells it.
+         */
+        const specifiers = ALL_STEPS.flatMap(({where, step}) => commandLines(step)
+            .flatMap((line) => [...line.matchAll(/wrangler@([^\s"'`]+)/g)].map((m) => ({where, spec: m[1]}))));
+        expect(specifiers.length, "no workflow step names a wrangler version at all — if the deploy stopped "
+            + "fetching it at run time this block should follow it rather than be deleted").toBeGreaterThan(0);
+        for (const {where, spec} of specifiers) {
+            expect(spec, `${where} resolves wrangler@${spec}. The pin belongs in the workflow's env: block, `
+                + "which is the only home Dependabot updates; any other specifier here is either a second home "
+                + "that disagrees with it after the first bump, or a floating tag that defeats the pin outright.")
+                .toMatch(/^\$\{?WRANGLER_VERSION\}?$/);
+        }
+        const wranglerLines = npxCommands.filter(({line}) => /wrangler@/.test(line));
+        expect(wranglerLines.length, "no npx invocation names wrangler").toBeGreaterThan(0);
+        for (const {where, line} of wranglerLines) {
+            expect(line, `${where} does not deploy the built directory`).toContain("pages deploy dist");
+        }
+        const ci = WORKFLOWS.find((w) => w.file === "ci.yml");
+        expect(ci?.doc.env?.WRANGLER_VERSION, "ci.yml's deploy steps resolve wrangler through WRANGLER_VERSION "
+            + "and the workflow declares no such env: value, so the reference expands to nothing and `npx "
+            + "wrangler@` is what actually runs").toBeTruthy();
+    });
+});
+
+describe("the canary that makes the environment-secret invariant testable", () => {
+    const canaries = ALL_STEPS.filter(({step}) => absenceCanary(step).length > 0);
+
+    /**
+     * ASSERTED TO EXIST, because the step is the only thing standing between a repository-level
+     * copy of the deploy token and a silently void deployment branch policy — and deleting it is
+     * invisible: every other assertion in this file goes on passing, since a step that proves a
+     * secret is absent grants no capability anybody else is checking for.
+     *
+     * AND ASSERTED TO SIT IN A JOB WITH NO `environment:`, which is the entire mechanism. A
+     * canary inside `deploy-production` would read a real value on every run and fail forever;
+     * one inside a job with no environment reads the empty string exactly while the invariant
+     * holds. The check is a canary for a GitHub SETTINGS mistake, so when it fails the fix is in
+     * repository settings and never in the workflow.
+     */
+    it("keeps one, in a job that declares no environment, so it reads empty while the invariant holds", () => {
+        expect(canaries.map((c) => c.where), "no step in any workflow reads a secret in order to prove it "
+            + "cannot read one. ci.yml's build job carries that canary: it is what makes the `exists only as "
+            + "an environment secret` half of the branch-policy invariant testable from here at all, and "
+            + "deleting it is invisible to every other assertion in this file.").not.toEqual([]);
+
+        for (const {where, step} of canaries) {
+            const [file, id] = where.split(" → ");
+            const job = WORKFLOWS.find((w) => w.file === file)?.doc.jobs?.[id];
+            expect(job?.environment, `${where} proves ${JSON.stringify(absenceCanary(step))} unreadable, but its `
+                + "job declares an environment: — so it CAN read that environment's secrets and the step will "
+                + "fail on every correct run. A canary belongs in a job with no environment, where the empty "
+                + "string is the correct answer.").toBeUndefined();
+
+            /*
+             * A STEP THAT CANNOT RUN, OR CANNOT FAIL, IS NOT A CANARY — and this file has a whole
+             * docblock about walking into exactly this trap ("THE ASYMMETRY IS THE LESSON"). The
+             * gate above discovers the step from its `env:` and its `run:` text and never asked
+             * either question. MEASURED: `if: false` on the canary, and `continue-on-error: true`
+             * on it, each left the whole suite green while deleting the only check standing
+             * between a repository-level copy of the deploy token and a void branch policy.
+             */
+            expect(stepAlwaysRuns(step), `${where} is guarded by \`if: ${String(step.if)}\`, so on at least one `
+                + "path that builds and publishes it does not run at all. A canary that can be skipped reports "
+                + "nothing on the runs it skips, and a skipped step renders as a pass.").toBe(true);
+            expect(NEUTERED(step["continue-on-error"]), `${where} carries continue-on-error, so it cannot fail `
+                + "its job. It would detect the misconfiguration and then let the run go green.").toBe(false);
+            expect(NEUTERED(job?.["continue-on-error"]), `${where} sits in a job carrying continue-on-error, so `
+                + "nothing it detects can fail anything.").toBe(false);
+        }
+    });
+
+    /**
+     * A CANARY POINTED AT A NAME NOTHING USES IS A CANARY THAT CAN NEVER FIRE. Every assertion
+     * above is satisfied by a step watching the deploy token's name with a suffix added: it is
+     * shaped like a canary, it runs, it can fail — and the value is empty on every run of every
+     * configuration, because no environment and no repository setting has ever held that name.
+     * MEASURED: renaming the env value to a secret that does not exist left the whole suite green,
+     * which is the gate reporting a protection that had been switched off.
+     *
+     * DERIVED FROM WHAT THE PUBLISHING JOBS ACTUALLY AUTHENTICATE WITH, rather than from a literal.
+     * The names worth canarying are exactly the secrets some job reads from inside a deployment
+     * environment — those are the ones a repository-level copy of the same name would silently
+     * shadow, which is the whole defect. Writing the token's name here instead would be the
+     * hardcoded-name failure this entire change exists to repair.
+     */
+    it("watches a secret that a deployment environment actually holds, so it can fire at all", () => {
+        const environmentSecrets = new Set(ALL_JOBS
+            .filter(({job}) => job.environment !== undefined)
+            .flatMap(({job}) => [...JSON.stringify(job).matchAll(/secrets\s*(?:\.\s*|\[\s*\\?['"])([A-Za-z_][A-Za-z0-9_]*)/g)]
+                .map((m) => m[1])));
+
+        expect([...environmentSecrets], "no job in any workflow reads a secret from inside an environment:, so "
+            + "there is nothing for a canary to watch and this assertion compares against an empty set")
+            .not.toEqual([]);
+
+        for (const {where, step} of canaries) {
+            /*
+             * THE SECRET'S NAME, NOT THE ENV KEY IT WAS BOUND TO. `absenceCanary` returns the
+             * variable names, which are identical to the secret names in the shipped canary and
+             * need not be: binding a differently-named variable to the same secret is legal and
+             * correct, and comparing the variable's name against the secret set would redden it.
+             */
+            const watched = [...JSON.stringify(step.env ?? {})
+                .matchAll(/secrets\s*(?:\.\s*|\[\s*\\?['"])([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]);
+            expect(watched, `${where} is shaped like a canary but names no secret at all`).not.toEqual([]);
+            for (const name of watched) {
+                expect([...environmentSecrets], `${where} proves ${name} unreadable, but no job in this `
+                    + `repository reads a secret called ${name} from inside a deployment environment. A name `
+                    + "nothing holds reads empty on every run whatever the settings are, so this step passes "
+                    + "unconditionally and protects nothing. Point it at the secret the publishing jobs "
+                    + "authenticate with.").toContain(name);
+            }
+        }
+    });
+
+    /**
+     * NEVER ECHOED, ASSERTED RATHER THAN REVIEWED. Reproducing a secret into a log is the defect
+     * this step exists to detect, committed by the detector — and a workflow log is readable by
+     * anyone who can read the repository. Emptiness is the whole question and testing it needs no
+     * echo, so any `$NAME` outside the test itself is the failure.
+     */
+    it("never prints the value it is testing", () => {
+        for (const {where, step} of canaries) {
+            for (const name of absenceCanary(step)) {
+                for (const line of commandLines(step)) {
+                    /*
+                     * THE TEST IS STRIPPED, NOT THE LINE. Skipping any line that contains `[ -n `
+                     * discards the whole line, and a POSIX one-liner puts the test and the leak on
+                     * the same one: `if [ -n "$TOK" ]; then echo "leak $TOK"; exit 1; fi` is a
+                     * single line that the skip waved through. MEASURED green; the same echo on its
+                     * own line was caught, which is the inconsistency that gave it away.
+                     */
+                    const rest = line.replace(new RegExp(`-n\\s+"?\\$\\{?${name}\\}?"?`, "g"), "-n <tested>");
+                    expect(rest, `${where} mentions $${name} outside the emptiness test: `
+                        + `\`${line}\`. If this ever runs on a misconfigured repository that value is real, and `
+                        + "a workflow log is readable by everyone who can read the repository.")
+                        .not.toMatch(new RegExp(`\\$\\{?${name}\\b`));
+                }
+            }
+        }
+    });
+
+    /**
+     * THE CLASSIFIER, CALIBRATED — the half that makes the widening above mean something. The
+     * predicate it replaced was "this job's YAML contains the string `secrets.CLOUDFLARE_API_TOKEN`",
+     * and every assertion keyed on it passed while a job authenticating any other way went
+     * entirely unexecuted. A detector nobody puts a known answer to is indistinguishable from one
+     * that answers the same thing to everything, which is how the narrow version survived.
+     */
+    it("classifies a job as publishing from any credential, and a canary as none", () => {
+        const env = {A_TOKEN: "${{ secrets.A_TOKEN }}"};
+        expect(canPublish({environment: "production", steps: []}), "an environment: is a credential").toBe(true);
+        expect(canPublish({permissions: {"id-token": "write"}, steps: []}), "OIDC is a credential").toBe(true);
+        expect(canPublish({permissions: "write-all", steps: []}), "write-all includes id-token").toBe(true);
+        expect(canPublish({steps: []}, {"id-token": "write"}),
+            "a job with no block of its own inherits the workflow's, so the EFFECTIVE block is the credential")
+            .toBe(true);
+        expect(canPublish({uses: "org/repo/.github/workflows/publish.yml@v1", secrets: "inherit"}),
+            "`secrets: inherit` hands over every secret without naming one, so no regex over the text sees it")
+            .toBe(true);
+        expect(canPublish({steps: [{run: "deploy", env: {TOKEN: "${{ secrets.SOME_OTHER_HOST_TOKEN }}"}}]}),
+            "a differently-named secret is still a credential — this is the case the old detector missed")
+            .toBe(true);
+        expect(canPublish({steps: [{run: "deploy", env: {TOKEN: "${{ secrets['BRACKET_SPELLING'] }}"}}]}),
+            "the index spelling is equivalent syntax").toBe(true);
+
+        expect(canPublish({steps: [{run: "echo hello"}]}), "a job with no credential of any kind").toBe(false);
+        expect(canPublish({steps: [{
+            run: 'if [ -n "$A_TOKEN" ]; then\n  echo "::error::set"\n  exit 1\nfi\n',
+            env,
+        }]}), "a step that proves it cannot read a secret has not thereby acquired one").toBe(false);
+        expect(canPublish({steps: [{
+            run: 'if [ -n "$A_TOKEN" ]; then\n  echo "::error::a message; with a semicolon in its prose"\n  exit 1\nfi\n',
+            env,
+        }]}), "a `;` inside a quoted diagnostic is prose, not a second command — the real canary has one, and "
+            + "a segmenter that reads it as syntax reddens a CORRECT workflow").toBe(false);
+
+        /*
+         * THE FOUR SHAPES THAT USE THE CREDENTIAL WHILE LOOKING LIKE A CANARY. Every one of them
+         * was measured GREEN against the first version of this classifier, and the first of them
+         * was a complete extra deploy job that escaped every publishing assertion in this file.
+         */
+        expect(canPublish({steps: [{
+            run: 'if [ -n "$A_TOKEN" ]; then\n  npx wrangler pages deploy dist\nelse\n  exit 1\nfi\n',
+            env,
+        }]}), "testing a value and USING it are not exclusive — this is a deploy step wearing a canary's shape")
+            .toBe(true);
+        expect(canPublish({steps: [{
+            run: '[ -n "$A_TOKEN" ] && npx wrangler pages deploy dist\nexit 1\n',
+            env,
+        }]}), "a LINE is not a command: `&&` begins a new one, so a per-line first-token check accepts this")
+            .toBe(true);
+        expect(canPublish({steps: [{
+            run: 'if [ -n "$A_TOKEN" ]; then\n  echo "$(npx wrangler pages deploy dist)"\n  exit 1\nfi\n',
+            env,
+        }]}), "echo is on the allow-list and command substitution runs anything inside it").toBe(true);
+        expect(canPublish({steps: [{
+            run: 'if [ -z "$A_TOKEN" ]; then\n  echo "::error::unset"\n  exit 1\nfi\nuse-it\n',
+            env,
+        }]}), "-z is the OPPOSITE step: it fails when the value is empty, which is a job asserting it HAS "
+            + "the credential it is about to use. dns.yml carries exactly that shape and a first draft of "
+            + "this classifier read it as proving a write-scoped DNS token unreadable").toBe(true);
+        expect(canPublish({steps: [{
+            run: 'if [ -n "$A_TOKEN" ]; then\n  echo "::error::set"\nfi\n',
+            env,
+        }]}), "a canary that cannot exit non-zero proves nothing, so it is a plain secret reference again")
+            .toBe(true);
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// The job that can write to this repository — the only one, and the last one without a guard.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * DISCOVERED FROM THE PRIVILEGE, NOT FROM THE FILE. `strava-progress.yml`'s `update` job is the
+ * only job in this repository whose token can write — `contents: write` to push the nightly
+ * commit, `actions: write` to dispatch the deploy afterwards — and it was the only one of the
+ * three credentialed jobs with no test on the ref it runs against. `deploy-production` and
+ * `dns.yml`'s `apply` both carry one.
+ *
+ * Naming the file would hold today's job and review nothing added tomorrow, which is the exact
+ * defect the blocks above this line repair. Asking "which jobs can write" answers for whatever
+ * the directory contains.
+ */
+const writeScopesOf = (permissions: Permissions | undefined): string[] => {
+    if (permissions === "write-all") return [...KNOWN_SCOPES];
+    if (typeof permissions !== "object" || permissions === null) return [];
+    return Object.entries(permissions).filter(([, value]) => String(value) === "write").map(([scope]) => scope);
+};
+
+const credentialedJobs = ALL_JOBS.filter((entry) => writeScopesOf(effectivePermissions(entry)).length > 0);
+
+/**
+ * THE REF TEST, EXECUTED. Reading the string would be the weaker form of the same check and this
+ * file has a docblock explaining why: `github.event.pull_request.head.repo` is not merely
+ * different on a push, the whole object is absent, and only an evaluator gets that right.
+ *
+ * THE CRON IS THE ROW THAT MATTERS, and it is here because breaking the nightly would be a worse
+ * outcome than the gap staying open. GitHub runs a scheduled workflow only on the default branch
+ * and sets `github.ref` to it, so this row is what proves the guard costs the nightly nothing —
+ * asserted rather than reasoned about, since "surely a cron runs on main" is exactly the kind of
+ * belief this file exists to replace with an evaluation.
+ */
+const REF_SITUATIONS: Record<string, {context: unknown; runs: boolean}> = {
+    "the nightly cron, which GitHub runs only on the default branch": {
+        context: {actor: "github-actions[bot]", event_name: "schedule", repository: REPO, ref: "refs/heads/main", event: {}},
+        runs: true,
+    },
+    "a manual dispatch on main": {
+        context: {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main", event: {}},
+        runs: true,
+    },
+    "a manual dispatch on a feature branch": {
+        context: {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/wp3", event: {}},
+        runs: false,
+    },
+    "a manual dispatch on a tag": {
+        context: {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/tags/v1", event: {}},
+        runs: false,
+    },
+    /*
+     * THE ROW THAT TELLS AN EQUALITY FROM A PREFIX. Every other ref here differs from `main` in the
+     * first character after `refs/heads/`, so `startsWith(github.ref, 'refs/heads/main')` and
+     * `contains(github.ref, 'main')` answer exactly as the shipped guard does on all of them and
+     * the table cannot see the difference. MEASURED: swapping the shipped equality for the
+     * `startsWith` spelling left every row green — and anyone with push access can create
+     * `main-mirror`, so that spelling hands the job's credentials to a branch name.
+     */
+    "a manual dispatch on a branch whose name merely STARTS WITH main": {
+        context: {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main-mirror", event: {}},
+        runs: false,
+    },
+};
+
+/**
+ * ANY LINE THAT FETCHES CODE AND RUNS IT. Comments are stripped first, the way every other
+ * command predicate in this file does it, so a step explaining why it needs no toolchain is not
+ * read as acquiring one.
+ */
+const FETCHES_A_DEPENDENCY = new RegExp([
+    /\b(?:npm|pnpm|yarn|bun)\s+(?:install|i|ci|add|dlx)\b/,          // a package manager's own install
+    /\b(?:npx|bunx)\b/,                                              // fetch-and-run, any prefix or position
+    /\bpip3?\s+install\b|\buv\s+(?:pip\s+install|sync|add)\b/,       // python
+    /\b(?:go|cargo)\s+install\b/,
+    /\b(?:brew|apt-get|apt|yum|dnf|apk)\s+(?:install|add)\b/,        // system package managers
+    /\b(?:curl|wget)\b[^|]*\|\s*(?:sudo\s+)?\w*sh\b/,                // fetch a script and pipe it to a shell
+].map((r) => r.source).join("|"));
+
+describe("the job that can write to this repository", () => {
+    it("finds one, so every row below is not vacuous", () => {
+        expect(credentialedJobs.map((j) => j.where), "no job in any workflow holds a write scope. If that is "
+            + "genuinely true the nightly Strava commit and the deploy dispatch have both gone, and this whole "
+            + "block should follow them rather than pass").not.toEqual([]);
+    });
+
+    /**
+     * WITHOUT THIS, a `workflow_dispatch` on ANY ref — every branch and every tag, including one
+     * pushed for the purpose — runs that job's script from that ref with `contents: write`,
+     * `actions: write` and both Strava secrets, and dispatches the production deploy afterwards.
+     *
+     * Assessed honestly it is a lateral move rather than an escalation: dispatching a workflow
+     * needs write access already. What it is, is the QUIETEST path to those credentials, because
+     * the job commits only when the kilometres moved — so a run on another ref leaves no commit
+     * on `main` and nothing but an Actions entry nobody reads.
+     */
+    it.each(Object.keys(REF_SITUATIONS))("runs it exactly when it should on: %s", (name) => {
+        const {context, runs} = REF_SITUATIONS[name];
+        for (const {where, job} of credentialedJobs) {
+            expect(job.if, `${where} holds ${JSON.stringify(writeScopesOf(effectivePermissions({doc: {}, job})))} `
+                + "and carries no if: at all, so a workflow_dispatch on any branch or tag in the repository runs "
+                + "it with those credentials.").toBeDefined();
+            expect(evaluate(String(job.if), context), `${where} holds a write scope, and on "${name}" its guard `
+                + `\`${String(job.if)}\` must evaluate to ${runs}. A scheduled run carries `
+                + "github.ref = the default branch, so a ref test costs the nightly nothing; a dispatch on any "
+                + "other ref is the case being refused.").toBe(runs);
+        }
+    });
+
+    /**
+     * A GUARD UNIFORMLY TRUE IS NOT A GUARD, which the deploy jobs' own block above says in the
+     * same words. Kept separate from the table so that a table written to match a broken guard
+     * still reddens here.
+     */
+    it("gives it a guard that actually discriminates", () => {
+        for (const {where, job} of credentialedJobs) {
+            const answers = Object.values(REF_SITUATIONS).map((s) => evaluate(String(job.if), s.context));
+            expect(answers, `${where}'s guard answers the same thing to every ref`).toContain(true);
+            expect(answers, `${where}'s guard answers the same thing to every ref`).toContain(false);
+        }
+    });
+
+    /**
+     * IT INSTALLS NOTHING, WHICH IS A DESIGN PROPERTY AND NOT AN ACCIDENT. The job's own comment
+     * says so — ubuntu-latest ships a Node with built-in fetch, the script has zero dependencies,
+     * and exactly one `run:` line in the whole directory invokes anything under `scripts/`. That is
+     * what bounds the exposure of everything under `scripts/` to a single reviewed entry point.
+     *
+     * A JOB THAT CAN WRITE TO THE REPOSITORY AND RESOLVES A DEPENDENCY TREE AT RUN TIME is the
+     * shape this refuses: `npx` and every package manager's install consult the network, and the
+     * only lockfile that could constrain them is the one this job deliberately never installs
+     * from. A future write-privileged job that genuinely needs a toolchain is a fresh argument to
+     * make in review, which is what a red gate asks for.
+     */
+    it("gives it no toolchain to resolve at run time, beside those credentials", () => {
+        for (const {where, job} of credentialedJobs) {
+            for (const step of job.steps ?? []) {
+                /*
+                 * AN ALLOW-LIST, BECAUSE "NOT A TOOLCHAIN ACTION" IS NOT A PREDICATE. Rejecting
+                 * names containing `setup-` or `action-setup` is a naming convention wearing a
+                 * capability check — the thing this whole file replaces — and it admits every
+                 * toolchain action that does not happen to be spelled that way. What this job may
+                 * legitimately do is fetch its own source; anything else it runs is code arriving
+                 * beside `contents: write` and two long-lived secrets, which is a fresh argument to
+                 * make in review rather than something a gate should quietly permit.
+                 */
+                if (step.uses !== undefined) {
+                    expect(step.uses, `${where} runs the action \`${step.uses}\`. A job holding a write scope `
+                        + "may check this repository out and nothing else: every other action is third-party "
+                        + "code executing beside the credentials. If this one is genuinely needed, that is a "
+                        + "case to argue in review — widening this list is the argument, not a formality.")
+                        .toMatch(/^actions\/checkout@[0-9a-f]{40}$/);
+                }
+                for (const line of commandLines(step)) {
+                    expect(line, `${where} runs \`${line}\`, which fetches or installs a dependency inside a job `
+                        + "holding a write scope and long-lived secrets. Nothing here consults a lockfile, so "
+                        + "that resolve happens over the network beside the credentials.")
+                        .not.toMatch(FETCHES_A_DEPENDENCY);
+                }
+            }
+        }
+    });
+});
+
+/**
+ * A DISPATCH NAMES A REF, AND THAT REF DECIDES WHAT GETS BUILT AND PUBLISHED. `gh workflow run
+ * ci.yml --ref main` is the site's only unattended deploy; a `--ref` computed from anything the
+ * run can influence turns it into "publish whatever ref this run was handed", which is precisely
+ * what the guard on the job above refuses at the other end. Both halves are needed: the job may
+ * only run on `main`, and what it asks CI to build may only be `main`.
+ *
+ * `dispatchers` is discovered from what the step does and says why in its own docblock, so this
+ * assertion inherits that rather than naming a file.
+ */
+describe("the unattended deploy names the ref it publishes", () => {
+    const REF_FLAG = /--ref[=\s]+("?)([^"\s]+)\1/;
+
+    it("finds the dispatch and reads a literal ref out of it", () => {
+        expect(dispatchers.length, "no step dispatches another workflow, so this gate is vacuous")
+            .toBeGreaterThan(0);
+        for (const {where, step} of dispatchers) {
+            /*
+             * EVERY DISPATCH LINE IN THE STEP, not the first one found. A step may dispatch more
+             * than once, and checking only the first leaves each later one unreviewed — the same
+             * "holds the instance, reads as holding the property" shape this file exists to repair.
+             */
+            const lines = commandLines(step).filter((l) => /gh workflow run/.test(l));
+            expect(lines, `${where} no longer carries a readable \`gh workflow run\` line`).not.toEqual([]);
+            for (const line of lines) {
+                const match = REF_FLAG.exec(line);
+                expect(match, `${where} runs \`${line}\` without naming a --ref. The dispatch then defaults to `
+                    + "the repository's default branch, which is correct today by coincidence rather than by "
+                    + "instruction.").not.toBeNull();
+                expect(match![2], `${where} computes its --ref from \`${match![2]}\` rather than naming one. This `
+                    + "step is the site's only unattended deploy: whatever ref it hands CI is the ref that gets "
+                    + "built, stamped with today's date and published over production.").not.toMatch(/[$`]/);
+            }
         }
     });
 });

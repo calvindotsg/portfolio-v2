@@ -27,6 +27,24 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    # THE REF TEST THE OTHER TWO CREDENTIALED JOBS ALREADY HAD, on the one that holds the most.
+    # `deploy-production` in `ci.yml` and `apply` in `dns.yml` both carry this comparison; this
+    # job did not, and it is the job with `contents: write`, `actions: write` and both Strava
+    # secrets. Without it a `workflow_dispatch` on ANY ref — every branch and every tag in the
+    # repository, including one pushed for the purpose — runs `scripts/fetch-strava-progress.mjs`
+    # from that ref with those credentials, and dispatches the production deploy afterwards.
+    #
+    # ASSESSED HONESTLY IT IS A LATERAL MOVE RATHER THAN AN ESCALATION: dispatching a workflow
+    # needs write access already. What it is, is the quietest path to those secrets, because the
+    # push step commits nothing when the kilometres have not moved — so the run leaves no commit
+    # on `main` and nothing but an Actions entry nobody reads.
+    #
+    # IT COSTS THE NIGHTLY NOTHING, and that is a fact about the platform rather than a hope.
+    # GitHub runs a scheduled workflow only on the default branch — "Scheduled workflows will
+    # only run on the default branch" — and sets `github.ref` to that branch for the run, so the
+    # cron satisfies this test by construction. `tests/workflow-guards.test.ts` EXECUTES this
+    # expression against a scheduled context rather than reading it, for exactly that reason.
+    if: github.ref == 'refs/heads/main'
     steps:
       # Pinned to a full commit SHA, not a tag, because the repository is about to
       # enable `sha_pinning_required` and GitHub's documentation states no exemption

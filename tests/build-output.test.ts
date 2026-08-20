@@ -2911,9 +2911,9 @@ describe("hashed assets are cached forever, and are hashed", () => {
             + "dist/_headers would pin a stale file for a year").toEqual([]);
     });
 
-    it("ships no file the host would execute rather than serve", () => {
+    it("ships nothing at the root of dist/ but the files it is supposed to", () => {
         /*
-         * THE ARTIFACT IS SUPPOSED TO BE INERT, and two filenames break that. Cloudflare
+         * THE ARTIFACT IS SUPPOSED TO BE INERT, and a filename is what breaks that. Cloudflare
          * Pages reads `_worker.js` as advanced-mode server code and `_routes.json` as
          * routing configuration — both arriving from `public/`, which is PR-authored, and
          * neither validated at deploy time: `wrangler pages deploy` appends the directory
@@ -2923,12 +2923,51 @@ describe("hashed assets are cached forever, and are hashed", () => {
          * This site is a static build with no adapter and should never grow either. Asserted
          * here rather than in the workflow because an assertion about the artifact belongs
          * with the rest of them, and because this way it is caught locally before it ships.
+         *
+         * IT WAS A DENY-LIST OF THOSE TWO NAMES AND IS NOW AN ALLOW-LIST, because a deny-list
+         * is a claim that the dangerous set is known and finished, and this one was neither.
+         * Pages honours FOUR control files at this root: those two, `_headers` — which the
+         * site ships on purpose and other assertions in this file read — and `_redirects`,
+         * which the deny-list never mentioned and which can rewrite every URL the site serves.
+         * `_redirects` NEEDED NO CHANGE TO BECOME REACHABLE, and an earlier draft of this note
+         * blamed `include-hidden-files: true` for it — wrongly, since that flag governs
+         * dot-prefixed paths and `_redirects` is not one. Anything placed in `public/` has always
+         * reached the root of `dist/` and shipped. What the flag did widen is the dot-prefixed
+         * half: a hidden directory under `public/`, the ordinary way one appears, now travels to the
+         * host too — `.github/workflows/ci.yml` names the ordinary example in its own comment.
+         * Both halves land in the set this assertion holds.
+         *
+         * A DENY-LIST FAILS SILENTLY AND AN ALLOW-LIST FAILS LOUDLY, which is the whole trade.
+         * Adding a legitimate root file — a `security.txt`, a verification token, a fifth
+         * control file Cloudflare introduces — reddens here and must be added below on
+         * purpose. That cost is the intended one: the deny-list's failure mode was saying
+         * nothing at all.
+         *
+         * ROUTED PAGES ARE DIRECTORIES AND ARE LISTED SEPARATELY, so that adding a page and
+         * adding a file to the host's control surface fail with different messages rather than
+         * as one undifferentiated set difference.
          */
-        for (const forbidden of ["_worker.js", "_routes.json"]) {
-            expect(existsSync(`dist/${forbidden}`), `dist/${forbidden} exists — Cloudflare Pages `
-                + `treats it as executable configuration rather than a static file, so this build `
-                + `would stop being the inert artifact the deploy jobs assume. If an adapter was `
-                + `added on purpose, the deploy design needs revisiting, not this assertion`).toBe(false);
-        }
+        const ALLOWED_FILES = [
+            "_headers", "404.html", "favicon.ico", "index.html", "llms.txt",
+            "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml", "sitemap-index.xml",
+        ];
+        const ALLOWED_DIRECTORIES = ["_astro", "patches"];
+
+        const entries = readdirSync("dist", {withFileTypes: true});
+        expect(entries.length, "dist/ is empty — this assertion is vacuous").toBeGreaterThan(0);
+
+        const files = entries.filter((e) => !e.isDirectory()).map((e) => e.name).sort();
+        expect(files, "the set of files at the root of dist/ is not what it was. Cloudflare Pages "
+            + "treats `_worker.js`, `_routes.json` and `_redirects` at this root as executable "
+            + "configuration rather than static files — server code, routing, and a rewrite of every "
+            + "URL the site serves — so this build would stop being the inert artifact the deploy "
+            + "jobs assume. If the file above is a legitimate new root asset, add it to ALLOWED_FILES "
+            + "deliberately; if an adapter was added on purpose, the deploy design needs revisiting "
+            + "and not this assertion").toEqual([...ALLOWED_FILES].sort());
+
+        const directories = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+        expect(directories, "the set of directories at the root of dist/ is not what it was — a route "
+            + "was added or removed. Add it to ALLOWED_DIRECTORIES if that was the intent")
+            .toEqual([...ALLOWED_DIRECTORIES].sort());
     });
 });
