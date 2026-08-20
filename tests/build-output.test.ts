@@ -2929,10 +2929,13 @@ describe("hashed assets are cached forever, and are hashed", () => {
          * Pages honours FOUR control files at this root: those two, `_headers` — which the
          * site ships on purpose and other assertions in this file read — and `_redirects`,
          * which the deny-list never mentioned and which can rewrite every URL the site serves.
-         * The gap became reachable rather than theoretical when `include-hidden-files: true`
-         * was added to the upload: a dot-prefixed directory under `public/` — the ordinary way
-         * one appears, and named in `.github/workflows/ci.yml` — now travels to the host with
-         * everything else, and nothing gated what was in it.
+         * `_redirects` NEEDED NO CHANGE TO BECOME REACHABLE, and an earlier draft of this note
+         * blamed `include-hidden-files: true` for it — wrongly, since that flag governs
+         * dot-prefixed paths and `_redirects` is not one. Anything placed in `public/` has always
+         * reached the root of `dist/` and shipped. What the flag did widen is the dot-prefixed
+         * half: a hidden directory under `public/`, the ordinary way one appears, now travels to the
+         * host too — `.github/workflows/ci.yml` names the ordinary example in its own comment.
+         * Both halves land in the set this assertion holds.
          *
          * A DENY-LIST FAILS SILENTLY AND AN ALLOW-LIST FAILS LOUDLY, which is the whole trade.
          * Adding a legitimate root file — a `security.txt`, a verification token, a fifth

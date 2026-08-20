@@ -183,10 +183,10 @@ const SECRET_REFERENCE = /secrets\s*(?:\.\s*[A-Za-z_][A-Za-z0-9_]*|\[\s*(['"])[^
  *     if [ -n "$TOKEN" ]; then npx wrangler pages deploy dist; else exit 1; fi
  *
  * MEASURED, on a complete extra Cloudflare Pages deploy job added to `ci.yml`: wrapped that way it
- * left the whole suite green, and the identical job WITHOUT the wrapper failed 17 assertions. The
- * exemption was a switch anyone could flick to remove a publishing job from every gate in this
- * file. So the step's whole vocabulary is now allow-listed: a canary may test, print and exit, and
- * anything else disqualifies it.
+ * left the whole suite green, and it now fails 14 assertions. The exemption was a switch anyone
+ * could flick to remove a publishing job from every gate in this file. So the step's whole
+ * vocabulary is now allow-listed: a canary may test, print and exit, and anything else
+ * disqualifies it.
  *
  * A LINE IS NOT A COMMAND, which is where the obvious version of that allow-list fails. `&&`, `||`,
  * `;`, `|`, `then` and `do` all begin a new command mid-line, so checking each line's FIRST token
@@ -196,10 +196,11 @@ const SECRET_REFERENCE = /secrets\s*(?:\.\s*[A-Za-z_][A-Za-z0-9_]*|\[\s*(['"])[^
  * QUOTED TEXT IS NOT SHELL SYNTAX, and this is the part a naive segmenter gets exactly backwards.
  * The real canary's `::error::` message contains a literal `;` ("Delete the repository-level
  * secret; the token belongs to…"), so splitting the raw line hands the segmenter the tail of an
- * English sentence as a command. MEASURED on the CORRECT, unmodified `ci.yml`: 18 assertions red,
- * reporting that `build` can read the deploy token. Red on correct code is the failure this file's
- * own `failingRunSteps` docblock says trains a reader to loosen a gate, so quotes are blanked
- * before splitting.
+ * English sentence as a command, disqualifies the real canary, and reports `build` as a job that
+ * can read the deploy token — on a CORRECT, unmodified workflow. That is 18 assertions red, the
+ * same 18 that fire when the exemption is removed outright, since both make `build` publishing.
+ * Red on correct code is the failure this file's own `failingRunSteps` docblock says trains a
+ * reader to loosen a gate, so quotes are blanked before splitting.
  *
  * AND COMMAND SUBSTITUTION IS REJECTED OUTRIGHT, because `echo` is on the allow-list and
  * `echo "$(npx --yes wrangler@… pages deploy dist)"` is a deploy wearing it. MEASURED: with the
@@ -251,9 +252,17 @@ const canPublish = (job: Job | undefined, workflowPermissions?: Permissions): bo
     /*
      * THE EFFECTIVE BLOCK, NOT THE JOB'S OWN. A `permissions:` block at workflow level applies to
      * every job that declares none, so reading `job.permissions` alone answers "did this job write
-     * it down" rather than "what can its token do". MEASURED: moving `id-token: write` from the job
-     * to the top of `ci.yml` made the job stop being a publishing job. `effectivePermissions`
-     * further down this file already got this right, which is what made the inconsistency findable.
+     * it down" rather than "what can its token do".
+     *
+     * MEASURED, on a job added to `ci.yml` with no `permissions:` of its own under a workflow-level
+     * `id-token: write`: reading the job's own block, 7 assertions fire; reading the effective one,
+     * 20. The 13 in between are every gate this file applies to a publishing job — an environment,
+     * a branch policy, the stale-artifact stamp, the transitive wait on the suite — none of which
+     * ran against a job that can mint an OIDC token and publish with it.
+     *
+     * `effectivePermissions` further down this file already read the workflow level, which is what
+     * made the inconsistency findable: two predicates in one file answering the same question
+     * differently is a defect one of them is having on its own.
      */
     const permissions = job.permissions ?? workflowPermissions;
     if (permissions === "write-all") return true;
@@ -542,10 +551,16 @@ describe("a red suite still blocks a deploy", () => {
     /*
      * TARGETED AT THE SUITE-RUNNING JOB RATHER THAN AT `publishingJobs`, and that distinction is
      * the whole reason this is a second assertion instead of another loop above. The analytics
-     * check lives in `build`, which never touches the Cloudflare token and is therefore NEVER a
-     * member of `publishingJobs` — a loop over that set would inspect nothing and pass forever.
-     * `jobIds.filter(runsTheSuite)` is asserted to have length 1 further down this file, so it
-     * names the same job without hardcoding the string `build`.
+     * check lives in `build`, which is NEVER a member of `publishingJobs` — a loop over that set
+     * would inspect nothing and pass forever. `jobIds.filter(runsTheSuite)` is asserted to have
+     * length 1 further down this file, so it names the same job without hardcoding `build`.
+     *
+     * THE REASON MOVED, THOUGH THE FACT DID NOT. This used to say `build` "never touches the
+     * Cloudflare token", and that stopped being true the day the canary step was added: `build`
+     * names that secret now, deliberately, in order to prove it reads as empty. What keeps the job
+     * out of `publishingJobs` is `absenceCanary` excluding that one step, not the absence of any
+     * mention — and a stale reason outlives every review that trusts it, which is why this
+     * paragraph replaced the claim rather than sitting beside it.
      */
     it("keeps the analytics check on the job that runs the suite", () => {
         const [suiteJob] = jobIds.filter(runsTheSuite);
@@ -1738,7 +1753,7 @@ describe("the job that can write to this repository", () => {
     /**
      * IT INSTALLS NOTHING, WHICH IS A DESIGN PROPERTY AND NOT AN ACCIDENT. The job's own comment
      * says so — ubuntu-latest ships a Node with built-in fetch, the script has zero dependencies,
-     * and `grep -rn "scripts/" .github/workflows/` returns exactly its one `run:` line. That is
+     * and exactly one `run:` line in the whole directory invokes anything under `scripts/`. That is
      * what bounds the exposure of everything under `scripts/` to a single reviewed entry point.
      *
      * A JOB THAT CAN WRITE TO THE REPOSITORY AND RESOLVES A DEPENDENCY TREE AT RUN TIME is the
