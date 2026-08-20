@@ -83,7 +83,33 @@ this field":
 
 `checked` starts at `0` and only increments.
 
-### C — a pairing that compares a constant to itself
+### C — WITHDRAWN. The pairing is not a tautology; it was measured and it bites
+
+**This item was wrong, and the executor measured it rather than reading it.** What follows is
+the claim as written, kept so the correction has something to correct, and then the measurement.
+
+Two mutations were run, each against a full `pnpm build` so no result is a stale-`dist/` artifact:
+
+| Mutation | Result |
+|---|---|
+| `[...sport].astro`'s `heading` set to a different constant | **RED** — 1 test: `AssertionError: the control says "My running events" and /patches/running is headed differently` |
+| `NEXT_RACE.control` changed from `My {sport} events` to `The {sport} wall` | GREEN, 573 passed |
+
+The first is the mutation step 3 named, and the plan asserted it passes. It does not. The
+assertion reads the control's text out of the **built** `dist/index.html` and the `<h1>` out of
+the **built** destination page — two rendered strings from two files — so re-templating either
+endpoint reddens it. That is the drift the docblock says it exists to catch, and the original
+defect ("My cycling events" against "Cycling patches") was exactly that shape.
+
+The second mutation is green **and correctly so**. Both surfaces move together because both read
+one constant, which is the invariant, not a hole: a control and the page it opens are supposed to
+be renamed in one edit. An assertion that reddened there would be punishing the correct change.
+
+So `CLAUDE.md`'s "a pairing no single-page test can see" is accurate, the docblock's "asserted
+across the built pages, in both directions" is accurate, and **step 3 is not taken**. Nothing in
+`tests/build-output.test.ts` is edited by this plan. Three assertions are repaired here, not four.
+
+<details><summary>The claim as originally written (false)</summary>
 
 `tests/build-output.test.ts:631` is `it("heads each destination with the words the control that
 reaches it wears", ...)`. It compares each destination page's `<h1>` against the control's label.
@@ -104,6 +130,10 @@ const heading = goal === undefined
 The identical expression over the identical constant, so both sides of the assertion move together.
 `CLAUDE.md` cites this as "a pairing no single-page test can see". **The second half of that test —
 that no two pages share an `<h1>` — does bite and must stay.**
+
+</details>
+
+The step below reads on for the record; it was **not executed**.
 
 ### D — the `_dmarc` privacy rationale
 
@@ -238,7 +268,7 @@ So the claim must be **narrowed to the body**, not deleted — and the metadata 
 
 - `tests/content.test.ts` — A, and the `/Title` gate from I
 - `tests/data-contract.test.ts` — B
-- `tests/build-output.test.ts` — C
+- ~~`tests/build-output.test.ts` — C~~ **not edited; item C was withdrawn on measurement**
 - `tests/docs-drift.test.ts` — the docblock at `:839-845` only (I)
 - `dns/config.yaml` — the `_dmarc` comment only (D)
 - `.github/workflows/dns.yml` — the comment at `:232-233` only, and only if E still holds
@@ -288,7 +318,7 @@ documenting the clamp rather than pretending to bound the input, so say so in th
 **Verify**: the suite is green (there are split races in `EVENTS`, so the counter is non-zero). Then
 temporarily narrow the loop's filter so nothing is counted, confirm it fails, restore.
 
-### Step 3 (C): break the tautology
+### Step 3 (C): break the tautology — NOT TAKEN, there is no tautology
 
 Make the destination-heading assertion compare against something that does not move with the
 control. Two acceptable shapes — pick one and say why in the docblock:
@@ -377,15 +407,16 @@ pnpm check && pnpm eslint && pnpm test
 
 ## Test plan
 
-Changes to three existing assertions and one new one; no new test file:
+Changes to **two** existing assertions and one new one; no new test file:
 
 - `tests/content.test.ts` — `raw_progress` bound (step 1), and the `/Title` gate (step 5).
 - `tests/data-contract.test.ts` — a real floor (step 2).
-- `tests/build-output.test.ts` — a non-tautological pairing (step 3).
+- ~~`tests/build-output.test.ts` — a non-tautological pairing (step 3).~~ Withdrawn: the pairing
+  was already non-tautological. Its mutation was run anyway and is recorded under item C, because
+  a claim that a gate bites is worth the same measurement as a claim that it does not.
 
-Each of the four has its mutation named in its step. **All four must be shown red against the
-current code** — that is the entire claim of this plan, since three of them are currently green on
-broken input by construction. Record each failure in the pull request body.
+Each has its mutation named in its step. **Every one must be shown red against the current code**
+— that is the entire claim of this plan. Record each failure in the pull request body.
 
 Verification: `pnpm test` → all files pass. Do not write an absolute suite total anywhere.
 
@@ -421,6 +452,33 @@ Stop and report back — do not improvise — if:
 - Any of the four assertions cannot be made red against current code.
 - You find yourself editing `plans/README.md` outside the two named prose corrections and this
   plan's status row. The waiver is scoped to those; anything else is the reviewer's.
+
+## What execution changed about this plan
+
+Four corrections, all from measuring something the plan asserted.
+
+1. **Item C was false and step 3 was not taken.** The full argument and both mutation results are
+   under item C above. The plan claimed a gate could not fail; it can, and does.
+2. **Item F was half right in a different place than it said.** The plan expected a mistyped
+   `metres` on a current-year race to redden `tests/derived-figures.test.ts`, and it does — exactly
+   one test, on a full build. The first attempt at this measurement reported four files red, and
+   every extra failure was an artifact of `sed -i.bak` dropping a `.bak` file into
+   `src/data/races/`, which `tests/data-contract.test.ts` correctly caught as an unimported race
+   module. **Do not use `sed -i.bak` inside a globbed data directory** — the suite reads it as a
+   defect in the code under test.
+3. **Step 1's second assertion was not kept, because it already exists twice.** The plan asked to
+   keep a `current_progress <= total_goal` line beside the new bound. Further down
+   `tests/content.test.ts`, "feeds current_progress from the bot-owned JSON" already compares the
+   displayed figure through `clampToGoal`, and "caps an overshot year at the goal" already
+   exercises an overshoot directly and repeats that very bound. A third copy would have restated a
+   rule two assertions own. The docblock says so and names them.
+4. **Step 5's gate does more than the plan's regex.** `public/resume.pdf` carries **four** `/Title`
+   keys — one in the information dictionary, three in the outline the exporter wrote (`EDUCATION `
+   and two UTF-16 hex strings). The plan's `re.search` finds the right one only because Google Docs
+   emits the information dictionary as object 1 at the top of the file, which is a fact about one
+   exporter. The gate follows `/Info` from the trailer instead, and throws on every failure path —
+   which is what the plan's own maintenance note asks for. It also mirrors the README lede gate's
+   past-title refusal, since that is the same defect class on the same fact.
 
 ## Maintenance notes
 

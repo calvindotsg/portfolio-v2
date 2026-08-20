@@ -179,7 +179,7 @@ recreated.
 | 029 | Build the gated artifact in production mode, and bound the deploy step | P1 | S | — | **DONE** (`eae05af`) |
 | 030 | Make every workflow gate cover every workflow | P1 | M | 029 | **DONE** (`85d5ff3`) |
 | 031 | Validate what the two script seams accept | P2 | M | — | **DONE** (`6f8fbfe`) |
-| 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **TODO** |
+| 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **IN PROGRESS** |
 | 033 | The six remaining hardenings | P3 | S | 029, 030 | **TODO** |
 | 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **TODO** |
 | 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **TODO** |
