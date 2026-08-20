@@ -143,6 +143,41 @@ export function raceSpanSeconds(activities) {
 }
 
 /**
+ * AN ACTIVITY ID, VALIDATED ONCE FOR BOTH THE PLACES IT REACHES GENERATED SOURCE.
+ *
+ * A FUNCTION BECAUSE THE ID IS READ TWICE AND ONLY ONE OF THE READS IS IN `recordingsFrom`.
+ * `renderModule` is handed `recordings` AND `titles`, and `main` builds the second of those from
+ * the activities directly — so an id validated only on the way into a row would still travel
+ * unchecked into the JSDoc evidence line beside its `commentSafe(title)`. Both sinks are real and
+ * both were demonstrated: `1", metres: (globalThis.P=1, 5), z: "` leaves the row's string
+ * literal, and `1*\/ globalThis.P3=1; /*` CLOSES THE MODULE'S COMMENT, putting everything after
+ * it at top level in a file the build imports and runs. (The terminator is written `*\/` here for
+ * the reason `commentSafe` exists — spelled plainly, this sentence would close its own comment
+ * and make `globalThis.P3=1` a live statement in THIS file. It did, and `node --check`, `pnpm
+ * check`, `pnpm eslint` and the whole suite were green over it.)
+ *
+ * Fixing the two callers rather than the three emit sites is deliberate. `renderModule` gains
+ * sinks faster than anyone re-audits it — it already has three for two fields — and an escape
+ * applied per sink is one a fourth sink is added without.
+ *
+ * `^\d+$` RATHER THAN A LENGTH OR A RANGE: Strava ids are decimal integers and are kept as
+ * STRINGS everywhere in this repository, because a 19-digit one would lose its low digits as a
+ * number. The rule says exactly that and nothing about how many digits today's ids have.
+ */
+export function activityId(activity) {
+    const id = String(activity.id);
+    if (!/^\d+$/.test(id)) {
+        throw new Error(
+            `Activity id ${JSON.stringify(activity.id)} is not a decimal Strava id. It is copied `
+            + "into the generated module in two places — a quoted `id` field and the JSDoc line "
+            + "that carries the activity title as evidence — so anything but digits is refused. "
+            + "Pass the numeric id from the activity's URL.",
+        );
+    }
+    return id;
+}
+
+/**
  * ONE `recordings` ROW PER ACTIVITY, IN RIDE ORDER.
  *
  * A FUNCTION RATHER THAN A LINE INSIDE `main`, and that is not tidiness: while it was inline
@@ -161,8 +196,64 @@ export function raceSpanSeconds(activities) {
  * storing the raw number ends.
  */
 export function recordingsFrom(activities) {
-    return orderedByStart(activities)
-        .map((a) => ({ id: String(a.id), metres: a.distance, elapsed_time: hms(a.elapsed_time) }));
+    return orderedByStart(activities).map((a) => ({
+        id: activityId(a),
+        // `Number()` ON A NUMBER IS THE IDENTITY, which is what lets this guard sit inside a
+        // function whose whole docblock argues that `metres` is COPIED AND NOT CONVERTED. The
+        // API's `distance` arrives as a number and leaves as the same number; `kmFromMetres` in
+        // src/lib/race.ts still owns every conversion there is. Nothing here rounds, scales or
+        // reads a figure off a page.
+        //
+        // IT THROWS RATHER THAN COERCING, and that is the part to keep. `Number("17.9km")` is
+        // NaN and `Number(null)` is 0 — a coercing guard turns a malformed response into a race
+        // that ships a wrong distance with nothing red anywhere, which is strictly worse than a
+        // scaffold that stops. The check is finiteness plus a sign, because a negative distance
+        // is not a race and `raceKm` would sum it.
+        metres: distanceOf(a),
+        elapsed_time: hms(a.elapsed_time),
+    }));
+}
+
+/**
+ * THE API's `distance`, PROVED TO BE A NUMBER BEFORE IT IS EMITTED UNQUOTED.
+ *
+ * `renderModule` writes this field with no quotes around it — `metres: ${r.metres}` — so a
+ * STRING here is not a wrong value, it is an EXPRESSION in a module that
+ * `src/data/races/index.ts` loads with `import.meta.glob(..., {eager: true})` and therefore
+ * executes at every build. MEASURED against unfixed code: a `distance` of
+ * `"(globalThis.PWNED = 1, 17908.4)"` rendered verbatim, ran on import, and left `metres`
+ * evaluating to 17908.4 — so `tests/data-contract.test.ts` saw an ordinary race and stayed green.
+ * That invisibility is why this is validated at the source rather than escaped at the sink.
+ */
+function distanceOf(activity) {
+    const metres = Number(activity.distance);
+    if (!Number.isFinite(metres) || metres < 0) {
+        throw new Error(
+            `Activity ${JSON.stringify(String(activity.id))} has a distance of `
+            + `${JSON.stringify(activity.distance)}, which is not a length in metres. This field is `
+            + "emitted UNQUOTED into a module the build executes, so anything that is not a finite "
+            + "non-negative number is refused rather than coerced. Check the id, or the response.",
+        );
+    }
+    return metres;
+}
+
+/**
+ * THE JSDoc EVIDENCE LINES — ONE PER ACTIVITY, AND THE SECOND PLACE AN ID REACHES SOURCE.
+ *
+ * A FUNCTION FOR THE THIRD TIME IN THIS FILE AND FOR THE THIRD TIME FOR THE SAME REASON: while
+ * it was a line inside `main` nothing could ask it anything. `recordingsFrom` and `calendarDate`
+ * each carry the same note, and each was a line that had been wrong. This one carried an
+ * activity id straight into a `/** … *\/` block with no check on it — so an id of
+ * `1*\/ globalThis.x = 1; /*` CLOSED the block and put its own text at top level in a module
+ * `src/data/races/index.ts` imports at every build. Demonstrated, then made reachable.
+ *
+ * The TITLE is escaped by `commentSafe` and the ID is validated by `activityId`: two different
+ * defences because they are two different fields. A title is free text and must survive
+ * unmangled, so it is escaped; an id is a decimal integer and anything else is a refusal.
+ */
+export function titlesFrom(activities) {
+    return orderedByStart(activities).map((a) => ({ id: activityId(a), title: a.name }));
 }
 
 /**
@@ -316,7 +407,7 @@ async function main(ids) {
         sport: [...sports][0],
         elapsed_time: hms(raceSpanSeconds(ordered)),
         recordings: recordingsFrom(ordered),
-        titles: ordered.map((a) => ({ id: String(a.id), title: a.name })),
+        titles: titlesFrom(ordered),
         argv: ids,
     });
 

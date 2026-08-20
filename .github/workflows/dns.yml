@@ -24,6 +24,15 @@
 # so the realistic job of this workflow is to NOTICE when the zone and the repository disagree,
 # weekly, and say so. A drift run that finds changes fails on purpose.
 #
+# EVERY INSTALL BELOW IS HASH-CHECKED, AND `--require-hashes` IS STATED RATHER THAN INFERRED.
+# pip turns hash-checking on by itself the moment one hash appears in the file, which sounds like
+# enough and is not: it makes the mode a PROPERTY OF THE FILE, so a requirement that loses its
+# hashes — a hand-edit, a bad recompile, a bot that rewrites the file in the older format — turns
+# the checking off for the whole install and the job stays green. Naming the flag makes that a
+# failed run instead. `dns/requirements.txt` is compiled from `dns/requirements.in`; see the
+# header there for why the transitive tree is pinned at all, and `tests/dns-config.test.ts` for
+# the gate that holds every job to the same install.
+#
 # EVERY `permissions:` BLOCK BELOW REPLACES THE DEFAULTS WHOLESALE; an unlisted scope is `none`.
 
 name: DNS
@@ -91,7 +100,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - run: pip install -r dns/requirements.txt
+      - run: pip install --require-hashes -r dns/requirements.txt
 
       - run: python dns/test_filters.py
 
@@ -143,7 +152,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - run: pip install -r dns/requirements.txt
+      - run: pip install --require-hashes -r dns/requirements.txt
 
       # NO `--checksum` ON THIS LINE, EVER. See the header. The read-only token is the second
       # lock on the same door, not a substitute for this one.
@@ -244,7 +253,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - run: pip install -r dns/requirements.txt
+      - run: pip install --require-hashes -r dns/requirements.txt
 
       - name: octodns-sync (apply the reviewed plan)
         env:

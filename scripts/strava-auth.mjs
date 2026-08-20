@@ -110,9 +110,25 @@ function persistRotation(env, refreshToken) {
     // ahead of 1Password is a credential whose only readable copy is already stale, which
     // is the one state this whole model exists to prevent.
     //
-    // The value goes in argv here because `op item edit` takes its assignments that way and
-    // has no stdin form. It is briefly visible to `ps` on the local machine — accepted, and
-    // named rather than hidden. The GitHub half below does have a stdin form and uses it.
+    // THE VALUE GOES IN ARGV, AND THAT IS A TRADEOFF RATHER THAN A LIMITATION — which is the
+    // distinction to keep, because a limitation would mean nobody has to think about it again.
+    // `op item edit` HAS another route: `--help` on 2.39.0 documents `--template=<path>`,
+    // recommends a template "for sensitive values" in as many words, warns that command
+    // arguments can be visible to other processes, and shows the same edit taking piped input.
+    // Argv is chosen over all of that, on purpose.
+    //
+    // WHAT ARGV BUYS IS THAT NOTHING ELSE ON THE ITEM IS TOUCHED. The template route is a
+    // whole-item READ-MODIFY-WRITE — its documented recipe begins `op item get … --format=json`
+    // — and the same help states that JSON templates do not support passkeys and will overwrite
+    // one that is there. A single `field=value` assignment cannot clobber a field it does not
+    // name, and clobbering the item that is this credential's ONLY readable copy is the failure
+    // this whole module is built to prevent.
+    //
+    // WHAT IT COSTS is a same-user `ps` read of a refresh token for as long as this process
+    // runs. That token cannot be redeemed without STRAVA_CLIENT_SECRET, which never enters argv
+    // anywhere in this repository — it goes in a POST body four functions down. Anyone able to
+    // read this process's argv can read its memory, so the exposure is bounded by something
+    // already lost. The GitHub half below has no item to clobber and so uses stdin.
     const written = spawnSync("op", [
         "item", "edit", item, "--vault", vault, `refresh_token[concealed]=${refreshToken}`,
         "--format", "json",
@@ -168,11 +184,30 @@ export async function accessToken(env = process.env) {
     if (typeof body.access_token !== "string") {
         throw new Error("Token refresh returned no access_token");
     }
-    // The response carries a refresh token on every call and it is USUALLY the same one.
-    // Comparing rather than assuming is the whole difference between this and the inline
-    // refresh it replaced, which destructured `access_token` alone and could not have
-    // noticed a rotation at all.
-    if (typeof body.refresh_token === "string" && body.refresh_token !== refreshToken) {
+    // AN OBSERVATION, NOT A GUARANTEE — and the code is written for the day the observation
+    // stops holding. Every refresh this repository has made came back carrying a
+    // `refresh_token`, and it has been the same string the request sent. Strava promises
+    // neither, so neither is assumed here.
+    //
+    // COMPARING RATHER THAN ASSUMING is the whole difference between this and the inline
+    // refresh it replaced, which destructured `access_token` alone and could not have noticed a
+    // rotation at all.
+    //
+    // A MISSING OR NON-STRING FIELD IS REFUSED, and it is the half that used to fail OPEN. The
+    // guard was a single `typeof … === "string" && …`, so a response that omitted the field, or
+    // returned it as a number or an object, took the `else` branch and RETURNED SUCCESS: a
+    // rotation Strava had already performed was dropped with nothing thrown and nothing
+    // printed, leaving both stores holding a token that was spent. `access_token` is refused
+    // four lines above for exactly this reason, and this failure is the quieter of the two.
+    if (typeof body.refresh_token !== "string") {
+        throw new Error(
+            "Token refresh returned no usable refresh_token. Every refresh this repository has "
+            + "seen carried one, so a response without it cannot be told apart from a rotation "
+            + "this process failed to read — and a dropped rotation spends the credential in "
+            + "both stores at once. Nothing was written. Read the response before re-running.",
+        );
+    }
+    if (body.refresh_token !== refreshToken) {
         persistRotation(env, body.refresh_token);
     }
     return body.access_token;

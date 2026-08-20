@@ -98,12 +98,19 @@ workflow at all.
 ## Working on it locally
 
 ```sh
-uv venv dns/.venv && uv pip install --python dns/.venv/bin/python -r dns/requirements.txt
+uv venv dns/.venv --python 3.13
+uv pip install --python dns/.venv/bin/python --require-hashes -r dns/requirements.txt
 dns/.venv/bin/python dns/test_filters.py          # no network, no credentials
 ```
 
 `test_filters.py` runs a real octoDNS plan against a fixture of the live zone with only the HTTP
 call stubbed, so it exercises the shipped code path. It needs no token and should stay that way.
+
+`dns/requirements.txt` is **compiled**, not written. Its two direct pins live in
+`dns/requirements.in`; the lock carries a hash for every distribution in the transitive tree, and
+both the workflow and the command above install with `--require-hashes` so a missing one fails
+loudly. To change a version, edit the `.in` file and recompile with the command in its header —
+never hand-edit a hash line.
 To plan against the live zone you need the read token in `CLOUDFLARE_DNS_TOKEN`, and then
 `octodns-sync --config-file dns/config.yaml` **from the repository root** — `directory:` in the
 config resolves against the working directory, not against the config file.

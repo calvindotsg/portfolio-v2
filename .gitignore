@@ -24,9 +24,27 @@ yarn-error.log*
 pnpm-debug.log*
 
 # environment variables
-.env
-.env.production
-.env.local
+#
+# A WILDCARD WITH TWO NAMED EXCEPTIONS, and which way round it is stated is the whole change.
+# This block used to list three exact names — a list of the files somebody had thought of.
+# MEASURED with `git check-ignore`: `.env.development`, `.env.test`, `.env.production.local`,
+# `.env.development.local` and `.env.test.local` all fell OUTSIDE it, and those five are not
+# invented spellings. They are exactly what Astro and Vite's own `.env.[mode]` and
+# `.env.[mode].local` convention produces, so the first person to run a non-default mode makes
+# one, and `git status` offers to commit it.
+#
+# `.env.op`'s HEADER ARGUES AGAINST THIS WILDCARD, and the argument is answered rather than
+# overruled: it says the reference file is what makes the credential path discoverable, and a
+# blanket `.env*` would hide the one file that documents where the credentials live. That is
+# right, and `!.env.op` is the answer to it — the file stays tracked, by name, where a reader
+# can see the exception being made.
+#
+# What moved is the DEFAULT. An unlisted `.env` file used to be committed unless somebody had
+# named it; it is now ignored unless somebody names it. Only one of those two failure modes
+# publishes a secret.
+.env*
+!.env.op
+!.env.example
 
 # local database
 .data/
