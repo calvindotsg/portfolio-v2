@@ -76,6 +76,25 @@ env:
   # wrangler's OWN version, not its dependency tree.
   WRANGLER_VERSION: "4.114.0"
   PAGES_PROJECT: calvindotsg
+  # THE ONE OUTBOUND CALL THE BUILD MAKES, TURNED OFF. `astro build` POSTs once per build to
+  # the Astro telemetry endpoint. The payload is anonymous — tool versions, OS and CPU, config
+  # KEYS without their values, a hash of the first commit — and the response is never read, so
+  # the security value of this line is close to nil and it is not sold as more.
+  #
+  # WHAT IT BUYS IS THE PROPERTY, NOT THE PAYLOAD: it is the only thing between this build and
+  # being hermetic, it leaves the job that executes fork-pull-request-authored code, and it
+  # fires on every unattended nightly deploy where nobody is watching.
+  #
+  # `isCI` DOES NOT ALREADY DO THIS, which is the assumption worth writing down because it
+  # reads as though it should. Measured by reading the installed telemetry package: the record
+  # is suppressed only by an explicit opt-out — the variable set below, its unprefixed sibling,
+  # or a persisted choice on the machine — while `isCI` gates just the interactive first-run
+  # NOTICE. The check is a truthiness test, so any non-empty value works; "1" is the spelling
+  # that package's own README uses.
+  #
+  # A CONSTANT RATHER THAN CONFIGURATION, so it does not belong in a repository variable: it
+  # has no per-environment value, and nothing outside this file reads it.
+  ASTRO_TELEMETRY_DISABLED: "1"
 
 jobs:
   build:

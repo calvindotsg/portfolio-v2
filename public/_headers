@@ -22,3 +22,40 @@
 
 /_astro/*
   cache-control: public, max-age=31536000, immutable
+
+# THE HEADERS THE ARTIFACT CARRIES WITH IT, rather than the ones an origin happens to add.
+#
+# WHY HERE AND NOT IN THE ZONE. `calvindotsg.pages.dev` serves these exact bytes with none of
+# the zone's controls attached, so a control configured at the zone protects one of the two
+# origins this build is reachable at. A rule in this file travels with the artifact and reaches
+# both. That is the same argument the plan for governing the origin makes, applied to headers.
+#
+# TWO OF THESE THREE ARE ALREADY SENT, AND THAT IS THE POINT rather than a redundancy: measured
+# on both origins the day this landed, `referrer-policy: strict-origin-when-cross-origin` comes
+# from a Cloudflare Pages default. A default is not a decision — it can change under the site
+# without anything here saying so. The VALUE below is deliberately the one already in force, so
+# writing it down changes nothing a reader receives and only changes who owns it.
+#
+# A HEADER NAME MAY APPEAR IN EXACTLY ONE RULE IN THIS FILE, and getting that wrong is silent.
+# Read from Cloudflare's own asset server rather than inferred: every rule whose path matches is
+# applied, in the order written here, and the FIRST rule to set a name replaces whatever the host
+# put there — but a LATER rule setting the same name APPENDS to it. So a second `cache-control`
+# anywhere in this file does not override the rule above, it produces
+# `public, max-age=31536000, immutable, <the other one>` and pins or unpins assets by accident.
+# There is no most-specific-match rule to save you. `tests/build-output.test.ts` holds the
+# name-per-rule invariant so this cannot be discovered in production.
+#
+# NO CONTENT-SECURITY-POLICY, deliberately. The standing decision against one is recorded in
+# `plans/README.md`; it wants a measurement nobody has reproduced, and half a policy is worse
+# than none. `x-frame-options` is the non-CSP way to say the same thing about framing, and it
+# is the only one of the two this file can express.
+#
+# WHAT IS DELIBERATELY NOT HERE: `x-content-type-options`, which both origins already send, and
+# `strict-transport-security`, which the zone sends and the pages.dev origin does not. Neither
+# omission is an oversight — the first would be a fourth line saying what is already said, and
+# the second is a transport decision belonging to whoever owns the zone.
+
+/*
+  x-frame-options: DENY
+  referrer-policy: strict-origin-when-cross-origin
+  permissions-policy: accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=()

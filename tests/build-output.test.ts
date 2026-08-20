@@ -45,6 +45,44 @@ const NOT_FOUND_PAGE = "dist/404.html";
  */
 const SHARED_MARK_SELECTOR = /\[aria-hidden\]\[class[\^*]=/;
 
+/**
+ * `dist/_headers`, PARSED THE WAY THE HOST PARSES IT, as `path -> {name: value}`.
+ *
+ * Hoisted out of the one assertion that used to own it because three gates now ask
+ * different questions of the same file — which rule caches the hashed assets, which rules
+ * exist at all, and whether any header name is set twice — and three copies of a parser
+ * is three chances to parse it three ways.
+ *
+ * THE GRAMMAR IS THE HOST'S, NOT AN INVENTED ONE, and the first draft of the caller below
+ * proved why that matters: it split on indentation and prefix-matched the path, which gave
+ * four wrong verdicts against Cloudflare's own `parseHeaders.ts` — GREEN on a file whose
+ * rule was COMMENTED OUT, GREEN when only `/_astro/*.css` was cached, and RED on two files
+ * both hosts serve correctly. Every line is trimmed; a leading `/` makes it a path and a
+ * colon makes it a header.
+ *
+ * SAME NAME TWICE INSIDE ONE RULE IS JOINED WITH `, `, which is what the host does. Across
+ * two rules is a different question and a different defect — see the assertion about it.
+ */
+function headerRules(file: string): Map<string, Record<string, string>> {
+    const rules = new Map<string, Record<string, string>>();
+    let current: Record<string, string> | undefined;
+    for (const raw of read(file).split("\n")) {
+        const line = raw.trim();
+        if (line === "" || line.startsWith("#")) continue;
+        if (line.startsWith("/")) {
+            current = rules.get(line) ?? {};
+            rules.set(line, current);
+            continue;
+        }
+        const colon = line.indexOf(":");
+        if (colon === -1 || current === undefined) continue;
+        const name = line.slice(0, colon).trim().toLowerCase();
+        const value = line.slice(colon + 1).trim();
+        if (name && value) current[name] = current[name] === undefined ? value : `${current[name]}, ${value}`;
+    }
+    return rules;
+}
+
 describe("dist/", () => {
     it("emits a robots.txt that points crawlers at the sitemap", () => {
         expect(existsSync("dist/robots.txt")).toBe(true);
@@ -2853,36 +2891,9 @@ describe("hashed assets are cached forever, and are hashed", () => {
         expect(existsSync("dist/_headers"), "dist/_headers is missing — public/_headers did not "
             + "reach the build, so Cloudflare Pages will serve /_astro/ with no cache header at "
             + "all").toBe(true);
-        /*
-         * PARSED THE WAY BOTH HOSTS PARSE IT, which the first draft of this test did not.
-         * That draft split the file on indentation and prefix-matched the path, inventing a
-         * third grammar that neither host implements — both `trim()` every line and decide
-         * path-vs-header on a leading `/` and the presence of a colon. Executed against
-         * Cloudflare's own `parseHeaders.ts`, the old form gave four wrong verdicts: GREEN on
-         * a file whose rule was COMMENTED OUT (the header text inside the `#` line satisfied
-         * an unanchored regex), GREEN when only `/_astro/*.css` was cached (`startsWith`
-         * matched the narrower path), and RED on two files both hosts serve correctly
-         * (unindented headers, and a narrower rule listed above the real one).
-         * The three calibrations that passed it were all mutations of PRESENCE, so none of
-         * them entered the divergent region.
-         */
-        const rules = new Map<string, Record<string, string>>();
-        let current: Record<string, string> | undefined;
-        for (const raw of read("dist/_headers").split("\n")) {
-            const line = raw.trim();
-            if (line === "" || line.startsWith("#")) continue;
-            if (line.startsWith("/")) {
-                current = rules.get(line) ?? {};
-                rules.set(line, current);
-                continue;
-            }
-            const colon = line.indexOf(":");
-            if (colon === -1 || current === undefined) continue;
-            const name = line.slice(0, colon).trim().toLowerCase();
-            const value = line.slice(colon + 1).trim();
-            if (name && value) current[name] = current[name] === undefined ? value : `${current[name]}, ${value}`;
-        }
-        const rule = rules.get("/_astro/*");
+        // Parsed by `headerRules` above, which carries the argument for why the grammar is
+        // the host's rather than one this file invented.
+        const rule = headerRules("dist/_headers").get("/_astro/*");
         expect(rule, "dist/_headers installs no rule for exactly /_astro/*; every hashed asset "
             + "costs a render-blocking round trip to be told it has not changed (measured 168ms "
             + "and 175ms, transferSize 300 — a 304 carrying no content)").toBeDefined();
@@ -2969,5 +2980,172 @@ describe("hashed assets are cached forever, and are hashed", () => {
         expect(directories, "the set of directories at the root of dist/ is not what it was — a route "
             + "was added or removed. Add it to ALLOWED_DIRECTORIES if that was the intent")
             .toEqual([...ALLOWED_DIRECTORIES].sort());
+    });
+});
+
+/**
+ * WHAT THE ORIGIN SENDS, AND THAT IT SENDS NOTHING ELSE.
+ *
+ * The gate above proves the one rule the site cannot ship without. It says nothing about a
+ * rule somebody ADDED, and `public/_headers` is a file with no compiler, no schema and no
+ * review beyond a diff: a `/*` block pinning every page for a year parses perfectly, ships
+ * green, and is discovered when visitors stop seeing updates. So the set is held here, not
+ * just one member of it.
+ *
+ * THESE ARE SECURITY HEADERS AND THEY LIVE IN THE ARTIFACT ON PURPOSE. `calvindotsg.pages.dev`
+ * serves these same bytes with none of the zone's controls, so a control configured at the
+ * zone reaches one of the two origins the build is fetchable at. The file's own comment carries
+ * the argument; this asserts the result.
+ *
+ * NO CONTENT-SECURITY-POLICY IS PART OF THE INTENT rather than an omission. The standing
+ * decision against one is recorded in `plans/README.md`, and an exact-set assertion is what
+ * turns that decision into something a diff cannot quietly reverse in either direction.
+ */
+describe("the headers the artifact carries, and only those", () => {
+    /**
+     * DERIVED FROM `public/_headers` RATHER THAN RESTATED, for the one rule the assertion
+     * below already owns: `/_astro/*`'s VALUE is asserted byte-for-byte by the caching gate
+     * above, and writing it here as well would put one fact in two places — the failure this
+     * suite spends most of its comments on. What is stated here is the SET: which paths carry
+     * rules, and which header names each one sets.
+     */
+    const EXPECTED: Record<string, string[]> = {
+        "/_astro/*": ["cache-control"],
+        "/*": ["permissions-policy", "referrer-policy", "x-frame-options"],
+    };
+
+    it("installs exactly the rules the repository intends", () => {
+        const rules = headerRules("dist/_headers");
+        expect(rules.size, "dist/_headers declares no rules at all — this gate is vacuous").toBeGreaterThan(1);
+
+        expect([...rules.keys()].sort(), "the set of paths with header rules in dist/_headers is not "
+            + "what this repository intends. A rule here applies to every matching request at both "
+            + "origins and nothing else reviews it: add the new path to EXPECTED deliberately, or "
+            + "delete the rule").toEqual(Object.keys(EXPECTED).sort());
+
+        for (const [path, names] of Object.entries(EXPECTED)) {
+            expect(Object.keys(rules.get(path)!).sort(), `the header names set by ${path} are not what `
+                + "this repository intends — a header was added, renamed or dropped").toEqual([...names].sort());
+        }
+    });
+
+    it("says what it means by each security header, rather than merely having one", () => {
+        /*
+         * THE NAMES ALONE ARE NOT THE CONTROL. `x-frame-options: SAMEORIGIN` and
+         * `x-frame-options: DENY` are the same name and different decisions, and a
+         * `permissions-policy` that grants rather than denies reads as protection while
+         * being its opposite. The set gate above cannot tell those apart.
+         *
+         * `referrer-policy` IS DELIBERATELY THE VALUE THE HOST ALREADY SENDS, measured on
+         * both origins the day this landed. That is not redundancy: a host default can move
+         * under the site without anything here changing, and writing it down moves ownership
+         * without moving a byte a reader receives.
+         */
+        const site = headerRules("dist/_headers").get("/*")!;
+        expect(site["x-frame-options"], "the framing header exists but does not refuse framing")
+            .toBe("DENY");
+        expect(site["referrer-policy"], "the referrer policy must be the value measured in force on "
+            + "both origins, so writing it down changes ownership rather than behaviour")
+            .toBe("strict-origin-when-cross-origin");
+        // Every directive must GRANT NOBODY. A `permissions-policy` naming a feature with a
+        // non-empty allow-list is a permission, not a denial, and would ship looking like one.
+        const granted = site["permissions-policy"].split(",")
+            .map((d) => d.trim()).filter((d) => d !== "" && !/=\(\)$/.test(d));
+        expect(granted, "these permissions-policy directives allow a feature rather than denying it")
+            .toEqual([]);
+        expect(site["permissions-policy"].split(",").length,
+            "the permissions-policy denies nothing — this assertion is vacuous").toBeGreaterThan(3);
+    });
+
+    it("sets no header name from two rules, because the second one appends rather than replaces", () => {
+        /*
+         * THE TRAP THIS CLOSES IS NOT SHADOWING, AND CALLING IT THAT GETS THE FIX BACKWARDS.
+         * Read out of Cloudflare's own asset server rather than inferred from the docs, which
+         * do not say: every rule whose path matches is applied, in the order written in the
+         * file, and the host keeps a set of the names it has already written. The FIRST rule
+         * to set a name REPLACES whatever the platform put there; a LATER rule setting the
+         * same name APPENDS to it.
+         *
+         * So there is no most-specific-match to rely on and no way to override a broader rule
+         * from a narrower one. A second `cache-control` in this file does not beat the
+         * `/_astro/*` rule — it produces `public, max-age=31536000, immutable, <the other>`
+         * and hands every hashed asset a header no cache was asked to reconcile.
+         *
+         * THAT IS INVISIBLE IN THE FILE, which is the whole reason for the assertion: both
+         * rules are individually correct and the defect only exists in their combination.
+         */
+        const rules = headerRules("dist/_headers");
+        const setBy = new Map<string, string[]>();
+        for (const [path, headers] of rules) {
+            for (const name of Object.keys(headers)) setBy.set(name, [...(setBy.get(name) ?? []), path]);
+        }
+        expect(setBy.size, "dist/_headers sets no header at all — this gate is vacuous").toBeGreaterThan(1);
+        expect([...setBy].filter(([, paths]) => paths.length > 1).map(([name, paths]) => `${name} (${paths.join(", ")})`),
+            "these header names are set by more than one rule in dist/_headers. The second rule does not "
+            + "override the first, it appends to it — move the header into exactly one rule").toEqual([]);
+    });
+});
+
+/**
+ * THE ONE SINK ON THIS SITE THAT REACHES A READER WITHOUT ASTRO'S ESCAPING.
+ *
+ * `BasicLayout.astro` hands the JSON-LD block to `set:html`, which does not escape, and the
+ * object it stringifies is assembled from content fields. `JSON.stringify` cannot invent a
+ * `<`, so the only way one arrives is a content field carrying one — and `</script>` inside
+ * that element closes it, after which everything the field contains is markup.
+ *
+ * REACHING IT NEEDS REPOSITORY WRITE, so it is a hardening rather than a live hole, and no
+ * breakout has been reproduced here. What earns the gate is the shape rather than the risk:
+ * seven fields across two modules feed one element, and the person adding an eighth is
+ * thinking about schema.org.
+ *
+ * THE ARTIFACT HALF OF THIS IS VACUOUS ON HEALTHY CONTENT AND THAT IS ADMITTED RATHER THAN
+ * HIDDEN. No field contains a `<` today, so "the emitted block contains no raw `<`" would
+ * pass with the escape deleted. It is still the right thing to assert — it is the property
+ * the reader actually receives, and it is what reddens the day a field does carry one. The
+ * SOURCE half is what has a floor today: it fails the moment the escape is removed, with the
+ * content unchanged. Neither half alone is the gate.
+ */
+describe("the JSON-LD block cannot be closed by its own contents", () => {
+    const LD = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/;
+
+    it("emits a block that parses, on every page, and reports the site's own facts", () => {
+        const pages = builtPages();
+        expect(pages.length, "no pages were built — this gate is vacuous").toBeGreaterThan(0);
+
+        for (const page of pages) {
+            const match = LD.exec(read(page));
+            expect(match, `${page} ships no application/ld+json block — every page is wrapped by the `
+                + "layout that emits one").not.toBeNull();
+            const body = match![1];
+
+            // THE BYTES A CONSUMER RECEIVES. A raw `<` anywhere in here means the escape did
+            // not run; a `</script>` means the element ended early and the parse below is
+            // reading a truncated document.
+            expect(body.includes("<"), `${page}: the ld+json block contains a raw "<", so a content `
+                + "field closed or reopened markup inside a script element").toBe(false);
+
+            const schema = JSON.parse(body) as Record<string, unknown>;
+            expect(schema["@type"], `${page}: the ld+json block parses but is not the Person entity `
+                + "the layout builds").toBe("Person");
+            expect(schema.name, `${page}: the ld+json name must be the site's own`).toBe(METADATA.full_name);
+            expect(schema.jobTitle, `${page}: the ld+json job title must be the current role, which is `
+                + "the site's only record of it").toBe(CAREER[0].job_name);
+        }
+    });
+
+    it("keeps the escape on the sink, which is what the block above cannot show", () => {
+        // ASSERTED AGAINST THE SOURCE, DELIBERATELY, and it is the only assertion in this file
+        // that is. The artifact cannot distinguish "escaped" from "had nothing to escape" while
+        // every content field is benign, so deleting the `.replace` ships green — the exact
+        // silence this suite exists to prevent. The name of the escape is not asserted, only
+        // that the stringify is not handed to `set:html` bare.
+        const layout = read("src/layouts/BasicLayout.astro");
+        const sink = /set:html=\{JSON\.stringify\(schema\)([^}]*)\}/.exec(layout);
+        expect(sink, "the JSON-LD sink in BasicLayout.astro no longer matches the shape this gate "
+            + "reads — re-point the assertion rather than deleting it").not.toBeNull();
+        expect(sink![1], "JSON.stringify(schema) is handed to set:html unescaped. `set:html` does no "
+            + "escaping, so a content field containing </script> closes the element and everything "
+            + "after it is markup").toMatch(/\.replace\(/);
     });
 });

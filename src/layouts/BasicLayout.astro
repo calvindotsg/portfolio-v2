@@ -163,7 +163,22 @@ const schema = {
             content={image}
     />
     {!noindex && <link href={Astro.url.href} rel="canonical"/>}
-    <script type="application/ld+json" set:html={JSON.stringify(schema)}/>
+    {/* `set:html` DOES NOT ESCAPE, AND THIS IS THE ONE SINK ON THE SITE THAT REACHES A READER
+         WITHOUT PASSING THROUGH ASTRO'S ESCAPING. `JSON.stringify` cannot emit `<` from
+         anything but a source string containing one, so the hole needs a content field
+         carrying `</script>` — at which point the element closes early and everything after
+         it is markup rather than JSON.
+
+         REACHING IT NEEDS REPOSITORY WRITE, which already means arbitrary site content, so
+         this is a hardening rather than a live hole and no reproduction of it has been run
+         here. The reason it is worth the line anyway is the SHAPE of the sink: `schema` above
+         is assembled from seven fields across two content modules, and the person adding an
+         eighth will be thinking about schema.org, not about this element's parser.
+
+         `\u003c` IS A VALID JSON ESCAPE FOR `<`, so the emitted block still parses as
+         application/ld+json and consumers see the identical string — asserted both ways in
+         tests/build-output.test.ts rather than left as a claim. */}
+    <script type="application/ld+json" set:html={JSON.stringify(schema).replace(/</g, "\\u003c")}/>
     <script defer src="https://cloud.umami.is/script.js" data-website-id={import.meta.env.UMAMI_ID}></script>
     <link rel="sitemap" href="/sitemap-index.xml"/>
     <script is:inline>
