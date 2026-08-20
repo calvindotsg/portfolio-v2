@@ -1084,16 +1084,20 @@ describe("every action every workflow runs is pinned to a commit", () => {
     /**
      * THE FLOOR IS THE WHOLE POINT OF MOVING THE ASSERTION. A directory sweep that matched
      * nothing passes silently and reads exactly like a clean run — which is the failure mode of
-     * the single-file constant it replaces, arrived at from the other direction. More than one
-     * file, because one file is where this started.
+     * the single-file constant it replaces, arrived at from the other direction.
+     *
+     * COUNTED OVER THE FILES THE `uses:` STEPS CAME FROM, not over the files the glob matched,
+     * because those are different claims and only the first one is the defect. This gate
+     * regressed to reviewing one workflow once already; a glob that finds three files and reads
+     * actions out of one of them has regressed to exactly that while reporting three.
      */
-    it("sweeps more than one workflow and finds actions in them, so the assertion below is not vacuous", () => {
-        expect(WORKFLOWS.map((w) => w.file), `${WORKFLOW_DIR} yielded fewer than two workflows`)
-            .toHaveLength(WORKFLOWS.length);
-        expect(WORKFLOWS.length, `${WORKFLOW_DIR} yielded fewer than two workflow files, so this gate has `
-            + "gone back to reviewing one of them").toBeGreaterThan(1);
-        expect(used.length, "no step in any workflow declares `uses:`, so the pin assertion inspects nothing")
-            .toBeGreaterThan(0);
+    it("reaches actions in more than one workflow, which is the property that regressed before", () => {
+        const files = [...new Set(used.map(({where}) => where.split(" → ")[0]))].sort();
+        expect(used.length, `no step in ${WORKFLOW_DIR} declares \`uses:\`, so the assertion below inspects `
+            + "nothing and passes").toBeGreaterThan(0);
+        expect(files.length, `every \`uses:\` this gate can see comes from ${JSON.stringify(files)}. That is `
+            + "how this assertion spent its first life — scoped to one workflow while reading as a property "
+            + "of the repository.").toBeGreaterThan(1);
     });
 
     /**
