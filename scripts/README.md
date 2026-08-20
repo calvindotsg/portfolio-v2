@@ -140,10 +140,11 @@ nothing here retries.
 
 Every credential line in it is an `op://` address, which is why the file is committed. An
 address is not a secret — reading it needs an authenticated 1Password session that the file
-cannot supply — and `.gitignore` lists `.env`, `.env.production` and `.env.local` as exact
-names with no wildcard, so this file is committed on purpose rather than by omission. Do not
-"fix" that by adding `.env*`; the reference file is what makes the credential path
-discoverable at all.
+cannot supply — and `.gitignore` ignores `.env*` but negates this file by name, so it is
+committed on purpose rather than by omission. The wildcard replaced a list of three exact
+names that missed the five filenames Astro and Vite's own `.env.[mode]` convention produces;
+the negation is what keeps the reference file itself committable, because the credential path
+has to be discoverable at all.
 
 `op run --env-file=.env.op -- <command>` resolves each reference and hands the command the
 secret in its environment, so no Strava credential is ever written to disk here or pasted into

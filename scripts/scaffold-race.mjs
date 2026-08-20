@@ -198,17 +198,10 @@ export function activityId(activity) {
 export function recordingsFrom(activities) {
     return orderedByStart(activities).map((a) => ({
         id: activityId(a),
-        // `Number()` ON A NUMBER IS THE IDENTITY, which is what lets this guard sit inside a
-        // function whose whole docblock argues that `metres` is COPIED AND NOT CONVERTED. The
-        // API's `distance` arrives as a number and leaves as the same number; `kmFromMetres` in
-        // src/lib/race.ts still owns every conversion there is. Nothing here rounds, scales or
-        // reads a figure off a page.
-        //
-        // IT THROWS RATHER THAN COERCING, and that is the part to keep. `Number("17.9km")` is
-        // NaN and `Number(null)` is 0 — a coercing guard turns a malformed response into a race
-        // that ships a wrong distance with nothing red anywhere, which is strictly worse than a
-        // scaffold that stops. The check is finiteness plus a sign, because a negative distance
-        // is not a race and `raceKm` would sum it.
+        // CHECKED, NEVER CONVERTED — which is what lets a guard sit inside a function whose
+        // whole docblock argues that `metres` is COPIED. The value that leaves is the identical
+        // number that arrived; `kmFromMetres` in src/lib/race.ts still owns every conversion
+        // there is, and nothing here rounds, scales or reads a figure off a page.
         metres: distanceOf(a),
         elapsed_time: hms(a.elapsed_time),
     }));
@@ -224,15 +217,24 @@ export function recordingsFrom(activities) {
  * `"(globalThis.PWNED = 1, 17908.4)"` rendered verbatim, ran on import, and left `metres`
  * evaluating to 17908.4 — so `tests/data-contract.test.ts` saw an ordinary race and stayed green.
  * That invisibility is why this is validated at the source rather than escaped at the sink.
+ *
+ * THE TYPE IS TESTED, NOT COERCED, AND THE FIRST VERSION OF THIS GUARD GOT THAT WRONG. It read
+ * `Number(activity.distance)` and checked the RESULT, which is a coercion wearing a validation:
+ * measured, it accepted `null`, `""`, `[]` and `false` as 0 metres, `true` as 1, `"0x10"` as 16
+ * and `"17908.4"` as a converted 17908.4 — the last of which is a stored `f(source)` inside a
+ * function whose docblock forbids exactly that. A malformed response became a bib shipping the
+ * wrong distance with nothing red anywhere. The sibling guards here already do it strictly:
+ * `hms` and `raceSpanSeconds` test `Number.isFinite` on the RAW field, so `elapsed_time: "3600"`
+ * throws while `distance: "3600"` used not to.
  */
 function distanceOf(activity) {
-    const metres = Number(activity.distance);
-    if (!Number.isFinite(metres) || metres < 0) {
+    const metres = activity.distance;
+    if (typeof metres !== "number" || !Number.isFinite(metres) || metres < 0) {
         throw new Error(
             `Activity ${JSON.stringify(String(activity.id))} has a distance of `
             + `${JSON.stringify(activity.distance)}, which is not a length in metres. This field is `
             + "emitted UNQUOTED into a module the build executes, so anything that is not a finite "
-            + "non-negative number is refused rather than coerced. Check the id, or the response.",
+            + "non-negative NUMBER is refused rather than coerced. Check the id, or the response.",
         );
     }
     return metres;

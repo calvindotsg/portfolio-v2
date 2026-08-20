@@ -46,6 +46,18 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
+/**
+ * EVERY SCRIPT, AT ANY DEPTH. `readdirSync("scripts")` without `recursive` returns the top level
+ * only, so a helper in a SUBDIRECTORY of it would be linted by `pnpm eslint` — whose glob
+ * reaches every depth — and probed by nothing here, under two docblocks claiming directory
+ * discovery. Measured: a nested module that overwrites `globalThis.fetch` passed both gates
+ * before this helper existed. `tests/build-output.test.ts` already uses this form over its own
+ * directory and `src` for the same reason.
+ */
+const scriptFiles = (): string[] =>
+    (readdirSync("scripts", {recursive: true, encoding: "utf8"}) as string[])
+        .filter((f) => f.endsWith(".mjs"));
+
 describe("the shared Strava credential path", () => {
     /**
      * READ WHEN CALLED, NEVER AT IMPORT — and this assertion is what holds it, because the
@@ -240,7 +252,15 @@ describe("the shared Strava credential path", () => {
      * quieter half.
      */
     it("treats a 200 with no usable refresh_token as a failure, rather than dropping a rotation", async () => {
-        for (const returned of [{}, {refresh_token: 1234}, {refresh_token: {value: "r"}}]) {
+        // THE EMPTY STRING IS THE ONE A `typeof` TEST ALONE GETS WRONG, and it fails in the
+        // opposite direction: `""` is a string that can never equal the token the request
+        // carried, so the comparison in the module reads it as A ROTATION and writes it to both
+        // stores. A review panel found this; the first version of this loop tested only the
+        // three shapes above and was green over it.
+        for (const returned of [
+            {}, {refresh_token: 1234}, {refresh_token: {value: "r"}},
+            {refresh_token: ""}, {refresh_token: "   "}, {refresh_token: "\n"}, {refresh_token: null},
+        ]) {
             vi.stubGlobal("fetch", tokenResponse({access_token: "at", ...returned}));
             await expect(accessToken(ENV), `${JSON.stringify(returned)} was accepted`)
                 .rejects.toThrow(/no usable refresh_token/);
@@ -268,21 +288,19 @@ describe("the shared Strava credential path", () => {
      * rule `tests/dns-config.test.ts` applies to jobs that can write DNS.
      */
     it("pins the repository a credential is copied to, on every path that copies one", () => {
-        const env = Object.fromEntries(
-            readFileSync(".env.op", "utf8")
-                .split("\n")
-                .filter((line) => /^[A-Z][A-Z0-9_]*=/.test(line))
-                .map((line) => {
-                    const at = line.indexOf("=");
-                    return [line.slice(0, at), line.slice(at + 1).replace(/^"|"$/g, "")];
-                }),
-        );
-        expect(env.STRAVA_SECRET_REPO, "the destination of a credential write is not this repository")
-            .toBe("calvindotsg/portfolio-v2");
+        // MATCHED, NOT PARSED. The first version hand-rolled a dotenv reader — a line filter
+        // plus a quote strip — which is a RE-IMPLEMENTATION of `op run --env-file`, and it
+        // reddens on spellings that tool accepts and the scripts read correctly: an `export`
+        // prefix, single quotes, a trailing comment. The scripts read `env.STRAVA_SECRET_REPO`
+        // out of a process environment `op run` has already populated, so no offline assertion
+        // can literally "read it the way the scripts read it"; the honest goal is a predicate
+        // that no correct spelling can redden.
+        expect(readFileSync(".env.op", "utf8"),
+            "the destination of a credential write is not this repository")
+            .toMatch(/^(?:export\s+)?STRAVA_SECRET_REPO=["']?calvindotsg\/portfolio-v2["']?\s*(?:#.*)?$/m);
 
-        const writers = readdirSync("scripts")
-            .filter((f) => f.endsWith(".mjs"))
-            .filter((f) => /"secret",\s*"set"/.test(readFileSync(`scripts/${f}`, "utf8")));
+        const writers = scriptFiles()
+            .filter((f) => /\bsecret\b[\s\S]{0,40}?\bset\b/.test(readFileSync(`scripts/${f}`, "utf8")));
         expect(writers.length, "no script writes a GitHub secret, so this case is vacuous")
             .toBeGreaterThan(0);
         for (const file of writers) {
@@ -313,28 +331,55 @@ describe("the shared Strava credential path", () => {
  * not help, because the pollution predates the case rather than the import. Only a scope that
  * never loaded these modules can answer the question, and a child process is the cheapest one.
  *
+ * WHAT IS ACTUALLY CHECKED, listed rather than summarised, because the first version of this
+ * docblock claimed "changes nothing outside it" while the probe compared only NEWLY ADDED global
+ * keys — so a review panel showed that overwriting `globalThis.fetch`, writing `process.env` or
+ * patching `Array.prototype` all passed it. Three snapshots now: the own enumerable keys of
+ * `globalThis`, the keys of `process.env`, and the identity of a handful of globals that an
+ * exfiltration or a monkey-patch would have to replace. It is still not a proof of "no side
+ * effects" — nothing cheap is — but each thing it names, it holds.
+ *
+ * THE CHILD PRINTS A SENTINEL and the parent refuses anything before it. A script that writes to
+ * stdout at import time would otherwise make `JSON.parse` throw a bare `SyntaxError` naming no
+ * file; import-time output is itself a side effect worth failing on, in a repository whose
+ * Actions logs are world-readable.
+ *
  * Every script guards its own `main` on `process.argv[1]`, which `-e` leaves undefined, so a
- * probe imports the module without running the program. DISCOVERED FROM THE DIRECTORY, never
- * listed: a script added tomorrow is covered the day it lands.
+ * probe imports the module without running the program. DISCOVERED FROM THE DIRECTORY at any
+ * depth (see `scriptFiles`): a script added tomorrow is covered the day it lands.
  */
 describe("the scripts themselves", () => {
-    it("has no script whose import writes to module scope", () => {
-        const scripts = readdirSync("scripts").filter((f) => f.endsWith(".mjs"));
+    it("has no script whose import changes the world around it", () => {
+        const scripts = scriptFiles();
         expect(scripts.length, "no scripts were found, so this case is vacuous").toBeGreaterThan(0);
         for (const file of scripts) {
             const url = pathToFileURL(`scripts/${file}`).href;
             const probe = [
-                "const before = new Set(Object.keys(globalThis));",
+                "const keysBefore = new Set(Object.keys(globalThis));",
+                "const envBefore = new Set(Object.keys(process.env));",
+                "const pinned = {fetch: globalThis.fetch, consoleLog: console.log,",
+                "  arrayAt: Array.prototype.at, jsonParse: JSON.parse, objectKeys: Object.keys};",
                 `await import(${JSON.stringify(url)});`,
-                "const added = Object.keys(globalThis).filter((k) => !before.has(k));",
-                "process.stdout.write(JSON.stringify(added));",
+                "const now = {fetch: globalThis.fetch, consoleLog: console.log,",
+                "  arrayAt: Array.prototype.at, jsonParse: JSON.parse, objectKeys: Object.keys};",
+                "process.stdout.write('__PROBE__' + JSON.stringify({",
+                "  addedGlobals: Object.keys(globalThis).filter((k) => !keysBefore.has(k)),",
+                "  addedEnv: Object.keys(process.env).filter((k) => !envBefore.has(k)),",
+                "  replaced: Object.keys(pinned).filter((k) => pinned[k] !== now[k]),",
+                "}));",
             ].join("\n");
-            const added = JSON.parse(
-                execFileSync(process.execPath, ["--input-type=module", "-e", probe], {encoding: "utf8"}),
-            ) as string[];
-            expect(added, `importing scripts/${file} added ${added.join(", ")} to the global scope. `
-                + "A comment that closes early puts the words after it at top level, and every "
-                + "other gate here reads that as prose.").toEqual([]);
+            const raw = execFileSync(process.execPath, ["--input-type=module", "-e", probe], {encoding: "utf8"});
+            const at = raw.indexOf("__PROBE__");
+            expect(at, `scripts/${file} produced no probe result. It printed: ${raw.slice(0, 200)}`)
+                .toBeGreaterThanOrEqual(0);
+            expect(raw.slice(0, at), `scripts/${file} wrote to stdout while being imported`).toBe("");
+            const report = JSON.parse(raw.slice(at + "__PROBE__".length)) as {
+                addedGlobals: string[]; addedEnv: string[]; replaced: string[];
+            };
+            expect(report, `importing scripts/${file} changed something outside it. A comment that `
+                + "closes early puts the words after it at top level, and every other gate here "
+                + "reads that as prose.")
+                .toEqual({addedGlobals: [], addedEnv: [], replaced: []});
         }
     });
 });
@@ -586,18 +631,47 @@ describe("the race scaffold's output", () => {
             it(`refuses ${what}`, () => {
                 // REFUSED, NOT ESCAPED. A coerced or stripped value is a race that ships wrong
                 // figures quietly, which is worse than a scaffold that stops and says why.
+                //
+                // THE THROW IS TYPED. A bare `toThrow()` passes on ANY error, including a
+                // `TypeError` from a future refactor that never reached the guard at all, so
+                // the message has to name which guard refused. A second assertion used to sit
+                // here re-rendering and checking the text was absent; it could only ever see
+                // the empty string, because it ran after the throw had already been asserted.
                 expect(() => scaffolded(activity),
-                    `${injected} reached the generated module instead of being refused`).toThrow();
-                // And nothing rendered, so there is no second route to the same text.
-                let rendered = "";
-                try {
-                    rendered = scaffolded(activity);
-                } catch {
-                    rendered = "";
-                }
-                expect(rendered, "a module was written despite the refusal").not.toContain(injected);
+                    `${injected} reached the generated module instead of being refused`)
+                    .toThrow(/not a decimal Strava id|is not a length in metres/);
             });
         }
+    });
+
+    /**
+     * THE DISTANCE SEAM, AND THE COERCIONS THAT LOOK LIKE VALIDATION.
+     *
+     * The first version of this guard read `Number(activity.distance)` and checked the RESULT,
+     * which is a coercion wearing a validation. A review panel measured what it let through:
+     * `null`, `""`, `[]` and `false` all became 0 metres, `true` became 1, `"0x10"` became 16,
+     * `{valueOf: () => 5}` became 5, and `"17908.4"` became a CONVERTED 17908.4 — the last of
+     * which is a stored `f(source)` inside a function whose docblock forbids exactly that.
+     *
+     * NONE OF IT IS VISIBLE DOWNSTREAM, which is why it needs a case here rather than a
+     * reviewer. A race scaffolded from `distance: true` ships `metres: 1` — positive, finite,
+     * and accepted by every assertion `tests/data-contract.test.ts` makes.
+     *
+     * THE NEGATIVE CASE IS SEPARATE ON PURPOSE: deleting the `metres < 0` half of the guard
+     * leaves every other assertion in this file green, and `raceKm` sums metres, so a negative
+     * one shortens the race rather than failing it.
+     */
+    it("refuses a distance that is not a number, rather than coercing one out of it", () => {
+        const activity = (distance: unknown) =>
+            [{id: 12058884605, start_date: "2024-08-04T00:11:00Z", elapsed_time: 60, distance}];
+        for (const distance of [null, undefined, "", [], false, true, "0x10", "17908.4", {valueOf: () => 5}, NaN, Infinity, -1]) {
+            expect(() => recordingsFrom(activity(distance)),
+                `${JSON.stringify(distance) ?? String(distance)} was accepted as a distance`)
+                .toThrow(/is not a length in metres/);
+        }
+        // And the shape the API actually sends is untouched, including a legitimate zero.
+        expect(recordingsFrom(activity(17908.4))[0].metres).toBe(17908.4);
+        expect(recordingsFrom(activity(0))[0].metres, "a zero-metre activity is odd but not malformed").toBe(0);
     });
 
     /**

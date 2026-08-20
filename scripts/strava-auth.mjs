@@ -126,7 +126,7 @@ function persistRotation(env, refreshToken) {
     //
     // WHAT IT COSTS is a same-user `ps` read of a refresh token for as long as this process
     // runs. That token cannot be redeemed without STRAVA_CLIENT_SECRET, which never enters argv
-    // anywhere in this repository — it goes in a POST body four functions down. Anyone able to
+    // anywhere in this repository — it goes in a POST body, never on a command line. Anyone able to
     // read this process's argv can read its memory, so the exposure is bounded by something
     // already lost. The GitHub half below has no item to clobber and so uses stdin.
     const written = spawnSync("op", [
@@ -193,13 +193,21 @@ export async function accessToken(env = process.env) {
     // refresh it replaced, which destructured `access_token` alone and could not have noticed a
     // rotation at all.
     //
-    // A MISSING OR NON-STRING FIELD IS REFUSED, and it is the half that used to fail OPEN. The
-    // guard was a single `typeof … === "string" && …`, so a response that omitted the field, or
-    // returned it as a number or an object, took the `else` branch and RETURNED SUCCESS: a
-    // rotation Strava had already performed was dropped with nothing thrown and nothing
-    // printed, leaving both stores holding a token that was spent. `access_token` is refused
-    // four lines above for exactly this reason, and this failure is the quieter of the two.
-    if (typeof body.refresh_token !== "string") {
+    // ANYTHING THAT IS NOT A USABLE TOKEN IS REFUSED, and "usable" has to include NON-EMPTY.
+    // The guard was a single `typeof … === "string" && …`, so a response that omitted the
+    // field, or returned it as a number or an object, took the `else` branch and RETURNED
+    // SUCCESS: a rotation Strava had already performed was dropped with nothing thrown and
+    // nothing printed, leaving both stores holding a token that was spent.
+    //
+    // THE EMPTY STRING IS THE CASE A `typeof` TEST ALONE GETS WRONG, and it fails in the other
+    // direction — worse than dropping a rotation. `""` is a string, and it can never equal the
+    // token the request carried because `required` refuses an empty one, so the comparison
+    // below reads it as A ROTATION and `persistRotation` writes it to BOTH stores: `op item
+    // edit … refresh_token[concealed]=` and `gh secret set` with empty stdin. The credential is
+    // then gone from the only readable copy there is, and recovery is a fresh OAuth authorize
+    // by hand. A guard whose message says "no usable refresh_token" while accepting the one
+    // string shape that is unusable is green on the defect it names.
+    if (typeof body.refresh_token !== "string" || body.refresh_token.trim() === "") {
         throw new Error(
             "Token refresh returned no usable refresh_token. Every refresh this repository has "
             + "seen carried one, so a response without it cannot be told apart from a rotation "
