@@ -84,6 +84,43 @@ jobs:
     permissions:
       contents: read
     steps:
+      # THE HALF OF THE BRANCH-POLICY INVARIANT THAT USED TO BE UNTESTABLE, MADE TESTABLE.
+      #
+      # `deploy-production` leans on a structural control rather than on its own `if:`: the
+      # `production` environment holds `CLOUDFLARE_API_TOKEN` behind a deployment branch policy
+      # limited to `main`, so a job on another ref cannot read the secret at all. That control
+      # is meaningful only while the token exists ONLY as an environment secret. A
+      # repository-level secret of the same name is inherited by every job that omits
+      # `environment:` — including this one — and the branch policy is then void with nothing
+      # reporting it. That is a GitHub SETTINGS mistake, not a mistake in this file, which is
+      # why nothing in `tests/workflow-guards.test.ts` could see it and why the fix, if this
+      # ever fails, is in repository settings rather than here.
+      #
+      # This job declares no `environment:`, so on a correctly configured repository the value
+      # below is the empty string and this step passes. It is first because it needs nothing —
+      # no checkout, no toolchain — and because a voided branch policy should stop the run
+      # before it does any work.
+      #
+      # THE EXPOSURE IS SAME-REPO BRANCHES, NOT FORKS, and getting that backwards would sell
+      # this step on a threat it does not address: `ci.yml` triggers on `pull_request` and
+      # GitHub withholds secrets from fork-PR runs and from Dependabot-triggered runs alike, so
+      # neither can read an inherited secret either. What a repository-level copy actually
+      # costs is the branch policy — the one control here that a refactor cannot drop, because
+      # it does not live in this file.
+      #
+      # THE VALUE IS NEVER PRINTED, on any path. Reproducing a secret into a log is the defect
+      # this step exists to detect, committed by the detector; emptiness is the whole question
+      # and testing it needs no echo.
+      - name: the deploy token must be unreadable outside a deployment environment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::this job declares no environment: and still read a value for CLOUDFLARE_API_TOKEN, so a repository-level or organisation-level secret of that name exists. Every job that omits environment: now inherits the deploy token, and the production environment's main-only deployment branch policy protects nothing. Delete the repository-level secret; the token belongs to the preview and production environments only."
+            exit 1
+          fi
+          echo "CLOUDFLARE_API_TOKEN is unreadable here, so the production branch policy still binds it."
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10

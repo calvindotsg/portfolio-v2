@@ -572,12 +572,15 @@ describe("the toolchain is pinned, because the safety argument is about versions
         expect(WF.env?.PYTHON_VERSION).toMatch(/^3\.\d+$/);
     });
 
-    it("pins every action to a full commit SHA", () => {
-        for (const id of Object.keys(WF.jobs)) {
-            for (const step of stepsOf(id)) {
-                if (!step.uses) continue;
-                expect(step.uses, `step in "${id}"`).toMatch(/@[0-9a-f]{40}$/);
-            }
-        }
-    });
+    /*
+     * THE SHA-PIN ASSERTION USED TO LIVE HERE AND IS NOW IN `tests/workflow-guards.test.ts`,
+     * which owns cross-workflow properties. It is not a tidying move. "Every action is pinned to
+     * a commit" is a property of the repository, and writing it in the DNS suite scoped it to
+     * `dns.yml` — so the repository's only such assertion iterated the workflow that touches no
+     * production artifact, while `ci.yml`, which deploys the site, and `strava-progress.yml`,
+     * which holds `contents: write` and both Strava secrets, had none at all. A repository-wide
+     * assertion living in a single-subject suite is how it came to be scoped to one file, and
+     * leaving a second copy behind would only recreate the drift one level up. `dns.yml` is
+     * still covered, by the directory sweep that replaced this.
+     */
 });
