@@ -678,7 +678,7 @@ describe("documentation, against the code it describes", () => {
      * and both did on the first run of this gate.
      */
     const PNPM_SUBCOMMANDS = new Set(["install", "add", "remove", "update", "audit", "dlx",
-        "exec", "why", "list", "run", "import", "link", "outdated", "store", "rebuild"]);
+        "exec", "why", "list", "run", "import", "link", "outdated", "store", "rebuild", "dedupe"]);
 
     it("names no pnpm script that is not in package.json", () => {
         const scripts = new Set(Object.keys(JSON.parse(read("package.json")).scripts));

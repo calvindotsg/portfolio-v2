@@ -35,6 +35,12 @@ block above it before giving either consumer the other's list.
 
 ## Commands
 
+- **`pnpm-workspace.yaml` is pnpm's settings file and this is NOT a workspace** — read
+  it before adding, removing or bumping a dependency. It turns peer auto-install off,
+  so a package needing a required peer no longer gets one silently; the argument, and
+  what was measured to reject every narrower lever, are in the file. Settings do not go
+  in `package.json` — pnpm ignores that field and says so in a warning that reads like a
+  setting having no effect
 - `pnpm test` — the change gate the sections below refer to. It runs `pnpm build`
   first (`globalSetup` in `vitest.config.ts` points at `tests/setup/build.ts`), so
   the `dist/` assertions have real artifacts; that setup honours `SKIP_BUILD=1` to

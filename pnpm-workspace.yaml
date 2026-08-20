@@ -1,0 +1,49 @@
+# pnpm's settings file. THIS REPOSITORY IS NOT A WORKSPACE — there is no `packages:` key and
+# there are no member packages. The filename is misleading and unavoidable: pnpm no longer reads
+# the `pnpm` field in `package.json` (it prints a warning and IGNORES the keys, which reads
+# exactly like a setting that had no effect), and `.npmrc` is reserved for registry and auth
+# settings. Every other pnpm setting lives here or in the global config. Check
+# https://pnpm.io/settings before moving a key back on the strength of an older example.
+#
+# ONE SETTING, AND IT IS A SUPPLY-CHAIN CONTROL RATHER THAN A PREFERENCE.
+#
+# `autoInstallPeers` defaults to true, and pnpm documents it as installing missing NON-OPTIONAL
+# peer dependencies. The implementation does not honour that word: it also installs peers a
+# package declares under `peerDependenciesMeta` as `optional: true` — pnpm/pnpm#11155, open at
+# the time of writing. `unstorage` declares nineteen storage drivers that way (Azure, Vercel,
+# Upstash, PlanetScale, Netlify, …) and `astro` depends on `unstorage`, so under the default a
+# driver this site will never load can enter the tree — and then stay, because a lockfile
+# preserves what it already records even after nothing wants it.
+#
+# THAT IS THE HISTORY OF THIS TREE, NOT A HYPOTHETICAL. `32071fe` (2026-07-21) dropped the
+# Netlify SSR adapter when the site moved to a static build on Cloudflare Pages. The direct
+# dependency went; `@netlify/blobs` stayed on, reclassified from adapter dependency to
+# `unstorage`'s resolved optional peer, and held `@netlify/dev-utils`, `@netlify/otel`, the
+# OpenTelemetry SDK and `image-size` in place behind it — 47 packages serving a platform this
+# repository had left.
+#
+# `image-size` is why that stopped being merely untidy. It carries two high-severity denial of
+# service advisories (CVE-2025-71329, CVE-2025-71330) whose vulnerable range is `<= 2.0.2`, which
+# is every version ever published: the project is ARCHIVED, so no bump can ever close them. A
+# dependency that cannot be upgraded out of an advisory can only be removed, and this one was
+# never wanted. The advisories predate their appearance here by ten weeks — what arrived in
+# August was Dependabot, armed by leaving the fork network, rather than a new defect.
+#
+# WHAT MAKES THIS THE FIX RATHER THAN A WORKAROUND: resolving `package.json` from scratch, with
+# the default still on, produces NONE of those packages. They exist only as lockfile residue, and
+# every narrower lever was measured and left them in place — `ignoredOptionalDependencies` (which
+# reaches `optionalDependencies`, not optional PEERS), `peerDependencyRules.ignoreMissing`, and
+# `pnpm dedupe` each changed nothing at all. Turning the setting off is what prunes, and it prunes
+# the CLASS: `@opentelemetry/api` and a second copy of `@types/node` were the same residue by the
+# same mechanism and went with it. Nothing else moved — no version of anything changed, and the
+# built `dist/` is byte-identical — which is the property that matters, because version adoption
+# here is governed by the cooldown windows in `.github/dependabot.yml` and a security fix must not
+# smuggle a bump past them.
+#
+# WHAT IT COSTS, stated plainly so nobody switches it back to make an error go away: a package
+# needing a genuinely required peer no longer has it installed silently. A resolving install
+# warns — `eslint-plugin-jsx-a11y` already does, declaring `eslint` up to 9 against the 10 this
+# repository runs, which the default was hiding rather than satisfying. The fix for a warning
+# like that is to declare the peer in `package.json`, where a dependency this project actually
+# needs belongs, not to turn this back on.
+autoInstallPeers: false
