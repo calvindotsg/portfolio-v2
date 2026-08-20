@@ -47,8 +47,8 @@ const README = `${DIR}/README.md`;
  *
  * THE NESTING IS PART OF THE NAME, AND FLATTENING IT COST A REQUIRED FIELD. `recordings` and
  * `official` are the two fields whose value is itself a record, and their members are exactly
- * as easy to get wrong as the top-level ones — `metres` in particular, which nothing offline
- * can check. This used to union the bare property names of the three shapes into one flat set,
+ * as easy to get wrong as the top-level ones — `metres` in particular, which an offline run can
+ * only partly check. This used to union the bare property names of the three shapes into one flat set,
  * which let a top-level bullet stand in for a nested field of the same name: `elapsed_time` is
  * required on {@link Recording} and the README's `recordings` sub-bullets never named it, and
  * the gate agreed because the race's own `elapsed_time` bullet was there. Adding a second
@@ -516,8 +516,11 @@ describe("EVENTS", () => {
      * hand-entered in two places, so a single-recording race really can carry two different
      * clocks. The distance cannot any more.
      *
-     * A MISTYPED `metres` REMAINS INVISIBLE HERE, and nothing offline can see it — that is what
-     * `tests/strava-verify.test.ts` is for, holding every recording against the API exactly.
+     * A MISTYPED `metres` REMAINS INVISIBLE HERE, and how much of the suite can see it depends on
+     * the race's year: a row inside `GOAL_YEAR` feeds the projection's published figures and takes
+     * `tests/derived-figures.test.ts` red, a past-year row feeds nothing and is green everywhere.
+     * `tests/strava-verify.test.ts` is what covers both, holding every recording against the API
+     * exactly, and it is opt-in.
      */
     it("holds each recording's own figures to the shapes the bib prints them in", () => {
         let checked = 0;
@@ -587,6 +590,13 @@ describe("EVENTS", () => {
             ).toBe(true);
             checked++;
         }
-        expect(checked, "split races checked").toBeGreaterThanOrEqual(0);
+        // THE FLOOR IS `>` BECAUSE `>= 0` COUNTED NOTHING. `checked` starts at zero and only
+        // increments, so the old spelling was satisfied by a loop that skipped every race — and
+        // it sat under a docblock calling this the only offline constraint on the field. The
+        // whole worth of that claim is that some race reaches the comparison above. If this
+        // reddens because the last split race left EVENTS, the constraint has genuinely stopped
+        // applying and the docblock above owes an edit, not this line.
+        expect(checked, "no split race reached the comparison above, so this gate held nothing")
+            .toBeGreaterThan(0);
     });
 });

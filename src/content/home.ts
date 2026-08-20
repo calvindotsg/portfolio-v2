@@ -36,14 +36,21 @@ import type {GOALS} from "../lib/goal"
  * AND TWO SURFACES ARE NOT DERIVED AT ALL — they are typed copies, and a typed copy of this fact
  * has been wrong before. `README.md`'s lede says the job in prose; it is held to this value by a
  * gate in `tests/docs-drift.test.ts`, which also refuses a title from further down this list, so
- * that one fails loudly. `public/resume.pdf` says it too and CANNOT be gated from here: measured,
- * the title is absent from every inflated content stream in that file, so no check written against
- * the bytes can see it and an external PDF tool is required. As of the 2026-08-14 revision it
- * agrees with every field here — both titles and all four dates — having disagreed on both titles
- * and on this role's start month before it. That history is the point of writing this down: the
- * file is the maintainer's to regenerate, nothing here can, and the only way to know which way it
- * currently sits is to look. `pdftotext public/resume.pdf -` and read the section; grepping for a
- * word two roles share returns the wrong row, which is how the previous check got it backwards.
+ * that one fails loudly. `public/resume.pdf` says it TWICE, and only one of the two is reachable
+ * from here. Its declared `/Title` — what a browser tab and a search result show for that URL — is
+ * held to this value by `tests/content.test.ts`, which follows the trailer's `/Info` and refuses a
+ * title from further down this list, the same way the README's gate does. Its BODY text is not:
+ * measured, the title is absent from every inflated content stream in that file, so no check
+ * written against the bytes can see a word of it and an external PDF tool is required. This note
+ * used to say the whole file was out of reach, which drew a conclusion about the file from a
+ * measurement of its body — the same over-broadening the gates here exist to catch.
+ *
+ * SO THE BODY IS STILL THE MAINTAINER'S, AND STILL OWED BY HAND on every re-export. As of the
+ * 2026-08-14 revision it agrees with every field here — both titles and all four dates — having
+ * disagreed on both titles and on this role's start month before it. That history is the point of
+ * writing this down: the only way to know which way it currently sits is to look. `pdftotext
+ * public/resume.pdf -` and read the section; grepping for a word two roles share returns the wrong
+ * row, which is how the previous check got it backwards.
  */
 export const CAREER: {
     company: string

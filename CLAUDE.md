@@ -314,7 +314,10 @@ The entries below are the ones carrying non-obvious constraints:
 - `CAREER[0].job_name`: the site's only record of the current job. Most surfaces derive from
   it; `README.md`'s lede and `public/resume.pdf` are typed copies, and one of them has been
   wrong before. The README is gated — including against a title from further down the list,
-  which is the defect the intro card once shipped. The PDF cannot be, and is owed by hand
+  which is the defect the intro card once shipped. **The PDF is gated in HALF**: its declared
+  `/Title` — what a browser tab and a search result show — is held to this value by
+  `tests/content.test.ts`, which also refuses a title from further down the list. Its BODY text
+  is unreachable from here and is still owed by hand on every re-export
 - `NEXT_RACE`: the goal cards' countdown ladder and the control's label — width-budgeted,
   and the label is also the heading of the page it opens; see the note there
 - `EVENTS`: every race entered, in any year, collected from `src/data/races/` by the
@@ -326,9 +329,13 @@ The entries below are the ones carrying non-obvious constraints:
   carrying no recordings. Every consumer reads `raceKm`, which rounds the metres DOWN to two
   places — Strava's own rule, and the input is the API's `distance` rather than anything
   Strava renders. That rounding has been reversed twice and is now one line in `kmFromMetres`
-  rather than a figure in every row, which is the point of storing the metres. Nothing
-  offline can catch a mistyped `metres`; only `tests/strava-verify.test.ts` can, and it is
-  opt-in.
+  rather than a figure in every row, which is the point of storing the metres. **WHETHER an
+  offline run catches a mistyped `metres` depends on the race's YEAR**, and knowing which
+  half you are editing is the useful part: a row inside `GOAL_YEAR` feeds the projection's
+  published figures, so `tests/derived-figures.test.ts` reddens on it — measured by adding a
+  kilometre to one recording, which took exactly that one test red. A past-year row feeds no
+  derived figure and is green everywhere; only
+  `tests/strava-verify.test.ts` reads the API, and it is opt-in.
   **`advertised_km` IS THE ORGANISER'S DISTANCE AND MAY SIT BESIDE THE METRES**, which is the
   one guard the ledger cost: that field was `km?: never` on a recorded race, so the compiler
   refused the pair. It cannot now, because the pair is the ledger's whole subject. What the

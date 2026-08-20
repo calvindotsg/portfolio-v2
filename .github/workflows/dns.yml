@@ -245,9 +245,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    # The write token lives ONLY here, as an environment secret behind whatever reviewers the
-    # `dns` environment requires. That is structural, and it fails differently from the `if:`
-    # above: a job without `environment: dns` cannot read the secret at all. The invariant that
+    # The write token lives ONLY here, as an environment secret. WHAT IS STRUCTURAL IS THE
+    # SCOPING AND NOT A REVIEW: a job without `environment: dns` cannot read the secret at all,
+    # which is how this fails differently from the `if:` above. This sentence used to say the
+    # secret sat "behind whatever reviewers the dns environment requires", which is satisfied by
+    # none and was read as a control by a reader who went looking for one. Measured against the
+    # live API: the environment carries exactly one protection rule and it is the branch policy —
+    # the same backstop the `if:` above already names. There are no required reviewers, and if
+    # any are ever added, this comment is where to say so. The invariant that
     # keeps it meaningful is the same one `ci.yml` states for CLOUDFLARE_API_TOKEN — there must
     # be no repository-level secret of this name, or every job inherits it and the environment
     # buys nothing.
