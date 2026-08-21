@@ -5,6 +5,15 @@ produced the first proposals here since 028 landed; all of them — 029 through 
 archived and live, as are plans 024–028. 035 did not come from that audit and is done too, so the
 next run starts from an empty directory and the numbering rule below rather than from a backlog.
 
+**035 is the first plan whose defect was in its own prescribed CODE rather than in a premise, and it
+shipped green.** Six runs of executors measuring what a plan asserted, and nobody checked whether the
+snippet a plan told them to type obeyed this repository's documented conventions: step 1 put a
+mailbox, an external URL and a maintenance date in `src/pages/`, which the Configuration rule does not
+allow as a home for any of them. Every gate passed, because that rule is prose. Read a plan's code
+against `CLAUDE.md` before typing it, the same way its premises get measured rather than read — see
+[`done/README.md`](done/README.md) § "Plan 035" for what it cost and why a gate for it is harder than
+it looks.
+
 **Every plan in this set so far has carried defects its executor had to measure rather than read,
 and 032 is the first whose executor DELETED one of the plan's own findings** — it claimed a gate was
 vacuous, the mutation it named to prove that came back red, and the step was not taken. That makes
