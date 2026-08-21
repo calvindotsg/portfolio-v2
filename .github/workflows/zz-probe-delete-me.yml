@@ -5,6 +5,9 @@
 # about whether a zero-scope token can still read public content. The origin canary declares an
 # empty block, so this is load-bearing for it — and a new `workflow_dispatch` workflow cannot be
 # dispatched until it is on the default branch, which makes `push` the only pre-merge probe.
+#
+# It deliberately does NOT run the canary script: doing so would make this the second workflow
+# matching the canary gate's discovery rule, which asserts there is exactly one.
 
 name: zz probe delete me
 
@@ -22,9 +25,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: prove the tree is really here
         run: |
-          echo "checkout under permissions: {} succeeded"
+          echo "checkout under an empty permissions block succeeded"
           test -f astro.config.mjs
-          test -x scripts/origin-canary.sh
+          test -x scripts/*-canary.sh
           git rev-parse HEAD
-      - name: and that the canary itself runs with no credential
-        run: scripts/origin-canary.sh "$(grep -o 'site: *"[^"]*"' astro.config.mjs | grep -o 'https://[^"/]*' | head -1)"
+          curl -sS -o /dev/null -w 'public fetch from the runner: %{http_code}\n' https://calvin.sg/
