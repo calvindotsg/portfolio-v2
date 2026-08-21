@@ -2188,3 +2188,108 @@ the new document with two planted stimuli. The canary is green against `calvin.s
 `calvindotsg.pages.dev`, which is the non-degeneracy control the plan named as its own STOP
 condition — and it now runs weekly with an empty permissions block, which was measured rather than
 read.
+
+## Plan 035 — the machine-readable security contact, and an expiry that can lapse
+
+Merged as `3f1d582` (#190), and live. A small plan whose interesting parts were all in the
+places it did not look: **its own done criterion contradicted its own prescribed code**, its scope
+list missed two comments the change falsifies, and the one thing nobody could read off the plan —
+whether the file survives the trip to the host — turned out to be the only question worth measuring.
+
+### The plan defect: a criterion that its own step 1 cannot satisfy
+
+Done criterion 5 was `grep -c "calvin.sg" src/pages/.well-known/security.txt.ts` returning `0`,
+glossed as *"the origin is derived from `site`, never written down twice"*. Step 1's own target
+shape declares `CONTACT` as `mailto:security@calvin.sg`. Following the steps therefore fails the
+criterion, measured at **2**.
+
+The gloss is the part that is right, and it holds: `grep -c "https://calvin.sg"` returns **0**. What
+the criterion did was reach for a cheap predicate over the whole domain when the property it wanted
+was about the ORIGIN. **A mailbox is not an origin**, and the difference is load-bearing rather than
+pedantic — deriving `security@${host}` from `site` would silently repoint the security contact the
+day the site changes hosts, which is the exact failure the criterion exists to prevent, committed in
+its own name. The criterion was not weakened to pass; it was reported, with the corrected predicate
+beside it.
+
+### The deploy path was the real question, and it was answerable from source
+
+A route that builds locally and never reaches the host is invisible to every gate in this
+repository, all of which read `dist/`. Two mechanisms sit between `dist/.well-known/security.txt`
+and a live URL, and neither was taken on trust:
+
+- **Astro emits it at all.** `create-manifest.js` in the installed `astro@7.2.2` skips every
+  dot-prefixed entry under `src/pages/` **except** `.well-known`, which it special-cases by name.
+- **wrangler uploads it.** `packages/wrangler/src/pages/validate.ts` walks the directory with an
+  `IGNORE_LIST` of nine explicit patterns — `_worker.js`, `_redirects`, `_headers`, `_routes.json`,
+  `functions`, `**/.DS_Store`, `**/node_modules`, `**/.git`, `.wrangler` — and **no hidden-file rule
+  of any kind**. Its own suite asserts the case directly.
+
+Both were read rather than assumed, and the preview deploy then confirmed the result end to end
+before the merge.
+
+### A flag written for a hypothetical became load-bearing, and two comments said otherwise
+
+`include-hidden-files: true` on the artifact upload was added by an earlier plan against a case that
+did not exist. It exists now. Removing that line would publish a site whose security contact 404s
+while every local preview serves it and the whole suite stays green — which is precisely the failure
+its own comment described, in the future tense.
+
+So two comments were repointed, both of which had sized the flag as defensive:
+
+- `.github/workflows/ci.yml` said *"There is no such file today"*. **`.github/workflows/ci.yml` is
+  outside the plan's in-scope list** — a declared deviation, taken because leaving a stale fact
+  standing as the REASON for a load-bearing line is the more expensive error.
+- The dist-root allow-list's rationale carried the same hypothetical.
+
+### The gate predicted its own stimulus by name and still got the shape wrong
+
+`"ships nothing at the root of dist/ but the files it is supposed to"` had already written down what
+would one day break it: *"Adding a legitimate root file — a `security.txt`, a verification token, a
+fifth control file Cloudflare introduces — reddens here and must be added below on purpose."*
+
+It was right about the subject and wrong about the shape. RFC 9116 does not put `security.txt` at the
+root; it puts it under `/.well-known/`, so what arrived was a **directory**, caught by the sibling
+assertion with a different message. Measured rather than assumed: removing `.well-known` from
+`ALLOWED_DIRECTORIES` against the real build gives exactly one failure, and it is the directory
+half. **A comment that names its future stimulus is still not a scope list** — the plan named
+neither half, and the file was in scope only because the new test lives in it.
+
+### `Expires` is the only field here that can go wrong quietly
+
+RFC 9116 requires it, and it is the whole reason the file is not fire-and-forget. The obvious
+implementation — build date plus a year — satisfies the spec and defeats the field on a site that
+rebuilds nightly: the value moves forward forever, so the file can never expire, and the one thing
+`Expires` is for is forcing a human to re-confirm the mailbox. It also collides with the rule
+`astro.config.mjs` already argues at length for `lastmod`.
+
+So it is a constant, and the gate is what stops a constant rotting. **Both of its assertions were
+mutation-tested separately**, because an ordered pair where the first shadows the second is a gate
+that reports the wrong reason:
+
+- `2020-01-01T00:00:00.000Z` → 1 failed / 600 passed, on the freshness assertion, naming the file to
+  edit.
+- `20-08-2027` → 1 failed / 600 passed, on *"not a date a client can parse"*, so an unreadable value
+  cannot pass as "not yet expired".
+
+The failure message says to re-confirm the mailbox **before** pushing the date, because the only
+thing the gate can see is a number.
+
+### `Canonical` excludes the Pages hostname on purpose
+
+RFC 9116 says a reader that retrieved the file from a URI no `Canonical` field lists SHOULD NOT trust
+its contents. The same bytes are fetchable at the deployment hostname, and it is deliberately not
+listed: the deployment hostname is an artifact of the host, and naming it would tell a scanner that
+an address this project does not publish is an equally good place to report a vulnerability.
+
+That also makes the production check stronger than a status code. The live URL answers **200
+`text/plain; charset=utf-8`** with `Canonical` naming the very URI it was fetched from, which is the
+condition the RFC puts on trusting the contents at all — a 200 alone would not have said that.
+
+### The order of the two repositories, which the plan had backwards by one step
+
+Step 5 adds a sentence to the inherited security policy saying the file is published; step 6
+confirms it actually is. The plan numbered them in that order while also instructing, inside step 5,
+not to claim the file is live until step 6 confirms it. Those cannot both be followed, and the file
+in question is served on every repository on the account — so the steps were run in the order the
+instruction implies rather than the order they are numbered in, and the sentence was written only
+once the production URL had answered.
