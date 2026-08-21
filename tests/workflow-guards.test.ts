@@ -2068,6 +2068,46 @@ describe("the origin canary holds nothing it does not need", () => {
     });
 });
 
+describe("no step hands its exit status to the last command in a pipe", () => {
+    /**
+     * THIS SHIPPED, INSIDE THE CHANGE THAT ADDED THE CHECK IT BROKE.
+     *
+     * GitHub runs `run:` bodies under `bash -e`, which does NOT set `pipefail`, so a pipeline exits
+     * with the status of its LAST command — and `tee` succeeds whatever it was handed. MEASURED on
+     * the first real run of the retention job: the script exited non-zero having failed 78 of 136
+     * deletions, every refusal a real one, and the job rendered as a green tick. The stale file the
+     * whole step was written to retire was still answering 200 afterwards.
+     *
+     * SWEPT OVER EVERY WORKFLOW rather than over the ones that do it today, because the shape is
+     * what recurs: piping a program into `tee` to get its output into both the log and the job
+     * summary is the obvious thing to reach for, and it discards the answer in silence.
+     *
+     * ANY OF THE THREE RECOVERIES IS ACCEPTED — read `PIPESTATUS`, turn `pipefail` on, or do not
+     * pipe at all and write to a file instead. Pinning one spelling would redden a correct fix,
+     * which is how a gate gets loosened rather than obeyed.
+     *
+     * DELIBERATELY NO FLOOR, AND REACH MEASURED INSTEAD. A sweep that matches nothing passes, and
+     * most gates in this file assert a floor for exactly that reason — but zero piped steps is a
+     * CORRECT state of this repository, so a floor here would redden the day the last one is
+     * rewritten. What replaces it is a mutation: deleting the `PIPESTATUS` line from the canary
+     * turns this red, which is what says the sweep reaches a real step rather than an empty set.
+     */
+    it("recovers the real status wherever it pipes into tee", () => {
+        const piped = ALL_STEPS.filter(({step}) => (step.run ?? "")
+            .split("\n")
+            .filter((line) => !/^\s*#/.test(line))
+            .some((line) => /\|\s*tee\b/.test(line)));
+        for (const {where, step} of piped) {
+            const body = step.run ?? "";
+            expect(/PIPESTATUS/.test(body) || /pipefail/.test(body), `${where} pipes into \`tee\`, so under `
+                + "bash -e — which GitHub uses, and which does NOT set pipefail — this step exits with tee's "
+                + "status, and tee succeeds whatever it was handed. The program's own failure is discarded and "
+                + "the job renders green. Read PIPESTATUS, set -o pipefail, or write the output to a file and "
+                + "print it rather than piping.").toBe(true);
+        }
+    });
+});
+
 /**
  * THE ONE WORKFLOW THAT DELETES SOMETHING PERMANENTLY, discovered from the script it runs for the
  * same reason as the canary above. There is no undo and `wrangler pages` has no rollback, so the
