@@ -1,8 +1,9 @@
 # Implementation Plans
 
-**One plan is queued: 035.** It does not come from an audit. The two-run security audit of this
-repository completed on 2026-08-18 produced the first proposals here since 028 landed, and all of
-them — 029 through 034 — are now merged, archived and live, as are plans 024–028.
+**Nothing is queued.** The two-run security audit of this repository completed on 2026-08-18 and
+produced the first proposals here since 028 landed; all of them — 029 through 034 — are merged,
+archived and live, as are plans 024–028. 035 did not come from that audit and is done too, so the
+next run starts from an empty directory and the numbering rule below rather than from a backlog.
 
 **Every plan in this set so far has carried defects its executor had to measure rather than read,
 and 032 is the first whose executor DELETED one of the plan's own findings** — it claimed a gate was
@@ -188,7 +189,7 @@ recreated.
 | 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **DONE** (`4583bd1`) |
 | 033 | The six remaining hardenings | P3 | S | 029, 030 | **DONE** (`cca3d8b`) |
 | 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **DONE** (`5b90ed0`) |
-| 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **TODO** |
+| 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **DONE** (`3f1d582`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -288,7 +289,7 @@ Measured — the archive mentions none of `control-geometry`, `page-fit`,
 | direct dependencies | derive: `jq '(.dependencies + .devDependencies) | length' package.json` (**21** at 2026-08-07) |
 | client JavaScript | **zero external files**, which is not the same as none. **Three first-party scripts, all inline**: the pre-paint theme resolver and the press-hold (`data-leaving`) listener, both in `BasicLayout.astro` and on every page, plus `ThemeSwitcher`'s toggle listener, inlined as a module on the home page only. The ~525 B figure quoted here before was the theme resolver alone, and it was labelled as the total. **Nothing gates this row**, and the general reason is enough: pinning a count is what puts a rotting fact somewhere nobody revisits. This entry used to add that a census gate "was written and then deliberately deleted", which git does not support — `git log --all -S 'querySelectorAll("script")' -- tests/` returns exactly one commit, and that commit ADDED the inline-script filter still live in `tests/rendered-html.test.ts`. No such gate has ever existed, so the row was resting a correct instruction on an event that did not happen. Re-derive the count from the script elements in `dist/` when you touch it |
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
-| components | 15 `.astro` files (11 components, 1 layout, 3 page routes → **5 prerendered pages**: `/`, `/patches`, `/patches/cycling`, `/patches/running` and `/404`, plus the `robots.txt` and `llms.txt` endpoints); **no UI framework**, no `.svelte`, no islands |
+| components | 15 `.astro` files (11 components, 1 layout, 3 page routes → **5 prerendered pages**: `/`, `/patches`, `/patches/cycling`, `/patches/running` and `/404`, plus the generated text endpoints, of which `/.well-known/security.txt` is the one that is not at the root — derive the set from the routes `pnpm build` prints); **no UI framework**, no `.svelte`, no islands |
 | `uno.config.ts` | derive: `wc -l uno.config.ts` (**700** at 2026-08-08) — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale. The figure here read 719 until run 6 re-derived it; the file was 700 lines at `219dcde` too, so that number was never right rather than having gone stale — which is what "derive" in this cell is for |
 | tests | **533** assertions across **18** files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, measured 2026-08-08 after run 6. A 19th file, `tests/strava-verify.test.ts`, holds 7 more and is opt-in — it skips by default, so it contributes none of the 533. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it into three kinds — a current-state document (this table included) is gated for accuracy; `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*, forbidden from stating a count, a component filename or an exported constant at all and required to say where each is derived instead; and a numbered plan is a *proposal*, exempt from the checks that hold a name against a tree it exists to change. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
