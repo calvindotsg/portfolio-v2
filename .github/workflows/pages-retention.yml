@@ -1,0 +1,120 @@
+# Retire Cloudflare Pages preview deployments that nothing points at any more.
+#
+# WHY A DEPLOY IS NOT THE END OF A DEPLOYMENT'S LIFE. A preview deployment is permanent: removing
+# a file from `public/` does not unpublish it, and until this workflow existed nothing retired
+# them. So a preview alias goes on serving whatever it was built with, and the assumption that
+# the current tree describes what is served quietly stops being true. Measured while plan 034 was
+# written: an alias for a long-merged pull request was serving a résumé that advertised a job
+# title a merged pull request had already corrected.
+#
+# BOUNDED RATHER THAN ALARMING, which is why this is retention and not an incident: every preview
+# alias carries `x-robots-tag`, this repository is public, and the superseded file is in git
+# history either way. The reason to fix it is that it makes `HEAD` an unreliable description of
+# what the internet can fetch.
+#
+# THIS IS THE ONLY WORKFLOW IN THIS REPOSITORY THAT DELETES SOMETHING PERMANENTLY, and both of the
+# controls below exist because of that rather than out of caution:
+#
+#   1. THE DEFAULT IS A REPORT. `scripts/pages-retention.mjs` deletes nothing unless handed
+#      `--delete`, so the scheduled run and a bare dispatch both classify and print. The list is
+#      meant to be read by a person before anything is removed.
+#   2. DELETING IS BOUND TO THE DEFAULT BRANCH. A dispatch asking to delete from any other ref is
+#      refused below. `workflow_dispatch` runs against ANY ref, so without this a branch could
+#      carry an edited classifier straight to the irreversible call — the guard is on the ref
+#      because that is the thing the edited classifier cannot change about itself.
+#
+# The classifier's own guarantees — keep unless argued down, production never touched, an
+# unreadable pull-request state keeps rather than deletes — are documented in the script, and its
+# refusal fires immediately before the request rather than restating its own classification.
+#
+# EVERY `permissions:` BLOCK REPLACES THE DEFAULTS WHOLESALE; an unlisted scope is `none`.
+
+name: Pages retention
+
+on:
+  schedule:
+    # 21:23 UTC Wednesday = 05:23 SGT Thursday. Off the top of the hour, on a weekday, and on a
+    # different day from both `dns.yml` and `origin.yml` — the same reasoning those two give.
+    - cron: "23 21 * * 3"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: >-
+          `report` classifies every deployment and prints the deletable set without touching
+          anything. `delete` removes that set and CANNOT BE UNDONE — it is refused on any ref
+          other than the default branch.
+        required: false
+        default: report
+        type: choice
+        options: [report, delete]
+
+concurrency:
+  # Two of these running together would race on the same deletions, and a cancelled run part-way
+  # through a delete loop leaves no record of how far it got.
+  group: pages-retention
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  retention:
+    name: retention
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Reading whether a pull request is open is the whole basis for keeping a preview. This
+      # repository is public, so the request would answer unauthenticated too — the scope is here
+      # to raise the rate limit and to keep the workflow honest about what it reads.
+      pull-requests: read
+    # The same account-scoped `Pages: Edit` token the preview deploys use. Cloudflare offers no
+    # per-project scope for Pages, so this token can also publish; the environment is what binds
+    # THIS copy to a policy, exactly as `ci.yml` describes for its own two copies.
+    environment:
+      name: preview
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      # THE REF GUARD, RESOLVED BEFORE THE CREDENTIAL IS USED. Spelled as a step rather than a
+      # job-level `if:` so that a refused dispatch FAILS and is visible: a skipped job renders as
+      # a grey check that reads as a pass, which is the wrong way for a refusal to appear.
+      - name: decide what this run may do
+        id: mode
+        env:
+          MODE: ${{ github.event.inputs.mode }}
+          REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ format('refs/heads/{0}', github.event.repository.default_branch) }}
+        run: |
+          MODE=${MODE:-report}
+          if [ "$MODE" = "delete" ] && [ "$REF" != "$DEFAULT_BRANCH" ]; then
+            echo "::error::this dispatch asked to DELETE from $REF, but deleting is bound to $DEFAULT_BRANCH. Deployments cannot be restored, so a classifier edited on a branch does not get to run the irreversible half. Re-dispatch from the default branch once the change is merged."
+            exit 1
+          fi
+          if [ "$MODE" = "delete" ]; then
+            echo "args=--delete" >> "$GITHUB_OUTPUT"
+            echo "deleting the classified set"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+            echo "reporting only; nothing will be deleted"
+          fi
+
+      - name: classify deployments
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PROJECT: calvindotsg
+          GITHUB_TOKEN: ${{ github.token }}
+          ARGS: ${{ steps.mode.outputs.args }}
+        run: |
+          node scripts/pages-retention.mjs $ARGS | tee "$RUNNER_TEMP/retention.txt"
+          {
+            echo "### Pages retention"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/retention.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

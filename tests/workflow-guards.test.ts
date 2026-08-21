@@ -1898,3 +1898,227 @@ describe("the unattended deploy names the ref it publishes", () => {
         }
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE TWO HALVES OF GOVERNING THE ORIGIN, AND THE REASON THEY ARE ASSERTED SEPARATELY.
+ *
+ * Until plan 034 this repository governed the artifact and nothing governed the origin: no test,
+ * in CI or in the suite, ever fetched the live site, so `CLAUDE.md`'s central claim — that what
+ * ships is the artifact the suite gated — was true at rest and false on the wire for as long as
+ * Cloudflare Rocket Loader was rewriting the shipped script tags.
+ *
+ * The fix is two checks answering two different questions, and the thing most worth holding is
+ * that they STAY two. Release verification belongs in the deploy, where a failure means the deploy
+ * failed. Zone drift belongs on a schedule, because nobody deployed when a dashboard toggle moved
+ * — binding it to a deploy reddens a build for something the build did not cause and notices only
+ * when someone happens to ship. A future refactor that merges them reintroduces both defects, and
+ * both would look like a tidy-up in review.
+ */
+const productionJobs = jobIds.filter((id) => environmentNameOf(id) === "production");
+
+describe("the production deploy is verified against the origin it publishes to", () => {
+    /**
+     * DERIVED FROM WHAT THE STEPS DO, NEVER FROM A STEP NAME. A name is a convention and this
+     * file's own docblock is about why that is the weaker form: renaming the step would leave
+     * this gate passing against nothing, and renaming it is precisely what a refactor does. The
+     * step is found by the two things it must do — reach the network, and compare against the
+     * artifact this job is publishing — and by sitting after the step that publishes it.
+     */
+    const deployIndexOf = (id: string) =>
+        (CI.jobs[id]?.steps ?? []).findIndex((s) => /wrangler[^\n]*pages deploy/.test(s.run ?? ""));
+
+    const verifiers = (id: string) => {
+        const after = deployIndexOf(id);
+        return (CI.jobs[id]?.steps ?? [])
+            .map((step, index) => ({step, index}))
+            .filter(({step, index}) => index > after
+                && /\bcurl\b/.test(step.run ?? "")
+                && /\bdist\//.test(step.run ?? ""));
+    };
+
+    it("finds a production deploy that publishes at all, so the rows below are not vacuous", () => {
+        expect(productionJobs, "no job in ci.yml declares the production environment, so this whole block "
+            + "inspects nothing").not.toEqual([]);
+        for (const id of productionJobs) {
+            expect(deployIndexOf(id), `job "${id}" is the production deploy but no step of it invokes `
+                + "`wrangler pages deploy`, so there is no publish for a verification step to sit after.")
+                .toBeGreaterThanOrEqual(0);
+        }
+    });
+
+    it("reads the live origin after publishing, and compares it against the artifact just uploaded", () => {
+        for (const id of productionJobs) {
+            const found = verifiers(id);
+            expect(found.map((f) => f.step.name ?? "(unnamed)"), `job "${id}" publishes the site and then never `
+                + "reads it back. Nothing in this repository fetches the live origin, so the deploy's own claim "
+                + "that the gated artifact is what ships is unverified — which is how four rewritten script tags "
+                + "shipped on production for years. Add a step after the wrangler deploy that fetches the origin "
+                + "and requires it to reference the content-hashed assets in dist/index.html.").not.toEqual([]);
+        }
+    });
+
+    /**
+     * A CHECK THAT CANNOT FAIL IS NOT A CHECK, and this file has a whole block about walking into
+     * exactly that. A verification step carrying `continue-on-error`, or guarded so it does not
+     * run on the path that publishes, is the alarm switched off while still reading as installed.
+     */
+    it("lets that verification fail the run, on every path that publishes", () => {
+        for (const id of productionJobs) {
+            for (const {step} of verifiers(id)) {
+                const where = `ci.yml → ${id} → ${step.name ?? "(unnamed step)"}`;
+                expect(NEUTERED(step["continue-on-error"]), `${where} carries continue-on-error, so it can `
+                    + "detect a deploy that never reached the edge and let the run go green anyway.").toBe(false);
+                expect(stepAlwaysRuns(step), `${where} is guarded by \`if: ${String(step.if)}\`, so on at least `
+                    + "one path that publishes it does not run — and a skipped step renders as a pass.").toBe(true);
+            }
+        }
+    });
+
+    /**
+     * THE ARTIFACT NAMES THE ORIGIN, AND THAT IS THE PROPERTY WORTH PINNING. These jobs have no
+     * checkout by design, so the host cannot be read from `astro.config.mjs` here; writing it into
+     * the workflow instead would be a second home for a value this repository already keeps in
+     * one place, and it would go stale in silence the day the site moved. Asserting that the step
+     * derives it rather than hardcodes it is what keeps that true.
+     */
+    it("derives the host it fetches rather than writing one into the workflow", () => {
+        for (const id of productionJobs) {
+            for (const {step} of verifiers(id)) {
+                const where = `ci.yml → ${id} → ${step.name ?? "(unnamed step)"}`;
+                const literals = [...(step.run ?? "").matchAll(/curl[^\n]*?(https?:\/\/[a-z0-9.-]+)/g)].map((m) => m[1]);
+                expect(literals, `${where} curls the literal host(s) ${JSON.stringify(literals)}. The artifact `
+                    + "declares the origin it expects to be served from in its own canonical link; reading it "
+                    + "from there keeps one home for that value, and a literal here silently verifies the wrong "
+                    + "host the day the site moves.").toEqual([]);
+            }
+        }
+    });
+});
+
+/**
+ * THE CANARY, DISCOVERED FROM THE SCRIPT IT RUNS rather than from a filename. The workflow could
+ * be renamed and the property this block holds would be unchanged; what cannot be renamed without
+ * changing the behaviour is which program does the checking.
+ */
+const canaryWorkflows = WORKFLOWS.filter(({doc}) =>
+    Object.values(doc.jobs ?? {}).some((job) => (job.steps ?? [])
+        .some((step) => /origin-canary\.sh/.test(step.run ?? ""))));
+
+describe("the origin canary holds nothing it does not need", () => {
+    it("exists, and there is exactly one of it", () => {
+        expect(canaryWorkflows.map((w) => w.file), "no workflow runs the origin canary script, so nothing in "
+            + "this repository ever reads the live site and every assertion below is vacuous").not.toEqual([]);
+        expect(canaryWorkflows).toHaveLength(1);
+    });
+
+    /**
+     * AN EMPTY BLOCK, ASSERTED AS EMPTY RATHER THAN AS PRESENT. Everything the canary reads is
+     * public, so it needs no scope at all — which makes it the lowest-privilege job here, the
+     * right shape for the thing that watches everything else. `permissions: {}` and
+     * `permissions: {contents: read}` both satisfy the presence gate further up this file; only
+     * this one says the canary has not quietly acquired a capability.
+     */
+    it("grants no scope to any of its jobs", () => {
+        for (const {file, doc} of canaryWorkflows) {
+            for (const [id, job] of Object.entries(doc.jobs ?? {})) {
+                const permissions = effectivePermissions({doc, job});
+                expect(permissions, `${file} → ${id} declares no permissions block at all, so it inherits the `
+                    + "repository default.").toBeDefined();
+                expect(permissions, `${file} → ${id} grants ${JSON.stringify(permissions)}. The canary reads a `
+                    + "public site and needs nothing; a scope here is a capability attached to the one job whose "
+                    + "whole value is that it has none.").toEqual({});
+            }
+        }
+    });
+
+    /**
+     * NO SECRET, ANYWHERE IN THE FILE. The moment this workflow needs a credential it has stopped
+     * being a check on a public surface and its threat model has changed — so the failure message
+     * points at that decision rather than at a spelling. Both spellings of the reference are
+     * matched, for the reason the canary block above gives about the index form.
+     */
+    it("reads no secret", () => {
+        for (const {file, doc} of canaryWorkflows) {
+            const named = [...JSON.stringify(doc)
+                .matchAll(/secrets\s*(?:\.\s*|\[\s*\\?['"])([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]);
+            expect(named, `${file} reads ${JSON.stringify(named)}. This workflow watches a public origin and is `
+                + "the lowest-privilege job in the repository on purpose. If it now needs a credential, the check "
+                + "it is performing has changed kind and belongs where the credential already lives.").toEqual([]);
+        }
+    });
+
+    /**
+     * SCHEDULED, WHICH IS THE ENTIRE POINT. A zone setting changes without anybody deploying, so a
+     * canary that only ran on demand would report drift exactly when someone already suspected it.
+     * Asserted alongside the absence of a `pull_request` trigger, which is the other half of the
+     * same decision: every assertion in this canary is about a LIVE origin, so running it on pull
+     * requests would fail somebody's unrelated change on the day a dashboard toggle moved.
+     */
+    it("runs on a schedule, and not on pull requests", () => {
+        for (const {file, doc} of canaryWorkflows) {
+            const triggers = (doc as {on?: Record<string, unknown>}).on ?? {};
+            expect(Object.keys(triggers), `${file} declares no schedule, so nothing notices a zone change until `
+                + "somebody thinks to look — which is the failure this workflow exists to end.").toContain("schedule");
+            expect(Object.keys(triggers), `${file} runs on pull requests. Its assertions are about a live origin, `
+                + "so it would redden an unrelated change for something that change did not cause — the exact "
+                + "coupling this workflow was split out of the deploy to avoid.").not.toContain("pull_request");
+        }
+    });
+});
+
+/**
+ * THE ONE WORKFLOW THAT DELETES SOMETHING PERMANENTLY, discovered from the script it runs for the
+ * same reason as the canary above. There is no undo and `wrangler pages` has no rollback, so the
+ * controls around it are worth more than the classifier's own correctness: a classifier can be
+ * reviewed, and a dispatch from an unreviewed branch cannot.
+ */
+const retentionWorkflows = WORKFLOWS.filter(({doc}) =>
+    Object.values(doc.jobs ?? {}).some((job) => (job.steps ?? [])
+        .some((step) => /pages-retention\.mjs/.test(step.run ?? ""))));
+
+describe("the only workflow that deletes something permanently", () => {
+    it("exists, so the rows below are not vacuous", () => {
+        expect(retentionWorkflows.map((w) => w.file), "no workflow runs the retention script")
+            .not.toEqual([]);
+    });
+
+    /**
+     * DELETING IS NOT THE DEFAULT, AND THE DEFAULT IS WHAT A SCHEDULED RUN GETS. The script
+     * removes nothing unless handed its delete flag, so the scheduled run classifies and prints —
+     * the list is meant to be read before anything goes. A default that deleted would turn the
+     * first bad classifier edit into an unrecoverable overnight event with nobody watching.
+     */
+    it("defaults to reporting rather than deleting", () => {
+        for (const {file, doc} of retentionWorkflows) {
+            const inputs = ((doc as {on?: {workflow_dispatch?: {inputs?: Record<string, {default?: string}>}}})
+                .on?.workflow_dispatch?.inputs) ?? {};
+            const modes = Object.entries(inputs).filter(([, spec]) => spec.default !== undefined);
+            expect(modes, `${file} takes no dispatch input with a default, so what a bare run does is decided `
+                + "inside the script alone and this file cannot say which half is the default.").not.toEqual([]);
+            for (const [name, spec] of modes) {
+                expect(String(spec.default), `${file} defaults its \`${name}\` input to \`${spec.default}\`. `
+                    + "The irreversible half must be asked for explicitly.").not.toMatch(/delete/i);
+            }
+        }
+    });
+
+    /**
+     * THE REF GUARD, WHICH IS THE CONTROL AN EDITED CLASSIFIER CANNOT TALK ITS WAY PAST.
+     * `workflow_dispatch` runs against ANY ref, so without this a branch carrying a rewritten
+     * classifier reaches the irreversible call directly. Asserted as a refusal in a `run:` body
+     * rather than as a job-level `if:` on purpose: a skipped job renders as a grey check that
+     * reads as a pass, and a refusal has to be visible.
+     */
+    it("binds the irreversible half to the default branch", () => {
+        for (const {file, doc} of retentionWorkflows) {
+            const guards = Object.values(doc.jobs ?? {}).flatMap((job) => (job.steps ?? [])
+                .filter((step) => /default_branch/.test(JSON.stringify(step.env ?? {}))
+                    && /exit 1/.test(step.run ?? "")));
+            expect(guards, `${file} never compares the ref it is running on against the repository's default `
+                + "branch. Deployments cannot be restored, and a dispatch can name any ref, so the delete path "
+                + "would be reachable from a branch whose classifier nobody reviewed.").not.toEqual([]);
+        }
+    });
+});

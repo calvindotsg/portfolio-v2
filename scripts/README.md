@@ -1,15 +1,40 @@
 # Scripts
 
-Everything the site needs from Strava. Plain node, zero dependencies, no TypeScript — because
-`.github/workflows/strava-progress.yml` runs one of these on GitHub Actions' preinstalled node
-with no `pnpm install` in front of it, and a dependency would buy an install step on the one
-path nobody watches.
+**Two kinds of thing live here, and the second kind arrived later.** Most of this directory is
+everything the site needs from Strava; the rest watches the origin the site is served from. Both
+are plain node or plain shell with zero dependencies, no TypeScript — because the workflows that
+run them do so on GitHub Actions' preinstalled node with no `pnpm install` in front of them, and a
+dependency would buy an install step on the paths nobody watches.
 
 Each file argues its own decisions at the line that makes them. This page is the part that
 lives nowhere else: how they are invoked, what the nightly run does, and where the credentials
 come from.
 
-## The scripts
+## Watching the origin
+
+Neither of these is about Strava, and neither is invoked by hand as a chore. They exist because
+this repository governed the artifact and nothing governed the origin — see
+[`../dns/EDGE.md`](../dns/EDGE.md) for what that meant in practice.
+
+**`scripts/origin-canary.sh`** — `scripts/origin-canary.sh <origin-url>`. Asks a live origin
+whether the edge in front of it is still serving the artifact unmodified: no injected loader, no
+rewritten script tags, every header the artifact declares, every published root file reachable,
+and the card readable from a foreign referrer. It holds **no credential** and must not acquire
+one; everything it reads is public, which is what lets
+`.github/workflows/origin.yml` declare an empty permissions block. It has three answers rather
+than two — clean, drifted, and *could not tell* — for the reason `dns/drift.sh` gives about the
+last one. Its own header carries the two commands that verify it, including the control that
+proves its assertions discriminate.
+
+**`scripts/pages-retention.mjs`** — `node scripts/pages-retention.mjs [--delete]`. Classifies
+every Cloudflare Pages deployment as keep or delete and prints the result; it removes nothing
+unless handed the flag. This is the only thing in this repository that deletes something
+permanently, so it fails closed in every direction — production is never touched, a pull request
+whose state cannot be read keeps its preview, and a refusal fires immediately before the request
+rather than restating the classifier. `.github/workflows/pages-retention.yml` binds the
+irreversible half to the default branch.
+
+## The Strava scripts
 
 **`scripts/fetch-strava-progress.mjs`** — the bot. Fetches the athlete's year-to-date ride and
 run totals and writes `src/data/strava-progress.json`, which `src/data/goals.ts` imports. The
