@@ -5,7 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import {CAREER, PROJECTS, WELCOME} from "../src/content/home";
 import {PATCHES} from "../src/content/races";
-import {FOOTER, LINKS, METADATA} from "../src/content/site";
+import {FOOTER, LINKS, METADATA, SECURITY} from "../src/content/site";
 import {GOALS} from "../src/lib/goal";
 import {EVENTS} from "../src/data/races";
 import {raceKm, recordingsOf} from "../src/lib/race";
@@ -113,25 +113,40 @@ describe("dist/", () => {
      *
      * THE CANONICAL URI IS DERIVED THE WAY THE ENDPOINT DERIVES IT, from the configured origin
      * rather than from a literal, so this asserts the derivation instead of agreeing with a
-     * second copy of the origin. The contact address is a literal on both sides on purpose —
-     * it is a mailbox, not an origin, and computing it from the site's host would silently
-     * repoint the security contact the day the site moves hosts.
+     * second copy of the origin.
+     *
+     * THE CONTACT IS CHECKED TWICE, AND NEITHER HALF WOULD DO ALONE. Asserting the emitted
+     * line equals `SECURITY.contact` proves the WIRING — that the route still reads the
+     * content module — and it is the assertion that catches the address being re-hardcoded
+     * beside the `GET`, which is exactly what this endpoint shipped with. On its own it is
+     * vacuous about the VALUE: edit the mailbox to anything at all and the two sides move
+     * together. So the second half asserts a PROPERTY a copy cannot supply — the published
+     * address is a `mailto:` at the site's own host — which catches a typo or a foreign
+     * domain without writing the address down a second time. A literal here would be that
+     * second home, and the home for a configurable value is `src/content/`.
      */
     it("publishes a machine-readable security contact that has not lapsed", () => {
         expect(existsSync("dist/.well-known/security.txt"),
             "no security.txt was emitted — see the endpoint under src/pages/.well-known/").toBe(true);
         const securityTxt = read("dist/.well-known/security.txt");
-        expect(securityTxt).toContain("Contact: mailto:security@calvin.sg");
+        expect(securityTxt, "the emitted Contact does not match SECURITY.contact — the route has stopped "
+            + "reading src/content/site.ts").toContain(`Contact: ${SECURITY.contact}`);
         expect(securityTxt).toContain(`Canonical: ${new URL(".well-known/security.txt", METADATA.site_url).href}`);
+
+        const mailbox = /^mailto:[^@\s]+@(\S+)$/.exec(SECURITY.contact);
+        expect(mailbox, `SECURITY.contact is ${SECURITY.contact}, which is not a mailto: URI RFC 9116 can use`)
+            .not.toBeNull();
+        expect(mailbox![1], "the published security contact is not at this site's own host — a reporter would be "
+            + "sent to a domain this project does not control").toBe(new URL(METADATA.site_url).host);
 
         const expires = /^Expires:\s*(\S+)\s*$/m.exec(securityTxt);
         expect(expires, "security.txt carries no Expires line, and RFC 9116 requires one").not.toBeNull();
         const at = new Date(expires![1]).getTime();
         expect(Number.isNaN(at), `security.txt Expires reads ${expires![1]}, which is not a date a client can parse`)
             .toBe(false);
-        expect(at - Date.now(), "security.txt Expires is within 30 days — confirm security@calvin.sg still reaches "
+        expect(at - Date.now(), `security.txt Expires is within 30 days — confirm ${SECURITY.contact} still reaches `
             + "someone (the zone's Email Routing rule still exists and its destination is still verified) and THEN "
-            + "push the date in src/pages/.well-known/security.txt.ts")
+            + "push SECURITY.expires in src/content/site.ts")
             .toBeGreaterThan(30 * 24 * 60 * 60 * 1000);
     });
 

@@ -232,6 +232,48 @@ export const FOOTER: {
 }
 
 /**
+ * WHAT `/.well-known/security.txt` PUBLISHES — RFC 9116's machine-readable security contact.
+ *
+ * IT LIVES HERE BECAUSE ALL THREE FIELDS ARE THINGS A MAINTAINER EDITS, and this repository
+ * allows a configurable value exactly three homes: a GitHub repository secret, a repository
+ * variable, or its own content under `src/content/` and `src/data/`. README.md's
+ * Configuration section is the statement of that rule. The endpoint at
+ * `src/pages/.well-known/security.txt.ts` is a ROUTE — it decides the wire format and nothing
+ * else — so it holds no values of its own, the same way `src/pages/llms.txt.ts` holds none.
+ * The first version of that endpoint declared these three as module constants beside its own
+ * `GET`, which put a mailbox, an external URL and a maintenance date in the one directory the
+ * rule excludes. Nothing went red, because nothing gates that rule; it is prose, and prose is
+ * what this note is paying back.
+ *
+ * `expires` IS A HARD-CODED DATE AND MUST NOT BECOME A DERIVED ONE. RFC 9116 requires the
+ * field and recommends it stay under a year out; the value exists to force a human to
+ * periodically re-confirm that {@link SECURITY.contact} still reaches someone. Computing it
+ * from the build date would satisfy the spec and DEFEAT the field — this site rebuilds
+ * nightly, so the value would move forward forever and the file could never expire. It would
+ * also walk straight into the rule `astro.config.mjs` argues at length for `lastmod`, which
+ * closes by telling the next person not to reach for `BUILD_DATE`.
+ *
+ * SO THE LAPSE IS MADE LOUD INSTEAD: `tests/build-output.test.ts` fails the suite — and
+ * therefore the deploy — thirty days before this date. **When it goes red, the fix is not to
+ * push the date.** Confirm the zone's Email Routing rule for the address still exists and its
+ * destination is still verified, and only then move it.
+ *
+ * `policy` ADDRESSES ANOTHER REPOSITORY, which is why it is a literal origin where nothing
+ * else here is one: the security policy is inherited by every repository on the account, so it
+ * cannot be derived from this site's `site`. Nothing tests a cross-repository URL — if that
+ * file is renamed, this link breaks in silence.
+ */
+export const SECURITY: {
+    contact: string
+    expires: string
+    policy: string
+} = {
+    contact: "mailto:security@calvin.sg",
+    expires: "2027-08-20T00:00:00.000Z",
+    policy: "https://github.com/calvindotsg/.github/blob/main/SECURITY.md"
+}
+
+/**
  * Written once, read twice: as {@link METADATA.full_name} and inside
  * {@link METADATA.title}. A field of an object literal cannot reference a sibling field,
  * and the whole point of the title below is that it stops carrying its own copy of a fact.
