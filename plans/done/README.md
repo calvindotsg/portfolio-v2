@@ -2293,3 +2293,47 @@ not to claim the file is live until step 6 confirms it. Those cannot both be fol
 in question is served on every repository on the account — so the steps were run in the order the
 instruction implies rather than the order they are numbered in, and the sentence was written only
 once the production URL had answered.
+
+### The defect this plan actually shipped, and it was in the plan's own prescribed code
+
+Corrected by `05fce98` (#192) after the maintainer caught it, and it is the most instructive thing
+in this run because **every gate passed over it.**
+
+Step 1's target shape declared the three field values as module constants beside the endpoint's
+own `GET`:
+
+    const EXPIRES = "2027-08-20T00:00:00.000Z"
+    const CONTACT = "mailto:security@calvin.sg"
+    const POLICY  = "https://github.com/calvindotsg/.github/blob/main/SECURITY.md"
+
+`CLAUDE.md`'s Memories section and `README.md`'s Configuration section both allow a configurable
+value **exactly three** homes — a repository secret, a repository variable, or this repository's own
+content under `src/content/` and `src/data/`. A mailbox, an external URL and a date a maintainer must
+periodically push are all configurable values, and `src/pages/` is not one of the three. The executor
+typed the plan's code verbatim and shipped it.
+
+**Nothing could have caught it.** The rule is prose; `pnpm check`, `pnpm eslint` and 601 assertions
+all passed. That is not an argument for a gate so much as a warning about which rules have one —
+and a gate here is genuinely awkward, because a sweep of `src/` and `scripts/` for string constants
+outside the two content directories returns five others that are all LEGAL: CSS utility classes,
+Strava's URL scheme, Cloudflare's and GitHub's API bases, and `const SECRET = "STRAVA_REFRESH_TOKEN"`,
+which names a sanctioned home rather than holding a value. Any loose predicate reddens on those.
+
+The discriminator that separates them is not shape but ownership: **would the maintainer edit this to
+retune the site, or is it fixed by somebody else's protocol?** A vendor's URL scheme is theirs. A
+mailbox, a threshold, an expiry date is his.
+
+**A plan is a proposal and can be wrong about the tree it is changing** — which is this directory's
+founding premise, applied for once to the plan's CODE rather than to its premises. Six runs of
+executors measuring what a plan asserted, and the one thing nobody thought to measure was whether
+the plan's own snippet obeyed the repository's documented conventions. Check prescribed code against
+`CLAUDE.md` before typing it.
+
+The fix moved all three to `SECURITY` in `src/content/site.ts` and left the endpoint deciding only
+the wire format, which is what `src/pages/llms.txt.ts` already did — eleven imports from the content
+modules and no copy of anything. It also reshaped the gate: a literal contact in the test would have
+been a second home for the address, and deriving it from `SECURITY.contact` alone is vacuous about
+the value, so the emitted line is held to `SECURITY.contact` (wiring) AND the address is held to being
+a `mailto:` at the host `METADATA.site_url` declares (a property a copy cannot supply). The emitted
+file came out **byte-identical to what production was already serving**, same SHA-256, which is what
+made it provably structural.
