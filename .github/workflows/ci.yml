@@ -525,6 +525,74 @@ jobs:
               "url=" + d.url + "\nalias=" + (d.alias || "") + "\n");
           ' production
 
+      # DID THE BYTES JUST BUILT ACTUALLY REACH THE EDGE?
+      #
+      # THE ONLY QUESTION THIS STEP ASKS, and the scope is the argument rather than a limitation.
+      # Standard delivery guidance is that a deploy is not done until it is verified and that
+      # verification should be able to ACT — but `wrangler pages` offers list, create, tail and
+      # delete and NO ROLLBACK, so a check here cannot revert anything. It is a loud alarm, not a
+      # gate, and it is scoped to the one thing it can honestly claim. Whether an edge feature is
+      # rewriting the response is a different question, in a different file: it is DRIFT, nobody
+      # deployed when a dashboard toggle moved, and `.github/workflows/origin.yml` is where it is
+      # asked. Moving these together reintroduces both defects that split avoids.
+      #
+      # THE HASHES ARE THE FRESHNESS CHECK AND COST NOTHING TO GET. Every `_astro` filename
+      # carries a hash of its own contents, so the set referenced by the artifact changes exactly
+      # when the content does — which is the property a freshness check needs, and one no
+      # timestamp or run number has. The names are read out of the `dist/` this job is publishing,
+      # so there is no new credential, nothing to guess, and no second place to keep them.
+      #
+      # THE ORIGIN IS READ OUT OF THE ARTIFACT TOO, from its own canonical link. This job has no
+      # checkout by design, so it cannot read `astro.config.mjs`; the built page names the host it
+      # expects to be served from and that is the same fact.
+      #
+      # TWO TRAPS, BOTH MEASURED ON THIS HOST BEFORE THIS STEP EXISTED. A post-deploy fetch can be
+      # stale despite `cf-cache-status: DYNAMIC`, so this retries against the hashes rather than
+      # asserting on the first response. And one fetch per grep straddles the warm-up — two greps
+      # then read two different responses and disagree for reasons that have nothing to do with
+      # the deploy — so each attempt fetches ONCE to a file and every check reads that file.
+      - name: assert the deploy reached the edge
+        run: |
+          ORIGIN=$(grep -o 'href="https://[^"]*" rel="canonical"' dist/index.html | grep -o 'https://[^"/]*' | head -1)
+          if [ -z "$ORIGIN" ]; then
+            echo "::error::dist/index.html declares no canonical origin, so there is no host to verify this deploy against."
+            exit 1
+          fi
+
+          # AT LEAST ONE, ASSERTED. An empty set makes every comparison below vacuously true, and
+          # the whole step would pass against any response at all — including an error page.
+          ASSETS=$(grep -o '/_astro/[A-Za-z0-9._-]*' dist/index.html | sort -u)
+          COUNT=$(printf '%s\n' "$ASSETS" | grep -c . || true)
+          if [ "$COUNT" -lt 1 ]; then
+            echo "::error::dist/index.html references no /_astro/ asset, so this step has nothing to look for and would pass against any response. The build's asset hashing is what this check rests on."
+            exit 1
+          fi
+          echo "expecting $COUNT hashed asset(s) at $ORIGIN"
+
+          # Bounded, and the bound is stated in the failure rather than left for the reader to
+          # infer from a hang. A unique query per attempt so a cached copy of an earlier attempt
+          # cannot be mistaken for the new deploy propagating.
+          ATTEMPTS=10
+          for i in $(seq 1 "$ATTEMPTS"); do
+            if curl -sS --max-time 30 -o "$RUNNER_TEMP/live.html" "$ORIGIN/?deploy-check=$i"; then
+              MISSING=""
+              for a in $ASSETS; do
+                grep -qF "$a" "$RUNNER_TEMP/live.html" || MISSING="$MISSING $a"
+              done
+              if [ -z "$MISSING" ]; then
+                echo "all $COUNT hashed asset(s) are referenced by $ORIGIN after attempt $i."
+                exit 0
+              fi
+              echo "attempt $i/$ATTEMPTS: still missing$MISSING"
+            else
+              echo "attempt $i/$ATTEMPTS: could not fetch $ORIGIN"
+            fi
+            sleep 6
+          done
+
+          echo "::error::after $ATTEMPTS attempts $ORIGIN still does not reference every hashed asset in the artifact this job just published:$MISSING — so the deploy may not have propagated, or something other than this run is serving that host. Nothing was rolled back, because wrangler pages has no rollback; the live site is whatever it was before."
+          exit 1
+
       - name: summary
         env:
           URL: ${{ steps.deploy.outputs.url }}

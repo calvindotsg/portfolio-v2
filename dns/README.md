@@ -5,6 +5,12 @@ what octoDNS may touch, and `.github/workflows/dns.yml` runs it. Each of those f
 own decisions at the line that makes them; this page is the part that lives nowhere else — what
 to do, and what has to exist first.
 
+**DNS is not all the zone does, and the rest of it is not in git.** The feature toggles and the
+two Redirect Rules are recorded in [`EDGE.md`](EDGE.md), which is a dated snapshot rather than a
+drift check and explains why it cannot be more than that. The check for that half is
+`.github/workflows/origin.yml`, which reads the live site weekly and asserts what the edge does
+to the response rather than what the dashboard says it is set to.
+
 ## The two tokens it runs on
 
 **Live since 2026-07-31.** The first plan against the real zone reported *"No changes were

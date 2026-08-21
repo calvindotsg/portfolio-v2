@@ -1,0 +1,115 @@
+# Watch the edge in front of the live site, weekly.
+#
+# WHAT THIS IS FOR, and why it is not a step in the deploy. This repository governs the artifact
+# and nothing governed the origin: DNS records are in git and drift-checked weekly, while zone
+# settings, redirect rules and the Pages project are not in git, not backed up and not checked at
+# all. `CLAUDE.md`'s central claim — that what ships is the artifact the suite gated — was true at
+# rest and false on the wire for years, because Cloudflare Rocket Loader rewrote four of the five
+# shipped script tags on production and deferred the pre-paint theme script into its own queue.
+#
+# THE TWO QUESTIONS ARE DIFFERENT IN KIND AND MUST NOT BE MERGED, which is the maintenance note
+# worth reading before moving anything here. "Did the bytes I just built reach the edge?" is
+# release verification: it is caused by the deploy, answerable immediately, and lives in
+# `.github/workflows/ci.yml`'s production job where a failure means the deploy failed. "Is an HTML
+# rewriter on?" is DRIFT — nobody deployed when a dashboard toggle moved. Binding it to a deploy
+# would be wrong twice: it reddens a build for something the build did not cause, and it notices
+# only when someone happens to ship.
+#
+# THAT ARGUMENT IS THIS REPOSITORY'S OWN, MADE ONCE ALREADY. Read the header of
+# `.github/workflows/dns.yml`: applying from git is the smaller half, because the dashboard is
+# where these things actually get changed, so the realistic job is to NOTICE a disagreement
+# weekly and say so. That file is the exemplar this one is modelled on, for the half of the
+# origin octoDNS can see; this is the same shape for the half it cannot.
+#
+# THERE IS DELIBERATELY NO `pull_request` TRIGGER, and its absence is the point rather than an
+# omission. `dns.yml` has one because its offline job proves something about the repository. Every
+# assertion here is about a LIVE origin, so running it on a pull request would fail somebody's
+# unrelated change the day a zone setting moved — the precise coupling this file is split out to
+# avoid. A change to the script below is verified by running it, which the script's own header
+# gives the two commands for.
+#
+# IT HOLDS NO SECRET AND DECLARES NO PERMISSION. Everything it reads is public, so the token it
+# runs under needs nothing at all — which makes this the lowest-privilege job in the repository,
+# the right shape for the thing that watches everything else. `tests/workflow-guards.test.ts`
+# holds both properties. If a future change here needs a credential, it has stopped being a check
+# on a public surface and belongs somewhere else.
+
+name: Origin
+
+on:
+  schedule:
+    # 22:17 UTC Tuesday = 06:17 SGT Wednesday. Off the top of the hour because GitHub delays
+    # scheduled runs most at :00, and on a weekday so a drift alert is read the same morning —
+    # the same two reasons `dns.yml` gives, and a different day from it so a bad Tuesday does
+    # not take both canaries out together.
+    - cron: "17 22 * * 2"
+  workflow_dispatch:
+
+# `{}` GRANTS NOTHING, and every permissions block replaces the defaults wholesale rather than
+# adding to them. Checking out a public repository needs no scope; the run would still be able to
+# read this tree if the token had none at all.
+permissions: {}
+
+concurrency:
+  # Never cancel a drift run. A cancelled check renders grey rather than red, which is the one
+  # outcome nobody investigates — and the weeks with the most dispatch traffic would be exactly
+  # the weeks the scheduled run went missing.
+  group: origin-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: origin drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # THE ORIGIN IS NOT WRITTEN HERE. `astro.config.mjs` already records the host this site is
+      # served from — it is what every canonical link and the sitemap are built out of — so a
+      # second copy in this file is the enumeration-in-two-places failure, and it would go stale
+      # silently the day the site moved.
+      #
+      # ANCHORED ON THE `site:` KEY RATHER THAN THE FIRST URL IN THE FILE, which is not a
+      # refinement: that file opens with Astro's own documentation link in a comment, so taking
+      # the first match pointed this canary at a host with no relation to this zone, where every
+      # assertion below fails for the wrong reason. Caught by running the extraction, not reading it.
+      - name: read the origin the artifact expects
+        id: origin
+        run: |
+          ORIGIN=$(grep -o 'site: *"[^"]*"' astro.config.mjs | grep -o 'https://[^"/]*' | head -1)
+          if [ -z "$ORIGIN" ]; then
+            echo "::error::could not read a site origin out of astro.config.mjs, so this run has nothing to check and would pass vacuously."
+            exit 1
+          fi
+          echo "origin=$ORIGIN" >> "$GITHUB_OUTPUT"
+          echo "checking $ORIGIN"
+
+      # EXIT 1 AND EXIT 2 ARE DIFFERENT ANSWERS AND BOTH FAIL THE RUN. One means the edge has
+      # drifted; the other means the origin could not be read well enough to judge, which
+      # `dns/drift.sh` established as the thing a drift check must never report as clean. They
+      # are separated here so the summary tells the reader which of the two happened, because
+      # the fix is completely different: a dashboard setting, or a broken check.
+      - name: check the live origin
+        env:
+          ORIGIN: ${{ steps.origin.outputs.origin }}
+        run: |
+          set +e
+          scripts/origin-canary.sh "$ORIGIN" | tee "$RUNNER_TEMP/canary.txt"
+          code=${PIPESTATUS[0]}
+          set -e
+          {
+            echo "### Origin canary"
+            echo ""
+            echo "\`$ORIGIN\`"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/canary.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$code" in
+            0) echo "the edge serves what the artifact declares." ;;
+            1) echo "::error::the edge has drifted from what this repository assumes. These are Cloudflare zone settings, so the fix is in the dashboard and never in this repository — dns/README.md records what is configured and why." ;;
+            2) echo "::error::the canary could not read the origin well enough to judge, so it is reporting undetermined rather than clean. Read the step log: a non-200, a truncated body, or a parser that no longer understands public/_headers." ;;
+            *) echo "::error::the canary exited $code, which is not one of the three answers it documents." ;;
+          esac
+          exit "$code"
