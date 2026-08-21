@@ -1,8 +1,8 @@
 # Implementation Plans
 
-**Two plans are queued: 034 and 035.** The first comes from a two-run security audit of
-this repository completed on 2026-08-18, which produced the first proposals here since 028 landed;
-035 does not. 029 through 033 are merged, archived and live; plans 024–028 are too.
+**One plan is queued: 035.** It does not come from an audit. The two-run security audit of this
+repository completed on 2026-08-18 produced the first proposals here since 028 landed, and all of
+them — 029 through 034 — are now merged, archived and live, as are plans 024–028.
 
 **Every plan in this set so far has carried defects its executor had to measure rather than read,
 and 032 is the first whose executor DELETED one of the plan's own findings** — it claimed a gate was
@@ -11,10 +11,13 @@ six consecutive runs in which the advisor/executor split has paid for itself. Se
 [`done/README.md`](done/README.md) § "Plan 030", § "Plan 031" and § "Plan 032" for what that cost,
 and for the regression each plan's review panel then found in its own fix. 033 was the audit's
 optional tail and is done: two of its six steps rested on a mechanism it had stated wrongly, and
-both were caught by measuring rather than by reading. **034 cannot go green until three Cloudflare
-zone settings are off** — it names them as preconditions and stops rather than weakening an
-assertion to pass; they were still on when 030 landed. Read each plan's own Status block for its
-dependencies; do not infer them from the numbering, which is leverage order rather than a chain.
+both were caught by measuring rather than by reading. **034 could not go green until four Cloudflare
+zone settings were off, and that is now the first precondition in this directory that was actually
+met** — the plan named them and stopped rather than weakening an assertion to pass, and they were
+turned off through the signed-in dashboard's own API before step 1 was written. Its executor also
+answered a STOP condition instead of obeying it: see [`done/README.md`](done/README.md) § "Plan 034"
+for why a count of 133 and a measurement of 61 were both correct. Read each plan's own Status block
+for its dependencies; do not infer them from the numbering, which is leverage order rather than a chain.
 
 **The audit stopped short of a plan on purpose, and its artifacts live outside this repository.**
 Every plan below inlines what it needs, so an executor does not have to find them.
@@ -184,7 +187,7 @@ recreated.
 | 031 | Validate what the two script seams accept | P2 | M | — | **DONE** (`6f8fbfe`) |
 | 032 | Correct the reasons, and make the vacuous gates bite | P2 | M | 030 | **DONE** (`4583bd1`) |
 | 033 | The six remaining hardenings | P3 | S | 029, 030 | **DONE** (`cca3d8b`) |
-| 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **TODO** |
+| 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **DONE** (`5b90ed0`) |
 | 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
@@ -195,9 +198,10 @@ numbered in leverage order. 031 shared no file with any of the others, which is 
 parallel-safe, and it is the same mechanism run 6 relied on: each plan re-measures its own baseline
 in its own worktree and **none asserts an absolute suite total**.
 
-**Two of these plans carry work this repository cannot do.** 034 has Cloudflare zone preconditions,
-and its retention step is the only permanently irreversible action in the set — it deletes preview
-deployments, with the enumerate-and-report phase separated from the delete phase for that reason.
+**Two of these plans carried work this repository cannot do.** 034's Cloudflare zone preconditions
+were met before it started, and its retention step is the only permanently irreversible action in
+the set — it deletes preview deployments, with the enumerate-and-report phase separated from the
+delete phase for that reason, and the report reviewed in the pull request body before the delete ran.
 032 edited this file's prose beyond a status row, which is normally the reviewer's alone; the
 maintainer waived that for two specific corrections, and they landed in a commit of their own.
 
