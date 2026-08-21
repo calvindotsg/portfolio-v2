@@ -1,0 +1,30 @@
+# DISPOSABLE PROBE — deleted before this branch merges. Never reaches the default branch.
+#
+# Question: can `actions/checkout` clone this PUBLIC repository when the job's token is granted
+# NOTHING? `permissions: {}` replaces the defaults wholesale, and the documentation is equivocal
+# about whether a zero-scope token can still read public content. The origin canary declares an
+# empty block, so this is load-bearing for it — and a new `workflow_dispatch` workflow cannot be
+# dispatched until it is on the default branch, which makes `push` the only pre-merge probe.
+
+name: zz probe delete me
+
+on:
+  push:
+    branches: [worktree-govern-the-origin]
+
+permissions: {}
+
+jobs:
+  probe:
+    name: probe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: prove the tree is really here
+        run: |
+          echo "checkout under permissions: {} succeeded"
+          test -f astro.config.mjs
+          test -x scripts/origin-canary.sh
+          git rev-parse HEAD
+      - name: and that the canary itself runs with no credential
+        run: scripts/origin-canary.sh "$(grep -o 'site: *"[^"]*"' astro.config.mjs | grep -o 'https://[^"/]*' | head -1)"
