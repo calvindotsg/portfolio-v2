@@ -2047,3 +2047,144 @@ zone sends and `calvindotsg.pages.dev` does not; and `CONTRIBUTING.md` saying no
 named as the maintainer's sentence to write rather than an executor's step. The `allowed-tools`
 declaration is a bound on `Bash` and is not a sandbox; its enforcement was not measured, and the list
 was chosen to cover every command the skill documents so it is safe under either reading.
+
+## Plan 034 — the live origin is asserted, and the edge is written down
+
+Merged as `5b90ed0` (#187), with a follow-up as `d5c7f65` (#188), and live. **The first plan in this
+set whose preconditions were work the repository genuinely could not do**, and the first whose STOP
+conditions had to be answered rather than obeyed.
+
+### The preconditions, and how they stopped being a blocker
+
+The plan refused to start until four zone settings were off, and step 0 measured them still on: one
+`rocket-loader` reference in the served HTML, four script tags carrying a rewritten `type`, and a 403
+for the site's own card on a foreign `Referer`. Nothing in this repository can change a zone setting,
+and the `cf` OAuth session 403s on the settings endpoint — its permitted scope list is baked into the
+binary and contains nothing for this.
+
+**The signed-in dashboard answered instead.** A browser surface already logged in can call the same
+API same-origin with its own cookie, which reaches everything the human reaches. Four writes, four
+successes, and step 0 was green on the first probe afterwards. That is a general result rather than a
+detail of this plan: *"dashboard-only" is usually a statement about a token, not about what is
+reachable.*
+
+**What was refused, and rightly.** Briefly turning Rocket Loader back on — to make the canary's
+primary alarm fire — was blocked as a write to a live site. So the calibration ran against a body
+reconstructed from what that rewriter really emitted here, and all three rewriter predicates read 0
+on the clean response and non-zero on the rewritten one. A refused control is not an unmeasured one;
+it is a control that has to be obtained another way.
+
+### The plan defect: two quantities wearing the same number
+
+Step 5's STOP condition said to stop if the deletable count "differs substantially from the roughly
+61 live deployments the audit measured". The classifier returned **133**, which is 2.2× that and
+looks exactly like a broken classifier.
+
+It is not. The audit measured live **aliases**, and an alias is one per pull request pointing at that
+branch's latest deployment, while a deployment is one per push. Counted the audit's way this data
+gives **77** distinct preview branches today and, restricted to before the audit's own date,
+**exactly 61**. The plan compared a deployment count against a measurement of aliases and wrote the
+mismatch into its own stop condition. **A STOP condition is only as good as the units in it**, and
+the way through was to reproduce the audit's number rather than to argue about the new one.
+
+### Two defects the executor found by running things
+
+- **The canary read the wrong host.** Taking the first URL out of `astro.config.mjs` returns Astro's
+  own documentation link, which sits in a comment above the `site:` key. Every assertion would then
+  have failed against a host with no relation to this zone — a canary red on arrival, which is how a
+  gate gets disabled instead of fixed. Anchored on the key.
+- **The retention script ran during `pnpm test`.** It did its work at top level, and
+  `tests/strava-scripts.test.ts` imports every script in that directory in a fresh process — so the
+  suite executed the program and it exited on the missing credential. That test's whole subject is
+  import-time side effects; this was the first thing it caught that was not a comment bug.
+
+### A dead stimulus that read exactly like a passing guard
+
+The classifier's most important rule is that a preview whose pull request is still open is kept.
+Testing it against this plan's own pull request appeared to work — the deployment was kept — and
+proved nothing: that preview was also the **newest deployment in the project**, and the newest-rule
+fires first, so the open-PR rule never ran. Only after a second push gave the pull request more than
+one deployment did `pull request #187 is open` appear in the keep set, with the delete set unchanged
+at 133. **A guard that keeps the right thing for the wrong reason is indistinguishable from one that
+works**, and the only way to tell is to check that the stimulus reached the predicate.
+
+### `permissions: {}` was measured, not read
+
+The canary declares an empty permissions block, and whether `actions/checkout` can clone under one is
+the assumption its whole shape rests on — the documentation hedges. It also could not be dispatched:
+**a `workflow_dispatch` workflow does not exist until it is on the default branch**, so neither new
+workflow was runnable before merge. A disposable push-triggered workflow settled it — checkout
+succeeded, the tree was there, the runner reached the live site — and was deleted before merge. Its
+first version was also invalid YAML, an unquoted scalar containing a colon-space reading as a nested
+mapping, which GitHub rejected at startup with no job created and which the suite caught as a parse
+error because it reads every file in that directory.
+
+### What shipped
+
+Two checks answering two different questions, and the maintenance note is that they stay two. Release
+verification sits in the production deploy and reads the content-hashed asset names and the canonical
+origin out of the artifact being published, so there is no new credential and no second home for the
+host. Zone drift sits on its own weekly schedule, because nobody deploys when a dashboard toggle
+moves. `scripts/origin-canary.sh` follows `dns/drift.sh` in having three answers rather than two —
+clean, drifted, and could-not-tell.
+
+`scripts/pages-retention.mjs` is the only thing in this repository that deletes permanently: it
+reports by default, keeps unless argued down, never touches production, and its workflow binds the
+irreversible half to the default branch because a dispatch accepts any ref.
+
+`dns/EDGE.md` records the zone's non-DNS configuration and says plainly that it is a dated snapshot
+rather than a drift check. **Deliberately left standing and recorded rather than fixed**: the zone's
+minimum TLS version is 1.0, which is not a default and was not this plan's to change; and the two
+Redirect Rules remain outside version control, because bringing them in needs credentials CI does not
+hold.
+
+### The two defects the green tick hid (#188)
+
+Both were in the new code, both were found by checking the wire after the run went green, and
+neither would have been found by reading the diff again.
+
+**Every deletion that mattered was refused.** Cloudflare will not remove an *aliased* deployment
+without `?force=true`, and the aliased one is the newest deployment on each `pr-<n>` branch — which
+is exactly the one the preview hostname serves. The first real run removed 58 of 136; all 78
+refusals were alias-holders, and the stale résumé the whole step was written to retire was still
+answering 200 afterwards. **The subset a naive delete CAN reach is precisely the subset that was
+already unreachable to a reader.**
+
+**And the job reported success while doing it.** The step piped the script into `tee`. GitHub runs
+`run:` bodies under `bash -e`, which does *not* set `pipefail`, so the pipeline exits with `tee`'s
+status and `tee` succeeds whatever it was handed. Seventy-eight failed deletions rendered as a green
+tick — a check that cannot fail, committed inside the change that added the check, in a repository
+whose whole doctrine is about that class. The canary written the same afternoon reads `PIPESTATUS`
+and was unaffected, which is the part worth keeping: the author knew the trap, applied the fix in
+one of the two places, and the other one looked identical in review.
+
+The gate that came out of it sweeps every workflow for the shape rather than the instance, and
+accepts any of the three recoveries. It carries **no floor on purpose** — zero piped steps is a
+correct state of this repository, so a floor would redden the day the last one is rewritten — and
+reach is measured by mutation instead: deleting the `PIPESTATUS` line from the canary turns it red,
+which is what says the sweep sees a real step and not an empty set.
+
+### What retention actually did, and the one thing it does not control
+
+After the fix the project went from 251 deployments to **116, every one of them production, with
+nothing left classified as deletable**. Production was untouched throughout — the résumé it serves
+is the same size before and after.
+
+**An alias can outlive the deployment it points at, and that is Cloudflare's to decide rather than
+this repository's.** Most preview hostnames began answering 404 immediately; at least one went on
+serving its old bytes for a while after its deployment returned 404 from the API — verified as a
+live response rather than a cached one, since it carried no cache status and revalidates on every
+request. So **the deployment list is the thing this job controls, and the hostname is downstream of
+it.** A future reader chasing a preview URL that still answers should ask the API whether the
+deployment exists before concluding the retention job failed.
+
+### Outcome
+
+Suite **600 passed / 7 skipped of 607**, up from 587/594. Eight mutations, each turning exactly one
+new assertion red and each reverted: the verification step deleted, the canary given a secret, given
+a scope, and taken off its schedule, retention defaulting to delete, its ref guard removed, the
+verification step hardcoding a host, and the pipe recovery dropped. `docs-drift` was reach-probed on
+the new document with two planted stimuli. The canary is green against `calvin.sg` and red against
+`calvindotsg.pages.dev`, which is the non-degeneracy control the plan named as its own STOP
+condition — and it now runs weekly with an empty permissions block, which was measured rather than
+read.
