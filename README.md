@@ -72,7 +72,7 @@ of their own.
 | Where | What you edit there |
 | --- | --- |
 | `src/content/home.ts` | The home page's cards — the introduction, career, interests, and what I am doing now |
-| `src/content/site.ts` | Copy every page wears: social links, footer, the 404 page, SEO metadata |
+| `src/content/site.ts` | Copy every page wears: social links, footer, the 404 page, SEO metadata, and the security contact `/.well-known/security.txt` publishes |
 | `src/content/races.ts` | The racing copy and the next-race line |
 | `src/data/goals.ts` | The year's targets and `GOAL_YEAR` |
 | `src/data/races/` | One module per race. The procedure, and every field a race may carry, are in [`src/data/races/README.md`](src/data/races/README.md) — read that rather than this |
@@ -90,6 +90,12 @@ site's Strava link points. Changing accounts means editing both.
 
 **Analytics.** `UMAMI_ID` is a repository variable, read at build time by
 `src/layouts/BasicLayout.astro`.
+
+**Security contact.** `SECURITY` in `src/content/site.ts` is what
+`/.well-known/security.txt` publishes, and its `expires` field is a live commitment rather
+than decoration: `tests/build-output.test.ts` fails the suite — and so the deploy — thirty
+days before that date. When it does, confirm the address still reaches a monitored inbox
+*before* moving the date, not after.
 
 ## Testing
 
