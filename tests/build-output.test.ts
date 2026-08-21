@@ -92,6 +92,49 @@ describe("dist/", () => {
         expect(robots).toContain(new URL("sitemap-index.xml", METADATA.site_url).href);
     });
 
+    /**
+     * `security.txt` IS A LIVE COMMITMENT WITH AN EXPIRY DATE, which is what makes it unlike
+     * every other generated file here. RFC 9116 requires `Expires`, and that field exists to
+     * force a human to periodically re-confirm the contact still reaches someone. Deriving it
+     * from the build date would satisfy the spec and DEFEAT the field: this site rebuilds
+     * nightly, so the value would move forward forever and could never lapse. So the endpoint
+     * hard-codes it, and this assertion is the thing that stops a hard-coded date rotting in
+     * silence — thirty days out the suite goes red, and a red suite blocks the deploy.
+     *
+     * WHEN IT DOES GO RED, THE FIX IS NOT TO PUSH THE DATE. It is to confirm the mailbox first
+     * and push the date second; the failure message says so, because the ONLY thing this gate
+     * can actually see is a number, and a scanner reading a fresh date on a dead mailbox is
+     * worse off than one reading an expired file.
+     *
+     * THE DATE IS PARSED, NEVER COMPARED AS TEXT. A string comparison would pass on a value no
+     * client can read, which is the likeliest way this file breaks quietly: `Expires` is the
+     * one field a scanner acts on rather than displays. `NaN` fails both assertions below
+     * rather than either, so an unparseable value cannot slip through as "not yet expired".
+     *
+     * THE CANONICAL URI IS DERIVED THE WAY THE ENDPOINT DERIVES IT, from the configured origin
+     * rather than from a literal, so this asserts the derivation instead of agreeing with a
+     * second copy of the origin. The contact address is a literal on both sides on purpose —
+     * it is a mailbox, not an origin, and computing it from the site's host would silently
+     * repoint the security contact the day the site moves hosts.
+     */
+    it("publishes a machine-readable security contact that has not lapsed", () => {
+        expect(existsSync("dist/.well-known/security.txt"),
+            "no security.txt was emitted — see the endpoint under src/pages/.well-known/").toBe(true);
+        const securityTxt = read("dist/.well-known/security.txt");
+        expect(securityTxt).toContain("Contact: mailto:security@calvin.sg");
+        expect(securityTxt).toContain(`Canonical: ${new URL(".well-known/security.txt", METADATA.site_url).href}`);
+
+        const expires = /^Expires:\s*(\S+)\s*$/m.exec(securityTxt);
+        expect(expires, "security.txt carries no Expires line, and RFC 9116 requires one").not.toBeNull();
+        const at = new Date(expires![1]).getTime();
+        expect(Number.isNaN(at), `security.txt Expires reads ${expires![1]}, which is not a date a client can parse`)
+            .toBe(false);
+        expect(at - Date.now(), "security.txt Expires is within 30 days — confirm security@calvin.sg still reaches "
+            + "someone (the zone's Email Routing rule still exists and its destination is still verified) and THEN "
+            + "push the date in src/pages/.well-known/security.txt.ts")
+            .toBeGreaterThan(30 * 24 * 60 * 60 * 1000);
+    });
+
     it("emits a sitemap index referencing the deployed origin", () => {
         expect(existsSync("dist/sitemap-index.xml")).toBe(true);
         expect(read("dist/sitemap-index.xml")).toContain(METADATA.site_url);
@@ -2944,9 +2987,14 @@ describe("hashed assets are cached forever, and are hashed", () => {
          * blamed `include-hidden-files: true` for it — wrongly, since that flag governs
          * dot-prefixed paths and `_redirects` is not one. Anything placed in `public/` has always
          * reached the root of `dist/` and shipped. What the flag did widen is the dot-prefixed
-         * half: a hidden directory under `public/`, the ordinary way one appears, now travels to the
-         * host too — `.github/workflows/ci.yml` names the ordinary example in its own comment.
-         * Both halves land in the set this assertion holds.
+         * half: a hidden directory now travels to the host too, and `.github/workflows/ci.yml`
+         * carries the argument. Both halves land in the set this assertion holds.
+         *
+         * THAT HALF STOPPED BEING HYPOTHETICAL, and it is why the directory list below is no
+         * longer two entries. `.well-known/` is emitted by a route rather than by `public/`, which
+         * changes nothing about the upload: `include-hidden-files: true` is the only reason those
+         * bytes reach the deploy at all, so removing it now 404s a published security contact on a
+         * run this whole file would still call green.
          *
          * A DENY-LIST FAILS SILENTLY AND AN ALLOW-LIST FAILS LOUDLY, which is the whole trade.
          * Adding a legitimate root file — a `security.txt`, a verification token, a fifth
@@ -2962,7 +3010,7 @@ describe("hashed assets are cached forever, and are hashed", () => {
             "_headers", "404.html", "favicon.ico", "index.html", "llms.txt",
             "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml", "sitemap-index.xml",
         ];
-        const ALLOWED_DIRECTORIES = ["_astro", "patches"];
+        const ALLOWED_DIRECTORIES = [".well-known", "_astro", "patches"];
 
         const entries = readdirSync("dist", {withFileTypes: true});
         expect(entries.length, "dist/ is empty — this assertion is vacuous").toBeGreaterThan(0);

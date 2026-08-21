@@ -222,10 +222,15 @@ jobs:
       # defaults it to `false`, so any dot-prefixed path under `dist/` is present for
       # every assertion the suite just made and then silently absent from the artifact
       # the deploy jobs will publish — and `if-no-files-found: error` cannot see it,
-      # because that fires only when the whole path is empty. There is no such file
-      # today; the ordinary way to create one is a `public/.well-known/` entry
-      # (domain verification, `security.txt`), which every local preview and the
-      # outgoing host would serve and the new host would 404, on a green run.
+      # because that fires only when the whole path is empty. This was written when no
+      # such path existed and the ordinary way to make one was a `public/.well-known/`
+      # entry — domain verification, `security.txt`. THE LINE IS NOW LOAD-BEARING RATHER
+      # THAN DEFENSIVE: `src/pages/.well-known/security.txt.ts` emits one on every build,
+      # so removing this flag publishes a site whose security contact 404s, while every
+      # local preview serves it and the whole suite stays green. It arrived by a ROUTE
+      # rather than from `public/`, which makes no difference here — the upload sees only
+      # what is under `dist/` — and is exactly why the flag was not left to the case that
+      # prompted it.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
