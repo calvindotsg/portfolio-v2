@@ -201,7 +201,21 @@ async function main(argv) {
     let deleted = 0;
     let failed = 0;
     for (const r of drop) {
-        const {ok, status, body} = await cf(token, `/accounts/${account}/pages/projects/${project}/deployments/${r.d.id}`, {method: "DELETE"});
+        /*
+         * `force=true` IS REQUIRED FOR THE ONLY DEPLOYMENTS THAT MATTER, and leaving it off looked
+         * like it worked. Cloudflare refuses to remove an ALIASED deployment without it —
+         * `8000035 You cannot delete an aliased deployment without a ?force=true parameter` — and
+         * the aliased one is the newest deployment on each `pr-<n>` branch, i.e. exactly the one
+         * `pr-<n>.<project>.pages.dev` still serves. MEASURED on the first real run: 58 of 136
+         * removed, every one of the 78 refusals an alias-holder, and the stale résumé this whole
+         * step was written about still answering 200 afterwards.
+         *
+         * IT CANNOT REACH PRODUCTION, which is what makes the flag safe to send unconditionally.
+         * `classify` only ever returns `delete` for `environment === "preview"`, the newest
+         * deployment in the project is kept whatever it is, and the refusal above re-reads both
+         * facts off the deployment itself immediately before this loop.
+         */
+        const {ok, status, body} = await cf(token, `/accounts/${account}/pages/projects/${project}/deployments/${r.d.id}?force=true`, {method: "DELETE"});
         if (ok) {
             deleted += 1;
         } else {

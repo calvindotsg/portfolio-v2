@@ -109,8 +109,24 @@ jobs:
           PAGES_PROJECT: calvindotsg
           GITHUB_TOKEN: ${{ github.token }}
           ARGS: ${{ steps.mode.outputs.args }}
+        # `tee` DECIDES THIS STEP'S EXIT STATUS UNLESS SOMETHING TAKES IT BACK, and that is not a
+        # style point — it shipped. GitHub runs `run:` bodies under `bash -e`, which does NOT set
+        # `pipefail`, so the status of a pipeline is the status of its LAST command. `tee` succeeds
+        # whatever it was handed. MEASURED on the first real delete run: the script exited non-zero
+        # having failed 78 of 136 deletions, and the job rendered as a green tick.
+        #
+        # The canary in `.github/workflows/origin.yml` reads `PIPESTATUS` for the same reason. Here
+        # the pipe is not needed at all — the summary is written from the file — so the simpler fix
+        # is to redirect and then print, and have nothing to recover.
+        #
+        # `set +e` AROUND THE CALL, because `bash -e` would end the step ON the failing command and
+        # `code=$?` would never run — the recovery has to be reachable to be a recovery.
         run: |
-          node scripts/pages-retention.mjs $ARGS | tee "$RUNNER_TEMP/retention.txt"
+          set +e
+          node scripts/pages-retention.mjs $ARGS > "$RUNNER_TEMP/retention.txt" 2>&1
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/retention.txt"
           {
             echo "### Pages retention"
             echo ""
@@ -118,3 +134,7 @@ jobs:
             cat "$RUNNER_TEMP/retention.txt"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::the retention script exited $code. Read the block above: a non-zero exit here means some deletions were REFUSED, not that nothing happened, so the classified set and the live set now disagree."
+          fi
+          exit "$code"
