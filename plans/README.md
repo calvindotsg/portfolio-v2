@@ -224,6 +224,19 @@ nightly bot's push, and a push-via-PR redesign needs a long-lived credential str
 than the run-scoped `GITHUB_TOKEN` it would replace, because a `GITHUB_TOKEN` pull request does not
 trigger workflows. Plan 032 recorded that reasoning in the tree.
 
+**THAT DECISION WAS OVERTAKEN BY AN EVENT ON 2026-08-21, AND THE HALF THAT SURVIVES IS NOT THE HALF
+THE PARAGRAPH LEANS ON.** The `calvindotsg/.github` baseline was applied to this repository from
+outside it, so `main` now carries classic branch protection whether or not this directory declined
+it, and the nightly died on the next run with `GH006: Protected branch update failed … Changes must
+be made through a pull request`. Read the two reasons above separately, because they came apart:
+the first is about a REQUIRED STATUS CHECK, and the baseline sets none — `required_status_checks`
+answers 404 on `main` and `required_approving_review_count` is 0 — so nothing stands between the
+bot's pull request and its merge, and the run-scoped token is enough after all. The second reason
+is therefore conditional rather than general: it bites only once a required check exists, and on
+that day the deadlock it describes is real and unbreakable from inside the run. What is written
+down against that day is the workflow's own comment and its error message, both of which name it.
+The repair itself was not a plan — it was an incident fix, taken in one branch the way 027 was.
+
 **027 is the first plan whose premise was an event rather than a defect**, and that changes what
 the plan has to guard. An audit finding is true until someone fixes it; this one was true only
 while the repository sat outside the fork network, so the plan carries a STOP condition on

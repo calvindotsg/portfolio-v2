@@ -13,13 +13,25 @@ on:
 # returned 403 — on the one path nobody watches. It is also independent of the
 # repository's `default_workflow_permissions`, which is `read`; an explicit block
 # is the only way a job gets more than that.
+#
+# `pull-requests: write` IS WHAT THE PROTECTED BRANCH COSTS, and it is the whole
+# scope this workflow gained: `contents: write` still pushes, but it now pushes a
+# BRANCH, and opening and merging the pull request that carries it to `main` needs
+# this second scope. Without it `gh pr create` returns 403 and the kilometres stop
+# on that branch — again on the one path nobody watches.
 permissions:
   contents: write
   actions: write
+  pull-requests: write
 
-# A manual run overlapping the cron would push the same file from two checkouts;
-# the second push is then rejected non-fast-forward. Never cancel in flight —
-# that could kill a run between its commit and its push.
+# A manual run overlapping the cron would write the same file from two checkouts, and this
+# group is what stops them. THE FAILURE IT PREVENTS CHANGED WHEN THE PUSH DID, so the reason
+# is restated rather than left standing: git used to reject the second push non-fast-forward,
+# which was loud and harmless. The push is now a `--force` onto a shared bot branch, so the
+# second run would overwrite the first run's commit instead — and the first run's merge would
+# then be refused by `--match-head-commit` rather than silently landing the wrong numbers.
+# Still recoverable, still not worth having. Never cancel in flight — that could kill a run
+# between its commit and its merge.
 concurrency:
   group: strava-progress
   cancel-in-progress: false
@@ -99,35 +111,154 @@ jobs:
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: node scripts/fetch-strava-progress.mjs
-      - name: Commit and push only if the km values changed
+      # THIS STEP USED TO BE `git commit` AND `git push`, AND THE PUSH WAS TO `main`.
+      #
+      # It stopped working on 2026-08-21, on the nightly, with the failure notification going
+      # to whoever last edited the cron syntax rather than to the owner:
+      #
+      #     remote: error: GH006: Protected branch update failed for refs/heads/main.
+      #     remote: - Changes must be made through a pull request.
+      #
+      # Nothing in this repository changed. The `calvindotsg/.github` baseline was applied to
+      # it, and that baseline sets CLASSIC branch protection on `main` — a pull request
+      # required, zero approvals, `enforce_admins: true`. Two nights of kilometres were
+      # fetched and thrown away before anyone looked, which is exactly the shape the dispatch
+      # step below is written about: the run's other half kept succeeding, so the site went on
+      # rebuilding every morning from a file that had stopped moving.
+      #
+      # THE REPAIR IS TO OBEY THE RULE RATHER THAN TO BUY AN EXEMPTION, and the choice was
+      # between three things:
+      #
+      #   - A ruleset with `github-actions[bot]` on its bypass list. Classic protection has no
+      #     bypass list at all — only rulesets do — so this means DELETING the baseline's
+      #     protection and re-expressing it as a ruleset the baseline does not know about. The
+      #     next run of that baseline's own setup script would write the classic object straight
+      #     back — its branch-protection call is a full-replacement PUT.
+      #   - A long-lived credential (a personal access token or a GitHub App) with permission
+      #     to bypass. Strictly more powerful than the run-scoped token it would replace, and
+      #     it would sit in this repository's secrets forever to save one API call a night.
+      #   - Open a pull request and merge it, which is what this step now does.
+      #
+      # `plans/README.md` DECLINED BRANCH PROTECTION ON EXACTLY THIS GROUND and the record has
+      # been corrected there rather than left standing. Its second reason was that a
+      # `GITHUB_TOKEN` pull request triggers no workflow run, so a required status check on it
+      # would never report and the merge would wait forever. That is still true and still the
+      # thing to watch — but it is a fact about REQUIRED CHECKS, and this branch has none:
+      # `required_status_checks` reads 404 on `main` today, `required_approving_review_count`
+      # is 0, and neither a review nor a check stands between the pull request below and the
+      # merge. Nothing in this repository can hold that open. IF A REQUIRED CHECK IS EVER ADDED
+      # TO `main`, THIS STEP DEADLOCKS — the merge is refused, the step goes red every night,
+      # and the fix is not to relax the merge but to give the pull request an identity whose
+      # events GitHub does not suppress.
+      #
+      # WHAT DID NOT CHANGE, so nobody re-derives it: the zero-diff gate is still the first
+      # thing here and still the only thing standing between this repository and a
+      # commit-merge-deploy every night; the deploy is still dispatched below whether or not
+      # anything was committed; and a merge made with `GITHUB_TOKEN` triggers no workflow run
+      # either, so the dispatch is as load-bearing after this change as it was before it.
+      - name: Commit the new km values and land them on main through a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if git diff --quiet -- src/data/strava-progress.json; then
             echo "Progress unchanged; nothing to commit. Today's build still runs — the site's clock moved even if the kilometres did not. See the next step."
             exit 0
           fi
+
+          # ONE BRANCH, REUSED EVERY NIGHT, AND IT IS SCRATCH SPACE RATHER THAN HISTORY:
+          # nothing is ever merged into it and nothing else writes it, so the push below is a
+          # `--force` on purpose. A run-scoped name would be tidier for exactly one night and
+          # wrong on the second: a night that commits and then fails to merge would leave its
+          # pull request open forever, the next night would open a SECOND one, and the older
+          # one would still be mergeable — carrying kilometres that are now behind. Reusing
+          # the name makes the failure self-healing instead, because the next run force-pushes
+          # over the stale commit and merges the pull request that is already there.
+          BRANCH="bot/strava-progress"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/data/strava-progress.json
+
           # shellcheck disable=SC2016
           # The `${...}` below are a JS template literal read by `node -e`, not shell
           # parameters, and the single quotes are what keep the shell's hands off them.
           #
           # WHAT THE DOUBLE QUOTES SHELLCHECK ASKS FOR ACTUALLY DO, measured rather than
-          # reasoned, because the first version of this comment guessed and got the ending
-          # wrong. Bash tries to expand `${p.cycling_km}`, which is not a valid parameter
-          # name, so it prints `bad substitution` and the substitution yields an EMPTY
-          # string. That is NOT fatal on its own — in argument position it does not even
-          # stop the step under Actions' `bash -e` — so the step gets as far as
-          # `git commit -m ""`, and it is GIT that refuses: "Aborting commit due to empty
-          # commit message", exit 1. The step therefore fails LOUDLY and nothing is
-          # pushed. The one outcome that cannot happen is the silent numberless commit
-          # this comment used to warn about, so do not "fix" the quoting to prevent it.
-          git commit -m "$(node -e 'const p=require("./src/data/strava-progress.json"); console.log(`chore(goals): update Strava progress to ${p.cycling_km} km ride / ${p.running_km} km run`)')"
-          git push
+          # reasoned — twice now, because both this comment's first version and the shape it
+          # described have since changed. Bash tries to expand `${p.cycling_km}`, which is not
+          # a valid parameter name, so it prints `bad substitution` and the substitution
+          # yields an EMPTY string and a non-zero status. In the ARGUMENT position this line
+          # used to occupy that was not fatal: the step reached `git commit -m ""` and it was
+          # GIT that refused. Here the substitution is an ASSIGNMENT, whose exit status IS the
+          # substitution's, so Actions' `bash -e` stops the step on this line — measured, with
+          # nothing committed, nothing pushed and no pull request opened. Both endings are
+          # loud and this one is earlier; the outcome that still cannot happen is the silent
+          # numberless commit, so do not "fix" the quoting to prevent it.
+          SUBJECT="$(node -e 'const p=require("./src/data/strava-progress.json"); console.log(`chore(goals): update Strava progress to ${p.cycling_km} km ride / ${p.running_km} km run`)')"
 
-      # THE ONLY UNATTENDED DEPLOY THE SITE HAS. A push made with `GITHUB_TOKEN` does not
-      # trigger a workflow run — GitHub suppresses it to stop recursion — so the commit above
-      # reaches `main` and, on its own, nothing builds. Netlify never had this problem because
+          git commit -m "$SUBJECT"
+          HEAD_SHA="$(git rev-parse HEAD)"
+          git push --force origin "HEAD:refs/heads/${BRANCH}"
+
+          # THE DESCRIPTION IS THE COMMIT BODY, NOT DECORATION. This repository squash-merges
+          # with the pull request's title and description as the message, so what is written
+          # here is what `git log` on `main` carries permanently — the same rule CONTRIBUTING.md
+          # states for a human's pull request, applied to the one author that cannot be asked
+          # to follow it later.
+          #
+          # BUILT WITH `printf` RATHER THAN WRITTEN OVER TWO LINES, because this is a YAML
+          # block scalar: a continuation line carries the block's own indentation into the
+          # string, and four spaces at the start of a Markdown line is a code fence nobody
+          # asked for.
+          BODY="$(printf '%s\n\n%s\n' "Fetched from Strava's year-to-date totals by \`scripts/fetch-strava-progress.mjs\`, and opened by the run below. Nothing here is hand-edited, and a run opens nothing at all unless the kilometres moved." "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
+
+          # `gh pr create` REFUSES A HEAD THAT ALREADY HAS AN OPEN PULL REQUEST, with an error
+          # rather than by reusing it, so the reuse the branch policy above depends on has to
+          # be written out. `// empty` is what turns "no rows" into an empty string instead of
+          # the literal `null` that `--jq` would otherwise print into the test below.
+          PR="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$PR" ]; then
+            echo "Reusing pull request #${PR}, left open by an earlier run that could not merge."
+            gh pr edit "$PR" --title "$SUBJECT" --body "$BODY"
+          else
+            gh pr create --base main --head "$BRANCH" --title "$SUBJECT" --body "$BODY"
+            PR="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
+          fi
+          if [ -z "$PR" ]; then
+            echo "::error::the pull request carrying tonight's kilometres cannot be found after being created, so nothing was merged and src/data/strava-progress.json on main is a day behind. The commit is safe on ${BRANCH}; merging that branch by hand is the whole recovery."
+            exit 1
+          fi
+
+          # GITHUB COMPUTES MERGEABILITY ASYNCHRONOUSLY, so a pull request read in the same
+          # second it was created answers UNKNOWN, and `gh pr merge` refuses an UNKNOWN rather
+          # than waiting. This loop is the wait, and it is deliberately not an assertion: it
+          # exits early on any answer at all and the merge below is what actually decides, so
+          # a loop that runs out of looks fails nothing on its own and the real verdict is
+          # still the one that gets reported.
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            [ "$(gh pr view "$PR" --json mergeable --jq .mergeable)" = "UNKNOWN" ] || break
+            sleep 5
+          done
+
+          # `--match-head-commit` IS THE ONLY THING THAT SAYS WHICH COMMIT IS BEING MERGED.
+          # Without it this merges whatever the branch points at, and the branch is
+          # force-pushed by every run of this workflow — so two runs overlapping despite the
+          # concurrency group, or a hand-pushed fix landing between the push above and the
+          # merge here, would be merged silently under tonight's subject line. GitHub refuses
+          # the merge instead when the head has moved, and the next run recovers by
+          # force-pushing again.
+          if ! gh pr merge "$PR" --squash --match-head-commit "$HEAD_SHA"; then
+            echo "::error::pull request #${PR} carries tonight's kilometres and would not merge, so src/data/strava-progress.json on main is a day behind and every figure the site derives from it is stale. The commit is safe on ${BRANCH} and the next run will reuse this pull request. If main has gained a required status check, that is the cause and it cannot clear itself: a pull request opened with GITHUB_TOKEN triggers no workflow run, so the check never reports."
+            exit 1
+          fi
+
+      # THE ONLY UNATTENDED DEPLOY THE SITE HAS. Nothing done with `GITHUB_TOKEN` triggers a
+      # workflow run — GitHub suppresses it to stop recursion — so the commit above reaches
+      # `main` and, on its own, nothing builds. THE SUPPRESSION SURVIVED THE MOVE TO A PULL
+      # REQUEST UNCHANGED, which is worth stating rather than assuming: it is a rule about the
+      # identity that acts, not about the shape of the act, so a merge is suppressed exactly as
+      # the direct push it replaced was, and the pull request itself never triggers `ci.yml` on
+      # `pull_request` either. Netlify never had this problem because
       # its webhook watched the repository rather than the Actions event stream; moving the
       # build into Actions moved this failure mode in with it. `workflow_dispatch` is one of
       # the two documented exceptions to the suppression rule, which is why the fix is a
@@ -171,7 +302,7 @@ jobs:
       # SYNTAX in this file, not to the repository owner and not to whoever wrote the step that
       # broke. What the step does NOT do is wait for the dispatched run, so green here means
       # "the build was asked for", never "the build passed". Read the CI run itself.
-      - name: Ask CI to build and deploy, since the push above triggers nothing
+      - name: Ask CI to build and deploy, since the merge above triggers nothing
         if: '!cancelled()'
         env:
           GH_TOKEN: ${{ github.token }}

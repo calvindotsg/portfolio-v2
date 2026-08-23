@@ -896,10 +896,12 @@ describe("the Node version has one home", () => {
  * A STEP-LEVEL GUARD, EXECUTED IN FOUR SITUATIONS, BECAUSE READING IT PROVES NOTHING.
  *
  * `strava-progress.yml`'s last step dispatches `ci.yml`, and that dispatch is THE ONLY
- * UNATTENDED DEPLOY THE SITE HAS: a push made with `GITHUB_TOKEN` triggers no workflow run,
- * so without this step the nightly commit reaches `main` and nothing builds. The step used to
+ * UNATTENDED DEPLOY THE SITE HAS: nothing done with `GITHUB_TOKEN` triggers a workflow run,
+ * so without this step the nightly commit reaches `main` and nothing builds. That held when the
+ * commit arrived by a direct push and it holds now that it arrives by a merged pull request —
+ * the suppression is a rule about the identity acting, not about the act. The step used to
  * run under the implicit `if: success()`, which cost the site its daily rebuild whenever the
- * fetch or the push failed — and the site has a CLOCK as well as a distance, so a day without
+ * fetch or the merge failed — and the site has a CLOCK as well as a distance, so a day without
  * a build is a day of stale countdowns whether or not the owner rode.
  *
  * MEASURED BEFORE THIS BLOCK EXISTED, and each of these left the whole suite green:
@@ -920,7 +922,7 @@ const STATUS_FUNCTIONS = ["success", "failure", "cancelled", "always"] as const;
 
 /**
  * THE FOUR SITUATIONS, NAMED RATHER THAN REDUCED. Two of them — a failed fetch and a failed
- * push — currently produce the same status triple, and both are kept on purpose: they are the
+ * merge — currently produce the same status triple, and both are kept on purpose: they are the
  * two failures the workflow's own comment reasons about separately, and a future guard
  * reading `steps.<id>.outcome` would tell them apart. A table listing only the distinct
  * triples would silently stop covering one of them on the day that happened.
@@ -928,7 +930,7 @@ const STATUS_FUNCTIONS = ["success", "failure", "cancelled", "always"] as const;
 const STEP_SITUATIONS: Record<string, {failed: boolean; cancelled: boolean}> = {
     "every earlier step succeeded": {failed: false, cancelled: false},
     "the Strava fetch step failed": {failed: true, cancelled: false},
-    "the commit-and-push step failed": {failed: true, cancelled: false},
+    "the commit-and-merge step failed": {failed: true, cancelled: false},
     "the run was cancelled": {failed: false, cancelled: true},
 };
 
@@ -1001,7 +1003,7 @@ const dispatchers = readdirSync(WORKFLOW_DIR)
 const DISPATCH_INTENT: Record<string, boolean> = {
     "every earlier step succeeded": true,
     "the Strava fetch step failed": true,
-    "the commit-and-push step failed": true,
+    "the commit-and-merge step failed": true,
     "the run was cancelled": false,
 };
 
@@ -1036,7 +1038,7 @@ describe("the unattended deploy's own guard", () => {
             expect(evaluateStep(guardOfStep(step), STEP_SITUATIONS[name]),
                 `${where} dispatches CI, and on "${name}" its guard \`${guardOfStep(step)}\` must evaluate to `
                 + `${DISPATCH_INTENT[name]}. This step is the site's only unattended deploy: it must survive a `
-                + "failed fetch and a failed push — the dispatch names a ref, so CI builds `main` either way — and "
+                + "failed fetch and a failed merge — the dispatch names a ref, so CI builds `main` either way — and "
                 + "it must NOT fire on a cancellation, which would turn a deliberate stop into a deploy.")
                 .toBe(DISPATCH_INTENT[name]);
         }
@@ -1857,6 +1859,135 @@ describe("the job that can write to this repository", () => {
                         + "that resolve happens over the network beside the credentials.")
                         .not.toMatch(FETCHES_A_DEPENDENCY);
                 }
+            }
+        }
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// How that job reaches `main` — a rule the platform enforces and this repository could not see.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE DEFECT THIS REFUSES SHIPPED, AND IT SHIPPED WITHOUT A COMMIT.
+ *
+ * `strava-progress.yml` ended in a bare `git push` for as long as it existed, and it was correct
+ * for as long as `main` was unprotected. On 2026-08-21 the `calvindotsg/.github` baseline was
+ * applied to this repository, classic branch protection appeared on `main`, and the nightly
+ * started dying at that line with `GH006: Protected branch update failed … Changes must be made
+ * through a pull request`. Nothing in this repository changed, nothing here could have noticed,
+ * and the run's OTHER half — the deploy dispatch, which carries `if: '!cancelled()'` — went on
+ * succeeding every morning, so the site kept rebuilding from a file that had stopped moving. Two
+ * nights of kilometres were fetched and discarded before anyone read the log.
+ *
+ * A TEST CANNOT SEE BRANCH PROTECTION: it is repository settings, outside this tree, changeable
+ * without a commit, and unreadable by the token the suite would have. What it CAN hold is the
+ * shape the settings demand — that the one job able to write here goes through a pull request
+ * rather than at `main` — and that is what these rows are. The gate is deliberately about the
+ * SHAPE and not about the outcome, because the outcome is GitHub's to give.
+ *
+ * SWEPT OVER EVERY CREDENTIALED JOB rather than over the file that has one today, for the reason
+ * the block above this line gives: the next job that can write to this repository is the one
+ * nobody will think to check, and a bare `git push` is the obvious thing to type.
+ */
+describe("the job that can write to this repository reaches main through a pull request", () => {
+    /**
+     * A LINE, NOT A BODY. `git push` reads as present in a body that only mentions it in prose or
+     * refuses it in an error message, so the sweep is per command line with comments already
+     * stripped by `commandLines`. Continuations are not joined: nothing in this directory splits a
+     * push across a `\`, and joining them would let an unrelated line supply a refspec.
+     */
+    const pushLines = credentialedJobs.flatMap(({where, job}) =>
+        (job.steps ?? []).flatMap((step) => commandLines(step)
+            .filter((line) => /^git\s+push\b/.test(line))
+            .map((line) => ({where, line, body: step.run ?? ""}))));
+
+    /**
+     * WHERE A PUSH LANDS, AS FAR AS THE TEXT CAN SAY. Flags and the remote are dropped, each
+     * remaining word is a refspec, and a refspec's destination is what follows its last colon —
+     * `HEAD:refs/heads/x` lands on `x`, and a lone `x` lands on `x` too.
+     *
+     * A PUSH WITH NO REFSPEC AT ALL IS THE DEFECT ITSELF, so it resolves to the checked-out
+     * branch rather than to nothing. `actions/checkout` on a scheduled run checks out the default
+     * branch, and this job may only run on `main` — the block above asserts exactly that — so a
+     * bare `git push` in it pushes `main` to `main`. Modelling it as "no destination" would let
+     * the one spelling that broke slip through as unknown.
+     *
+     * A SHELL VARIABLE IS RESOLVED WHEN THE SAME BODY ASSIGNS IT A LITERAL, which is what makes
+     * this readable rather than clever. The shipped push names `${BRANCH}`, so without this the
+     * gate would answer "not literally main, fine" to every spelling including `BRANCH="main"`.
+     */
+    const destinationsOf = ({line, body}: {line: string; body: string}): string[] => {
+        const literals = new Map<string, string>();
+        for (const m of body.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)="([^"$]*)"\s*$/gm)) literals.set(m[1], m[2]);
+        const resolve = (s: string) => s.replace(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g,
+            (whole, name) => literals.get(name) ?? whole);
+
+        const words = line.split(/\s+/).slice(2)
+            .map((w) => w.replace(/^["']|["']$/g, ""))
+            .filter((w) => !w.startsWith("-"));
+        const refspecs = words.slice(1);
+        if (refspecs.length === 0) return ["main"];
+        return refspecs.map((spec) => resolve(spec.split(":").pop() ?? spec).replace(/^refs\/heads\//, ""));
+    };
+
+    it("finds a push to inspect, so every row below is not vacuous", () => {
+        expect(pushLines.map(({where, line}) => `${where}: ${line}`),
+            "no credentialed job pushes anything. If the nightly no longer writes to this repository "
+            + "at all, this whole block should follow it rather than pass").not.toEqual([]);
+    });
+
+    /**
+     * THE LINE THAT BROKE, REFUSED BY NAME. Restoring `git push` to the nightly turns this red;
+     * that is the mutation this gate is trusted on.
+     */
+    it("pushes nothing straight at main", () => {
+        for (const entry of pushLines) {
+            const landed = destinationsOf(entry).filter((d) => d === "main");
+            expect(landed, `${entry.where} runs \`${entry.line}\`, which lands on main. \`main\` requires a `
+                + "pull request — GitHub refuses the push with GH006 and the step dies nightly with nothing "
+                + "watching, which is exactly how this failed before. Push a branch and merge it.").toEqual([]);
+        }
+    });
+
+    /**
+     * BOTH HALVES, BECAUSE EITHER ONE ALONE IS A DEAD END. A job that opens a pull request and
+     * never merges it leaves the kilometres on a branch and reads as a green run; a job that
+     * merges without opening one cannot have anything to merge. The pair is the path.
+     *
+     * ASKED OF THE JOB AND NOT OF THE STEP, so splitting the work across two steps stays legal —
+     * it is the route to `main` being asserted, not a layout.
+     */
+    it("opens a pull request and merges it, in the job that does the pushing", () => {
+        for (const {where} of pushLines) {
+            const job = credentialedJobs.find((entry) => entry.where === where)!.job;
+            const script = (job.steps ?? []).flatMap((step) => commandLines(step)).join("\n");
+            expect(script, `${where} pushes a branch and never opens a pull request from it, so tonight's `
+                + "kilometres stop on that branch while the run reports success").toMatch(/\bgh\s+pr\s+create\b/);
+            expect(script, `${where} opens a pull request and never merges it. Nothing else in this repository `
+                + "merges it either — the one reader of that branch is this job — so it would sit open until "
+                + "somebody noticed").toMatch(/\bgh\s+pr\s+merge\b/);
+        }
+    });
+
+    /**
+     * THE MERGE NAMES THE COMMIT IT MEANT. The bot's branch is force-pushed by every run, so a
+     * merge that names no commit merges whatever the branch points at now — a second run
+     * overlapping the first, or a hand-pushed fix landing in between, would be squashed onto
+     * `main` under a subject line describing different numbers. `--match-head-commit` makes
+     * GitHub refuse that instead, and refusing is recoverable: the next run force-pushes again.
+     */
+    it("merges the commit it just pushed rather than whatever the branch points at", () => {
+        for (const {where} of pushLines) {
+            const job = credentialedJobs.find((entry) => entry.where === where)!.job;
+            const merges = (job.steps ?? []).flatMap((step) => commandLines(step))
+                .filter((line) => /\bgh\s+pr\s+merge\b/.test(line));
+            expect(merges, `${where} runs no \`gh pr merge\` line for this row to read`).not.toEqual([]);
+            for (const line of merges) {
+                expect(line, `${where} runs \`${line}\`, which merges whatever the head branch points at when `
+                    + "GitHub gets the call. That branch is force-pushed by every run of this workflow, so the "
+                    + "commit merged need not be the commit whose numbers the subject line describes. Name it "
+                    + "with --match-head-commit.").toMatch(/--match-head-commit/);
             }
         }
     });

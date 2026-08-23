@@ -79,9 +79,11 @@ of their own.
 | `astro.config.mjs` | `site`, the origin the sitemap and the canonical URLs are built from. `METADATA.site_url` in `src/content/site.ts` carries the same origin for the structured data, so change both |
 
 **Goal progress.** The current figures are bot-owned: `.github/workflows/strava-progress.yml`
-fetches them from Strava overnight, writes `src/data/strava-progress.json`, and dispatches a
-deploy. To bump a figure by hand, edit that JSON rather than the goal — `total_goal` stays in
-`src/data/goals.ts`. The credentials that workflow needs, and where they are kept, are in
+fetches them from Strava overnight, writes `src/data/strava-progress.json`, lands it on `main`
+through a pull request it opens and merges itself, and dispatches a deploy. To bump a figure by
+hand, edit that JSON rather than the goal — `total_goal` stays in
+`src/data/goals.ts`. The credentials that workflow needs, why the nightly goes through a pull
+request at all, and where the credentials are kept, are in
 [scripts/README.md](scripts/README.md).
 
 The athlete id has two homes doing two different jobs: `STRAVA_ATHLETE_ID` decides whose
