@@ -16,9 +16,14 @@ on:
 #
 # `pull-requests: write` IS WHAT THE PROTECTED BRANCH COSTS, and it is the whole
 # scope this workflow gained: `contents: write` still pushes, but it now pushes a
-# BRANCH, and opening and merging the pull request that carries it to `main` needs
-# this second scope. Without it `gh pr create` returns 403 and the kilometres stop
-# on that branch — again on the one path nobody watches.
+# BRANCH, and the pull request that carries it to `main` has to be read and merged.
+#
+# IT DOES NOT COVER OPENING ONE, which is the part that reads backwards and is worth
+# stating. This block scopes the AMBIENT token, and the ambient token is refused at
+# `gh pr create` by a repository setting no `permissions:` block can grant — so that
+# one call runs as a GitHub App instead, and the app's own installation permissions
+# are what authorise it. Widening anything here would not have helped; the step that
+# mints the app token says why in full.
 permissions:
   contents: write
   actions: write
@@ -68,16 +73,67 @@ jobs:
       # deleted, because "why is this a SHA" and "why is it THIS SHA" are two questions and
       # only the second one moved.
       #
-      # THE BUMP CROSSED TWO MAJORS, AND THE THING TO CHECK WAS NOT THE MAJOR NUMBER. The
-      # push below carries no token and no remote URL: it relies entirely on the credentials
-      # this step persists. `persist-credentials` still defaults to `true` — verified by
-      # reading the action's own input manifest at both the old and the new pinned SHA,
-      # rather than trusting release notes — so the bump is inert here. If a future bump
-      # flips that default, this job fails at `git push`, nightly, with nothing watching.
+      # THE BUMP CROSSED TWO MAJORS, AND THE THING TO CHECK WAS NOT THE MAJOR NUMBER.
+      # `persist-credentials` still defaults to `true` — verified by reading the action's own
+      # input manifest at both the old and the new pinned SHA, rather than trusting release
+      # notes.
+      #
+      # WHAT THOSE PERSISTED CREDENTIALS ARE STILL FOR HAS SHRUNK, and the note is corrected
+      # rather than deleted because it used to be the whole reason this mattered. The push below
+      # once carried no token and no remote URL and leaned entirely on them; it now names an
+      # explicit URL carrying the app token, because the identity that pushes decides whether
+      # `ci.yml` sees the branch move. What still rides on the persisted credentials is the
+      # ordinary read side of this checkout. A future bump that flips the default therefore no
+      # longer fails at `git push` — which is worth knowing, because it is a guard this file
+      # quietly lost rather than one it kept.
       #
       # Dependabot can bump a SHA but cannot convert a tag into one, so any new
       # `uses:` line has to be written pinned by hand.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # THE ONE THING `GITHUB_TOKEN` CANNOT DO HERE, AND THE ONLY REASON THIS ACTION EXISTS IN
+      # THIS FILE. `can_approve_pull_request_reviews` is false on this repository — set by the
+      # `calvindotsg/.github` baseline — and despite the name it governs CREATING a pull request
+      # as well as approving one. So the ambient token can commit, push and merge, and is refused
+      # at exactly one call. MEASURED: run 32607449813 died on
+      # `GitHub Actions is not permitted to create or approve pull requests (createPullRequest)`.
+      #
+      # THE RESTRICTION IS ABOUT THE AMBIENT TOKEN, NOT ABOUT AUTOMATION, which is what makes an
+      # App the fix rather than a workaround. Two sibling repositories were checked and neither
+      # broke on the same baseline: `homebrew-tap` pushes and opens its bump pull requests with a
+      # PAT and did so on 2026-08-22, after the baseline landed, and `mac-upkeep` runs
+      # release-please on this same App. `portfolio-v2` was the only one whose bot used the
+      # ambient token, and the only one that broke.
+      #
+      # AN APP RATHER THAN A PAT, and the difference is not stylistic: an installation token is
+      # minted per run and expires in an hour, is scoped to the repositories the App is installed
+      # on, and belongs to no person — so it does not carry a human's access and does not die when
+      # one rotates a password. That is the fleet's own newer pattern; the tap's PAT is the older
+      # one.
+      #
+      # IT ALSO BUYS THE THING A REQUIRED STATUS CHECK NEEDS. A pull request opened by
+      # `GITHUB_TOKEN` triggers no workflow run, so a required check on it could never report and
+      # the merge below would wait for ever — the deadlock the previous version of this file
+      # warned about in place of fixing. An App is a different identity, its events are not
+      # suppressed, and `ci.yml` runs on the pull request the way it does for a human's. The cost
+      # is a preview deploy every night the kilometres move; `pages-retention.yml` is what clears
+      # those.
+      #
+      # THE APP IS `calvindotsg-release`, shared with `mac-upkeep`, which holds the same private
+      # key under its own names. 1Password's `calvindotsg-release` item is the source of truth for
+      # both, the way it is for the Strava credentials below; a GitHub secret cannot be read back,
+      # so it can be compared with nothing. Rotating the key means updating BOTH repositories from
+      # that item, and there is no mechanism that would notice one being left behind.
+      #
+      # NAMED FOR THE ROLE IT PLAYS HERE, not for the App's own name. `mac-upkeep` calls the same
+      # credential `RELEASE_PLEASE_*` because that is what it drives there; nothing in this
+      # repository releases anything, and a name that says otherwise would send a reader looking
+      # for a release pipeline that does not exist. `app-id` rather than `client-id` because that
+      # is the field 1Password records, and the truth store is what a reader will check against.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: bot-app
+        with:
+          app-id: ${{ vars.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
       - name: Fetch YTD totals and write src/data/strava-progress.json
         # ubuntu-latest ships node >= 20 preinstalled (22.x on 24.04) —
         # built-in fetch, zero deps, no setup-node needed.
@@ -156,9 +212,26 @@ jobs:
       # commit-merge-deploy every night; the deploy is still dispatched below whether or not
       # anything was committed; and a merge made with `GITHUB_TOKEN` triggers no workflow run
       # either, so the dispatch is as load-bearing after this change as it was before it.
+      # TWO TOKENS, AND WHICH ONE DOES WHAT IS A DESIGN DECISION RATHER THAN AN ACCIDENT.
+      # `GH_TOKEN` is the ambient one and is the DEFAULT for everything in this step; the App
+      # token is named explicitly at the two calls that need a different identity, and nowhere
+      # else. The split is not "use the strongest token available":
+      #
+      #   - THE APP PUSHES THE BRANCH AND OPENS THE PULL REQUEST, because those are the events
+      #     `ci.yml` has to see. `GITHUB_TOKEN` cannot open one at all, and a force-push made
+      #     with it would be suppressed too — so on the reuse path the pull request would carry
+      #     a new commit that no check ever ran against, which is the worse half of the bug and
+      #     the one that would only appear on a night that had already failed once.
+      #   - `GITHUB_TOKEN` MERGES, deliberately, because a merge made with it triggers no
+      #     workflow run. The App merging would push to `main` as an identity GitHub does not
+      #     suppress, `ci.yml` would fire on that push, and the dispatch below would fire too —
+      #     two production deploys of the same commit, which `ci.yml`'s own header explains can
+      #     publish the OLDER of two same-day artifacts. Keeping the merge on the ambient token
+      #     leaves the deploy topology exactly as it was.
       - name: Commit the new km values and land them on main through a pull request
         env:
           GH_TOKEN: ${{ github.token }}
+          APP_TOKEN: ${{ steps.bot-app.outputs.token }}
         run: |
           if git diff --quiet -- src/data/strava-progress.json; then
             echo "Progress unchanged; nothing to commit. Today's build still runs — the site's clock moved even if the kilometres did not. See the next step."
@@ -198,7 +271,13 @@ jobs:
 
           git commit -m "$SUBJECT"
           HEAD_SHA="$(git rev-parse HEAD)"
-          git push --force origin "HEAD:refs/heads/${BRANCH}"
+          # PUSHED WITH THE APP TOKEN THROUGH AN EXPLICIT URL, because `actions/checkout`
+          # persisted the AMBIENT token into this checkout's git config and a bare
+          # `git push origin` would use it. The identity matters here for the same reason it
+          # matters at `gh pr create`: a force-push made with `GITHUB_TOKEN` fires no
+          # `pull_request` synchronize event, so on the reuse path the pull request would carry a
+          # commit no check ever ran against. `homebrew-tap` pushes through the same shape.
+          git push --force "https://x-access-token:${APP_TOKEN}@github.com/${GITHUB_REPOSITORY}" "HEAD:refs/heads/${BRANCH}"
 
           # THE DESCRIPTION IS THE COMMIT BODY, NOT DECORATION. This repository squash-merges
           # with the pull request's title and description as the message, so what is written
@@ -219,32 +298,27 @@ jobs:
           PR="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
           if [ -n "$PR" ]; then
             echo "Reusing pull request #${PR}, left open by an earlier run that could not merge."
-            gh pr edit "$PR" --title "$SUBJECT" --body "$BODY"
+            GH_TOKEN="$APP_TOKEN" gh pr edit "$PR" --title "$SUBJECT" --body "$BODY"
           else
-            # THIS CALL HAS A SECOND WAY TO FAIL AND IT IS NOT A PERMISSIONS BLOCK IN THIS FILE.
-            # MEASURED, on the first real run after the pull-request rewrite landed:
+            # THE ONE CALL THE AMBIENT TOKEN IS REFUSED AT, which is why it runs as the App. The
+            # measurement, from the first real run after the pull-request rewrite landed:
             #
             #     pull request create failed: GraphQL: GitHub Actions is not permitted to create
             #     or approve pull requests (createPullRequest)
             #
-            # That is the repository setting `can_approve_pull_request_reviews`, which the
-            # `calvindotsg/.github` baseline sets to false. THE FIELD NAME ONLY MENTIONS
-            # APPROVING AND THE SETTING GOVERNS CREATING TOO — the baseline's own comment beside
-            # it says only "stops Actions approving pull requests", which is how this was missed
-            # while the baseline was being read rather than run.
+            # That is `can_approve_pull_request_reviews`, false on this repository. The field name
+            # only mentions approving and the setting governs CREATING too, which is how reading
+            # the baseline rather than running it missed this.
             #
-            # SO THE BASELINE CONTRADICTS ITSELF WHEREVER A REPOSITORY HAS A WRITE-BOT: branch
-            # protection says every change arrives as a pull request, and this setting says the
-            # one automated author here may not open one. No spelling of this workflow satisfies
-            # both. Only `create` is refused — `gh pr merge` is neither creating nor approving
-            # and goes through — so the whole contradiction sits on this one line.
-            #
-            # THE GUARD IS HERE RATHER THAN LEFT TO `bash -e` because `gh`'s own message names
-            # the API field and not the fix, and this runs at 05:13 with nobody reading it. The
-            # commit is already safe on the branch by this point, which is what makes a red run
-            # recoverable rather than lost.
-            if ! gh pr create --base main --head "$BRANCH" --title "$SUBJECT" --body "$BODY"; then
-              echo "::error::could not open a pull request for tonight's kilometres, so nothing was merged and src/data/strava-progress.json on main is behind. The commit is safe on ${BRANCH} and the next run reuses it. If the message above says GitHub Actions is not permitted to create pull requests, that is a repository setting rather than anything in this file — check it with 'gh api repos/OWNER/REPO/actions/permissions/workflow' and read the note beside this line before changing it."
+            # THE GUARD SURVIVES THE FIX ON PURPOSE. With the App token this call should not fail
+            # that way again — but the App can be uninstalled from this repository, its key can be
+            # rotated in one place and not the other, and the baseline's setting is not what is
+            # being satisfied so much as side-stepped. `gh`'s own message names an API field
+            # rather than a fix, and this runs at 05:13 with nobody reading it. The commit is
+            # already safe on the branch by this point, which is what makes a red run recoverable
+            # rather than lost.
+            if ! GH_TOKEN="$APP_TOKEN" gh pr create --base main --head "$BRANCH" --title "$SUBJECT" --body "$BODY"; then
+              echo "::error::could not open a pull request for tonight's kilometres, so nothing was merged and src/data/strava-progress.json on main is behind. The commit is safe on ${BRANCH} and the next run reuses it. This call runs as the app, so check that it is still installed on this repository and that BOT_APP_ID and BOT_APP_PRIVATE_KEY still match it. If the message above says GitHub Actions is not permitted to create pull requests, the app token was not used at all and the ambient one fell through."
               exit 1
             fi
             PR="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
@@ -272,8 +346,35 @@ jobs:
           # merge here, would be merged silently under tonight's subject line. GitHub refuses
           # the merge instead when the head has moved, and the next run recovers by
           # force-pushing again.
-          if ! gh pr merge "$PR" --squash --match-head-commit "$HEAD_SHA"; then
-            echo "::error::pull request #${PR} carries tonight's kilometres and would not merge, so src/data/strava-progress.json on main is a day behind and every figure the site derives from it is stale. The commit is safe on ${BRANCH} and the next run will reuse this pull request. If main has gained a required status check, that is the cause and it cannot clear itself: a pull request opened with GITHUB_TOKEN triggers no workflow run, so the check never reports."
+          #
+          # `--auto` IS CORRECT NOW AND WAS WRONG BEFORE, which is worth stating because the
+          # previous version of this file argued against it in as many words. The argument was
+          # that a pull request opened by `GITHUB_TOKEN` triggers no workflow, so auto-merge
+          # would sit for ever waiting on a check that never reports — an outcome dressed as
+          # patience. The App opens this one, so `ci.yml` runs on it and the wait terminates.
+          # gh merges immediately when nothing is pending and enables auto-merge when something
+          # is, so this one spelling covers both `main` as it is today, with no required check,
+          # and `main` with one.
+          #
+          # AN ENABLED AUTO-MERGE IS NOT A MERGE, and that is the whole reason for the loop
+          # below rather than trusting this call's exit status. `gh` exits 0 having ARMED the
+          # merge, so without the wait a run that never merges — a check that fails, a conflict,
+          # a head that moved — reports success, leaves the pull request open, and the
+          # kilometres sit on the branch behind a green tick. That is the failure shape this
+          # whole file exists to refuse. The wait is bounded rather than infinite because the
+          # job holds the concurrency group while it runs.
+          if ! gh pr merge "$PR" --squash --auto --match-head-commit "$HEAD_SHA"; then
+            echo "::error::pull request #${PR} carries tonight's kilometres and could not be merged or queued, so src/data/strava-progress.json on main is a day behind and every figure the site derives from it is stale. The commit is safe on ${BRANCH} and the next run will reuse this pull request."
+            exit 1
+          fi
+
+          for _ in $(seq 1 60); do
+            STATE="$(gh pr view "$PR" --json state --jq .state 2>/dev/null || true)"
+            [ "$STATE" = "MERGED" ] && break
+            sleep 10
+          done
+          if [ "$STATE" != "MERGED" ]; then
+            echo "::error::pull request #${PR} was queued to merge and had not merged ten minutes later; it reads ${STATE:-unreadable}. src/data/strava-progress.json on main is a day behind. Read the pull request's own checks for why — a failing check and a moved head both land here — and note the commit is safe on ${BRANCH}, so the next run reuses this pull request rather than opening a second one."
             exit 1
           fi
 
@@ -282,8 +383,15 @@ jobs:
       # `main` and, on its own, nothing builds. THE SUPPRESSION SURVIVED THE MOVE TO A PULL
       # REQUEST UNCHANGED, which is worth stating rather than assuming: it is a rule about the
       # identity that acts, not about the shape of the act, so a merge is suppressed exactly as
-      # the direct push it replaced was, and the pull request itself never triggers `ci.yml` on
-      # `pull_request` either. Netlify never had this problem because
+      # the direct push it replaced was.
+      #
+      # THE PULL REQUEST ITSELF DOES BUILD, AND THAT IS A DIFFERENT BUILD FROM THIS ONE. It is
+      # opened by the app rather than by `GITHUB_TOKEN`, so `ci.yml` runs on it and gates the
+      # merge — but it builds the BRANCH, and this step is what builds `main` afterwards. The two
+      # are not redundant and collapsing either into the other is the mistake to avoid: the
+      # pull-request build cannot deploy production (`deploy-production` tests `github.ref`), and
+      # this dispatch has to fire on the nights nothing was committed at all. Netlify never had
+      # this problem because
       # its webhook watched the repository rather than the Actions event stream; moving the
       # build into Actions moved this failure mode in with it. `workflow_dispatch` is one of
       # the two documented exceptions to the suppression rule, which is why the fix is a
