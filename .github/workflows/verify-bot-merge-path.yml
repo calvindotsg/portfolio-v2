@@ -51,16 +51,24 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # THE TOKEN IS MINTED BEFORE THE CHECKOUT BECAUSE THE CHECKOUT HAS TO CARRY IT.
+      # The first run of this probe pushed with the token in the URL and was refused:
+      # `Permission to calvindotsg/portfolio-v2.git denied to github-actions[bot]`. That is the
+      # whole lesson — `actions/checkout` persists an `http.<url>.extraheader` Authorization
+      # header into the checkout's git config, and that header OVERRIDES credentials embedded in
+      # a push URL. So the push authenticated as the ambient bot rather than as the app, silently,
+      # and only failed here because this job holds `permissions: {}` and therefore cannot write.
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: bot-app
         with:
           client-id: ${{ vars.BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.bot-app.outputs.token }}
       - name: Land the correction the way the nightly lands kilometres
         env:
           GH_TOKEN: ${{ steps.bot-app.outputs.token }}
-          APP_TOKEN: ${{ steps.bot-app.outputs.token }}
         run: |
           BRANCH="bot/verify-merge-path"
           SUBJECT="docs(plans): correct the prediction a required check has now falsified"
@@ -75,10 +83,11 @@ jobs:
           git commit -q -m "$SUBJECT"
           HEAD_SHA="$(git rev-parse HEAD)"
 
-          # AS THE APP, exactly as the nightly pushes — the identity is what decides whether
-          # `ci.yml` sees the branch at all, and a required check that never reports is the
-          # failure being tested for.
-          git push --force "https://x-access-token:${APP_TOKEN}@github.com/${GITHUB_REPOSITORY}" "HEAD:refs/heads/${BRANCH}"
+          # A PLAIN `origin` PUSH, WHICH IS THE POINT: the checkout above persisted the app's
+          # credentials, so this is the app pushing without a token appearing on the command line
+          # at all. The identity decides whether `ci.yml` sees the branch move, and a required
+          # check that never reports is the failure being tested for.
+          git push --force origin "HEAD:refs/heads/${BRANCH}"
 
           BODY="$(printf '%s\n\n%s\n' "Landed by the verify-bot-merge-path probe, which pushes and opens as the calvindotsg-release app exactly as the nightly does, arms the merge with --auto under the new required check, and waits for MERGED rather than trusting the exit status. It differs from the nightly in one call: this merge is the app's rather than the ambient token's, because an ambient merge would need write scopes this probe deliberately does not take." "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
 
