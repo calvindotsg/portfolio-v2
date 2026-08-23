@@ -2030,6 +2030,50 @@ describe("the job that can write to this repository reaches main through a pull 
             }
         }
     });
+
+    /**
+     * A CREDENTIAL IN A PUSH URL IS NOT THE IDENTITY THAT PUSHES, AND THIS SHIPPED.
+     *
+     * `actions/checkout` persists its token into the checkout's git config as an
+     * `http.<url>.extraheader` Authorization header, and that header BEATS credentials embedded in
+     * a remote URL. So `git push https://x-access-token:${APP_TOKEN}@github.com/...` reads as "push
+     * as the app" and pushes as whoever the checkout was. The spelling was copied from
+     * `homebrew-tap`, where it is correct precisely because that workflow never runs
+     * `actions/checkout`.
+     *
+     * MEASURED ON A DISPOSABLE BRANCH, which is the only reason it is not in the nightly today. The
+     * probe held `permissions: {}`, so it failed loudly with `Permission to
+     * calvindotsg/portfolio-v2.git denied to github-actions[bot]`. The real job holds
+     * `contents: write`: the identical push would have SUCCEEDED under the wrong identity and said
+     * nothing, and would then have broken only on the reuse path — an ambient force-push raises no
+     * `pull_request` synchronize event, so the required check never reports on the new head and the
+     * merge waits out its poll. A defect that only appears on the second consecutive bad night.
+     *
+     * SO THE RULE IS ABOUT THE SHAPE, NOT ABOUT THIS ONE TOKEN. Any credential in any remote URL is
+     * refused, because the failure is silent for every one of them, and the identity is asserted
+     * where it is actually decided: on the checkout.
+     */
+    it("takes the pushing identity from the checkout rather than from a URL", () => {
+        for (const {where, line} of pushLines) {
+            expect(line, `${where} runs \`${line}\`, which embeds a credential in the remote URL. `
+                + "`actions/checkout` persists an http.<url>.extraheader Authorization header that OVERRIDES "
+                + "it, so the push authenticates as the checkout's identity and the URL is decoration. Pass "
+                + "the token to actions/checkout with `token:` and push to a plain `origin` instead.")
+                .not.toMatch(/@github\.com|x-access-token|:\/\/[^/\s]*:[^/\s]*@/);
+        }
+
+        for (const {where} of pushLines) {
+            const entry = credentialedJobs.find((e) => e.where === where)!;
+            const checkouts = (entry.job.steps ?? []).filter((s) => /actions\/checkout@/.test(String(s.uses ?? "")));
+            expect(checkouts.length, `${where} pushes without checking anything out`).toBeGreaterThan(0);
+            for (const step of checkouts) {
+                expect((step.with ?? {}).token, `${where} pushes, and its actions/checkout step names no `
+                    + "`token:` — so the push silently takes the ambient GITHUB_TOKEN's identity. That is the "
+                    + "one thing about a pushing job that must never be implicit: the identity decides whether "
+                    + "`ci.yml` sees the branch move at all.").toBeDefined();
+            }
+        }
+    });
 });
 
 /**
