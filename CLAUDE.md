@@ -48,7 +48,13 @@ block above it before giving either consumer the other's list.
 - `pnpm eslint` and `pnpm check` — not `lint`, not `typecheck`; neither of those
   script names exists. The `build` job in `.github/workflows/ci.yml` runs all
   three (`check`, `eslint`, `test`), and both deploy jobs sit behind
-  `needs: build`, so a red run of any of them blocks the deploy.
+  `needs: build`, so a red run of any of them blocks the deploy — and now blocks the
+  MERGE as well, because `build and test` is a required status check on `main`. Those
+  are two different guarantees and only the second one is new: `needs: build` always
+  stopped a red run from publishing, but nothing stopped a red pull request from
+  landing on `main` in the first place. **The required check lives in repository
+  settings rather than in this tree**, so nothing here can assert it and no gate will
+  notice if it is removed
   `eslint` globs `src/**/*.{js,astro}` and `scripts/**/*.mjs`, so a clean run
   still says nothing about the `.ts` files — those are gated by `pnpm check`
   (tsconfig includes `**/*`) and by the suite. The scripts arm needs its own

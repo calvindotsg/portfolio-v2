@@ -35,6 +35,11 @@ pnpm test
 sit behind `needs: build` — so **a red run of any of them blocks the deploy**, not just
 the suite. Run them locally before you push; CI is the backstop, not the first look.
 
+**`build and test` is also a required status check on `main`**, so a red run blocks the
+*merge* too and the button stays disabled until it is green. That is newer than the line
+above and is a different guarantee: `needs: build` only ever stopped a red run from
+publishing, which left a red pull request perfectly able to land.
+
 `pnpm test` builds the site itself before asserting against `dist/`. While iterating,
 `SKIP_BUILD=1 pnpm test` reuses an existing `dist/` — never for the run you are trusting.
 
