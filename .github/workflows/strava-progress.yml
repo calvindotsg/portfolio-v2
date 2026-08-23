@@ -78,18 +78,31 @@ jobs:
       # input manifest at both the old and the new pinned SHA, rather than trusting release
       # notes.
       #
-      # WHAT THOSE PERSISTED CREDENTIALS ARE STILL FOR HAS SHRUNK, and the note is corrected
-      # rather than deleted because it used to be the whole reason this mattered. The push below
-      # once carried no token and no remote URL and leaned entirely on them; it now names an
-      # explicit URL carrying the app token, because the identity that pushes decides whether
-      # `ci.yml` sees the branch move. What still rides on the persisted credentials is the
-      # ordinary read side of this checkout. A future bump that flips the default therefore no
-      # longer fails at `git push` — which is worth knowing, because it is a guard this file
-      # quietly lost rather than one it kept.
+      # WHAT THE PERSISTED CREDENTIALS ARE IS THE WHOLE IDENTITY QUESTION, and this note has now
+      # been wrong twice, so the measurement is written down rather than the conclusion. `token:`
+      # below decides who `git push` is, because `persist-credentials` writes that token into the
+      # checkout's git config as an `http.<url>.extraheader` Authorization header — and that
+      # header OVERRIDES any credential embedded in a push URL.
+      #
+      # MEASURED, on a disposable branch, before it could bite the nightly: this step took no
+      # `token:` and the push named `https://x-access-token:${APP_TOKEN}@github.com/...`, copied
+      # from `homebrew-tap`, which does the same thing correctly because it does not use
+      # `actions/checkout` at all. Here the extraheader won and the push authenticated as
+      # `github-actions[bot]`. The probe held `permissions: {}` so it failed loudly with
+      # `Permission to calvindotsg/portfolio-v2.git denied to github-actions[bot]`; THIS job holds
+      # `contents: write`, so the same push would have SUCCEEDED under the wrong identity and said
+      # nothing. It would then have broken only on the reuse path — a force-push made by the
+      # ambient token raises no `synchronize` event, so `ci.yml` would never run against the new
+      # head, the required check would never report, and the merge below would wait until the
+      # ten-minute poll gave up. In other words it would have failed on the second consecutive bad
+      # night, which is the worst night to discover it.
+      #
+      # So the app token is minted BEFORE the checkout and handed to it, which is what
+      # `mac-upkeep` already does, and the push below is a plain `origin` push with no credential
+      # on the command line at all.
       #
       # Dependabot can bump a SHA but cannot convert a tag into one, so any new
       # `uses:` line has to be written pinned by hand.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # THE ONE THING `GITHUB_TOKEN` CANNOT DO HERE, AND THE ONLY REASON THIS ACTION EXISTS IN
       # THIS FILE. `can_approve_pull_request_reviews` is false on this repository — set by the
       # `calvindotsg/.github` baseline — and despite the name it governs CREATING a pull request
@@ -149,6 +162,9 @@ jobs:
         with:
           client-id: ${{ vars.BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.bot-app.outputs.token }}
       - name: Fetch YTD totals and write src/data/strava-progress.json
         # ubuntu-latest ships node >= 20 preinstalled (22.x on 24.04) —
         # built-in fetch, zero deps, no setup-node needed.
@@ -229,14 +245,19 @@ jobs:
       # either, so the dispatch is as load-bearing after this change as it was before it.
       # TWO TOKENS, AND WHICH ONE DOES WHAT IS A DESIGN DECISION RATHER THAN AN ACCIDENT.
       # `GH_TOKEN` is the ambient one and is the DEFAULT for everything in this step; the App
-      # token is named explicitly at the two calls that need a different identity, and nowhere
-      # else. The split is not "use the strongest token available":
+      # token is named explicitly at the two `gh` calls that need a different identity, and
+      # nowhere else. The split is not "use the strongest token available":
       #
       #   - THE APP PUSHES THE BRANCH AND OPENS THE PULL REQUEST, because those are the events
       #     `ci.yml` has to see. `GITHUB_TOKEN` cannot open one at all, and a force-push made
       #     with it would be suppressed too — so on the reuse path the pull request would carry
       #     a new commit that no check ever ran against, which is the worse half of the bug and
       #     the one that would only appear on a night that had already failed once.
+      #     THE PUSH TAKES ITS IDENTITY FROM THE CHECKOUT RATHER THAN FROM `APP_TOKEN` HERE, and
+      #     that asymmetry is the fix for a real defect rather than a stylistic wobble: a token
+      #     written into a push URL is beaten by the Authorization header `actions/checkout`
+      #     persists, so naming it on the command line looked right and pushed as the ambient
+      #     token. `git` reads the checkout; only `gh` reads `APP_TOKEN`.
       #   - `GITHUB_TOKEN` MERGES, deliberately, because a merge made with it triggers no
       #     workflow run. The App merging would push to `main` as an identity GitHub does not
       #     suppress, `ci.yml` would fire on that push, and the dispatch below would fire too —
@@ -286,13 +307,19 @@ jobs:
 
           git commit -m "$SUBJECT"
           HEAD_SHA="$(git rev-parse HEAD)"
-          # PUSHED WITH THE APP TOKEN THROUGH AN EXPLICIT URL, because `actions/checkout`
-          # persisted the AMBIENT token into this checkout's git config and a bare
-          # `git push origin` would use it. The identity matters here for the same reason it
-          # matters at `gh pr create`: a force-push made with `GITHUB_TOKEN` fires no
-          # `pull_request` synchronize event, so on the reuse path the pull request would carry a
-          # commit no check ever ran against. `homebrew-tap` pushes through the same shape.
-          git push --force "https://x-access-token:${APP_TOKEN}@github.com/${GITHUB_REPOSITORY}" "HEAD:refs/heads/${BRANCH}"
+          # A PLAIN `origin` PUSH, AND IT IS THE APP BECAUSE THE CHECKOUT SAID SO. The paragraph
+          # beside that step has the measurement; the short version is that a credential written
+          # into a push URL loses to the Authorization header `actions/checkout` persists, so the
+          # explicit-URL spelling this line used to carry pushed as the ambient token while
+          # reading as though it pushed as the app.
+          #
+          # WHY THE IDENTITY MATTERS HERE AT ALL, since the push itself would succeed either way:
+          # a force-push made with `GITHUB_TOKEN` fires no `pull_request` synchronize event, so on
+          # the REUSE path the pull request would carry a commit `ci.yml` never ran against, the
+          # required check would never report on the new head, and the merge below would wait out
+          # its whole poll and fail. Verified end to end on a disposable branch before this
+          # shipped: pull request #199 was pushed, opened, checked and auto-merged by the app.
+          git push --force origin "HEAD:refs/heads/${BRANCH}"
 
           # THE DESCRIPTION IS THE COMMIT BODY, NOT DECORATION. This repository squash-merges
           # with the pull request's title and description as the message, so what is written
