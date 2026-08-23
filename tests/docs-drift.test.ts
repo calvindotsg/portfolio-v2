@@ -761,7 +761,7 @@ describe("documentation, against the code it describes", () => {
      * / `env/X` reference. Only the names owned by somebody else need an entry.
      */
     const OWNED_ELSEWHERE: Record<string, string> = {
-        GITHUB_TOKEN: "GitHub Actions injects it; strava-progress.yml names it to explain why a push made with it triggers no workflow run",
+        GITHUB_TOKEN: "GitHub Actions injects it; strava-progress.yml names it to explain why nothing done with it — the nightly's merge, or the direct push that merge replaced — triggers a workflow run",
         WRANGLER_OUTPUT_FILE_DIRECTORY: "wrangler's own env var, named in ci.yml as the one NOT used — it addresses a directory holding a randomly-named file, which a later step cannot read",
         STATUS_CODE_PAGES: "@astrojs/sitemap's own constant, named in build-output.test.ts to record that the sitemap integration already excludes the 404 without this repository asking it to",
     };

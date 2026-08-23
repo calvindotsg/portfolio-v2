@@ -69,24 +69,38 @@ Singapore, after a full Singapore day, and off the top of the hour to avoid GitH
 scheduling delays. It writes `src/data/strava-progress.json`, commits it, and asks
 `.github/workflows/ci.yml` to build and deploy.
 
+**The commit reaches `main` through a pull request the run opens and merges itself**, on a
+branch called `bot/strava-progress` that is reused every night and force-pushed each time. That
+is not a preference: `main` requires one. The repository's baseline settings arrived from
+`calvindotsg/.github` on 2026-08-21 and the nightly died on the next run with `GH006: Protected
+branch update failed … Changes must be made through a pull request`. So a night that moves the
+kilometres now leaves a merged pull request behind it, and the pull request is the audit trail —
+its description carries the run that opened it. A night whose merge fails leaves that pull
+request OPEN, which is the recovery path rather than a mess to clean up: the next run
+force-pushes over the branch and merges the pull request that is already there. The workflow's
+own comment holds the whole argument, including the one setting that would deadlock this and
+why it cannot clear itself.
+
 Outcomes in its log that read like failures and are not:
 
 **A run that commits nothing is the ordinary outcome.** The script re-reads the year-to-date
 totals in full every time rather than tracking what it last saw, so when the kilometres have
 not moved it writes byte-identical JSON, the commit step's `git diff --quiet` gate passes, and
 there is nothing to push. That gate is the only thing standing between this repository and a
-commit-push-deploy every night, which is why `updated_at` has to survive an unchanged run: a
+commit-merge-deploy every night, which is why `updated_at` has to survive an unchanged run: a
 freshly stamped date would make the file differ by construction and the gate could never fire.
 
 **The deploy is dispatched either way.** The last step carries `if: '!cancelled()'`, so it runs
-on success and on failure and stops only on a cancel. It exists because a push made with
-`GITHUB_TOKEN` does not trigger a workflow run — GitHub suppresses it to stop recursion — so
-the commit reaches `main` and, on its own, nothing builds. It is independent of whether
+on success and on failure and stops only on a cancel. It exists because nothing done with
+`GITHUB_TOKEN` triggers a workflow run — GitHub suppresses it to stop recursion, and that is a
+rule about the identity acting rather than about the act, so the merge is suppressed exactly as
+the direct push it replaced was — so the commit reaches `main` and, on its own, nothing builds.
+It is independent of whether
 anything was committed because the site has a clock as well as a distance: `BUILD_DATE` in
 `src/lib/today.ts` feeds the countdown, `patchState`, `patchWall` and `nextRace`, and every one
 of those turns over at Singapore midnight whether or not the owner trained. Firing only on a
 commit froze the home page's countdown for as long as the owner rested. A failed fetch or a
-failed push must not cost the day's build either: the dispatch names a ref, so CI checks out
+failed merge must not cost the day's build either: the dispatch names a ref, so CI checks out
 `main` and builds whatever is on it, and the runner's own checkout never reaches the deploy.
 
 The dispatch step does not wait for the run it asks for. Green there means the build was
