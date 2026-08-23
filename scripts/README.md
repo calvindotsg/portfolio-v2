@@ -81,6 +81,16 @@ force-pushes over the branch and merges the pull request that is already there. 
 own comment holds the whole argument, including the one setting that would deadlock this and
 why it cannot clear itself.
 
+**Two repository settings outside this tree decide whether that path works at all**, and neither
+is visible from a green suite. The first is branch protection on `main`, which is what makes the
+pull request necessary. The second is the one that made the first attempt fail:
+`can_approve_pull_request_reviews` governs whether GitHub Actions may **create** a pull request as
+well as approve one, and with it off the run dies on `gh pr create` with `GitHub Actions is not
+permitted to create or approve pull requests`. The step names both, and names the command that
+reads the second, because the error GitHub returns names an API field rather than a fix. Only
+creating is refused — merging is neither creating nor approving — so a run that gets past that one
+line finishes.
+
 Outcomes in its log that read like failures and are not:
 
 **A run that commits nothing is the ordinary outcome.** The script re-reads the year-to-date
