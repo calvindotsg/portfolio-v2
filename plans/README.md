@@ -229,13 +229,25 @@ THE PARAGRAPH LEANS ON.** The `calvindotsg/.github` baseline was applied to this
 outside it, so `main` now carries classic branch protection whether or not this directory declined
 it, and the nightly died on the next run with `GH006: Protected branch update failed … Changes must
 be made through a pull request`. Read the two reasons above separately, because they came apart:
-the first is about a REQUIRED STATUS CHECK, and the baseline sets none — `required_status_checks`
-answers 404 on `main` and `required_approving_review_count` is 0 — so nothing stands between the
-bot's pull request and its merge, and the run-scoped token is enough after all. The second reason
-is therefore conditional rather than general: it bites only once a required check exists, and on
-that day the deadlock it describes is real and unbreakable from inside the run. What is written
-down against that day is the workflow's own comment and its error message, both of which name it.
-The repair itself was not a plan — it was an incident fix, taken in one branch the way 027 was.
+the first is about a REQUIRED STATUS CHECK, and the baseline set none, so nothing stood between the
+bot's pull request and its merge. The second reason is about identity, and it is the one that
+actually decided the repair.
+
+**BOTH HALVES HAVE SINCE BEEN SETTLED, THE SECOND ONE AGAINST THE PREDICTION THIS PARAGRAPH MADE.**
+It said the second reason "bites only once a required check exists, and on that day the deadlock it
+describes is real and unbreakable from inside the run". `build and test` is a required status check
+on `main` as of 2026-08-23, so that day came the same week — and the deadlock did not happen. The
+reason was right about the mechanism and wrong about the conclusion, because it assumed the pull
+request would go on being opened by `GITHUB_TOKEN`. It is opened by the `calvindotsg-release` GitHub
+App, and the suppression that would starve the check is a rule about the ACTING IDENTITY rather
+than about pull requests: an App's events are not suppressed, so `ci.yml` runs on the bot's pull
+request exactly as it does on a human's, and the check reports.
+
+The run-scoped token turned out not to be enough either, for a reason neither half named: the
+baseline also sets `can_approve_pull_request_reviews` false, and despite the name that governs
+CREATING a pull request as well as approving one. So the ambient token could commit, push and merge,
+and was refused at exactly one call. The repair was not a plan — it was an incident fix, taken in
+one branch the way 027 was; `.github/workflows/strava-progress.yml` carries the whole argument.
 
 **027 is the first plan whose premise was an event rather than a defect**, and that changes what
 the plan has to guard. An audit finding is true until someone fixes it; this one was true only
