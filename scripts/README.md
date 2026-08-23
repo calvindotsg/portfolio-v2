@@ -101,7 +101,8 @@ single deploy. Were the App to merge, `ci.yml` would fire on that push *and* on 
 production deploys of one commit, which `ci.yml`'s own header explains can publish the older of
 two same-day artifacts.
 
-The credentials are `BOT_APP_ID` (a repository variable) and `BOT_APP_PRIVATE_KEY` (a secret), and
+The credentials are `BOT_APP_CLIENT_ID` (a repository variable) and `BOT_APP_PRIVATE_KEY` (a
+secret), and they are
 they are the App `calvindotsg-release` — the same one `mac-upkeep` runs release-please on, under
 its own names. **1Password holds the source of truth for both**, exactly as it does for the Strava
 credentials below, because a GitHub secret cannot be read back and so can be compared with

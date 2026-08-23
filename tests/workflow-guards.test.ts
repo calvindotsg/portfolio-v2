@@ -1861,10 +1861,17 @@ describe("the job that can write to this repository", () => {
                  *     by `GITHUB_TOKEN` triggers no workflow and its checks would never report.
                  *
                  * WHAT ADMITTING IT ACTUALLY COSTS, stated rather than waved past: this is
-                 * first-party but not zero-risk — the step is handed the App's private key, and the
-                 * token it returns can open pull requests wherever the App is installed, which is
-                 * wider than this repository. The SHA pin is what bounds which code sees that key,
-                 * and the gate below is what holds the pin.
+                 * first-party but not zero-risk — the step is handed the App's private key, which
+                 * is the credential for every repository the App is installed on, and a private key
+                 * cannot be scoped the way a token can.
+                 *
+                 * THE TOKEN IT RETURNS IS NARROWER THAN THE KEY, WHICH IS MEASURED RATHER THAN
+                 * ASSUMED, because the first draft of this note asserted the opposite. With neither
+                 * `owner` nor `repositories` set the action scopes the installation token to the
+                 * repository it runs in, and says so: "Inputs 'owner' and 'repositories' are not
+                 * set. Creating token for this repository (calvindotsg/portfolio-v2)". So a leak of
+                 * the TOKEN reaches only here; a leak of the KEY reaches the whole installation.
+                 * The SHA pin is what bounds which code sees the key, and the gate below holds it.
                  *
                  * BOTH HALVES ARE ASSERTED. A name on this list is not enough on its own — an
                  * allow-listed action floated to a moveable tag is the same supply-chain exposure

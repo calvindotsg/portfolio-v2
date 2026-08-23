@@ -105,10 +105,16 @@ jobs:
       # ambient token, and the only one that broke.
       #
       # AN APP RATHER THAN A PAT, and the difference is not stylistic: an installation token is
-      # minted per run and expires in an hour, is scoped to the repositories the App is installed
-      # on, and belongs to no person — so it does not carry a human's access and does not die when
-      # one rotates a password. That is the fleet's own newer pattern; the tap's PAT is the older
-      # one.
+      # minted per run, expires in an hour, and belongs to no person — so it does not carry a
+      # human's access and does not die when one rotates a password. That is the fleet's own newer
+      # pattern; the tap's PAT is the older one.
+      #
+      # AND IT IS SCOPED TO THIS REPOSITORY, NOT TO THE INSTALLATION, which is narrower than the
+      # obvious reading and was measured rather than assumed. With neither `owner` nor
+      # `repositories` set the action says what it did: "Inputs 'owner' and 'repositories' are not
+      # set. Creating token for this repository (calvindotsg/portfolio-v2)". The App is installed
+      # on four repositories; this token reaches one. Do not add those inputs to "make it work" —
+      # they would widen it.
       #
       # IT ALSO BUYS THE THING A REQUIRED STATUS CHECK NEEDS. A pull request opened by
       # `GITHUB_TOKEN` triggers no workflow run, so a required check on it could never report and
@@ -127,12 +133,21 @@ jobs:
       # NAMED FOR THE ROLE IT PLAYS HERE, not for the App's own name. `mac-upkeep` calls the same
       # credential `RELEASE_PLEASE_*` because that is what it drives there; nothing in this
       # repository releases anything, and a name that says otherwise would send a reader looking
-      # for a release pipeline that does not exist. `app-id` rather than `client-id` because that
-      # is the field 1Password records, and the truth store is what a reader will check against.
+      # for a release pipeline that does not exist.
+      #
+      # `client-id` RATHER THAN `app-id`, AND THIS WAS THE OTHER WAY ROUND UNTIL IT WAS RUN. The
+      # argument for `app-id` was that it is the field 1Password records, so a reader checking
+      # against the truth store would find it. The action disagrees and says so out loud:
+      # `Input 'app-id' has been deprecated with message: Use 'client-id' instead`. A deprecation
+      # warning on a path nobody reads is a removal nobody sees coming, so the deprecated spelling
+      # loses and the numeric App id is not a repository variable at all. It was one for an hour;
+      # `tests/docs-drift.test.ts` is what pointed out that nothing read it any more, and a
+      # variable nothing reads is not configuration, it is something to go stale. The App id lives
+      # in 1Password and on the App's own settings page, which is where a reader should look for it.
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: bot-app
         with:
-          app-id: ${{ vars.BOT_APP_ID }}
+          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
       - name: Fetch YTD totals and write src/data/strava-progress.json
         # ubuntu-latest ships node >= 20 preinstalled (22.x on 24.04) —
@@ -318,7 +333,7 @@ jobs:
             # already safe on the branch by this point, which is what makes a red run recoverable
             # rather than lost.
             if ! GH_TOKEN="$APP_TOKEN" gh pr create --base main --head "$BRANCH" --title "$SUBJECT" --body "$BODY"; then
-              echo "::error::could not open a pull request for tonight's kilometres, so nothing was merged and src/data/strava-progress.json on main is behind. The commit is safe on ${BRANCH} and the next run reuses it. This call runs as the app, so check that it is still installed on this repository and that BOT_APP_ID and BOT_APP_PRIVATE_KEY still match it. If the message above says GitHub Actions is not permitted to create pull requests, the app token was not used at all and the ambient one fell through."
+              echo "::error::could not open a pull request for tonight's kilometres, so nothing was merged and src/data/strava-progress.json on main is behind. The commit is safe on ${BRANCH} and the next run reuses it. This call runs as the app, so check that it is still installed on this repository and that BOT_APP_CLIENT_ID and BOT_APP_PRIVATE_KEY still match it. If the message above says GitHub Actions is not permitted to create pull requests, the app token was not used at all and the ambient one fell through."
               exit 1
             fi
             PR="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
