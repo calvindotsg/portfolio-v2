@@ -63,46 +63,6 @@ jobs:
     # expression against a scheduled context rather than reading it, for exactly that reason.
     if: github.ref == 'refs/heads/main'
     steps:
-      # Pinned to a full commit SHA, not a tag, because the repository is about to
-      # enable `sha_pinning_required` and GitHub's documentation states no exemption
-      # for GitHub-authored actions or for immutable tags — `@v5` is a tag, so the
-      # policy would fail this job on its next nightly run with nothing watching.
-      # IT STARTED AS A PIN RATHER THAN AN UPGRADE: the first SHA written here was exactly
-      # what `@v5` resolved to. Dependabot has since moved it to v7.0.1 (#159), which is
-      # the next sentence working as designed — so this one is past-tensed rather than
-      # deleted, because "why is this a SHA" and "why is it THIS SHA" are two questions and
-      # only the second one moved.
-      #
-      # THE BUMP CROSSED TWO MAJORS, AND THE THING TO CHECK WAS NOT THE MAJOR NUMBER.
-      # `persist-credentials` still defaults to `true` — verified by reading the action's own
-      # input manifest at both the old and the new pinned SHA, rather than trusting release
-      # notes.
-      #
-      # WHAT THE PERSISTED CREDENTIALS ARE IS THE WHOLE IDENTITY QUESTION, and this note has now
-      # been wrong twice, so the measurement is written down rather than the conclusion. `token:`
-      # below decides who `git push` is, because `persist-credentials` writes that token into the
-      # checkout's git config as an `http.<url>.extraheader` Authorization header — and that
-      # header OVERRIDES any credential embedded in a push URL.
-      #
-      # MEASURED, on a disposable branch, before it could bite the nightly: this step took no
-      # `token:` and the push named `https://x-access-token:${APP_TOKEN}@github.com/...`, copied
-      # from `homebrew-tap`, which does the same thing correctly because it does not use
-      # `actions/checkout` at all. Here the extraheader won and the push authenticated as
-      # `github-actions[bot]`. The probe held `permissions: {}` so it failed loudly with
-      # `Permission to calvindotsg/portfolio-v2.git denied to github-actions[bot]`; THIS job holds
-      # `contents: write`, so the same push would have SUCCEEDED under the wrong identity and said
-      # nothing. It would then have broken only on the reuse path — a force-push made by the
-      # ambient token raises no `synchronize` event, so `ci.yml` would never run against the new
-      # head, the required check would never report, and the merge below would wait until the
-      # ten-minute poll gave up. In other words it would have failed on the second consecutive bad
-      # night, which is the worst night to discover it.
-      #
-      # So the app token is minted BEFORE the checkout and handed to it, which is what
-      # `mac-upkeep` already does, and the push below is a plain `origin` push with no credential
-      # on the command line at all.
-      #
-      # Dependabot can bump a SHA but cannot convert a tag into one, so any new
-      # `uses:` line has to be written pinned by hand.
       # THE ONE THING `GITHUB_TOKEN` CANNOT DO HERE, AND THE ONLY REASON THIS ACTION EXISTS IN
       # THIS FILE. `can_approve_pull_request_reviews` is false on this repository — set by the
       # `calvindotsg/.github` baseline — and despite the name it governs CREATING a pull request
@@ -162,6 +122,46 @@ jobs:
         with:
           client-id: ${{ vars.BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+      # Pinned to a full commit SHA, not a tag, because the repository is about to
+      # enable `sha_pinning_required` and GitHub's documentation states no exemption
+      # for GitHub-authored actions or for immutable tags — `@v5` is a tag, so the
+      # policy would fail this job on its next nightly run with nothing watching.
+      # IT STARTED AS A PIN RATHER THAN AN UPGRADE: the first SHA written here was exactly
+      # what `@v5` resolved to. Dependabot has since moved it to v7.0.1 (#159), which is
+      # the next sentence working as designed — so this one is past-tensed rather than
+      # deleted, because "why is this a SHA" and "why is it THIS SHA" are two questions and
+      # only the second one moved.
+      #
+      # THE BUMP CROSSED TWO MAJORS, AND THE THING TO CHECK WAS NOT THE MAJOR NUMBER.
+      # `persist-credentials` still defaults to `true` — verified by reading the action's own
+      # input manifest at both the old and the new pinned SHA, rather than trusting release
+      # notes.
+      #
+      # WHAT THE PERSISTED CREDENTIALS ARE IS THE WHOLE IDENTITY QUESTION, and this note has now
+      # been wrong twice, so the measurement is written down rather than the conclusion. `token:`
+      # below decides who `git push` is, because `persist-credentials` writes that token into the
+      # checkout's git config as an `http.<url>.extraheader` Authorization header — and that
+      # header OVERRIDES any credential embedded in a push URL.
+      #
+      # MEASURED, on a disposable branch, before it could bite the nightly: this step took no
+      # `token:` and the push named `https://x-access-token:${APP_TOKEN}@github.com/...`, copied
+      # from `homebrew-tap`, which does the same thing correctly because it does not use
+      # `actions/checkout` at all. Here the extraheader won and the push authenticated as
+      # `github-actions[bot]`. The probe held `permissions: {}` so it failed loudly with
+      # `Permission to calvindotsg/portfolio-v2.git denied to github-actions[bot]`; THIS job holds
+      # `contents: write`, so the same push would have SUCCEEDED under the wrong identity and said
+      # nothing. It would then have broken only on the reuse path — a force-push made by the
+      # ambient token raises no `synchronize` event, so `ci.yml` would never run against the new
+      # head, the required check would never report, and the merge below would wait until the
+      # ten-minute poll gave up. In other words it would have failed on the second consecutive bad
+      # night, which is the worst night to discover it.
+      #
+      # So the app token is minted BEFORE the checkout and handed to it, which is what
+      # `mac-upkeep` already does, and the push below is a plain `origin` push with no credential
+      # on the command line at all.
+      #
+      # Dependabot can bump a SHA but cannot convert a tag into one, so any new
+      # `uses:` line has to be written pinned by hand.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ steps.bot-app.outputs.token }}
