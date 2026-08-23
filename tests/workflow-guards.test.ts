@@ -1841,17 +1841,56 @@ describe("the job that can write to this repository", () => {
                  * AN ALLOW-LIST, BECAUSE "NOT A TOOLCHAIN ACTION" IS NOT A PREDICATE. Rejecting
                  * names containing `setup-` or `action-setup` is a naming convention wearing a
                  * capability check — the thing this whole file replaces — and it admits every
-                 * toolchain action that does not happen to be spelled that way. What this job may
-                 * legitimately do is fetch its own source; anything else it runs is code arriving
-                 * beside `contents: write` and two long-lived secrets, which is a fresh argument to
-                 * make in review rather than something a gate should quietly permit.
+                 * toolchain action that does not happen to be spelled that way. Anything this job
+                 * runs is code arriving beside `contents: write` and two long-lived secrets, which
+                 * is a fresh argument to make in review rather than something a gate should
+                 * quietly permit.
+                 *
+                 * THE LIST GREW TO TWO, AND THE GATE WORKING IS WHY IT IS WRITTEN DOWN. It said
+                 * "may check this repository out and nothing else" and it reddened, as designed, on
+                 * the change that moved the nightly's pull request onto a GitHub App. That is the
+                 * argument being made rather than skipped:
+                 *
+                 *   `actions/checkout` — the job's own source. Without it there is nothing to fetch
+                 *     Strava into and nothing to commit.
+                 *   `actions/create-github-app-token` — mints the App installation token. It is the
+                 *     one call the ambient token is refused at: `can_approve_pull_request_reviews`
+                 *     is false on this repository and governs CREATING a pull request as well as
+                 *     approving one, so `gh pr create` cannot run as `GITHUB_TOKEN` at all. It is
+                 *     also what makes a required status check possible, since a pull request opened
+                 *     by `GITHUB_TOKEN` triggers no workflow and its checks would never report.
+                 *
+                 * WHAT ADMITTING IT ACTUALLY COSTS, stated rather than waved past: this is
+                 * first-party but not zero-risk — the step is handed the App's private key, which
+                 * is the credential for every repository the App is installed on, and a private key
+                 * cannot be scoped the way a token can.
+                 *
+                 * THE TOKEN IT RETURNS IS NARROWER THAN THE KEY, WHICH IS MEASURED RATHER THAN
+                 * ASSUMED, because the first draft of this note asserted the opposite. With neither
+                 * `owner` nor `repositories` set the action scopes the installation token to the
+                 * repository it runs in, and says so: "Inputs 'owner' and 'repositories' are not
+                 * set. Creating token for this repository (calvindotsg/portfolio-v2)". So a leak of
+                 * the TOKEN reaches only here; a leak of the KEY reaches the whole installation.
+                 * The SHA pin is what bounds which code sees the key, and the gate below holds it.
+                 *
+                 * BOTH HALVES ARE ASSERTED. A name on this list is not enough on its own — an
+                 * allow-listed action floated to a moveable tag is the same supply-chain exposure
+                 * the list exists to bound, so the pin is checked here too rather than left to the
+                 * directory-wide gate above, which would still pass if this one were loosened.
                  */
+                const MAY_USE = ["actions/checkout", "actions/create-github-app-token"];
                 if (step.uses !== undefined) {
-                    expect(step.uses, `${where} runs the action \`${step.uses}\`. A job holding a write scope `
-                        + "may check this repository out and nothing else: every other action is third-party "
-                        + "code executing beside the credentials. If this one is genuinely needed, that is a "
+                    const [name, ref] = String(step.uses).split("@");
+                    expect(MAY_USE, `${where} runs the action \`${step.uses}\`. A job holding a write scope `
+                        + `may run only ${MAY_USE.join(" and ")}: every other action is third-party code `
+                        + "executing beside the credentials. If this one is genuinely needed, that is a "
                         + "case to argue in review — widening this list is the argument, not a formality.")
-                        .toMatch(/^actions\/checkout@[0-9a-f]{40}$/);
+                        .toContain(name);
+                    expect(ref, `${where} runs \`${step.uses}\`, which is on the allow-list but is not pinned `
+                        + "to a full commit SHA. Being allowed to run here and being pinned are two separate "
+                        + "claims: an allow-listed action on a moveable tag hands this job's credentials — "
+                        + "including an App private key — to whatever its owner pushed last.")
+                        .toMatch(/^[0-9a-f]{40}$/);
                 }
                 for (const line of commandLines(step)) {
                     expect(line, `${where} runs \`${line}\`, which fetches or installs a dependency inside a job `

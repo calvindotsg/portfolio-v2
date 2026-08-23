@@ -81,15 +81,33 @@ force-pushes over the branch and merges the pull request that is already there. 
 own comment holds the whole argument, including the one setting that would deadlock this and
 why it cannot clear itself.
 
-**Two repository settings outside this tree decide whether that path works at all**, and neither
-is visible from a green suite. The first is branch protection on `main`, which is what makes the
-pull request necessary. The second is the one that made the first attempt fail:
-`can_approve_pull_request_reviews` governs whether GitHub Actions may **create** a pull request as
-well as approve one, and with it off the run dies on `gh pr create` with `GitHub Actions is not
-permitted to create or approve pull requests`. The step names both, and names the command that
-reads the second, because the error GitHub returns names an API field rather than a fix. Only
-creating is refused — merging is neither creating nor approving — so a run that gets past that one
-line finishes.
+**The run uses two identities, and which one acts where is deliberate.** The ambient
+`GITHUB_TOKEN` does everything except two calls; a GitHub App token pushes the branch and opens
+or updates the pull request. Two reasons, and only the first is about permission:
+
+- **The ambient token is refused outright at `gh pr create`.** The repository setting
+  `can_approve_pull_request_reviews` governs whether GitHub Actions may *create* a pull request as
+  well as approve one — the field name says only half of it — and with it off the run dies on
+  `GitHub Actions is not permitted to create or approve pull requests`. No `permissions:` block
+  can grant round it, because the setting scopes the ambient token itself.
+- **Nothing done with `GITHUB_TOKEN` triggers a workflow run.** So a pull request it opened, and a
+  branch it force-pushed, would carry commits that `ci.yml` never sees — which is fine while
+  nothing gates the merge and fatal the moment something does. The App is a different identity and
+  its events are not suppressed, so the pull request builds like a human's.
+
+**The merge stays on the ambient token for the opposite reason.** A merge it makes triggers
+nothing, so `main` is not rebuilt behind this workflow's back and the dispatch below remains the
+single deploy. Were the App to merge, `ci.yml` would fire on that push *and* on the dispatch — two
+production deploys of one commit, which `ci.yml`'s own header explains can publish the older of
+two same-day artifacts.
+
+The credentials are `BOT_APP_CLIENT_ID` (a repository variable) and `BOT_APP_PRIVATE_KEY` (a
+secret), and they are
+they are the App `calvindotsg-release` — the same one `mac-upkeep` runs release-please on, under
+its own names. **1Password holds the source of truth for both**, exactly as it does for the Strava
+credentials below, because a GitHub secret cannot be read back and so can be compared with
+nothing. Rotating the key means writing 1Password first and then re-copying to *both*
+repositories; nothing notices one being left behind.
 
 Outcomes in its log that read like failures and are not:
 
@@ -115,6 +133,12 @@ failed merge must not cost the day's build either: the dispatch names a ref, so 
 
 The dispatch step does not wait for the run it asks for. Green there means the build was
 *asked for*, never that it passed; read the CI run itself for that.
+
+**A second CI run on the bot's own branch is expected, and is not the deploy.** Because the App
+opens the pull request, `ci.yml` runs on it like any other — which is the point, since that is
+what a required status check would read. It builds the *branch*: `deploy-production` tests
+`github.ref` and skips, so it cannot publish. What it does leave behind is a preview deployment
+every night the kilometres move, which is what `.github/workflows/pages-retention.yml` clears.
 
 ## Asking for a run on demand
 
