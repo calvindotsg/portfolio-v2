@@ -1,0 +1,579 @@
+---
+import Layout from "../layouts/BasicLayout.astro";
+import Card from "../components/Card/index.astro";
+import ThemeSwitcher from "../components/ThemeSwitcher.astro";
+import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
+import {NEXT_RACE, PATCHES} from "../content/races";
+import {GOALS} from "../lib/goal";
+import {ICON_IDS, iconClass} from "../lib/icons";
+
+/*
+ * THE SITE, DESCRIBING ITSELF WITH ITSELF. Every specimen on this page is the real thing:
+ * a swatch is `background: var(--token)` resolved by the reader's own theme, the ramp wears
+ * the utility classes the rest of the site wears, and the three controls are three working
+ * links to three real pages. Nothing here is a picture of the design system.
+ *
+ * WHY THAT IS THE WHOLE POINT RATHER THAN A FLOURISH. The thing this replaces was four
+ * generated HTML reference cards, and before them a hand-written markdown table of hexes.
+ * Both are the same shape as `public/preview.jpg`, which has gone stale silently twice: a
+ * copy of a value, with nothing to notice when the original moves. A page that RESTATES no
+ * value cannot go out of date, and that is a property of the drawing rather than of anyone's
+ * diligence. So the rule for anyone editing this file is one line long: if you are about to
+ * type a hex, a rem or a class name that the build already knows, stop.
+ *
+ * THE MEANING IS NOT HERE EITHER. What each token is for, and the guidance under each
+ * heading, is authored in `src/content/design.ts` and rendered below. That module is also
+ * what `.design-sync/conventions.md` is generated from, which is what stops this page and
+ * the document handed to the design agent from disagreeing.
+ *
+ * THE THEME TOGGLE IS ON THIS PAGE ON PURPOSE, and it is the one piece of furniture here
+ * that is not on `/patches`. It lives in the intro card everywhere else, so the home page is
+ * the only other page that has one. Half of what this page has to show is that several
+ * tokens SWAP rather than darken — the two `-on-ink` pairs, the progress bar's polarity —
+ * and a reader cannot see that without switching. Putting the site's own toggle in the
+ * header is how the page demonstrates its own second sentence instead of asserting it.
+ *
+ * MODELLED ON `src/pages/patches/[...sport].astro` RATHER THAN ON THE HOME PAGE: a way back,
+ * a heading, a lede, then cards. The bento budget on `index.astro` is a contract that page
+ * owns and this one has no business inheriting.
+ */
+
+/*
+ * THE RAMP HAS TO BE WRITTEN OUT, and that is a fact about the extractor rather than a
+ * choice. UnoCSS only emits a rule for a class name it can see LITERALLY in a file it
+ * scans, and it scans `.astro` and not `.ts` — which is why every icon on this site has to
+ * be safelisted. So a ramp read out of a content module would render five sizes with no
+ * rules behind them: text at the inherited size, on a page whose entire subject is that it
+ * restates nothing.
+ *
+ * A LIST WRITTEN OUT IS A CENSUS, AND A CENSUS NEEDS A GATE. `tests/design-system.test.ts`
+ * holds this against the `font-size` rules the built stylesheet actually ships, so a step
+ * added anywhere on the site and forgotten here is red. Order is largest first and carries
+ * no meaning the test looks at.
+ */
+const RAMP = ["text-3xl", "text-xl", "text-base", "text-sm", "text-xs"];
+
+/*
+ * The census deduplicated, because `ICON_IDS` is deliberately not: two constants naming the
+ * same mark each earn their entry there (see `src/lib/icons.ts`), and a reader looking at
+ * the set wants the set.
+ */
+const MARKS = [...new Set(ICON_IDS.map(iconClass))].sort();
+
+const [PLATED, LABELLED, WORDS] = CONTROLS;
+
+/*
+ * THE THREE CONTROL SPECIMENS GO SOMEWHERE REAL, and the alternative was measured against
+ * the suite rather than argued about. An inert specimen would have to be a `span`, and a
+ * build-wide gate in `tests/build-output.test.ts` fails any hover rule that reaches an
+ * element which cannot be interacted with — which every one of these carries. Three working
+ * links is the shape that survives it, and it is the better page anyway: each specimen is
+ * named with the very words the page it opens is headed with, which is the pairing rule the
+ * site already holds its goal cards to.
+ */
+const firstGoal = GOALS[0];
+const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLowerCase());
+---
+
+<Layout title={DESIGN_PAGE.title} description={DESIGN_PAGE.description}>
+    <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
+        {/* `md:col-span-2` IS LOAD-BEARING AND IT IS NOT ABOUT THIS BLOCK'S TEXT. `main` here
+             declares no column template, so its columns are implicit — and `Card` defaults to
+             `md:col-span-2`, which is what creates a SECOND one from the medium breakpoint up.
+             Without a matching span this header is an item in column one, half the page wide,
+             and the toggle it pushes to its trailing edge lands in the middle of the screen
+             rather than above the card's corner. Measured at 1280 before the fix: the header
+             row resolved to 447px against the cards' 848. */}
+        <div class="flex flex-col gap-4 md:col-span-2">
+            <div class="design-head">
+                {/* The way back is the wall's way back, to the character: same class, same
+                     mark, same word, same 1.5rem floor. Two pages offering the same object
+                     drawn two ways is the vocabulary break this repository keeps closing. */}
+                <p class="m-0">
+                    <a href="/" class="text-link inline-flex items-center gap-2 min-h-6 text-sm">
+                        <span class={iconClass(PATCHES.home_icon)} aria-hidden="true"></span>{PATCHES.home_label}
+                    </a>
+                </p>
+                <ThemeSwitcher/>
+            </div>
+            <div class="flex flex-col gap-2">
+                {/* `break-anywhere` for the reason the wall's heading carries it: this is an
+                     un-clipped text column, so its minimum intrinsic width sets the
+                     document's, and a word too long for 320px scrolls the whole page
+                     sideways under text zoom rather than being absorbed by a card. */}
+                <h1 class="text-3xl font-bold m-0 break-anywhere">{DESIGN_PAGE.heading}</h1>
+                <p class="text-sm max-w-[60ch] m-0">{DESIGN_PAGE.lede}</p>
+            </div>
+        </div>
+
+        {(Object.keys(SECTIONS) as (keyof typeof SECTIONS)[]).map((key) => (
+                <Card title={SECTIONS[key].heading}>
+                    <p class="text-sm max-w-[60ch] mt-0 mb-4">{SECTIONS[key].lede}</p>
+
+                    {key === "palette" && (
+                            <div class="design-theming">
+                                <h3 class="design-guide-heading">{THEMING.heading}</h3>
+                                <p class="text-sm max-w-[60ch] m-0">{THEMING.lede}</p>
+                                {/* THE PAGE SHOWING ITS OWN ATTRIBUTE RATHER THAN DESCRIBING ONE.
+                                     Both lines are in the markup and the stylesheet reveals whichever
+                                     matches the live `data-theme`, which is the mechanism the theme
+                                     toggle's own sun and moon already use. Press the toggle and this
+                                     changes with everything else: the block stops asserting that the
+                                     attribute is what styles the page and starts demonstrating it. */}
+                                <p class="m-0 text-sm">
+                                    {THEMING.themes.map((theme) => (
+                                            <span class="design-name design-theme-example" data-theme-example={theme}
+                                            >{THEMING.example.replace("{theme}", theme)}</span>
+                                    ))}
+                                </p>
+                            </div>
+                    )}
+
+                    {key === "palette" && (
+                            <ul class="design-rows">
+                                {TOKEN_ROLES.map(({token, role}) => (
+                                        <li class="design-row">
+                                            {token.endsWith("-on-ink") ? (
+                                                    <span class="design-ink">
+                                                        <span class="design-swatch" style={`background: var(${token})`}></span>
+                                                    </span>
+                                            ) : (
+                                                    <span class="design-swatch" style={`background: var(${token})`}></span>
+                                            )}
+                                            <span class="design-name">{token}</span>
+                                            <span class="design-role text-sm">{role}</span>
+                                        </li>
+                                ))}
+                            </ul>
+                    )}
+
+                    {key === "type" && (
+                            <ul class="design-ramp">
+                                {RAMP.map((step) => (
+                                        <li class={step}><span class="design-name">{step}</span></li>
+                                ))}
+                            </ul>
+                    )}
+
+                    {key === "controls" && (
+                            <ul class="design-rows">
+                                <li class="design-row">
+                                    <a href="/" class="control">
+                                        <span class={iconClass(PATCHES.home_icon)} aria-hidden="true"></span>
+                                        <span class="sr-only">{PATCHES.home_label}</span>
+                                    </a>
+                                    <span class="design-name">{PLATED.name}</span>
+                                    <span class="design-role text-sm">{PLATED.role}</span>
+                                </li>
+                                <li class="design-row">
+                                    {/* The label is wrapped for the reason EventsLink.astro
+                                         records at length: a bare text node in a flex
+                                         container is an anonymous item whose automatic
+                                         minimum width is a whole word, and no selector can
+                                         reach it to say otherwise, so the words clip instead
+                                         of wrapping once the reader enlarges them. */}
+                                    <a href="/patches" class="control-cta design-cta">
+                                        <span class="design-cta-label">{PATCHES.heading}</span><span
+                                            class={`${iconClass(NEXT_RACE.icon)} shrink-0`} aria-hidden="true"></span>
+                                    </a>
+                                    <span class="design-name">{LABELLED.name}</span>
+                                    <span class="design-role text-sm">{LABELLED.role}</span>
+                                </li>
+                                <li class="design-row">
+                                    <a href={`/patches/${firstGoal.sport}`} class="text-link text-sm">{sportLabel}</a>
+                                    <span class="design-name">{WORDS.name}</span>
+                                    <span class="design-role text-sm">{WORDS.role}</span>
+                                </li>
+                            </ul>
+                    )}
+
+                    {key === "icons" && (
+                            <ul class="design-marks">
+                                {MARKS.map((mark) => (
+                                        <li class="design-mark">
+                                            <span class={`${mark} design-glyph`} aria-hidden="true"></span>
+                                            <span class="design-name">{mark}</span>
+                                        </li>
+                                ))}
+                            </ul>
+                    )}
+
+                    <div class="design-guide">
+                        <div>
+                            <h3 class="design-guide-heading">{DESIGN_PAGE.does_label}</h3>
+                            <ul class="design-list text-sm">
+                                {SECTIONS[key].does.map((line) => <li>{line}</li>)}
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 class="design-guide-heading">{DESIGN_PAGE.donts_label}</h3>
+                            <ul class="design-list text-sm">
+                                {SECTIONS[key].donts.map((line) => <li>{line}</li>)}
+                            </ul>
+                        </div>
+                    </div>
+                </Card>
+        ))}
+    </main>
+</Layout>
+
+<style>
+    /*
+     * EVERY LENGTH BELOW IS FONT-RELATIVE EXCEPT TWO RADII, and that is this repository's
+     * standing rule rather than a preference for this page: a box pinned in device pixels
+     * stops growing when the reader enlarges the type, and a card that clips turns that into
+     * deleted ink. The two exceptions are the 2px corner, which is the radius a bib is drawn
+     * with and is a mark rather than a measurement.
+     */
+
+    .design-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    /*
+     * A ROW WRAPS RATHER THAN BEING A GRID, and the ledger on the patch wall is why. Three
+     * columns held by a template shatter a long name into single letters at the 200% WCAG
+     * asks for, and repairing that costs two container queries. A wrapping flex row needs
+     * none: the role has a generous basis and drops to its own line the moment the specimen
+     * and the name have taken the width, at any zoom, in any card width.
+     */
+    .design-rows,
+    .design-ramp,
+    .design-marks,
+    .design-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .design-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    /*
+     * The precondition, set apart from the section's own lede because it is a different kind
+     * of sentence: everything else under this heading is advice, and this one is the thing
+     * that produces an unstyled page rather than a wrong-looking one if it is missed.
+     */
+    .design-theming {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .design-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.75rem;
+    }
+
+    /*
+     * THE MEASURE IS THE PAGE'S OWN, and this is the one block that was missing it. Every
+     * other run of prose here is capped at `max-w-[60ch]` — the h1's lede, all four section
+     * ledes, the theming note — and they render about 73 characters to the line. This one is a
+     * flex item with a basis and no ceiling, so it grew to whatever the card had left: measured
+     * off the built page at 1280, the Controls card's first role set a 101-character line and
+     * its third set 92, directly beneath a lede the page had deliberately narrowed. The defect
+     * hid in the Colour card, where every role is one clause, and bit in the Controls card,
+     * where the reading is heaviest.
+     *
+     * `flex: 1 1 16rem` STAYS, and the two do different jobs: the basis is what makes the role
+     * drop to its own line on a narrow card, and the cap is what stops it running long on a
+     * wide one. Do not read the cap as an alignment device — the three roles in the Controls
+     * card already end at the same right edge, and this changes where the LINE breaks, not
+     * where the column ends.
+     */
+    .design-role {
+        flex: 1 1 16rem;
+        max-width: 60ch;
+    }
+
+    /*
+     * A SWATCH IS THE TOKEN, NOT A PICTURE OF IT. The custom property is resolved by the
+     * reader's own cascade, so this page shows whatever the site actually ships today and
+     * re-tones the instant the toggle in the header is pressed. The hairline is what keeps
+     * the ground and the plate visible at all: two of these swatches are within one step of
+     * the surface they sit on, by design.
+     */
+    .design-swatch {
+        display: block;
+        width: 3rem;
+        height: 1.5rem;
+        border: 1px solid var(--card-border);
+        border-radius: 2px;
+    }
+
+    /*
+     * AN `-on-ink` MARK IS DRAWN ON INK. Showing it against the card is not a neutral
+     * choice — it renders the pale half of every pair as a mistake, which is the exact
+     * opposite of what the polarity rule in BasicLayout.astro says. The plate is `--text`
+     * because that is what "ink-flooded" means here: a finished bib's face.
+     */
+    .design-ink {
+        display: inline-block;
+        padding: 0.375rem;
+        border-radius: 0.5rem;
+        background: var(--text);
+    }
+
+    /*
+     * THE ONE TREATMENT THIS PAGE INVENTS, and it is invented from the site's own material
+     * rather than from a code editor's. A token name, a class name and a mark's name are all
+     * literal strings a reader is meant to copy, and this site has no monospace face to set
+     * them in — adding one would be a typeface introduced by the page that documents the
+     * typeface. So a name wears the hairline box the bib is drawn with instead: `--card-border`,
+     * the 2px corner, and padding in `em` so the box tracks whatever size it is set at.
+     */
+    .design-name {
+        border: 1px solid var(--card-border);
+        border-radius: 2px;
+        padding: 0.1em 0.35em;
+        overflow-wrap: anywhere;
+    }
+
+    /*
+     * ONLY THE LINE THAT IS TRUE RIGHT NOW IS ON SCREEN, and the selection is made in CSS so
+     * it costs no script on a site that ships almost none. Same device as the theme toggle's
+     * sun and moon in ThemeSwitcher.astro: both children are in the markup and the live
+     * `data-theme` reveals one.
+     *
+     * `display: none` IS THE RIGHT HIDE HERE, not opacity or a clip — the twin must be absent
+     * from the accessibility tree and from what a reader's selection copies, because the whole
+     * value of this line is that it can be copied. Two lines in the clipboard, one of them
+     * false, would be worse than the static line this replaced.
+     *
+     * THE DEFAULT ARM IS THE FIRST THEME, AND IT IS WRITTEN AS THE ABSENCE OF A RULE ON
+     * PURPOSE. This one hides the second line unconditionally; the block at the foot of this
+     * file swaps them when the live theme is the second. With no `data-theme` at all — no
+     * script, or the very case the paragraph above describes — nothing swaps and the first
+     * line shows. Keying the first arm on its own theme name instead would leave that page
+     * with NO line at all, which is the one state this block must not render.
+     */
+    .design-theme-example[data-theme-example="dark"] {
+        display: none;
+    }
+
+    .design-ramp {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    /*
+     * EACH STEP IS SET IN THE SIZE IT NAMES, which is the whole specimen: there is no second
+     * column of rem values to read, and none could be added without restating what the
+     * stylesheet already says. A line of sample words was the other candidate and it says
+     * less — the reader has to hold the name and the size apart in their head.
+     */
+    .design-ramp li {
+        line-height: 1.4;
+    }
+
+    /*
+     * `min(9rem, 100%)` RATHER THAN `9rem`, AND IT IS THE WHOLE REASON THIS GRID SURVIVES TEXT
+     * ZOOM. A bare `minmax(9rem, 1fr)` gives a track a floor that cannot yield, so once the
+     * reader's root font-size makes 9rem wider than the card, the single remaining column is
+     * wider than what contains it and the card's own clipping eats the difference. The
+     * container is measured and the track is arithmetic, which is the honest way round: this
+     * grid's content box is 324px on a 390px viewport (read off the built page in a browser),
+     * and 9rem at the 40px root this repository tests to is 360px — so the one remaining track
+     * overhangs its card by 36px and the mark names on the right are cut off. There is no
+     * browser in the suite and no text-zoom lever in the tooling here, so the second figure is
+     * NOT a measurement and must not be quoted as one. The `min()` lets the floor collapse to the
+     * container instead, which is what an intrinsic minimum should have been all along — and
+     * every other length on this page is font-relative for the same reason, so a grid that
+     * cannot yield would be the one thing here that stops growing with its reader.
+     */
+    .design-marks {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(9rem, 100%), 1fr));
+        gap: 1rem 0.75rem;
+    }
+
+    .design-mark {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4rem;
+        text-align: center;
+    }
+
+    /* A mark is a mask sized by its own type size, so this is how a specimen is enlarged. */
+    .design-glyph {
+        font-size: 1.5rem;
+    }
+
+    /*
+     * THE LABEL NARROWS AND BREAKS, mirroring EventsLink.astro, which measured 42.2px of ink
+     * lost past a card's edge at a 40px root before these three declarations went in. This
+     * specimen is short today; the reason it clips is structural — a labelled control spends
+     * its width on padding, a gap and a mark, and the card gets narrower as the root grows —
+     * so a short label is a reprieve rather than an exemption.
+     */
+    .design-cta {
+        max-width: 20rem;
+    }
+
+    .design-cta-label {
+        min-width: 0;
+        overflow-wrap: break-word;
+        text-align: center;
+    }
+
+    /*
+     * DO AND DON'T SIT SIDE BY SIDE FROM `sm` UP, in a query written in `rem` like every
+     * other bound in this repository — a `rem` media query asks how much TEXT fits across
+     * the viewport, which is the question this layout actually has. The value is the `sm`
+     * breakpoint from uno.config.ts, and the two have to be kept in step by hand; that is
+     * the trap the config's own note names, and it is taken here because a card's two
+     * columns are not a utility variant this markup can wear.
+     */
+    .design-guide {
+        display: grid;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    @media (min-width: 40rem) {
+        .design-guide {
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+    }
+
+    /*
+     * A LABEL, NOT A LEVEL — and that is the rule this class encodes, which is not the same as
+     * the rule an earlier draft of this comment stated. It said "the two column headings",
+     * and the class dresses NINE headings in the shipped page: two per section, plus the
+     * precondition above the token list. That third one heads a paragraph and a copyable
+     * literal rather than a list, so a rationale scoped to list captions was false for one of
+     * its own users. A review panel found it; the reason is corrected rather than the drawing.
+     *
+     * The rule, stated so it covers all nine: every `h3` on this page names what sits under it
+     * rather than advancing the argument the `h2` above it opened, and small caps with tracking
+     * is how a label says so without spending a rule or a colour on it. They are markup peers
+     * under one `h2` and are drawn alike, which is the drawing agreeing with the outline.
+     *
+     * Giving the precondition a rank of its own was proposed and rejected: it would put a
+     * fourth type rank on the page for a single heading, and both screenshots show that
+     * heading is already the most prominent line between the card's `h2` and the token list —
+     * 700 weight and 0.08em of tracking out-read the 0.875rem paragraph beneath it, so size
+     * alone is the wrong instrument to read prominence with here.
+     *
+     * `--accent` was the other candidate for the treatment and is spent elsewhere on purpose:
+     * it means "you can interact with this", and nothing about a column of sentences does.
+     */
+    .design-guide-heading {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin: 0 0 0.5rem;
+    }
+
+    .design-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    /*
+     * A LIST ITEM CARRIES ITS OWN MARK, because the list markers are turned off above and a
+     * column of sentences with nothing in front of them reads as a paragraph that has lost its
+     * punctuation.
+     *
+     * IT IS DRAWN IN `--text`, NOT IN THE PLATE EDGE THE NAME BOXES USE, and the difference is
+     * deliberate rather than an oversight — an earlier draft of this comment claimed they were
+     * the same material and a review panel caught it. A name box is a container around words
+     * that are themselves at full ink, so a quiet edge is enough to say "this is a literal". A
+     * marker has no words inside it: it IS the ink, at 0.4em, and `--card-border` is a token
+     * chosen to be about one step off its own plate. A marker at that ratio is a marker a
+     * reader cannot find, which is the whole reason this rule exists.
+     */
+    .design-list li {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .design-list li::before {
+        content: "";
+        flex: 0 0 auto;
+        width: 0.4em;
+        height: 0.4em;
+        margin-top: 0.55em;
+        border: 1px solid var(--text);
+        border-radius: 1px;
+    }
+
+    /*
+     * THE ONE PLACE ON THIS SITE WHERE A COLOUR IS THE CONTENT, AND THEREFORE THE ONE PLACE
+     * THAT MAY OPT OUT OF FORCED COLOURS.
+     *
+     * The mode replaces every author colour with a system one, which everywhere else on this
+     * site is right: a card's plate, a control's border and a bib's face are all chrome, and a
+     * reader who has asked for their own palette should get it. A swatch is not chrome. Its
+     * entire information is the value of `var(--token)`, so under the mode's substitution all
+     * fifteen become one Canvas rectangle and the palette says nothing at all — the same
+     * failure a colour picker has, which is the example the CSS Color Adjustment module itself
+     * gives for this property.
+     *
+     * SCOPED AS TIGHTLY AS THE SHARED RULE IN BasicLayout.astro IS, and by that block's own
+     * criterion: `forced-color-adjust: none` lets ALL author colour through on the element it
+     * names, so the level actually needed is "an element whose ink IS a background-color".
+     * These two are exactly that, and neither carries a word — which is also what keeps them
+     * out of the paired-foreground check in tests/build-output.test.ts rather than exempted
+     * from it.
+     *
+     * THE NON-COLOUR CUE SURVIVES INTACT, which is the condition every source attaches to
+     * doing this: each swatch is named, in the hairline box beside it, in text the mode keeps.
+     * A reader who cannot use the colour still gets the whole list of tokens and their roles.
+     *
+     * The labelled control takes `LinkText` for the reason EventsLink.astro takes it: the mode
+     * discards the accent and the text token alike, and `LinkText` is the colour it reserves
+     * for a thing that navigates.
+     */
+    @media (forced-colors: active) {
+        .design-swatch,
+        .design-ink {
+            forced-color-adjust: none;
+        }
+
+        .design-cta {
+            color: LinkText;
+        }
+    }
+</style>
+
+<style is:global>
+    /*
+     * THE HALF THAT HAS TO BE GLOBAL, AND ONLY THAT HALF.
+     *
+     * The subject of these two selectors is `:root`, which is the layout's element rather than
+     * this component's, so Astro's scoping would attach this file's cid attribute to `<html>`
+     * and neither rule would ever match. ThemeSwitcher.astro carries the same note for the
+     * same reason, and it is the reason its sun-and-moon rules are global too.
+     *
+     * NOTHING ELSE ON THE SITE CAN BE REACHED BY THESE. `data-theme-example` is an attribute
+     * this page invents and no other element anywhere sets, so "global" here means the
+     * selector may start at the root, not that the rule has a wide blast radius. That is the
+     * narrowest form of the escape the layout's own forced-colours block argues for.
+     */
+    :root[data-theme="dark"] .design-theme-example[data-theme-example="light"] {
+        display: none;
+    }
+
+    :root[data-theme="dark"] .design-theme-example[data-theme-example="dark"] {
+        display: inline-block;
+    }
+</style>

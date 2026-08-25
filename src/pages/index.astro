@@ -6,6 +6,7 @@ import Goal from "../components/Goal.astro";
 import IntroCard from "../components/IntroCard.astro";
 import AboutMe from "../components/AboutMe.astro";
 import Now from "../components/Now.astro";
+import {DESIGN_PAGE} from "../content/design";
 import {FOOTER, METADATA} from "../content/site";
 import {GOALS} from "../lib/goal";
 import {formatDateline, UPDATED_AT} from "../lib/projection";
@@ -252,6 +253,37 @@ const dateline = formatDateline();
         <Card colSpan="md:col-span-1" rowSpan="md:row-span-1 lg:row-span-3">
             <p class="text-xs">
                 {FOOTER.prefix} <span class="text-[var(--brand-ink)]"><span class={iconClass(FOOTER.icon)} aria-hidden="true"></span></span><span class="sr-only">love</span>{FOOTER.suffix}
+            </p>
+            {/* THE ONLY WAY INTO `/design`, WHICH IS WHY IT IS NOT INSIDE THE SENTENCE ABOVE.
+                 A build-wide gate walks the link graph from `/` and fails a page nothing
+                 reaches, so this link is load-bearing rather than decorative. It sits on its
+                 own line in the dateline's treatment because the paragraph above is an
+                 attribution and this is a destination: running them together would need a
+                 sentence break invented here, in a card whose copy is authored in
+                 `src/content/`. `text-link` and the 1.5rem floor are what every other small
+                 link on this site wears, and the words are `DESIGN_PAGE.link_label`, which is
+                 the same constant that page is headed with.
+
+                 IT COSTS 32px OF PAGE HEIGHT AND THERE WAS NO SLACK TO SPEND, so the number
+                 in the budget note above moves: measured at 1024 wide on the built page,
+                 against the live origin as the before-tree, `main` asks for 829px where it
+                 asked for 797, and this card grows 106 to 138. The left column is what sets
+                 the page's height — on production the footer card's bottom edge sat at 773
+                 with `main`'s own 24px of padding beneath it and nothing else — so every
+                 pixel added here is a pixel the page grows by, whatever the right-hand stack
+                 has spare. A reader at 800px tall now gets a scrollbar where they did not.
+
+                 THE CHEAPER SPELLINGS WERE PRICED AND REJECTED, so do not "fix" this by
+                 reaching for one. Running the link into the attribution wraps that paragraph
+                 to another line and still costs 16px, while inventing the sentence break the
+                 copy does not carry. Dropping `min-h-6` saves 8px by putting a control under
+                 the 1.5rem target floor this codebase set for exactly these links. Moving the
+                 link to `/patches` costs nothing and satisfies the reachability gate through
+                 the wall — and puts the site's colophon on a page about bike races. The 32px
+                 buys the link its correct home; that is the trade, and it is the owner's to
+                 reverse. */}
+            <p class="text-xs mt-2">
+                <a href="/design" class="text-link inline-flex items-center min-h-6 text-xs">{DESIGN_PAGE.link_label}</a>
             </p>
             {dateline && (
                     <p class="text-xs mt-2">Updated <time datetime={UPDATED_AT}>{dateline}</time></p>

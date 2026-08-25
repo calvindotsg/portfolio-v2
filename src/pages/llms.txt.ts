@@ -1,4 +1,5 @@
 import type {APIRoute} from "astro"
+import {DESIGN_PAGE} from "../content/design"
 import {ABOUT_ME, CAREER, PROJECTS} from "../content/home"
 import {NEXT_RACE, PATCHES} from "../content/races"
 import {LINKS, METADATA} from "../content/site"
@@ -195,6 +196,8 @@ export const GET: APIRoute = ({site}) => {
         ...GOALS.map((goal) =>
             `- [${NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())}]`
             + `(${abs(`/patches/${goal.sport}/`)}): ${goal.goal_name.toLowerCase()} events only`),
+        `- [${DESIGN_PAGE.heading}](${abs("/design/")}): the site's own design system — every colour token, `
+        + "type step, control and mark it is built from, drawn live",
         "",
         "## Projects",
         "",
