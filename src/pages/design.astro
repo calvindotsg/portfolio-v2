@@ -265,8 +265,25 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
         gap: 0.5rem 0.75rem;
     }
 
+    /*
+     * THE MEASURE IS THE PAGE'S OWN, and this is the one block that was missing it. Every
+     * other run of prose here is capped at `max-w-[60ch]` — the h1's lede, all four section
+     * ledes, the theming note — and they render about 73 characters to the line. This one is a
+     * flex item with a basis and no ceiling, so it grew to whatever the card had left: measured
+     * off the built page at 1280, the Controls card's first role set a 101-character line and
+     * its third set 92, directly beneath a lede the page had deliberately narrowed. The defect
+     * hid in the Colour card, where every role is one clause, and bit in the Controls card,
+     * where the reading is heaviest.
+     *
+     * `flex: 1 1 16rem` STAYS, and the two do different jobs: the basis is what makes the role
+     * drop to its own line on a narrow card, and the cap is what stops it running long on a
+     * wide one. Do not read the cap as an alignment device — the three roles in the Controls
+     * card already end at the same right edge, and this changes where the LINE breaks, not
+     * where the column ends.
+     */
     .design-role {
         flex: 1 1 16rem;
+        max-width: 60ch;
     }
 
     /*
@@ -402,12 +419,26 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
     }
 
     /*
-     * THE TWO COLUMN HEADINGS ARE THE SMALLEST TYPE ON THE PAGE AND THE ONLY UPPERCASE ON THE
-     * SITE, which is a decision rather than a default: they are labels for the lists under
-     * them rather than a level of the document's argument, and setting them as small caps
-     * with tracking is how a label says so without a rule or a colour. `--accent` was the
-     * other candidate and is spent elsewhere on purpose — it means "you can interact with
-     * this", and nothing about a column of sentences does.
+     * A LABEL, NOT A LEVEL — and that is the rule this class encodes, which is not the same as
+     * the rule an earlier draft of this comment stated. It said "the two column headings",
+     * and the class dresses NINE headings in the shipped page: two per section, plus the
+     * precondition above the token list. That third one heads a paragraph and a copyable
+     * literal rather than a list, so a rationale scoped to list captions was false for one of
+     * its own users. A review panel found it; the reason is corrected rather than the drawing.
+     *
+     * The rule, stated so it covers all nine: every `h3` on this page names what sits under it
+     * rather than advancing the argument the `h2` above it opened, and small caps with tracking
+     * is how a label says so without spending a rule or a colour on it. They are markup peers
+     * under one `h2` and are drawn alike, which is the drawing agreeing with the outline.
+     *
+     * Giving the precondition a rank of its own was proposed and rejected: it would put a
+     * fourth type rank on the page for a single heading, and both screenshots show that
+     * heading is already the most prominent line between the card's `h2` and the token list —
+     * 700 weight and 0.08em of tracking out-read the 0.875rem paragraph beneath it, so size
+     * alone is the wrong instrument to read prominence with here.
+     *
+     * `--accent` was the other candidate for the treatment and is spent elsewhere on purpose:
+     * it means "you can interact with this", and nothing about a column of sentences does.
      */
     .design-guide-heading {
         font-size: 0.75rem;
@@ -426,9 +457,16 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
 
     /*
      * A LIST ITEM CARRIES ITS OWN MARK, because the list markers are turned off above and a
-     * column of sentences with nothing in front of them reads as a paragraph that has lost
-     * its punctuation. The mark is a hairline square in the card's own edge colour — the same
-     * material as the name boxes, at the smallest size the page draws anything.
+     * column of sentences with nothing in front of them reads as a paragraph that has lost its
+     * punctuation.
+     *
+     * IT IS DRAWN IN `--text`, NOT IN THE PLATE EDGE THE NAME BOXES USE, and the difference is
+     * deliberate rather than an oversight — an earlier draft of this comment claimed they were
+     * the same material and a review panel caught it. A name box is a container around words
+     * that are themselves at full ink, so a quiet edge is enough to say "this is a literal". A
+     * marker has no words inside it: it IS the ink, at 0.4em, and `--card-border` is a token
+     * chosen to be about one step off its own plate. A marker at that ratio is a marker a
+     * reader cannot find, which is the whole reason this rule exists.
      */
     .design-list li {
         display: flex;
