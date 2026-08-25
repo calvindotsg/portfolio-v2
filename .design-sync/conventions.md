@@ -7,9 +7,10 @@ elements, styled the way this document describes.
 
 ## Set data-theme, or nothing is styled
 
-Every token is defined only under the two theme blocks — there is no bare :root fallback — so a page without the attribute resolves every colour to an invalid value and renders unstyled text on unstyled ground. Both themes are equal citizens and every design has to work in each; light is what the site serves by default.
+Every token is defined only under the two theme blocks — there is no bare :root fallback — so a page without the attribute resolves every colour to an invalid value and renders unstyled text on unstyled ground. Both themes are equal citizens and every design has to work in each; light is what the site serves by default. Put it on the root element:
 
     <html data-theme="light">
+    <html data-theme="dark">
 
 ## Colour
 

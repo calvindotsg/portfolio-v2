@@ -114,7 +114,18 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
                             <div class="design-theming">
                                 <h3 class="design-guide-heading">{THEMING.heading}</h3>
                                 <p class="text-sm max-w-[60ch] m-0">{THEMING.lede}</p>
-                                <p class="m-0 text-sm"><span class="design-name">{THEMING.example}</span></p>
+                                {/* THE PAGE SHOWING ITS OWN ATTRIBUTE RATHER THAN DESCRIBING ONE.
+                                     Both lines are in the markup and the stylesheet reveals whichever
+                                     matches the live `data-theme`, which is the mechanism the theme
+                                     toggle's own sun and moon already use. Press the toggle and this
+                                     changes with everything else: the block stops asserting that the
+                                     attribute is what styles the page and starts demonstrating it. */}
+                                <p class="m-0 text-sm">
+                                    {THEMING.themes.map((theme) => (
+                                            <span class="design-name design-theme-example" data-theme-example={theme}
+                                            >{THEMING.example.replace("{theme}", theme)}</span>
+                                    ))}
+                                </p>
                             </div>
                     )}
 
@@ -329,6 +340,28 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
         overflow-wrap: anywhere;
     }
 
+    /*
+     * ONLY THE LINE THAT IS TRUE RIGHT NOW IS ON SCREEN, and the selection is made in CSS so
+     * it costs no script on a site that ships almost none. Same device as the theme toggle's
+     * sun and moon in ThemeSwitcher.astro: both children are in the markup and the live
+     * `data-theme` reveals one.
+     *
+     * `display: none` IS THE RIGHT HIDE HERE, not opacity or a clip — the twin must be absent
+     * from the accessibility tree and from what a reader's selection copies, because the whole
+     * value of this line is that it can be copied. Two lines in the clipboard, one of them
+     * false, would be worse than the static line this replaced.
+     *
+     * THE DEFAULT ARM IS THE FIRST THEME, AND IT IS WRITTEN AS THE ABSENCE OF A RULE ON
+     * PURPOSE. This one hides the second line unconditionally; the block at the foot of this
+     * file swaps them when the live theme is the second. With no `data-theme` at all — no
+     * script, or the very case the paragraph above describes — nothing swaps and the first
+     * line shows. Keying the first arm on its own theme name instead would leave that page
+     * with NO line at all, which is the one state this block must not render.
+     */
+    .design-theme-example[data-theme-example="dark"] {
+        display: none;
+    }
+
     .design-ramp {
         display: flex;
         flex-direction: column;
@@ -519,5 +552,28 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
         .design-cta {
             color: LinkText;
         }
+    }
+</style>
+
+<style is:global>
+    /*
+     * THE HALF THAT HAS TO BE GLOBAL, AND ONLY THAT HALF.
+     *
+     * The subject of these two selectors is `:root`, which is the layout's element rather than
+     * this component's, so Astro's scoping would attach this file's cid attribute to `<html>`
+     * and neither rule would ever match. ThemeSwitcher.astro carries the same note for the
+     * same reason, and it is the reason its sun-and-moon rules are global too.
+     *
+     * NOTHING ELSE ON THE SITE CAN BE REACHED BY THESE. `data-theme-example` is an attribute
+     * this page invents and no other element anywhere sets, so "global" here means the
+     * selector may start at the root, not that the rule has a wide blast radius. That is the
+     * narrowest form of the escape the layout's own forced-colours block argues for.
+     */
+    :root[data-theme="dark"] .design-theme-example[data-theme-example="light"] {
+        display: none;
+    }
+
+    :root[data-theme="dark"] .design-theme-example[data-theme-example="dark"] {
+        display: inline-block;
     }
 </style>

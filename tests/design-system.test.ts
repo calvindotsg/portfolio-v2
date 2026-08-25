@@ -120,7 +120,11 @@ export function renderConventions(): string {
         "",
         THEMING.lede,
         "",
-        `    ${THEMING.example}`,
+        // BOTH VALUES, WHERE THE PAGE SHOWS ONE. `/design` reveals whichever line matches the
+        // reader's live theme, which is a demonstration only a rendered page can make; this
+        // document is read by an agent with no theme and no toggle, so the legal set has to be
+        // stated outright or it is guessable from nothing.
+        ...THEMING.themes.map((theme) => `    ${THEMING.example.replace("{theme}", theme)}`),
         "",
         `## ${SECTIONS.palette.heading}`,
         "",
@@ -323,6 +327,35 @@ describe("the design system this site publishes", () => {
      * nothing describes, and a mark in the census with no rule is the zero-size mask box the
      * safelist exists to prevent.
      */
+    /**
+     * THE THEME NAMES ARE THE ONE VALUE THIS MODULE RESTATES, so they are gated rather than
+     * trusted.
+     *
+     * `THEMING.themes` exists because both surfaces need the legal set: `/design` renders the
+     * line matching the live theme and hides the other, and the generated document lists both
+     * for an agent that has neither. The names themselves belong to
+     * `src/layouts/BasicLayout.astro`, which is where the two `:root[data-theme=…]` blocks are
+     * — so this list is a second home, and a second home nothing checks is the exact defect
+     * this whole suite exists for.
+     *
+     * BOTH DIRECTIONS. A theme in the stylesheet and not in this list is a page that would
+     * render NO example line for a reader in it; a theme in the list and not in the stylesheet
+     * is a value the document tells a designer to write that resolves to nothing.
+     */
+    it("names every theme the stylesheet defines, and no other", () => {
+        const declared = Object.keys(themes).sort();
+        expect(declared.length, "no theme blocks parsed — this gate would assert nothing")
+            .toBeGreaterThan(1);
+        expect([...THEMING.themes].sort(),
+            "src/content/design.ts's theme list and the built stylesheet's theme blocks disagree, so "
+            + "/design would render the wrong example line — or none at all — for a reader in the "
+            + "theme it has forgotten")
+            .toEqual(declared);
+        expect(THEMING.example.includes("{theme}"),
+            "THEMING.example lost its {theme} placeholder, so both surfaces would print it literally")
+            .toBe(true);
+    });
+
     it("names every mark the build ships, and no mark the build does not", () => {
         const shipped = new Set([...css.matchAll(/\.(i-[a-z0-9-]+)/g)].map((m) => m[1]!));
         expect(shipped.size, "no icon rules parsed out of the stylesheet — this gate would be vacuous")

@@ -77,14 +77,39 @@ export const DESIGN_PAGE: {
  * `.design-sync/conventions.md`, because it is equally true of the site and of the stylesheet
  * the design tool is handed — which is not true of everything in that document, and is the
  * test for whether something belongs in this module at all.
+ *
+ * THE TWO SURFACES RENDER {@link THEMING.themes} DIFFERENTLY AND THE COPY HAS TO SURVIVE BOTH.
+ * The page shows the ONE line matching the theme the reader is actually in, revealed in CSS,
+ * so pressing the toggle demonstrates the precondition rather than describing it. The document
+ * has no reader and no live theme, so it lists both. That is why the lede ends on an
+ * instruction that reads correctly above one line or two, and why it says nothing like "the
+ * page you are looking at" — a sentence true of one surface is a sentence false on the other.
  */
-export const THEMING: {heading: string, lede: string, example: string} = {
+export const THEMING: {
+    heading: string
+    lede: string
+    /** The line to copy, with `{theme}` standing in for one of {@link THEMING.themes}. */
+    example: string
+    /**
+     * THE ONLY TWO LEGAL VALUES, AND THE ONE PLACE IN THIS MODULE THAT NAMES SOMETHING THE
+     * STYLESHEET ALSO NAMES. That makes it a second home, so it is gated rather than trusted:
+     * `tests/design-system.test.ts` parses the `:root[data-theme=…]` block names out of the
+     * built CSS and holds this list against them, both ways — the same treatment the mark
+     * census gets. A third theme added to the layout and forgotten here is red.
+     *
+     * Ordered, and the order is what the page and the document render in. The first is the
+     * one the site serves with no stored preference.
+     */
+    themes: readonly string[]
+} = {
     heading: "Set data-theme, or nothing is styled",
     lede: "Every token is defined only under the two theme blocks — there is no bare :root "
         + "fallback — so a page without the attribute resolves every colour to an invalid value "
         + "and renders unstyled text on unstyled ground. Both themes are equal citizens and "
-        + "every design has to work in each; light is what the site serves by default.",
-    example: `<html data-theme="light">`,
+        + "every design has to work in each; light is what the site serves by default. Put it "
+        + "on the root element:",
+    example: `<html data-theme="{theme}">`,
+    themes: ["light", "dark"],
 }
 
 /**
