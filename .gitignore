@@ -60,3 +60,18 @@ pnpm-debug.log*
 # python, for dns/ only — octoDNS is the one Python toolchain here
 __pycache__/
 dns/.venv/
+
+# design-system sync
+#
+# Syncing this site's palette to a design tool stages that tool's converter into
+# `.ds-sync/` and builds its upload directory at `ds-bundle/`. Neither is ours and both
+# are regenerated on every sync — the durable half is what sits in `.design-sync/` and is
+# NOT listed here: the config pinning which project this repo syncs to, the notes a future
+# sync reads first, and the conventions the design agent is handed. `.design-sync/.cache/`
+# is machine state, so it goes.
+#
+# `node_modules` above already covers both directories' installs, in both spellings.
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/

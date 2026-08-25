@@ -319,6 +319,15 @@ const schema = {
 
     /* Theme Variables
      *
+     * THESE FIFTEEN ARE PUBLISHED OUTSIDE THIS REPOSITORY, so renaming one costs more
+     * than a find-and-replace. They are exported to a design tool, where an agent builds
+     * screens out of them, and that export is a snapshot taken by hand — nothing you do
+     * here re-runs it. `.design-sync/conventions.md` is the copy that tool is handed and
+     * `.design-sync/NOTES.md` says how to refresh it. What you do NOT have to remember is
+     * the drift: `tests/design-system.test.ts` holds that document's token table against
+     * this block and reddens when they disagree, which is also the gate that catches a
+     * token defined in one theme and forgotten in the other.
+     *
      * Seven roles, deliberately separate tokens even where several of them resolve
      * to the same hex today:
      *

@@ -1,0 +1,9 @@
+{
+  "projectId": "53b4343a-c34a-4283-9903-80a7da46e542",
+  "pkg": "calvin-portfolio",
+  "globalName": "CalvinPortfolio",
+  "shape": "package",
+  "buildCmd": "pnpm build && node .design-sync/prepare-css.mjs",
+  "cssEntry": ".design-sync/.cache/css/site.css",
+  "readmeHeader": ".design-sync/conventions.md"
+}
