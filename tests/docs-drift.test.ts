@@ -1,4 +1,5 @@
-import {existsSync, readFileSync, readdirSync, statSync} from "node:fs";
+import {execFileSync} from "node:child_process";
+import {existsSync, readFileSync, readdirSync} from "node:fs";
 import {join, resolve} from "node:path";
 import {describe, expect, it} from "vitest";
 
@@ -121,6 +122,12 @@ import {CAREER} from "../src/content/home";
  *
  * CI never saw either, because a fresh `actions/checkout` has neither directory. That is
  * exactly why it is worth a comment: a green pipeline was not evidence here.
+ *
+ * BOTH SETS ARE NOW A SECOND PASS RATHER THAN THE MECHANISM. `repoFiles` below asks git
+ * which files this repository owns, so an ignored directory is out of scope whether or not
+ * anybody thought to name it here — see the argument there for what stopped being true
+ * about naming them by hand. What survives in these two sets is the remainder: a directory
+ * git has no opinion about, which today is only the coverage output.
  */
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".astro", ".venv", "coverage", ".scratchpad"]);
 const SKIP_PATHS = new Set([".claude/worktrees"]);
@@ -171,15 +178,35 @@ const WIKI = ".devin/wiki.json";
 const isProposal = (file: string) => /^plans\/\d{3}-/.test(file);
 const read = (p: string) => readFileSync(p, "utf8");
 
-function walk(dir: string, out: string[] = []): string[] {
-    for (const name of readdirSync(dir)) {
-        if (SKIP_DIRS.has(name)) continue;
-        const p = join(dir, name);
-        if (SKIP_PATHS.has(p.replace(/^\.\//, ""))) continue;
-        if (statSync(p).isDirectory()) walk(p, out);
-        else out.push(p);
-    }
-    return out;
+/**
+ * THE FILES THIS REPOSITORY OWNS, ASKED OF GIT RATHER THAN OF THE DISK — because that is
+ * what the paragraph above was already reaching for and could only approximate.
+ *
+ * Its rule is stated there in as many words: those directories are skipped BECAUSE
+ * `.gitignore` provisions them. The implementation spelled that as a hand-kept set of
+ * names, which is the same shape as the hand-kept list this whole file exists to argue
+ * against — it holds only for the provisioned directories somebody has already met. It
+ * did not hold for the next one: syncing this site's palette to a design tool stages that
+ * tool's converter into the tree, and walking it read another project's correct prose as
+ * ours — four failures, none of them about this repository, on a document describing a
+ * Storybook workflow this site does not have. Measured, and invisible to CI, which is the
+ * developer-machine-only shape again.
+ *
+ * `--others --exclude-standard` is what keeps this from being a weakening. Tracked files
+ * alone would have quietly stopped gating a document until somebody staged it, and
+ * "gated the moment it lands" is the property the discovery below is FOR. Asking for
+ * untracked-but-not-ignored files keeps a brand-new document in scope on the first run
+ * after it is written, while an ignored tree is out of scope on every run. The skip sets
+ * survive as a second pass for anything git has no opinion about.
+ */
+function repoFiles(): string[] {
+    const listed = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        {encoding: "utf8"}).split("\0").filter(Boolean);
+    return listed.filter((p) => {
+        const parts = p.split("/");
+        return !parts.some((seg) => SKIP_DIRS.has(seg))
+            && !parts.some((_, i) => SKIP_PATHS.has(parts.slice(0, i + 1).join("/")));
+    });
 }
 
 /**
@@ -194,7 +221,7 @@ function walk(dir: string, out: string[] = []): string[] {
  * scripts and a palette. Excluding them would gate the small half.
  */
 function liveDocs(): string[] {
-    return walk(".")
+    return repoFiles()
         .map((p) => p.replace(/^\.\//, ""))
         .filter((p) => /\.(md|ts|astro|mjs|yml|yaml|json|py|sh)$/.test(p))
         .filter((p) => !p.includes(ARCHIVE) && p !== "pnpm-lock.yaml" && p !== "package.json")
@@ -218,7 +245,7 @@ const backticked = (file: string) => backtickedIn(read(file));
 
 /** Every basename in the tree, so a document naming a file with no directory can be checked. */
 function basenamesInTree(): Set<string> {
-    return new Set(walk(".").map((p) => p.split("/").pop()!));
+    return new Set(repoFiles().map((p) => p.split("/").pop()!));
 }
 
 const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven",
@@ -768,7 +795,7 @@ describe("documentation, against the code it describes", () => {
 
     it("names no configured value that is declared nowhere", () => {
         const declared = new Set<string>(Object.keys(OWNED_ELSEWHERE));
-        for (const file of walk(".").map((p) => p.replace(/^\.\//, ""))) {
+        for (const file of repoFiles()) {
             if (!/\.(ts|astro|mjs|js|yml|yaml|example)$/.test(file) || file === "pnpm-lock.yaml") continue;
             const text = read(file);
             for (const m of text.matchAll(/\b(?:const|let|var|function)\s+([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b/g)) declared.add(m[1]);
