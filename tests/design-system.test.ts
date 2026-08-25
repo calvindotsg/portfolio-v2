@@ -1,7 +1,10 @@
 import {readFileSync} from "node:fs";
 import {describe, expect, it} from "vitest";
 
+import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
+import {ICON_IDS, iconClass} from "../src/lib/icons";
 import {pageCss} from "./helpers/css";
+import {classTokens} from "./helpers/pages";
 
 /**
  * THE PALETTE IS PUBLISHED SOMEWHERE THIS SUITE CANNOT SEE, AND THIS IS THE HALF THAT CAN.
@@ -40,10 +43,146 @@ import {pageCss} from "./helpers/css";
  *
  * It reads the built page rather than the source, through `pageCss`, because the export is
  * built from the same artifact: what ships is what the agent gets.
+ *
+ * WHAT CHANGED WHEN `/design` ARRIVED, because two of the gates below now point somewhere
+ * else. The document stopped being hand-written: it is RENDERED from `src/content/design.ts`
+ * and held against the committed copy by a file snapshot, so the question "does the markdown
+ * still say what the code says" collapses into "was the file regenerated". That moves the
+ * gated source one level up — the token gate reads the MODULE against the stylesheet now,
+ * rather than the markdown table against the stylesheet, because the table is no longer a
+ * place anyone can type into. The chain is: stylesheet defines, module names, document and
+ * page render. Each link has an assertion here, and the middle one is the only one a person
+ * edits.
+ *
+ * THE SNAPSHOT IS THE LEGITIMATE FORM OF A COMMITTED GENERATED FILE, and the distinction is
+ * the whole reason four generated HTML reference cards were retired rather than kept:
+ * `dns/requirements.txt` is compiled from `dns/requirements.in` and a gate fails when the two
+ * disagree, where `public/preview.jpg` is a render of a card with nothing watching and has
+ * gone stale silently twice. `pnpm test:update` regenerates; drift fails `pnpm test`.
  */
 
 const CONVENTIONS = ".design-sync/conventions.md";
 const conventions = () => readFileSync(CONVENTIONS, "utf8");
+
+/** The `/design` page, as the build emits it. */
+const DESIGN_PAGE_FILE = "dist/design/index.html";
+
+/**
+ * THE DOCUMENT THE DESIGN AGENT IS HANDED, rendered from the same module `/design` renders.
+ *
+ * IT IS A SEPARATE, TERSER RENDERING RATHER THAN THE PAGE'S MARKUP IN MARKDOWN, and that is a
+ * decision about the reader rather than about the format. This text is prepended verbatim to
+ * a README that goes into a system prompt (`readmeHeader` in `.design-sync/config.json`), so
+ * it is inlined into a context window under a budget of a few thousand characters, and the
+ * agent reading it CANNOT open this repository to follow a pointer. Everything it needs has
+ * to be in the sentence, and nothing it does not need may be.
+ *
+ * WHICH IS WHY SOME OF THIS PROSE IS AUTHORED HERE AND NOT IN THE MODULE. The three passages
+ * below — the empty component namespace, the closed stylesheet, and where the truth lives —
+ * are facts about the EXPORTED BUNDLE, not about this design system: on the site a utility
+ * engine really is running and a class the site never used really can be generated. Putting
+ * them in `src/content/design.ts` would put a sentence on `/design` that is false of the page
+ * a reader is looking at. The module holds what is true of both surfaces; an audience's own
+ * framing belongs with the rendering for that audience.
+ *
+ * NOTHING HERE MAY STATE A VALUE OR A COUNT IT DOES NOT DERIVE. The figures in the marks
+ * section are computed from the census in `src/lib/icons.ts` at render time, which is safe in
+ * a way the same figures typed into a markdown file were not: the snapshot fails the moment
+ * the census moves, so a stale count cannot be committed. That is the difference between a
+ * derived count and a written one, and the note in `.design-sync/NOTES.md` about hand-listed
+ * token tables and stated icon counts is what it replaces.
+ */
+export function renderConventions(): string {
+    const bullets = (lines: readonly string[]) => lines.map((line) => `- ${line}`).join("\n");
+
+    const guidance = (section: typeof SECTIONS[keyof typeof SECTIONS]) => [
+        `${DESIGN_PAGE.does_label}:`,
+        "",
+        bullets(section.does),
+        "",
+        `${DESIGN_PAGE.donts_label}:`,
+        "",
+        bullets(section.donts),
+    ].join("\n");
+
+    const marks = [...new Set(ICON_IDS.map(iconClass))].sort();
+    const family = (prefix: string) => marks.filter((m) => m.startsWith(prefix));
+
+    return [
+        "# calvin.sg — building with this system",
+        "",
+        "This system ships **colour, type and controls — no components**. The site it comes from is",
+        "built in Astro, whose components compile to a server render and have no runtime form, so",
+        "there is nothing to mount: the component namespace is deliberately empty. Build with plain",
+        "elements, styled the way this document describes.",
+        "",
+        `## ${THEMING.heading}`,
+        "",
+        THEMING.lede,
+        "",
+        `    ${THEMING.example}`,
+        "",
+        `## ${SECTIONS.palette.heading}`,
+        "",
+        SECTIONS.palette.lede,
+        "",
+        "| Token | Role |",
+        "|---|---|",
+        ...TOKEN_ROLES.map(({token, role}) => `| \`${token}\` | ${role} |`),
+        "",
+        guidance(SECTIONS.palette),
+        "",
+        "## The stylesheet is a closed set, not a utility framework",
+        "",
+        "This is the one that will bite. The classes were generated from the source site's own markup",
+        "and shipped as static CSS; **no utility engine is running here**, so a class the site never",
+        "used does not exist. The padding, margin and colour utilities you might reach for by habit",
+        "are mostly absent. Use the named classes below, write ordinary CSS with `var(--token)` for",
+        "everything else, and check the stylesheet before assuming a utility exists.",
+        "",
+        `Guaranteed present: ${CONTROLS.map((c) => `\`${c.name}\``).join(", ")}, \`sr-only\`,`,
+        "`break-anywhere`, the mark classes listed below, and a full CSS reset (box-sizing, border",
+        "reset, a system sans stack — there are no webfonts to load).",
+        "",
+        "**`control-surface` is not in the stylesheet.** It is a source-level shortcut the other",
+        "controls compose, and nothing wears it directly; writing it produces no styling.",
+        "",
+        `## ${SECTIONS.controls.heading}`,
+        "",
+        SECTIONS.controls.lede,
+        "",
+        ...CONTROLS.map(({name, role}) => `- **\`${name}\`** — ${role}`),
+        "",
+        guidance(SECTIONS.controls),
+        "",
+        `## ${SECTIONS.type.heading}`,
+        "",
+        SECTIONS.type.lede,
+        "",
+        guidance(SECTIONS.type),
+        "",
+        `## ${SECTIONS.icons.heading}`,
+        "",
+        SECTIONS.icons.lede,
+        "",
+        `These ${marks.length} ship and no others. Remix Icon (${family("i-ri-").length}):`,
+        "",
+        family("i-ri-").map((m) => `\`${m}\``).join(", ") + ".",
+        "",
+        `Brand marks (${family("i-fa6-brands-").length}):`,
+        "",
+        family("i-fa6-brands-").map((m) => `\`${m}\``).join(", ") + ".",
+        "",
+        guidance(SECTIONS.icons),
+        "",
+        "## Where the truth lives",
+        "",
+        "Read the stylesheet you have been given: the tokens are restated in readable form at the very",
+        "top of it, both themes, ahead of the minified rules. That file is the only authority on what",
+        "a class does; this document is the only authority on what to reach for.",
+        "",
+    ].join("\n");
+}
 
 /** Every `--token: value` declared under a `:root[data-theme=…]` block in the built CSS. */
 function themeTokens(css: string): Record<string, Set<string>> {
@@ -80,19 +219,30 @@ describe("the design system this site publishes", () => {
             .toEqual([]);
     });
 
-    it("names every token in the document the design agent is handed, and no other", () => {
-        // The TABLE, not the whole document. Scoping this to backticks anywhere was a
-        // predicate wider than the property the prose claims, and it proved it: deleting a
-        // row for a token the surrounding do/don'ts also mention left the gate green.
-        const rows = conventions().split("\n").filter((l) => /^\s*\|/.test(l));
-        expect(rows.length, "no table rows found — this gate would assert nothing").toBeGreaterThan(5);
-        const named = new Set([...rows.join("\n").matchAll(/`(--[\w-]+)`/g)].map((m) => m[1]!));
+    /**
+     * THE MODULE IS THE GATED SOURCE NOW, not the markdown table.
+     *
+     * This used to read `.design-sync/conventions.md`'s table, because that table was where a
+     * person typed a token's name. It is generated from `TOKEN_ROLES` today, so reading it
+     * here would ask the same question one level too far downstream: the snapshot below
+     * already proves the table IS the module, and a gate that checks a rendering of a list
+     * against the stylesheet cannot say which of the two is wrong when they disagree.
+     *
+     * BOTH DIRECTIONS, for the reason the old note gave: a one-way check lets the list
+     * quietly shrink. A token defined in the layout and never named here is one no designer
+     * and no agent will ever reach for; a token named here that the stylesheet no longer
+     * defines sends both of them at something that resolves to nothing.
+     */
+    it("names every token the stylesheet defines, and no other", () => {
+        const named = new Set(TOKEN_ROLES.map((t) => t.token));
+        expect(named.size, "TOKEN_ROLES is empty — this gate would assert nothing")
+            .toBe(TOKEN_ROLES.length);
         const defined = themes.light!;
         expect([...defined].filter((t) => !named.has(t)).sort(),
-            `${CONVENTIONS}'s token table is missing these, so the agent will never reach for them`)
+            "src/content/design.ts gives these tokens no role, so nothing that reads it will reach for them")
             .toEqual([]);
         expect([...named].filter((t) => !defined.has(t)).sort(),
-            `${CONVENTIONS}'s token table names these and the built stylesheet does not define them`)
+            "src/content/design.ts names these and the built stylesheet does not define them")
             .toEqual([]);
     });
 
@@ -113,5 +263,88 @@ describe("the design system this site publishes", () => {
         expect(css.includes(".control-surface{"),
             "`control-surface` now ships a rule, so the warning in " + CONVENTIONS + " is false")
             .toBe(false);
+    });
+
+    /**
+     * THE COMMITTED DOCUMENT IS THE RENDERING, and this is what makes that checkable rather
+     * than a convention. Edit a role in `src/content/design.ts` and this goes red until
+     * `pnpm test:update` rewrites the file; edit the file by hand and it goes red until the
+     * edit is moved into the module. Both directions are the point — the second one is what
+     * `.design-sync/NOTES.md` used to have to ask for in prose.
+     */
+    it("is the module, rendered — the agent's document has no second author", async () => {
+        await expect(renderConventions()).toMatchFileSnapshot(`../${CONVENTIONS}`);
+    });
+
+    /**
+     * A HEADING WITH NOTHING UNDER IT IS THE ONE FAILURE THE SNAPSHOT CANNOT SEE, because an
+     * empty list renders as an empty list and matches its own committed copy perfectly. The
+     * guidance is the half of this module a design agent actually acts on, so a section that
+     * has stopped carrying any is worth more than a heading that has gone missing.
+     */
+    it("gives every section guidance on both sides", () => {
+        const sections = Object.entries(SECTIONS);
+        expect(sections.length, "SECTIONS is empty — this gate would assert nothing").toBeGreaterThan(0);
+        for (const [key, section] of sections) {
+            expect(section.does.length, `SECTIONS.${key} tells nobody what to do`).toBeGreaterThan(0);
+            expect(section.donts.length, `SECTIONS.${key} tells nobody what not to do`).toBeGreaterThan(0);
+            expect(section.heading.trim().length, `SECTIONS.${key} has no heading`).toBeGreaterThan(0);
+            expect(section.lede.trim().length, `SECTIONS.${key} has no lede`).toBeGreaterThan(0);
+        }
+    });
+
+    /**
+     * THE RAMP ON THE PAGE IS A CENSUS AND THIS IS ITS GATE.
+     *
+     * `src/pages/design.astro` has to write its type steps out as literal class names, because
+     * UnoCSS only emits a rule for a name it can see literally in a file it scans and it does
+     * not scan `.ts` — the same fact the icon safelist exists for. A written-out list is a
+     * second copy of a set the stylesheet already owns, so it needs the thing every other
+     * census in this repository has: something that reddens when the two disagree.
+     *
+     * ASKED IN THE DIRECTION THAT CAN ACTUALLY BE WRONG. A step the page shows and no other
+     * page uses is not a defect — the page is a legitimate wearer, and its own use is what
+     * puts the rule in the sheet. A step some OTHER page wears and this one omits is a
+     * styleguide that has quietly stopped describing the site, and that is what this catches.
+     */
+    /**
+     * THE CENSUS IS COMPLETE, WHICH IS A STRONGER CLAIM THAN THE SAFELIST EVER NEEDED.
+     *
+     * `ICON_IDS` exists so `uno.config.ts` can emit a rule for every mark that is computed at
+     * render time. That job never required it to be exhaustive: the theme toggle writes its
+     * sun and moon out as literal class names, UnoCSS extracts them by itself, and the
+     * safelist was complete without them for as long as nothing else read it.
+     *
+     * `/design` reads it, and reads it as "the marks a designer may reach for" — so the list
+     * has to answer a question it was never asked before. Measured before this gate went in:
+     * the page rendered 16 of the 18 marks the build ships and the generated document told a
+     * design agent that 16 was the whole set. Both halves are asserted here, because either
+     * one alone permits the defect: a mark in the sheet and not in the census is a mark
+     * nothing describes, and a mark in the census with no rule is the zero-size mask box the
+     * safelist exists to prevent.
+     */
+    it("names every mark the build ships, and no mark the build does not", () => {
+        const shipped = new Set([...css.matchAll(/\.(i-[a-z0-9-]+)/g)].map((m) => m[1]!));
+        expect(shipped.size, "no icon rules parsed out of the stylesheet — this gate would be vacuous")
+            .toBeGreaterThan(5);
+        const census = new Set(ICON_IDS.map(iconClass));
+        expect([...shipped].filter((c) => !census.has(c)).sort(),
+            "the stylesheet ships these marks and ICON_IDS does not name them, so /design and the "
+            + "document generated from it both understate what a designer may reach for")
+            .toEqual([]);
+        expect([...census].filter((c) => !shipped.has(c)).sort(),
+            "ICON_IDS names these and the stylesheet has no rule for them — a presetIcons class with "
+            + "no rule renders as a mask box at zero size")
+            .toEqual([]);
+    });
+
+    it("shows every type step the stylesheet ships", () => {
+        const steps = new Set([...css.matchAll(/\.(text-[a-z0-9]+)\{font-size/g)].map((m) => m[1]!));
+        expect(steps.size, "no type steps parsed out of the stylesheet — this gate would be vacuous")
+            .toBeGreaterThan(2);
+        const worn = classTokens(DESIGN_PAGE_FILE);
+        expect([...steps].filter((s) => !worn.has(s)).sort(),
+            `${DESIGN_PAGE_FILE} is the site's own type specimen and does not show these steps`)
+            .toEqual([]);
     });
 });

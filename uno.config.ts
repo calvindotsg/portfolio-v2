@@ -1,41 +1,23 @@
 import {defineConfig, presetIcons, presetWind3} from "unocss";
 
-import {CAREER, NOW, WELCOME} from "./src/content/home";
-import {NEXT_RACE, PATCHES} from "./src/content/races";
-import {FOOTER, LINKS, NOT_FOUND} from "./src/content/site";
-import {GOALS} from "./src/lib/goal";
-import {iconClass} from "./src/lib/icons";
+import {ICON_IDS, iconClass} from "./src/lib/icons";
 
 export default defineConfig({
     /**
      * Icon classes are derived from constants at render time, so UnoCSS never
      * sees them literally in source — every configured icon is safelisted here.
      *
-     * NOTE WHAT IS NOT IN THIS LIST: `EVENTS`. The patch wall draws a sport's icon,
-     * and it gets it from the GOAL that owns the sport (`goalForSport` in
-     * `src/lib/goal.ts`) rather than from a table of its own, so the two entries below
-     * for GOALS already cover every bib on the wall. A second sport→icon map beside
-     * EVENTS would ship class tokens this list never saw, and a presetIcons class
-     * with no rule renders as a mask box at zero size — an icon that is silently
-     * absent, with correct markup and a green build.
+     * THE CENSUS ITSELF IS NO LONGER WRITTEN HERE. It is `ICON_IDS` in
+     * `src/lib/icons.ts`, beside the function that turns an id into a class, because
+     * this list stopped being its only reader: `/design` renders the same set as the
+     * marks a designer may reach for. Two hand-kept lists answering that question
+     * differently is the defect this safelist exists to prevent, arriving one page at
+     * a time — a presetIcons class with no rule renders as a mask box at zero size, an
+     * icon that is silently absent with correct markup and a green build. What each
+     * entry is doing in the census, and what is deliberately NOT in it, is written out
+     * beside the list.
      */
-    safelist: [
-        ...LINKS.map((l) => iconClass(l.logo)),
-        ...GOALS.map((g) => iconClass(g.goal_logo)),
-        ...CAREER.map((c) => iconClass(c.icon)),
-        iconClass(WELCOME.greeting_icon),
-        iconClass(FOOTER.icon),
-        iconClass(NOW.explainer_icon),
-        iconClass(PATCHES.home_icon),
-        iconClass(PATCHES.strava_icon),
-        iconClass(PATCHES.official_icon),
-        iconClass(NEXT_RACE.icon),
-        // Resolves to the same class as `PATCHES.home_icon` today, and is listed anyway
-        // for the reason the comment on `strava_icon` gives: a constant that relies on
-        // another constant having already emitted its class ships a zero-size mask box
-        // the moment that other one changes, with correct markup and a green build.
-        iconClass(NOT_FOUND.home_icon),
-    ],
+    safelist: ICON_IDS.map(iconClass),
     /** UnoCSS extracts from the text of `<style>` blocks too, so the declaration
      *  `position: static` in IntroCard emits a utility rule for a class no
      *  element wears. A comment can be reworded around; a real declaration

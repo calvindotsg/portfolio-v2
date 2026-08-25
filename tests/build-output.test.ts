@@ -3025,7 +3025,7 @@ describe("hashed assets are cached forever, and are hashed", () => {
             "_headers", "404.html", "favicon.ico", "index.html", "llms.txt",
             "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml", "sitemap-index.xml",
         ];
-        const ALLOWED_DIRECTORIES = [".well-known", "_astro", "patches"];
+        const ALLOWED_DIRECTORIES = [".well-known", "_astro", "design", "patches"];
 
         const entries = readdirSync("dist", {withFileTypes: true});
         expect(entries.length, "dist/ is empty — this assertion is vacuous").toBeGreaterThan(0);
