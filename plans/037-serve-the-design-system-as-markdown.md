@@ -18,7 +18,8 @@
 - **Priority**: P3
 - **Effort**: M
 - **Risk**: MED
-- **Depends on**: `plans/036-serve-the-design-system-as-a-page.md`
+- **Depends on**: 036, which is **DONE** — merged as `f052f68` (#205) and archived to
+  [`done/036-serve-the-design-system-as-a-page.md`](done/036-serve-the-design-system-as-a-page.md)
 - **Category**: docs
 - **Planned at**: commit `dc2790c`, 2026-08-25
 
@@ -42,10 +43,51 @@ discovery wiring, and one button.
 
 ## Current state
 
-**This plan assumes 036 has landed.** From it: `src/content/design.ts` exports `DESIGN_PAGE`,
-`TOKEN_ROLES` and `SECTIONS`; `src/pages/design.astro` renders them; `tests/design-system.test.ts`
-holds them against the built stylesheet and generates `.design-sync/conventions.md` through
-`toMatchFileSnapshot`.
+**This plan assumes 036 has landed.** It has, and the paragraph below was written against a
+PREDICTED 036 rather than the one that shipped. Six of its premises are now false; they are measured
+and corrected in the block that follows, which is the one to read.
+
+> *Written at `dc2790c`, superseded:* From it: `src/content/design.ts` exports `DESIGN_PAGE`,
+> `TOKEN_ROLES` and `SECTIONS`; `src/pages/design.astro` renders them; `tests/design-system.test.ts`
+> holds them against the built stylesheet and generates `.design-sync/conventions.md` through
+> `toMatchFileSnapshot`.
+
+### Premise drift, measured at `715fc79` (2026-08-26)
+
+036 shipped with five deviations from what this plan predicted of it, each recorded in its archive
+entry. **Nothing here re-plans a step** — these are the facts a step now has to be written against,
+and where a step as drafted would produce a wrong result, that is named rather than fixed:
+
+1. **The module exports FIVE things, not three.** `DESIGN_PAGE`, `THEMING`, `TOKEN_ROLES`,
+   `CONTROLS`, `SECTIONS`. Step 1 says to build markdown "from `DESIGN_PAGE`, `TOKEN_ROLES` and
+   `SECTIONS`" — followed literally that **drops the `data-theme` precondition and the three control
+   descriptions** from `DESIGN.md`, and the agent rendering would lose the load-bearing rule this
+   plan's own § "What `.design-sync/conventions.md` is for" calls one of the two that matter.
+2. **The renderer already exists, so step 1 is a MOVE rather than a fresh write.**
+   `renderConventions()` is exported from `tests/design-system.test.ts` — 036's scope list forbade a
+   new file under `src/`, so it went where the snapshot lived. A route cannot import from `tests/`,
+   which is precisely why step 1 creates `src/lib/design-doc.ts`; port the existing function and its
+   header rather than writing a second one.
+3. **`THEMING.example` is a TEMPLATE, not a literal.** It carries a `{theme}` placeholder and
+   `THEMING.themes` holds the legal values, because `/design` reveals only the line matching the
+   reader's live theme while the document lists both. A renderer that prints `example` unsubstituted
+   ships `<html data-theme="{theme}">`.
+4. **`.design-sync/conventions.md` is 7,394 bytes, not 5,032** — it absorbed the do/don't guidance
+   that used to live only on the four deleted reference cards. Step 3's 4096-character assertion
+   therefore has to cut roughly half the file, not trim an overhang. **`.design-sync/NOTES.md` names
+   this as the one trade to re-decide rather than inherit**, and says the guidance should be trimmed
+   in the module rather than in the renderer. Settle that before writing the assertion; a budget met
+   by deleting what the agent acts on is a budget met in name.
+5. **`ThemeSwitcher` is no longer "on the home page only".** `/design` renders one too, because half
+   of what that page exists to show is that tokens SWAP rather than darken. Measured on the build:
+   `/` and `/design` ship three inline scripts each, `/patches` ships two. Step 7's "makes it four"
+   is a claim about KINDS of script and still holds; the per-page sentence does not.
+6. **`plans/README.md`'s baseline rows were swept when 036 was archived** — the page enumeration now
+   names its derivation instead of listing routes, the script row no longer says "home page only",
+   and the suite figure is 622. Re-derive rather than quoting any of them.
+
+**Run the drift check at the top of this file before step 1 regardless.** These six are what one
+session knew on the day 036 landed, not a guarantee that nothing else has moved since.
 
 - `src/layouts/BasicLayout.astro:6-25` — the layout takes typed props and destructures them:
 
@@ -84,7 +126,8 @@ holds them against the built stylesheet and generates `.design-sync/conventions.
 
 - `src/layouts/BasicLayout.astro:184` and `:231` — two `is:inline` scripts (the pre-paint theme
   resolver and the press-hold listener). `src/components/ThemeSwitcher.astro` ships a third as a
-  module on the home page only. `tests/build-output.test.ts:904` asserts the site
+  module, on every page that renders a toggle — `/` and, since 036, `/design` (premise 5 above).
+  `tests/build-output.test.ts:904` asserts the site
   **ships zero external JavaScript files** — inline is the only permitted shape. The baseline row in
   `plans/README.md` records "three first-party scripts, all inline"; step 7 makes it four.
 
@@ -113,8 +156,9 @@ the bound artifacts, nothing else", and must be pointed at the BOUND copies of t
 than at `src/`. Its budget is **2-4k characters**. `DESIGN.md` has the opposite reader: an agent
 with the checkout open, no token budget, and every reason to be sent to `src/layouts/BasicLayout.astro`.
 
-So they stay two documents from one source, distinguished by an audience parameter. The file today
-is 5,032 bytes — already over budget — which step 3 fixes rather than inherits.
+So they stay two documents from one source, distinguished by an audience parameter. The file was
+5,032 bytes when this was written and is **7,394** since 036 landed — see premise 4 above before
+writing step 3's assertion, because the gap is now half the file rather than an overhang.
 
 ## Commands you will need
 
@@ -182,8 +226,10 @@ typing anything:
 ### Step 1: Write the audience-parameterised renderer
 
 Create `src/lib/design-doc.ts` exporting something of the shape
-`renderDesignDoc(audience: "full" | "agent"): string`, building markdown from `DESIGN_PAGE`,
-`TOKEN_ROLES` and `SECTIONS`.
+`renderDesignDoc(audience: "full" | "agent"): string`, building markdown from **all five** module
+exports — `DESIGN_PAGE`, `THEMING`, `TOKEN_ROLES`, `CONTROLS` and `SECTIONS`. See premises 1–3
+above: this is a port of the existing `renderConventions()` out of `tests/design-system.test.ts`,
+and `THEMING.example` needs its `{theme}` placeholder substituted per entry in `THEMING.themes`.
 
 - `"full"` — the complete spec: heading, lede, the token table, every section with its do/don't
   lists. May reference repository paths such as `src/layouts/BasicLayout.astro`.
