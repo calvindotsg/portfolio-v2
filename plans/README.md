@@ -1,16 +1,16 @@
 # Implementation Plans
 
-**Two plans are queued: 036 and 037.** The two-run security audit of this repository completed on 2026-08-18
+**One plan is queued: 037.** The two-run security audit of this repository completed on 2026-08-18
 and produced the first proposals here since 028 landed; all of them — 029 through 034 — are merged,
-archived and live, as are plans 024–028. 035 did not come from that audit and is done too, so 036 and 037
-are the first proposals written since this directory last emptied. **It did not come from an audit
-either, and that is what makes it a different shape from everything above it**: the six audit plans
-each closed a defect the code already had, while 036 closes a duplication that a change of ours
-CREATED — the design-system export in #203 left this repository describing its own vocabulary in two
-places that can disagree. A plan whose subject is the cost of the last change is the one kind the
-numbering here had not seen. 037 follows 036 rather than standing beside it: it adds the markdown
-surfaces — a generated `DESIGN.md`, a `/design.md` twin and a copy button — on top of the single
-source 036 creates.
+archived and live, as are plans 024–028 and 035. 036 and 037 were the first proposals written since
+this directory last emptied, and 036 is now done too. **Neither came from an audit, and that is what
+makes them a different shape from everything above them**: the six audit plans each closed a defect
+the code already had, while 036 closed a duplication that a change of ours CREATED — the
+design-system export in #203 left this repository describing its own vocabulary in two places that
+could disagree. A plan whose subject is the cost of the last change is the one kind the numbering
+here had not seen. 037 follows 036 rather than standing beside it: it adds the markdown surfaces —
+a generated `DESIGN.md`, a `/design.md` twin and a copy button — on top of the single source 036
+created, which now exists.
 
 **035 is the first plan whose defect was in its own prescribed CODE rather than in a premise, and it
 shipped green.** Six runs of executors measuring what a plan asserted, and nobody checked whether the
@@ -206,18 +206,19 @@ recreated.
 | 033 | The six remaining hardenings | P3 | S | 029, 030 | **DONE** (`cca3d8b`) |
 | 034 | Govern the origin, not just the artifact | P1 | M | 029, 030 + zone preconditions | **DONE** (`5b90ed0`) |
 | 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **DONE** (`3f1d582`) |
-| 036 | Serve the design system as a page, and generate the agent's copy from it | P2 | M | — | **TODO** |
+| 036 | Serve the design system as a page, and generate the agent's copy from it | P2 | M | — | **DONE** (`f052f68`) |
 | 037 | Serve the design system as markdown, in the repo and on the web | P3 | M | 036 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
-**Why 036 and 037 are two files rather than one, and why 037 cannot go first.** 036 makes one new
-content module the single authored source of this site's design vocabulary and renders it as a page;
-037 renders the same module as markdown. Splitting them keeps each reviewable, and the order is a
-real dependency rather than a preference — 037's whole subject is a renderer over a module that does
-not exist until 036 lands. **They are NOT parallel-safe**: both touch that module, the design page
-and `tests/design-system.test.ts`, so unlike 031 they cannot be run in separate worktrees at the
-same time. (Their own files are named in the plans, not here: this index is a current-state document
+**Why 036 and 037 were two files rather than one, and why 037 could not go first.** 036 made one new
+content module the single authored source of this site's design vocabulary and rendered it as a page;
+037 renders the same module as markdown. Splitting them kept each reviewable, and the order was a
+real dependency rather than a preference — 037's whole subject is a renderer over a module that did
+not exist until 036 landed. It exists now, so the dependency is discharged rather than merely
+satisfied on paper, and the parallel-safety question is moot: **they were NOT parallel-safe**, both
+touching that module, the design page and `tests/design-system.test.ts`, so unlike 031 they could not
+have been run in separate worktrees at the same time. (Their own files are named in the plans, not here: this index is a current-state document
 and is gated as one, so naming a path a plan intends to CREATE reddens the suite — which it did,
 three times, while this note was being written.) One thing 037 deliberately does not do is merge
 `.design-sync/conventions.md` into `DESIGN.md`; the two look interchangeable and are not, and the
@@ -342,11 +343,11 @@ Measured — the archive mentions none of `control-geometry`, `page-fit`,
 | output mode | `static` — no adapter, no SSR function, no middleware |
 | astro integrations | `sitemap()`, `UnoCSS({injectReset: true})` — that is all |
 | direct dependencies | derive: `jq '(.dependencies + .devDependencies) | length' package.json` (**21** at 2026-08-07) |
-| client JavaScript | **zero external files**, which is not the same as none. **Three first-party scripts, all inline**: the pre-paint theme resolver and the press-hold (`data-leaving`) listener, both in `BasicLayout.astro` and on every page, plus `ThemeSwitcher`'s toggle listener, inlined as a module on the home page only. The ~525 B figure quoted here before was the theme resolver alone, and it was labelled as the total. **Nothing gates this row**, and the general reason is enough: pinning a count is what puts a rotting fact somewhere nobody revisits. This entry used to add that a census gate "was written and then deliberately deleted", which git does not support — `git log --all -S 'querySelectorAll("script")' -- tests/` returns exactly one commit, and that commit ADDED the inline-script filter still live in `tests/rendered-html.test.ts`. No such gate has ever existed, so the row was resting a correct instruction on an event that did not happen. Re-derive the count from the script elements in `dist/` when you touch it |
+| client JavaScript | **zero external files**, which is not the same as none. **Three first-party scripts, all inline**: the pre-paint theme resolver and the press-hold (`data-leaving`) listener, both in `BasicLayout.astro` and on every page, plus `ThemeSwitcher`'s toggle listener, inlined as a module on every page that renders a toggle — the home page and, since 036, `/design`, which needs one because half of what it exists to show is that several tokens SWAP rather than darken. The ~525 B figure quoted here before was the theme resolver alone, and it was labelled as the total. **Nothing gates this row**, and the general reason is enough: pinning a count is what puts a rotting fact somewhere nobody revisits. This entry used to add that a census gate "was written and then deliberately deleted", which git does not support — `git log --all -S 'querySelectorAll("script")' -- tests/` returns exactly one commit, and that commit ADDED the inline-script filter still live in `tests/rendered-html.test.ts`. No such gate has ever existed, so the row was resting a correct instruction on an event that did not happen. Re-derive the count from the script elements in `dist/` when you touch it |
 | `<svg>` in the HTML | **zero** — icons are UnoCSS `presetIcons` mask rules |
-| components | 15 `.astro` files (11 components, 1 layout, 3 page routes → **5 prerendered pages**: `/`, `/patches`, `/patches/cycling`, `/patches/running` and `/404`, plus the generated text endpoints, of which `/.well-known/security.txt` is the one that is not at the root — derive the set from the routes `pnpm build` prints); **no UI framework**, no `.svelte`, no islands |
+| components | 11 components, 1 layout and a handful of page routes; **no UI framework**, no `.svelte`, no islands. **Derive the page set from the routes `pnpm build` prints** rather than reading a list here — this cell has enumerated it twice and been made incomplete twice, by `/.well-known/security.txt` (035) and by `/design` (036). What is stable is the shape: one route file per URL family, one of them a rest parameter that prerenders three, plus the generated text endpoints |
 | `uno.config.ts` | derive: `wc -l uno.config.ts` (**700** at 2026-08-08) — safelist, blocklist, five `rem` breakpoints, the `hover-needs-a-pointer` preset and **four shortcuts** (`control-surface`, `control`, `control-cta`, `text-link`); mostly measured rationale. The figure here read 719 until run 6 re-derived it; the file was 700 lines at `219dcde` too, so that number was never right rather than having gone stale — which is what "derive" in this cell is for |
-| tests | **611** assertions across **20** files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, re-derived 2026-08-25 at `dc2790c`. A 21st file, `tests/strava-verify.test.ts`, holds 7 more and is opt-in — it skips by default, so it contributes none of the 611. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it into three kinds — a current-state document (this table included) is gated for accuracy; `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*, forbidden from stating a count, a component filename or an exported constant at all and required to say where each is derived instead; and a numbered plan is a *proposal*, exempt from the checks that hold a name against a tree it exists to change. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
+| tests | **622** assertions across **20** files (+ `tests/helpers/`, `tests/setup/`), run by `pnpm test`, re-derived 2026-08-26 at `f052f68`. A 21st file, `tests/strava-verify.test.ts`, holds 7 more and is opt-in — it skips by default, so it contributes none of the 611. **DERIVE THIS, DO NOT ADD TO IT** — a running list of superseded counts lived here and was wrong every time it was read, because `docs-drift` resolves names that must EXIST and is structurally blind to a quoted VALUE. The SHAPE is what matters: one file per gated concern, all of them run by that one command, including `docs-drift` itself, which asserts this repository's prose against its code and splits it into three kinds — a current-state document (this table included) is gated for accuracy; `.devin/wiki.json`, a standing instruction read on every future generation, is gated for *durability*, forbidden from stating a count, a component filename or an exported constant at all and required to say where each is derived instead; and a numbered plan is a *proposal*, exempt from the checks that hold a name against a tree it exists to change. A further 13 checks live in `dns/test_filters.py`, which needs Python and octoDNS and so runs in `.github/workflows/dns.yml` rather than here |
 | lint | `pnpm eslint` → **0 problems**; `pnpm check` → 0 errors, 2 hints |
 | `pnpm audit` | derive: `pnpm audit --json \| jq .metadata.vulnerabilities` — **zero at every severity** since 2026-08-20 (`e53c53e`), and **no documented residual survives**. **Do not transcribe a figure; the advisory database moves with no commit here.** What is worth writing down is the TEST for a residual rather than a reason: a survivor is unpatchable when its `Patched versions` reads `<0.0.0`. The last two that did were the `image-size` ICNS and JXL/HEIF advisories, reached build-time only via `astro` → `unstorage` → `@netlify/blobs` → `@netlify/dev-utils`, and they are gone — not by a bump, which was never possible, but by pruning the residue the SSR adapter left when `32071fe` dropped it. **What this cell got wrong is worth more than what it got right.** It recorded the correct diagnosis for twelve days — a fresh resolve never installs `@netlify/blobs`, so this is orphaned peer resolution — and then priced the fix as *"re-resolving the whole tree, which needs its own plan and its own `dist/` comparison"*. Measured, it needed neither: `autoInstallPeers: false` in `pnpm-workspace.yaml` prunes 47 packages with **no version drift at all**, and the `dist/` comparison it demanded came out byte-identical. A residual outlives its diagnosis when the COST of clearing it is guessed rather than measured. **Every prior REASON recorded in this cell has since expired or come true**, which is why it names a derivation and a test instead of a story |
 | deploy gate | **Changed after run 4.** `.github/workflows/ci.yml` — a `build` job runs `pnpm check`, `pnpm eslint` and `pnpm test`, uploads `dist/`, and two `wrangler pages deploy` jobs sit behind `needs: build` and publish that same artifact without rebuilding. It replaced `netlify.toml` running `pnpm check && pnpm test`; that file and the Netlify project are both deleted. `tests/workflow-guards.test.ts` is what holds the `needs:` edge |
