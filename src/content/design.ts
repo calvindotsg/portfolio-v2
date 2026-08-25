@@ -258,3 +258,91 @@ export const SECTIONS: Readonly<Record<"palette" | "type" | "controls" | "icons"
         ],
     },
 }
+
+/**
+ * THE MARKDOWN TWIN'S OWN FURNITURE — the two ways a reader takes this page away with them.
+ *
+ * The link is the whole feature and the button is an enhancement over it: one is an anchor to
+ * a URL and works with the network alone, the other needs a clipboard, a fetch and a script.
+ * That ordering is deliberate rather than a fallback plan — a page whose subject is that it
+ * restates nothing should not need JavaScript to hand you what it says.
+ *
+ * THE NAME DOES NOT CHANGE WHEN THE STATE DOES, which is the same rule `THEME_TOGGLE` follows
+ * in `src/content/site.ts` and for the same reason: WAI-ARIA's toggle guidance offers a
+ * changing name INSTEAD of an exposed state, never both. So {@link MARKDOWN_TWIN.copy_name} is
+ * written to be true before and after the press, and {@link MARKDOWN_TWIN.copied} is announced
+ * separately, in a live region the button owns. The mark swaps with it, because a glyph is what
+ * this site's icon-only controls say things with.
+ *
+ * BOTH MARKS ARE IDS RATHER THAN CLASS NAMES, so `src/lib/icons.ts` can carry them in the
+ * census by naming this constant — the idiom every other mark on the site is authored in. The
+ * theme toggle is the one exception and its own note says so; do not add a second.
+ */
+export const MARKDOWN_TWIN: {
+    /** The words on the link out to the markdown rendering of this page. */
+    link_label: string
+    /** The button's accessible name. State-independent — see this block's header. */
+    copy_name: string
+    /** What the live region says once the clipboard has it. */
+    copied: string
+    /** The mark the button wears at rest. */
+    icon: string
+    /** The mark it wears while {@link MARKDOWN_TWIN.copied} stands. */
+    copied_icon: string
+} = {
+    link_label: "Read this page as markdown",
+    copy_name: "Copy this page as markdown",
+    copied: "Copied",
+    icon: "ri:file-copy-line",
+    copied_icon: "ri:check-line",
+}
+
+/**
+ * WHAT THIS DESIGN SYSTEM DELIBERATELY DOES NOT PUBLISH AS A VALUE, and why each one is a
+ * decision rather than a gap.
+ *
+ * The markdown rendering follows the DESIGN.md format, whose front matter carries typed token
+ * groups — colours, typography, spacing, rounding, components — and whose `omitted` key exists
+ * precisely so a system can say which of those it is leaving out and mean it. Every group is
+ * omitted here, and the reasons below are the whole of the argument this module's header makes,
+ * said once more in the format's own vocabulary for a reader who arrives through it.
+ *
+ * THE COLOUR REASON IS THE LOAD-BEARING ONE AND IT IS NOT SQUEAMISHNESS ABOUT COPYING A HEX.
+ * That format maps one name to one value. Every token here has TWO, one per theme, and several
+ * trade places rather than darkening — so a single map would not be a lossy rendering of this
+ * palette, it would be a false one, and it would be false in the direction that makes a design
+ * fail in whichever theme was not written down. Saying so is worth more than shipping half.
+ *
+ * The keys are the format's, not this repository's, so they are spelled the way it spells them.
+ */
+export const OMISSIONS: readonly {section: string, reason: string}[] = [
+    {
+        section: "colors",
+        reason: "Every token is defined twice, once per theme, and several swap polarity rather "
+            + "than darkening. One name to one value cannot say that, so the roles are published "
+            + "here and the values stay in the stylesheet, where both themes are.",
+    },
+    {
+        section: "typography",
+        reason: "There is no webfont and no display face: the ramp is a handful of steps over the "
+            + "system sans stack, and each step is drawn at its own size on the page this renders "
+            + "from rather than restated as a measurement.",
+    },
+    {
+        section: "spacing",
+        reason: "There is no authored spacing scale. Space comes from the utility engine's own "
+            + "steps and from gaps on flex and grid parents, so a scale written down here would "
+            + "be an invention rather than a record.",
+    },
+    {
+        section: "rounded",
+        reason: "One radius, worn by the controls, and one two-pixel corner that is a bib's mark "
+            + "rather than a measurement. Neither is a scale.",
+    },
+    {
+        section: "components",
+        reason: "The site is built in Astro, whose components compile to a server render and have "
+            + "no runtime form, so there is nothing to mount and the component namespace is empty "
+            + "by construction. Build with plain elements and the named classes below.",
+    },
+]

@@ -1,5 +1,5 @@
 import type {APIRoute} from "astro"
-import {DESIGN_PAGE} from "../content/design"
+import {DESIGN_PAGE, MARKDOWN_TWIN} from "../content/design"
 import {ABOUT_ME, CAREER, PROJECTS} from "../content/home"
 import {NEXT_RACE, PATCHES} from "../content/races"
 import {LINKS, METADATA} from "../content/site"
@@ -198,6 +198,19 @@ export const GET: APIRoute = ({site}) => {
             + `(${abs(`/patches/${goal.sport}/`)}): ${goal.goal_name.toLowerCase()} events only`),
         `- [${DESIGN_PAGE.heading}](${abs("/design/")}): the site's own design system — every colour token, `
         + "type step, control and mark it is built from, drawn live",
+        // THE SAME PAGE IN THE FORMAT THIS FILE IS ITSELF WRITTEN IN, and it is listed here for
+        // the reader this whole endpoint is for: an agent that has just been handed a plain-text
+        // summary of the site is exactly the reader who would rather have the design system as
+        // markdown than as a bento grid of absolutely-positioned cards. The page announces the
+        // same twin from its own head with `rel="alternate"`; this is the other half of that
+        // convention, and neither half is redundant — one is found by fetching the page, the
+        // other by fetching this file, and an agent that does the second never sees the first.
+        //
+        // IT IS NOT UNDER `## Optional`. That heading is reserved by the spec for what can be
+        // skipped when a shorter context is needed, and this is the opposite: it is the cheapest
+        // complete answer on the list.
+        `- [${MARKDOWN_TWIN.link_label}](${abs("/design.md")}): the same design system as markdown, `
+        + "byte-identical to DESIGN.md in the repository",
         "",
         "## Projects",
         "",

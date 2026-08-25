@@ -2,7 +2,7 @@
 import Layout from "../layouts/BasicLayout.astro";
 import Card from "../components/Card/index.astro";
 import ThemeSwitcher from "../components/ThemeSwitcher.astro";
-import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
+import {CONTROLS, DESIGN_PAGE, MARKDOWN_TWIN, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
 import {NEXT_RACE, PATCHES} from "../content/races";
 import {GOALS} from "../lib/goal";
 import {ICON_IDS, iconClass} from "../lib/icons";
@@ -73,9 +73,23 @@ const [PLATED, LABELLED, WORDS] = CONTROLS;
  */
 const firstGoal = GOALS[0];
 const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLowerCase());
+
+/*
+ * THE MARKDOWN TWIN'S ADDRESS, WRITTEN ONCE ON THIS PAGE AND NOWHERE ELSE.
+ *
+ * It is the route's own name, which is where a route's address is decided here, so this is not
+ * a configured value looking for a home: it restates the endpoint's filename and nothing else.
+ * A build in which the two disagreed would ship a link to a URL the site does not serve.
+ *
+ * IT IS PASSED TO THE LAYOUT AND READ BACK OFF THE HEAD. The layout announces it with
+ * `rel="alternate"`, and the copy control's script takes the URL from that element rather than
+ * carrying a second copy — so there is one address on this page, and a page that stopped
+ * announcing the twin would leave a button that correctly does nothing.
+ */
+const MARKDOWN = "/design.md";
 ---
 
-<Layout title={DESIGN_PAGE.title} description={DESIGN_PAGE.description}>
+<Layout title={DESIGN_PAGE.title} description={DESIGN_PAGE.description} markdown={MARKDOWN}>
     <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
         {/* `md:col-span-2` IS LOAD-BEARING AND IT IS NOT ABOUT THIS BLOCK'S TEXT. `main` here
              declares no column template, so its columns are implicit — and `Card` defaults to
@@ -103,6 +117,38 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
                      sideways under text zoom rather than being absorbed by a card. */}
                 <h1 class="text-3xl font-bold m-0 break-anywhere">{DESIGN_PAGE.heading}</h1>
                 <p class="text-sm max-w-[60ch] m-0">{DESIGN_PAGE.lede}</p>
+            </div>
+            {/* TWO WAYS TO TAKE THE PAGE AWAY, AND THE ORDER IS THE ARGUMENT. The link is the
+                 whole feature: it needs the network and nothing else, it is what the head's
+                 `rel="alternate"` announces, and it is what a reader with no scripting gets.
+                 The control beside it is an enhancement over that link rather than a
+                 replacement for it, and it reveals itself only once its own script has wired
+                 it up, so a reader who cannot use it is never offered it.
+
+                 THE LINK COMES FIRST IN READING ORDER for the same reason. A plated control
+                 ahead of a run of words reads as the primary action, and the primary action
+                 here is the one that always works. */}
+            <div class="design-takeaway">
+                <p class="m-0">
+                    <a href={MARKDOWN} class="text-link text-sm">{MARKDOWN_TWIN.link_label}</a>
+                </p>
+                {/* The name does not change when the state does, which is the rule the theme
+                     toggle follows and for the same reason. What the press produces is
+                     announced in the status region after the button, which sits outside it
+                     precisely so that it is not part of its accessible name. */}
+                <button
+                        type="button"
+                        class="md-copy control"
+                        data-copy-markdown
+                        data-copied-label={MARKDOWN_TWIN.copied}
+                >
+                    <span class={`${iconClass(MARKDOWN_TWIN.icon)} md-copy-rest shrink-0`}
+                          aria-hidden="true"></span>
+                    <span class={`${iconClass(MARKDOWN_TWIN.copied_icon)} md-copy-done shrink-0`}
+                          aria-hidden="true"></span>
+                    <span class="sr-only">{MARKDOWN_TWIN.copy_name}</span>
+                </button>
+                <span class="sr-only" role="status" data-copy-status></span>
             </div>
         </div>
 
@@ -217,6 +263,57 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
     </main>
 </Layout>
 
+{/*
+    THE COPY CONTROL'S WHOLE BEHAVIOUR, INLINE, because the site ships no external JavaScript
+    file and a gate in tests/build-output.test.ts fails the build if one appears.
+
+    IT TAKES BOTH OF ITS STRINGS OUT OF THE DOM RATHER THAN CARRYING THEM. The URL comes off the
+    head's markdown alternate and the copied-state announcement off the button's own attribute,
+    so the address and the copy each exist once on this page and this script is the only thing
+    here that knows neither of them. A page that stopped announcing a twin leaves a control that
+    never reveals itself, which is the correct failure.
+
+    IT FETCHES RATHER THAN EMBEDDING THE DOCUMENT. The alternative is a second copy of the whole
+    spec inside this page's markup, which is the class of defect the whole of this page exists to
+    refuse — and it would be a copy nothing could gate, since the page and the endpoint would
+    both still render. The cost is one request on the first press, of a document the reader has
+    already been offered as a link.
+
+    EVERY EXIT IS SILENT AND THAT IS THE DESIGN. No clipboard, a refused permission, an offline
+    fetch: the control simply does not confirm, and the link beside it is still there. A failure
+    banner on an enhancement is a second thing to maintain for a reader who already has a
+    working path.
+*/}
+<script is:inline>
+    (() => {
+        const button = document.querySelector("[data-copy-markdown]");
+        const twin = document.querySelector('link[rel="alternate"][type="text/markdown"]');
+        if (!button || !twin || !navigator.clipboard) return;
+        const region = document.querySelector("[data-copy-status]");
+        const said = button.getAttribute("data-copied-label") || "";
+        let timer = 0;
+        button.setAttribute("data-ready", "");
+        button.addEventListener("click", async () => {
+            try {
+                const answer = await fetch(twin.href);
+                if (!answer.ok) return;
+                await navigator.clipboard.writeText(await answer.text());
+            } catch (ignored) {
+                return;
+            }
+            button.setAttribute("data-copied", "");
+            if (region) region.textContent = said;
+            clearTimeout(timer);
+            // Long enough to be read, short enough that a second press is acknowledged
+            // rather than swallowed by a confirmation still standing from the first.
+            timer = setTimeout(() => {
+                button.removeAttribute("data-copied");
+                if (region) region.textContent = "";
+            }, 2400);
+        });
+    })();
+</script>
+
 <style>
     /*
      * EVERY LENGTH BELOW IS FONT-RELATIVE EXCEPT TWO RADII, and that is this repository's
@@ -232,6 +329,56 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
+    }
+
+    /*
+     * THE TAKEAWAY ROW: a run of words and a plated control on one line, wrapping to two when
+     * the reader's text no longer allows one. It packs at the start rather than spreading like
+     * the header above it, because these two are one offer made twice and the header's pair is
+     * two unrelated things at opposite ends of the page.
+     */
+    .design-takeaway {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    /*
+     * THE CONTROL IS NOT OFFERED UNTIL IT WORKS, and this rule is the whole of that mechanism.
+     *
+     * It needs a clipboard, a fetch and a script, and none of the three is guaranteed: a reader
+     * with scripting off, or on a page served over a connection the clipboard API refuses, gets
+     * a control that silently does nothing. The link beside it needs none of them, so the honest
+     * arrangement is that the enhancement reveals itself once its own script has confirmed it
+     * can do the job — which is what `data-ready` means, and the only thing it means.
+     *
+     * IT HIDES RATHER THAN DECLARING A DISPLAY, which is deliberate. `control` owns this box,
+     * and this repository's standing rule is that exactly one rule may declare a control's —
+     * so a positive `display` here would be a second declaration of part of it, drifting from
+     * the shortcut the day the shortcut changes. A negative rule adds no second value: with the
+     * attribute set, nothing here applies and the shortcut governs alone.
+     */
+    .md-copy:not([data-ready]) {
+        display: none;
+    }
+
+    /*
+     * The mark swaps with the state, the way the theme toggle's sun and moon do, because a glyph
+     * is what an icon-only control on this site says things with. The words that go with it are
+     * announced in the status region rather than drawn, so that the press changes what the
+     * control REPORTS without changing what it is CALLED.
+     */
+    .md-copy-done {
+        display: none;
+    }
+
+    .md-copy[data-copied] .md-copy-rest {
+        display: none;
+    }
+
+    .md-copy[data-copied] .md-copy-done {
+        display: inline-block;
     }
 
     /*

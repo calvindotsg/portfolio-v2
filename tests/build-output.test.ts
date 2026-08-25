@@ -558,6 +558,55 @@ describe("dist/", () => {
     });
 
     /**
+     * THE TWIN IS THE SAME BYTES AS THE FILE IN THE REPOSITORY, which is the one claim the two
+     * snapshots in `tests/design-system.test.ts` cannot make between them. Each of those compares
+     * a document with a fresh call to `renderDesignDoc`, so both would stay green if the ROUTE
+     * quietly rendered something else — a stamped copy, a different audience, a banner. This
+     * reads the artifact the deploy uploads and compares it with the artifact a checkout holds.
+     *
+     * THE FAILURE IT IS FOR IS A DIVERGENCE NOBODY WOULD SEE. Two documents describing one design
+     * system, one served and one committed, is exactly the shape `public/llms.txt` had before it
+     * was derived: it drifted on every axis at once and nothing looked.
+     */
+    it("serves the design spec as the same bytes the repository commits", () => {
+        expect(existsSync("dist/design.md"), "the markdown twin of /design is not in the build")
+            .toBe(true);
+        const served = read("dist/design.md");
+        expect(served.length, "dist/design.md is empty").toBeGreaterThan(500);
+        expect(served, "dist/design.md and DESIGN.md are two different documents about one design "
+            + "system. They are rendered by one function on purpose; a route that adds a stamp, a "
+            + "banner or a second audience to its copy breaks the only thing that keeps them honest")
+            .toBe(read("DESIGN.md"));
+    });
+
+    /**
+     * THE TWIN IS ANNOUNCED, AND ONLY WHERE THERE IS ONE. `rel="alternate"` with a markdown type
+     * is how an agent finds a page's markdown without guessing the URL, and it is a claim about
+     * THAT page: a second page carrying it would be pointing at a document that describes the
+     * first one.
+     *
+     * BOTH DIRECTIONS, because either alone permits the defect. Without the first, the layout
+     * prop can be dropped and the copy control silently stops revealing itself — its script takes
+     * the URL off this element — with the page and the endpoint both still shipping. Without the
+     * second, the prop can acquire a default and every page starts announcing the design spec as
+     * its own alternate rendering.
+     */
+    it("announces the markdown twin on the page that has one, and on no other", () => {
+        const ANNOUNCED = /rel="alternate" type="text\/markdown"/g;
+        const TWIN_PAGE = "dist/design/index.html";
+        expect(builtPages(), "the design page is not in the build").toContain(TWIN_PAGE);
+        for (const page of builtPages()) {
+            const found = [...read(page).matchAll(ANNOUNCED)].length;
+            expect(found, page === TWIN_PAGE
+                ? `${TWIN_PAGE} must carry exactly one markdown alternate: it is what an agent reads `
+                  + "to find /design.md, and what the copy control reads to know the address"
+                : `${page} announces a markdown alternate. That rendering describes /design, so any `
+                  + "other page carrying the link is pointing readers at a document about a "
+                  + "different page").toBe(page === TWIN_PAGE ? 1 : 0);
+        }
+    });
+
+    /**
      * EVERY BUILT PAGE MUST BE IN THE SITEMAP. This was once the wall's ONLY discovery
      * path — nothing on the home page linked to it — and the goal cards' next-race chips
      * have since closed that, which is why the assertion after this one exists. The
@@ -3022,7 +3071,12 @@ describe("hashed assets are cached forever, and are hashed", () => {
          * as one undifferentiated set difference.
          */
         const ALLOWED_FILES = [
-            "_headers", "404.html", "favicon.ico", "index.html", "llms.txt",
+            // `design.md` is a route, not a public asset: `src/pages/design.md.ts` serves the
+            // markdown twin of `/design` at the URL the convention asks for, which is the page's
+            // own plus the extension. It lands here rather than under a directory for the same
+            // reason `llms.txt` does — a file at the root is what the URL says, and neither name
+            // is one Cloudflare Pages reads as configuration.
+            "_headers", "404.html", "design.md", "favicon.ico", "index.html", "llms.txt",
             "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml", "sitemap-index.xml",
         ];
         const ALLOWED_DIRECTORIES = [".well-known", "_astro", "design", "patches"];

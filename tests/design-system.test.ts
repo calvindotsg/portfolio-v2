@@ -1,7 +1,8 @@
 import {readFileSync} from "node:fs";
 import {describe, expect, it} from "vitest";
 
-import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
+import {SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
+import {renderDesignDoc} from "../src/lib/design-doc";
 import {ICON_IDS, iconClass} from "../src/lib/icons";
 import {pageCss} from "./helpers/css";
 import {classTokens} from "./helpers/pages";
@@ -68,125 +69,41 @@ const conventions = () => readFileSync(CONVENTIONS, "utf8");
 const DESIGN_PAGE_FILE = "dist/design/index.html";
 
 /**
- * THE DOCUMENT THE DESIGN AGENT IS HANDED, rendered from the same module `/design` renders.
+ * THE SPEC AT THE REPOSITORY ROOT, which is the same bytes as `/design.md` on the web.
  *
- * IT IS A SEPARATE, TERSER RENDERING RATHER THAN THE PAGE'S MARKUP IN MARKDOWN, and that is a
- * decision about the reader rather than about the format. This text is prepended verbatim to
- * a README that goes into a system prompt (`readmeHeader` in `.design-sync/config.json`), so
- * it is inlined into a context window under a budget of a few thousand characters, and the
- * agent reading it CANNOT open this repository to follow a pointer. Everything it needs has
- * to be in the sentence, and nothing it does not need may be.
+ * `DESIGN.md` is a generated file that is COMMITTED, which this repository allows in exactly one
+ * shape: compiled from a named source with a gate that fails when the two disagree — the shape
+ * `dns/requirements.txt` has, and the opposite of `public/preview.jpg`, which is a render of a
+ * card with nothing watching and has gone stale silently twice. `pnpm test:update` regenerates;
+ * drift fails `pnpm test`.
  *
- * WHICH IS WHY SOME OF THIS PROSE IS AUTHORED HERE AND NOT IN THE MODULE. The three passages
- * below — the empty component namespace, the closed stylesheet, and where the truth lives —
- * are facts about the EXPORTED BUNDLE, not about this design system: on the site a utility
- * engine really is running and a class the site never used really can be generated. Putting
- * them in `src/content/design.ts` would put a sentence on `/design` that is false of the page
- * a reader is looking at. The module holds what is true of both surfaces; an audience's own
- * framing belongs with the rendering for that audience.
- *
- * NOTHING HERE MAY STATE A VALUE OR A COUNT IT DOES NOT DERIVE. The figures in the marks
- * section are computed from the census in `src/lib/icons.ts` at render time, which is safe in
- * a way the same figures typed into a markdown file were not: the snapshot fails the moment
- * the census moves, so a stale count cannot be committed. That is the difference between a
- * derived count and a written one, and the note in `.design-sync/NOTES.md` about hand-listed
- * token tables and stated icon counts is what it replaces.
+ * The name is not this repository's choice. The `improve` pipeline these plans implement globs
+ * for it by name during recon and carries what it finds into the plans it writes, and the
+ * DESIGN.md format is an open convention for exactly this document — so a file called anything
+ * else would be a file nothing looks for.
  */
-export function renderConventions(): string {
-    const bullets = (lines: readonly string[]) => lines.map((line) => `- ${line}`).join("\n");
+const DESIGN_DOC = "DESIGN.md";
 
-    const guidance = (section: typeof SECTIONS[keyof typeof SECTIONS]) => [
-        `${DESIGN_PAGE.does_label}:`,
-        "",
-        bullets(section.does),
-        "",
-        `${DESIGN_PAGE.donts_label}:`,
-        "",
-        bullets(section.donts),
-    ].join("\n");
-
-    const marks = [...new Set(ICON_IDS.map(iconClass))].sort();
-    const family = (prefix: string) => marks.filter((m) => m.startsWith(prefix));
-
-    return [
-        "# calvin.sg — building with this system",
-        "",
-        "This system ships **colour, type and controls — no components**. The site it comes from is",
-        "built in Astro, whose components compile to a server render and have no runtime form, so",
-        "there is nothing to mount: the component namespace is deliberately empty. Build with plain",
-        "elements, styled the way this document describes.",
-        "",
-        `## ${THEMING.heading}`,
-        "",
-        THEMING.lede,
-        "",
-        // BOTH VALUES, WHERE THE PAGE SHOWS ONE. `/design` reveals whichever line matches the
-        // reader's live theme, which is a demonstration only a rendered page can make; this
-        // document is read by an agent with no theme and no toggle, so the legal set has to be
-        // stated outright or it is guessable from nothing.
-        ...THEMING.themes.map((theme) => `    ${THEMING.example.replace("{theme}", theme)}`),
-        "",
-        `## ${SECTIONS.palette.heading}`,
-        "",
-        SECTIONS.palette.lede,
-        "",
-        "| Token | Role |",
-        "|---|---|",
-        ...TOKEN_ROLES.map(({token, role}) => `| \`${token}\` | ${role} |`),
-        "",
-        guidance(SECTIONS.palette),
-        "",
-        "## The stylesheet is a closed set, not a utility framework",
-        "",
-        "This is the one that will bite. The classes were generated from the source site's own markup",
-        "and shipped as static CSS; **no utility engine is running here**, so a class the site never",
-        "used does not exist. The padding, margin and colour utilities you might reach for by habit",
-        "are mostly absent. Use the named classes below, write ordinary CSS with `var(--token)` for",
-        "everything else, and check the stylesheet before assuming a utility exists.",
-        "",
-        `Guaranteed present: ${CONTROLS.map((c) => `\`${c.name}\``).join(", ")}, \`sr-only\`,`,
-        "`break-anywhere`, the mark classes listed below, and a full CSS reset (box-sizing, border",
-        "reset, a system sans stack — there are no webfonts to load).",
-        "",
-        "**`control-surface` is not in the stylesheet.** It is a source-level shortcut the other",
-        "controls compose, and nothing wears it directly; writing it produces no styling.",
-        "",
-        `## ${SECTIONS.controls.heading}`,
-        "",
-        SECTIONS.controls.lede,
-        "",
-        ...CONTROLS.map(({name, role}) => `- **\`${name}\`** — ${role}`),
-        "",
-        guidance(SECTIONS.controls),
-        "",
-        `## ${SECTIONS.type.heading}`,
-        "",
-        SECTIONS.type.lede,
-        "",
-        guidance(SECTIONS.type),
-        "",
-        `## ${SECTIONS.icons.heading}`,
-        "",
-        SECTIONS.icons.lede,
-        "",
-        `These ${marks.length} ship and no others. Remix Icon (${family("i-ri-").length}):`,
-        "",
-        family("i-ri-").map((m) => `\`${m}\``).join(", ") + ".",
-        "",
-        `Brand marks (${family("i-fa6-brands-").length}):`,
-        "",
-        family("i-fa6-brands-").map((m) => `\`${m}\``).join(", ") + ".",
-        "",
-        guidance(SECTIONS.icons),
-        "",
-        "## Where the truth lives",
-        "",
-        "Read the stylesheet you have been given: the tokens are restated in readable form at the very",
-        "top of it, both themes, ahead of the minified rules. That file is the only authority on what",
-        "a class does; this document is the only authority on what to reach for.",
-        "",
-    ].join("\n");
-}
+/**
+ * THE BUDGET, AND IT IS NOT THIS REPOSITORY'S NUMBER.
+ *
+ * `.design-sync/conventions.md` is prepended to a generated README through the `readmeHeader`
+ * key and inlined into the SYSTEM PROMPT of a design agent that gets that README and the bound
+ * artifacts and nothing else. The design-sync skill states the preamble budget as two to four
+ * thousand characters; this is the top of that range, so it is a ceiling rather than a target.
+ *
+ * WHY IT IS ASSERTED AND NOT WRITTEN DOWN IN PROSE. The document is generated, so its length is
+ * a function of a module anybody may edit — and the failure mode is silent: a longer preamble
+ * still renders, still matches its own committed copy, and simply spends more of a context
+ * window that belongs to somebody else. The previous hand-written document was already over
+ * this line, and the generated one that replaced it was nearly twice it.
+ *
+ * WHAT TO DO WHEN THIS GOES RED: drop something from the AGENT audience in
+ * `src/lib/design-doc.ts`, never from `src/content/design.ts` — the full rendering carries the
+ * module whole, and trimming the module would take the guidance off `/design` and out of
+ * `DESIGN.md` to buy room in a third document. Record the trade in `.design-sync/NOTES.md`.
+ */
+const AGENT_BUDGET = 4096;
 
 /** Every `--token: value` declared under a `:root[data-theme=…]` block in the built CSS. */
 function themeTokens(css: string): Record<string, Set<string>> {
@@ -270,14 +187,81 @@ describe("the design system this site publishes", () => {
     });
 
     /**
-     * THE COMMITTED DOCUMENT IS THE RENDERING, and this is what makes that checkable rather
-     * than a convention. Edit a role in `src/content/design.ts` and this goes red until
-     * `pnpm test:update` rewrites the file; edit the file by hand and it goes red until the
+     * EACH COMMITTED DOCUMENT IS THE RENDERING, and this is what makes that checkable rather
+     * than a convention. Edit a role in `src/content/design.ts` and these go red until
+     * `pnpm test:update` rewrites the files; edit a file by hand and it goes red until the
      * edit is moved into the module. Both directions are the point — the second one is what
      * `.design-sync/NOTES.md` used to have to ask for in prose.
+     *
+     * TWO SNAPSHOTS OF ONE RENDERER, and the pair is the whole reason `renderDesignDoc` takes an
+     * audience instead of there being two functions. A second renderer would drift from the
+     * first in silence: both would still render, and both would still match their own committed
+     * copy, because a snapshot only ever compares a document with itself.
      */
     it("is the module, rendered — the agent's document has no second author", async () => {
-        await expect(renderConventions()).toMatchFileSnapshot(`../${CONVENTIONS}`);
+        await expect(renderDesignDoc("agent")).toMatchFileSnapshot(`../${CONVENTIONS}`);
+    });
+
+    it("is the module, rendered in full — the repository's spec has no second author", async () => {
+        await expect(renderDesignDoc("full")).toMatchFileSnapshot(`../${DESIGN_DOC}`);
+    });
+
+    /**
+     * THE BUDGET IS THE ONE PROPERTY THE SNAPSHOT ABOVE CANNOT SEE. A document twice its size
+     * matches its own committed copy perfectly; the cost lands in a context window belonging to
+     * a design agent that never gets to complain. See `AGENT_BUDGET` for where the number comes
+     * from and for what to do when this goes red.
+     */
+    it("keeps the agent's preamble inside the budget it is inlined into", () => {
+        const rendered = renderDesignDoc("agent");
+        expect(rendered.length,
+            `the agent rendering is ${rendered.length} characters against a ${AGENT_BUDGET} budget. It is `
+            + `inlined into a design agent's system prompt, so this is somebody else's context window `
+            + `being spent. Drop something from the "agent" audience in src/lib/design-doc.ts — never `
+            + `from src/content/design.ts, which the full rendering carries whole — and record the `
+            + `trade in .design-sync/NOTES.md`)
+            .toBeLessThanOrEqual(AGENT_BUDGET);
+    });
+
+    /**
+     * THE AGENT CANNOT OPEN THIS REPOSITORY, so a path into it is not a weak pointer — it is a
+     * dead end dressed as an instruction. That agent "gets the README and the bound artifacts,
+     * nothing else", which is why the closed-set section sends it to the stylesheet it was handed
+     * rather than to the layout the tokens are actually declared in.
+     *
+     * THE FULL RENDERING IS ASSERTED IN THE OPPOSITE DIRECTION in the same breath, because a
+     * predicate that only ever says "no" is satisfied by an empty string. Its readers both have
+     * this tree open — one is reading `DESIGN.md` in a checkout, the other fetched `/design.md`
+     * from a site whose source is public — so pointing at a file is the useful thing to do, and a
+     * full rendering that had stopped doing it would be the same defect from the other side.
+     */
+    it("sends the agent to the bundle and the checkout reader to the tree", () => {
+        expect(renderDesignDoc("agent"),
+            "the agent rendering names a path in this repository, which its reader has no copy of")
+            .not.toMatch(/\bsrc\//);
+        expect(renderDesignDoc("full"),
+            "the full rendering names no path in this repository, so it tells a reader holding the "
+            + "checkout nothing about where any of this is written down")
+            .toMatch(/\bsrc\//);
+    });
+
+    /**
+     * NEITHER RENDERING MAY GO EMPTY, which is the one way a snapshot can be passed by a document
+     * that says nothing: delete the body, run `pnpm test:update`, and both files agree perfectly
+     * with a renderer that produces two headings. So each is asked for the thing it exists to
+     * carry — every token the module names — and the two are asked separately, because they are
+     * two audiences and a union would let either one shrink to nothing behind the other.
+     */
+    it("carries every token the module names, in both renderings", () => {
+        expect(TOKEN_ROLES.length, "TOKEN_ROLES is empty — this gate would assert nothing")
+            .toBeGreaterThan(5);
+        for (const audience of ["full", "agent"] as const) {
+            const rendered = renderDesignDoc(audience);
+            expect(rendered.length, `the ${audience} rendering is empty`).toBeGreaterThan(500);
+            expect(TOKEN_ROLES.map(({token}) => token).filter((t) => !rendered.includes(t)),
+                `the ${audience} rendering does not name these tokens, so whatever reads it cannot `
+                + "reach for them").toEqual([]);
+        }
     });
 
     /**

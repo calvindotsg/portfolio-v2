@@ -20,9 +20,26 @@ interface Props {
      * does not exist. A canonical to a 404 is worse than none.
      */
     noindex?: boolean;
+    /**
+     * A MARKDOWN RENDERING OF THIS PAGE, ANNOUNCED FROM ITS HEAD. Only `src/pages/design.astro`
+     * passes it, and the value is a URL rather than a flag because the twin's address is the
+     * page's own plus `.md` and nothing here should have to derive that.
+     *
+     * IT IS THE ONE PLACE THE TWIN'S ADDRESS IS WRITTEN ON THE PAGE, which is not a tidiness
+     * argument: the copy-as-markdown control reads the address back off this element rather
+     * than carrying a second copy of it, so a page that has stopped announcing a twin is a page
+     * whose button correctly does nothing rather than one that fetches a URL the site no longer
+     * serves.
+     *
+     * `rel="alternate"` WITH A TYPE IS NOT `rel="canonical"` AND DOES NOT COMPETE WITH IT. It
+     * says "the same document in another format", which is exactly true here — the two are
+     * rendered from one function — and it is the convention an agent looking for a page's
+     * markdown reads first, ahead of guessing the URL.
+     */
+    markdown?: string;
 }
 
-const {title, description, noindex = false} = Astro.props;
+const {title, description, noindex = false, markdown} = Astro.props;
 
 /*
  * `<meta name="build-date">` below is the Singapore day this page was drawn for.
@@ -163,6 +180,7 @@ const schema = {
             content={image}
     />
     {!noindex && <link href={Astro.url.href} rel="canonical"/>}
+    {markdown && <link href={markdown} rel="alternate" type="text/markdown"/>}
     {/* `set:html` DOES NOT ESCAPE, AND THIS IS THE ONE SINK ON THE SITE THAT REACHES A READER
          WITHOUT PASSING THROUGH ASTRO'S ESCAPING. `JSON.stringify` cannot emit `<` from
          anything but a source string containing one, so the hole needs a content field

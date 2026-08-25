@@ -59,7 +59,7 @@ document describing a Storybook workflow this site does not have. Both sync dire
 now in that file's skip list, beside the other gitignored, agent-provisioned trees. CI never
 saw it, because a fresh checkout provisions neither.
 
-## The maintenance model: one authored source, two renderings
+## The maintenance model: one authored source, three renderings
 
 There is nothing in this directory to keep in step by hand any more, and that is the whole of
 what changed.
@@ -67,31 +67,67 @@ what changed.
 `src/content/design.ts` is the single authored description of this design system. It holds
 MEANING and no values — every token's name and role, the guidance under each heading, and the
 three controls — and it holds no counts either, because a count in a sentence is a sentence
-waiting to go stale. Two surfaces render it:
+waiting to go stale. Three surfaces render it:
 
 - `/design`, a real page on the site. Its swatches are `background: var(--token)`, its type
   ramp wears the real utility classes, and its controls are working links, so nothing on it
   restates a value and nothing on it can be out of date.
-- `.design-sync/conventions.md`, this directory's copy, generated from the same module and
-  held to it by a vitest file snapshot in `tests/design-system.test.ts`. `pnpm test:update`
-  regenerates it; drift fails `pnpm test`. **Do not hand-edit it** — an edit here is
-  overwritten by the next regeneration, and the fix for a sentence you disagree with is to
-  change the module.
+- `DESIGN.md` at the repository root, and `/design.md` on the web — the SAME BYTES, rendered
+  once by `renderDesignDoc("full")` in `src/lib/design-doc.ts`. One is committed and pinned by
+  a file snapshot, the other is served by a route, and a build gate compares the two artifacts
+  rather than trusting that they came from one call.
+- `.design-sync/conventions.md`, this directory's copy, `renderDesignDoc("agent")` and held to
+  it by a vitest file snapshot in `tests/design-system.test.ts`. `pnpm test:update` regenerates
+  it; drift fails `pnpm test`. **Do not hand-edit it** — an edit here is overwritten by the
+  next regeneration, and the fix for a sentence you disagree with is to change the module.
 
-The two renderings are deliberately not the same text. The page is for a person reading
+The renderings are deliberately not the same text. The page is for a person reading
 calvin.sg; this file is inlined into a system prompt, is read by an agent that cannot open
-this repository, and therefore carries three passages the page does not: the empty component
-namespace, the closed stylesheet, and where the truth lives. Those live beside the renderer
-rather than in the module, because each is a fact about the EXPORTED BUNDLE and false of the
-site — a utility engine really is running here.
+this repository, and therefore carries two passages the page does not: the empty component
+namespace and the closed stylesheet. Those live beside the renderer rather than in the module,
+because each is a fact about the EXPORTED BUNDLE and false of the site — a utility engine
+really is running here. **Add an audience to that function rather than a second renderer**: two
+functions producing design prose would disagree in silence, since a snapshot only ever compares
+a document with itself.
 
-**It is bigger than it was, on purpose, and that is the one trade in this change worth
-re-deciding rather than inheriting.** The design-sync skill suggests a two-to-four thousand
-character preamble; the hand-written file was already past that at about 5 kB and this one is
-about 7 kB. The difference is roughly two dozen do/don't lines that used to exist only on the
-four generated reference cards, which this change deletes. The judgement was that a design
-agent's output depends far more on that guidance than on the context it costs. Trim the
-guidance in the module, not the renderer, if a future run disagrees.
+### The budget, re-decided rather than inherited
+
+This file used to say it was over its budget on purpose, at about 7 kB against the skill's
+two-to-four thousand characters, on the judgement that a design agent's output depends more on
+the guidance than on the context it costs. **That judgement is not available any more, and the
+reason is arithmetic rather than a change of mind.** Measured before anything was cut: the
+module's own strings — both theme lines, every token role, every control role, and both
+guidance lists — come to 4,128 characters. They overrun a 4,096 budget before a single word of
+the document's own. "Carry everything" was never on the table.
+
+The old note said to trim the guidance in the module rather than in the renderer. **Do not.**
+That was written when there was one rendering, and trimming the module now would take the
+guidance off `/design` and out of `DESIGN.md` to buy room in a third document. Trim the AGENT
+audience in `src/lib/design-doc.ts` instead — the full rendering carries the module whole, so
+nothing leaves the repository.
+
+What that audience drops today, and why:
+
+- **The dos, keeping the don'ts.** A don't names an output that looks right and is wrong, which
+  is the one thing a table of tokens cannot imply; a do largely restates the table and the class
+  list beside it.
+- **The section ledes and the mark inventory.** The ledes are written for a person reading a
+  page. The mark classes are in the stylesheet that agent was handed, which the closed-set
+  section sends it to, and an inventory a reader can enumerate for itself is the most expensive
+  kind of sentence to inline. Only the SIZE of the set survives.
+
+**What that cost, named rather than glossed.** Every dropped do but one is carried by a don't
+saying the same thing from the other side, or by the token table. The exception is the
+instruction to give an icon-only control an accessible name, which no don't twins, and which
+the agent rendering therefore no longer carries. If a future run gets more room — a raised
+budget, a shorter module — re-add that one first.
+
+The gate is `AGENT_BUDGET` in `tests/design-system.test.ts` and it is asserted rather than
+written down in prose, because the failure is silent: a longer preamble still renders, still
+matches its own committed copy, and simply spends more of a context window belonging to
+somebody else. It sits at the TOP of the skill's stated range, so it is a ceiling and not a
+target, and there is not much slack left under it — a couple of new token roles will redden it,
+which is the gate doing its job rather than a defect.
 
 ### What was retired, and why it was not repaired
 
@@ -164,3 +200,29 @@ scope, and the reason the list was the wrong mechanism is argued in place there.
   of its name. A third icon family, or a token whose name stops carrying that suffix, needs
   those two readers looked at rather than merely re-run.
 - The vendored React is uploaded and unused — there is nothing here to mount it in.
+
+## Owed: what the host answers for /design.md
+
+**Unmeasured, and it must be measured rather than reasoned about.** The static build discards a
+route's response headers — `src/pages/llms.txt.ts` carries that measurement — so the
+`content-type` a reader actually receives for `/design.md` is decided by Cloudflare Pages from
+the extension, and nothing in this repository can assert it. If it answers
+`application/octet-stream`, the twin downloads instead of displaying and the surface is worse
+than not shipping it.
+
+It could not be measured when the twin landed: measuring needs a deployed origin, and the plan
+that shipped this forbids pushing or opening a pull request unless the operator asks for it.
+So the procedure is written down instead. Against a preview host, once one exists:
+
+    curl -sI https://<preview-host>/design.md | grep -i content-type
+
+- `text/markdown` or `text/plain` — nothing to do. Record the answer here, with its date, and
+  delete this section's "unmeasured" framing.
+- Anything else — add a rule to `public/_headers` setting `content-type: text/markdown;
+  charset=utf-8` for `/design.md`, and re-measure after the deploy. That file has **no
+  most-specific-match rule**: every rule whose path matches applies in the order written, the
+  first to set a name replaces the host's value and a LATER one APPENDS to it, so a header name
+  may appear in exactly one rule. `tests/build-output.test.ts` holds that invariant.
+
+`public/_headers` is deliberately untouched until the measurement exists. A rule added on a
+guess is a rule nobody can tell is doing anything.
