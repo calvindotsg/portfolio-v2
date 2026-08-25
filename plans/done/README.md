@@ -2337,3 +2337,154 @@ the value, so the emitted line is held to `SECURITY.contact` (wiring) AND the ad
 a `mailto:` at the host `METADATA.site_url` declares (a property a copy cannot supply). The emitted
 file came out **byte-identical to what production was already serving**, same SHA-256, which is what
 made it provably structural.
+
+## Plan 036 — the design system as a page, and the agent's copy generated from it
+
+Merged as `f052f68` (#205), and live at https://calvin.sg/design/. The first plan here whose
+subject was the cost of the previous change rather than a defect the code already had: #203 left
+this repository describing its own vocabulary in two places that could disagree.
+
+What landed is **one authored source with two derived surfaces**. `src/content/design.ts` holds
+meaning and nothing else — no hex, no rem, no class name, and no counts. `/design` renders it as
+live specimens, and `.design-sync/conventions.md` is rendered from the same module and pinned to it
+by a vitest file snapshot. The four generated HTML reference cards are deleted.
+
+### Three premises the plan asserted, and what measuring them cost
+
+**"The theme toggle already on the page switches every specimen at once" — false.** The toggle
+lives in the intro card, so the home page was the only page that had one. Half of what this page
+exists to show is that several tokens SWAP rather than merely darken (the two `-on-ink` pairs, the
+progress bar's polarity), and a reader cannot see that without switching. The site's own
+`ThemeSwitcher` is in this page's header now, which makes `/design` the second page that ships that
+inline module — a row in this file's baseline table said "the home page only" and has been
+corrected. It adds no external JavaScript; `dist/_astro` still ships zero `.js` files.
+
+**"Have the page render the same array" — the array was not the set.** `ICON_IDS` never had to be
+exhaustive while its only reader was the UnoCSS safelist: `ThemeSwitcher.astro` writes its sun and
+moon out as literal class names, so the extractor emits those two by itself. The moment a page
+rendered that list as *"the marks a designer may reach for"*, it was **16 of the 18** that ship, and
+the generated document told a design agent that 16 was all there was. Both ids are in the census
+now — a deliberate second home, and gated as one: a new assertion holds `ICON_IDS` against every
+`i-` rule in the built stylesheet **in both directions**, which is a stronger property than the
+safelist ever needed.
+
+**The page cannot read a class name out of a content module.** UnoCSS emits a rule only for a name
+it can see literally in a file it scans, and it does not scan `.ts` — which is the whole reason the
+icon safelist exists. So the type ramp has to be written out in `src/pages/design.astro`, which
+makes it a census, which needs a gate: a second new assertion holds it against every `font-size`
+rule the sheet ships. Mutation-proved by dropping `text-base`, which no other change would have
+caught.
+
+### The gate the plan did not mention, and the one legitimate opt-out on the site
+
+Every page but the 404 must own a `forced-colors` rule — a per-page floor whose own comment
+explains that the shared mark block in `BasicLayout.astro` deliberately does not count. `/design`
+was red on it, and the honest answer turned out to be the one place on this site where colour IS
+the content: the swatches take `forced-color-adjust: none`. A colour picker is the example the CSS
+Color Adjustment module itself gives for the property, and a swatch whose entire information is its
+background is that case — under the mode's substitution all fifteen become one Canvas rectangle and
+the palette says nothing at all. It is scoped by the layout's own criterion for this ("an element
+whose ink IS a background-color"), neither element carries a word, and the non-colour cue survives
+because every swatch is named beside it in text the mode keeps.
+
+### Two measurements a suite with no layout engine could never have made
+
+**The header was half the page wide.** `main` on that route declares no column template, and `Card`
+defaults to `md:col-span-2` — which is what creates a second implicit column from the medium
+breakpoint up. Without a matching span the header resolved to **447px against the cards' 848**, and
+the toggle it pushes to its trailing edge landed in the middle of the screen.
+
+**The marks grid clipped under text zoom.** `minmax(9rem, 1fr)` gives a track a floor that cannot
+yield: measured, that grid's content box is **324px** on a 390px viewport, and 9rem at the 40px root
+this repo tests to is 360px, so the one remaining track overhangs its card by 36px and the card's
+own clipping eats the mark names. `minmax(min(9rem, 100%), 1fr)` lets the floor collapse to the
+container. The container figure is measured and the track figure is arithmetic — stated that way in
+place, because there is no text-zoom lever in the tooling here and quoting the second as a
+measurement would be the failure this repository keeps recording.
+
+### The trade the plan did not price, and it is reversible
+
+**The footer link costs 32px of page height and there was no slack to spend.** Measured at 1024
+wide on the built page, with the live origin as the before-tree: `main` asks for **829px where it
+asked for 797**, and the footer card grows 106 → 138. The left column is what sets the page's
+height — on production that card's bottom edge sat at 773 with `main`'s own 24px of padding beneath
+it and nothing else — so every pixel added there is a pixel the page grows by, whatever spare height
+the right-hand stack has. A reader at 800px tall now gets a scrollbar where they did not, and
+`CLAUDE.md`'s *"one screen at the default text size from a 797px-tall viewport up"* is stale by 32px.
+
+Note what this is NOT: the retired rule about the right-hand stack ("remove something before adding
+a line") was retired because that stack stopped having a fixed height to exhaust, which is about
+WCAG 1.4.12 text growth. It says nothing about the default-size budget, and reading it as permission
+to add is how this cost went unpriced in the plan.
+
+The cheaper spellings are recorded beside the link so they are not re-proposed: running it into the
+attribution paragraph wraps that paragraph and still costs 16px while inventing a sentence break the
+copy does not carry; dropping `min-h-6` saves 8px by putting a control under the 1.5rem target floor
+this codebase set for exactly these links; moving the link to `/patches` costs nothing, satisfies
+the reachability gate through the wall, and puts the site's colophon on a page about bike races.
+
+### The review panel, and the one finding the maintainer raised himself
+
+A five-lens panel — distinctiveness against the `frontend-design` skill, typography, writing,
+the quality floor, and how Polaris / Carbon / Spectrum / GOV.UK present their foundations — filed
+ten findings, each of which went to a skeptic with a mandate to kill it. **Eight died**, and what
+killed them is worth keeping because every one is a plausible re-proposal:
+
+- *"The invented name box renders at 1.16:1 and is effectively invisible."* The arithmetic is
+  right and the conclusion is not: a skeptic read the pixels and the boxes render plainly at 1:1.
+  The same hairline is what makes the `--background` swatch legible against the card, so the name
+  box and the swatch are deliberately one material.
+- *"The three surface tokens draw as nothing."* Two of the three read as filled boxes. Only
+  `--card-background` is fill-identical to its plate, which is exactly what the code comment beside
+  the swatch already claims.
+- *"Marks should be Icons."* The house register splits them consistently — a mark is the drawn
+  thing, an icon is the class, the family and the accessibility term — and `uno.config.ts` and
+  `src/lib/icons.ts` both use both words in adjacent lines for that reason.
+- The theme-crossfade contrast trough: pre-existing, site-wide, transient, and undone by removing a
+  documented choice.
+
+Two survived and are fixed: `.design-role` was the only run of prose on the page with no measure —
+the Controls card set a **101-character line** under a lede narrowed to 73 — and
+`.design-guide-heading`'s rationale said "the two column headings" while the class dresses **nine**.
+The reason was corrected rather than the drawing; the finding's own remedy, a fourth type rank for a
+single heading, is rejected in place with the argument. A residual two skeptics turned up while
+refuting something else: `.design-list li::before`'s comment claimed the marker was the plate edge
+when the shipped rule is `var(--text)` — and the code is right, because a 0.4em marker IS the ink.
+
+**The maintainer then found the one thing the panel did not**: the `data-theme` example was the only
+static specimen on a page whose thesis is that nothing on it restates a value, so it went on saying
+`light` to a reader sitting in dark. Both lines are in the markup now and the stylesheet reveals
+whichever matches the live attribute — the same device the toggle's own sun and moon use, no script.
+Verified in all three states on the built page in a browser: dark → one line; light → one line; and
+with the attribute *and every inline script* stripped — the state the paragraph itself describes —
+it falls back to the first theme, one line, never zero. **That last case is why the default arm is
+the ABSENCE of a rule rather than a match on the light theme's own name**: keyed the other way, the
+one page that must still render an example would render none.
+
+While there, the block's own claim was verified rather than trusted: `grep -c ':root{--'` returns
+**0** in both shipped chunks, and that stripped page really does render as unstyled serif text on
+unstyled ground with all fifteen swatches invisible. The sentence is true to the word.
+
+### Verification
+
+`pnpm check` → 0 errors; `pnpm eslint` → clean; `pnpm test` → **622 passed | 7 skipped (629)**, read
+off the runner's own log rather than a local run. `tests/design-system.test.ts` goes 5 → **10**.
+Every new gate was killed by its own mutation and restored: a changed role reddens the document
+snapshot; dropping one id reddens the mark census with `i-ri-sun-line`; dropping `text-base` reddens
+the type gate; dropping `dark` from the theme list reddens the theme gate and the snapshot with it.
+
+The preview deploy was diffed against the local build token by token: **exactly one delta over 50
+lines**, the umami `data-website-id`, which is a repository variable a local build cannot see. The
+served bytes were then re-derived rather than trusted — 18 marks, 15 swatches, 5 ramp steps, both
+theme lines — and the same three counts hold on production.
+
+### What a future run should know
+
+`.design-sync/NOTES.md` carries the maintenance model and names the one trade to re-decide rather
+than inherit: the generated document grew from about 5 kB to about 7 kB because it absorbed the
+do/don't guidance that used to live only on the deleted cards, against a suggested 2–4 kB preamble
+it was already past. Trim the guidance in the module if a future run disagrees, not the renderer.
+
+**037 is unblocked and its premise now holds** — the module and the renderer it parameterises both
+exist. Its own note is explicit that `conventions.md` stays a separate, terser rendering rather than
+being merged with `DESIGN.md`, and the size trade above is the evidence for why.
