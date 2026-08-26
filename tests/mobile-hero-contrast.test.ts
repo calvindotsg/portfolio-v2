@@ -167,7 +167,7 @@ describe("mobile hero legibility", () => {
             + "block stretches to what it holds and the scrim is a pseudo-element of it, so a "
             + "full-width control inside drags the veil across the portrait").toBeNull();
 
-        const grounded = [wall!, ...document.querySelectorAll("main .link-strip a")];
+        const grounded = [wall!, ...document.querySelectorAll("main .link-strip a, main .link-strip button")];
         expect(grounded.length, "no control sits outside the scrim — this assertion would be vacuous")
             .toBeGreaterThan(1);
         const sheetRules = parseRules(sheet());

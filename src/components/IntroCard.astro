@@ -17,6 +17,38 @@ import portfolioImage from '../assets/me.webp'
 const [greeting, ...taglines] = WELCOME.description
 
 /*
+ * THE QUIET CONTROLS ARE LAID OUT FOUR TO A ROW, AND THIS IS A GROUPING RATHER THAN A
+ * COLUMN COUNT. The difference is the whole reason it is allowed to exist.
+ *
+ * What `uno.config.ts` records at length, and what `tests/control-geometry.test.ts`
+ * gates, is that no rule may GRANT this row a number of columns at a width. Three media
+ * queries once did — 3, 2 and 1 columns — and a hand-tuned count compared against a
+ * text-relative box has to be re-tuned whenever either side moves. It was wrong twice, in
+ * opposite directions, and the second time the card sheared 136.84px of hero copy at 320px
+ * and a 40px root.
+ *
+ * This is not that. Nothing here reads a width: the items are chunked into rows of four
+ * ONCE, at every viewport and every text size, and each row is still an ordinary wrapping
+ * flex row whose minimum content width is one box. Enlarge the reader's text and each row
+ * reflows on its own exactly as the single row did — the four-up reading degrades, and
+ * nothing clips. So the invariant the gate protects is untouched; what is authored is
+ * which items sit together, which is a fact about the ITEMS.
+ *
+ * THE PREFERENCE TAKES THE LAST CELL. It is appended to the final row when that row has
+ * room and takes a row of its own when it does not, so it is always last however many
+ * destinations there are. Nothing in the drawing marks it out and nothing needs to: every
+ * destination is a solid brand mark and this is a stroked UI mark, it is a `button` where
+ * they are anchors, and the design system's own words for this box are "a member of a set,
+ * where the marks are the vocabulary, and for a preference".
+ */
+const PER_ROW = 4
+const linkRows = Array.from(
+    {length: Math.ceil(LINKS.length / PER_ROW)},
+    (_, i) => LINKS.slice(i * PER_ROW, (i + 1) * PER_ROW),
+)
+const lastRowIsFull = linkRows[linkRows.length - 1].length >= PER_ROW
+
+/*
  * Mobile hero (below `md`), see the <style> rules at the foot of this file.
  *
  * The portrait bleeds off the card's right edge behind the type. Below `md` it
@@ -81,8 +113,31 @@ const [greeting, ...taglines] = WELCOME.description
 
 <Card colSpan="md:col-span-2 lg:col-span-3" rowSpan="md:row-span-4" fillsArea>
     <div class="flex w-full h-full justify-between md:pr-8">
-        <div class="flex flex-col justify-between md:max-h-[18.75rem] gap-4">
-            <div class="intro-type flex flex-col h-full self-start md:self-auto">
+        {/*
+            THE COPY COLUMN IS CENTRED, AND IT USED TO PUSH ITS CONTROLS TO THE FOOT. Recording the
+            swap, because the arrangement it replaces was deliberate and its reason expired rather
+            than being overridden.
+
+            At `md` and up this column is a STRETCHED flex item under a cap, so its height is that
+            cap whatever it holds — it does not size to its content and never did. While the
+            controls were seven plated boxes the content nearly filled it, and pinning them to the
+            foot with `justify-between` plus a stretching type column was what kept the slack out of
+            the middle. Retiring the plate took the content from 300px to 224, so the same
+            arrangement put all 76px of the difference in ONE place: a 92px hole between the last
+            tagline and the strip, measured at every width from 1024 up. That is the arrangement
+            working exactly as written, on content it was not measured against.
+
+            Centring spends the same slack as 38px above and 38px below, which reads as the card's
+            own rhythm rather than as a hole, and it puts this column's optical centre within 3.5px
+            of the portrait's — the portrait is centred in its own box, so the two columns now
+            agree. Below `md` there is no slack to spend and this is an exact no-op.
+
+            DO NOT PUT THE SLACK BACK AT ONE END. Both ends were built and measured: at the foot it
+            is the 92px hole above, and at the top it is 76px of empty card below the call to
+            action, which is the failure this file's own history calls a 130px hole.
+        */}
+        <div class="flex flex-col justify-center md:max-h-[18.75rem] gap-4">
+            <div class="intro-type flex flex-col self-start md:self-auto">
                 {/*
                     ONE TOP-LEVEL HEADING, AND NO EYEBROW. Both halves are the same judgement and both are
                     scored against the frontend-design skill rather than asserted:
@@ -112,50 +167,65 @@ const [greeting, ...taglines] = WELCOME.description
                     a line of copy is not a no-op and should not be described as one.
                 */}
                 {/*
-                    THE GREETING IS A MASTHEAD ROW NOW, AND IT IS TALLER THAN THE TAGLINES ON PURPOSE.
+                    THE GREETING CARRIES NO CONTROL, AND IT DID FOR ONE REVISION, so the reason it
+                    does not is recorded rather than left to be rediscovered.
 
-                    The theme control sits on it, hard right, opposite the identity — the same
-                    arrangement the site's own header takes on every other page, and it costs no
-                    row of its own. It is deliberately NOT a seventh item in the strip below:
-                    measured, seven boxes of that size at that separation ask for 356px against a
-                    339px column and wrap, stranding the preference on a line by itself.
+                    The theme control sat here, hard right, on the argument that this line is a
+                    masthead. It could not hold the position: at `md` and up this column stretches
+                    and the control landed on the copy column's right rail, but BELOW `md` this
+                    container is `self-start` — load-bearing for the mobile hero, since stretching
+                    it drags the scrim across the portrait, 97.55% of the photo veiled against
+                    81.63% — so the row is only as wide as the widest tagline and the control came
+                    to rest 74.5px short of the rail everything else on the card shares. One
+                    control, two arrangements, and on a phone it was aligned to a rail nothing else
+                    used. It also made this line 44px tall against the taglines' 30.
 
-                    THE UNEVENNESS WAS MEASURED AND ACCEPTED, so read this before filing it. The
-                    control's box is the site's target-size floor, so this line renders 44px tall
-                    against the taglines' 30. That is the reading the row asks for: a masthead
-                    carrying the name and one preference, not a line of the paragraph. Do not
-                    close the gap by shrinking the control under the floor — the floor is what
-                    SC 2.5.5 asks for and the whole quiet vocabulary is built on it.
+                    The preference is a quiet control and it now sits with the other quiet controls,
+                    which is where a reader looks for it and where the vocabulary already puts it.
                 */}
-                <div class="flex items-center justify-between gap-2">
-                    <h1 class="m-0 font-light text-xl"><span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span> {greeting}</h1>
-                    <ThemeSwitcher kind="chip-icon"/>
-                </div>
+                <h1 class="m-0 font-light text-xl"><span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span> {greeting}</h1>
                 {taglines.map((item) => (<p class="m-0 font-light text-xl">{item}</p>))}
             </div>
             {/*
-                SIX PLACES TO FIND ME, DRAWN QUIETLY, AND THEN THE ONE WAY IN.
+                WHERE TO FIND ME, DRAWN QUIETLY, AND THEN THE ONE WAY IN.
 
-                These six used to be the site's loudest mark, seven times over on one screen:
-                five profiles, the résumé and the theme control, every one of them plated. The
-                plate is the mark for a card's ONE action, so nine wearers on the home page was
-                that mark spent on furniture — and it inverted the hierarchy, drawing six ways
-                to LEAVE louder than the one way further in. They are members of a set, which
-                is what the quiet glyph box is for; the toggle is a preference and has gone to
-                the masthead, so this row holds destinations and nothing else.
+                These used to be the site's loudest mark, seven times over on one screen: the
+                profiles, the résumé and the theme control, every one of them plated. The plate
+                is the mark for a card's ONE action, so nine wearers on the home page was that
+                mark spent on furniture — and it inverted the hierarchy, drawing the ways to
+                LEAVE louder than the one way further in. They are members of a set, which is
+                what the quiet glyph box is for.
 
-                THE ORDER IS THE DECISION AND IT IS ALSO THE FOCUS ORDER. Identity, then where
-                to find me, then the way in — so the card ends on the way FURTHER INTO the site
-                rather than on six ways out of it, and its action sits at the foot exactly as
-                each goal card's does. The accepted cost is that a keyboard reader meets the
-                six before the card's own action; the DOM sequence and the visual sequence must
-                stay identical (SC 1.3.2, 2.4.3), so do not reorder either one in CSS.
+                THE BLOCK'S WIDTH IS WHAT SETS THIS COLUMN'S, AND THEREFORE THE CALL TO ACTION'S.
+                A copy column takes the widest max-content among its children, and four boxes at
+                this separation ask for 200px against the taglines' 229.52 — so the TYPE wins,
+                the column is the width of its longest line, and the call to action below is that
+                width too. One rail for the whole column, and it moves only when the copy does.
+                Measured at 1024, 1440, 430 and 393; the room available is 339, 435, 332 and 295,
+                so only the narrowest of those clamps it.
+
+                THE ORDER IS THE DECISION AND IT IS ALSO THE FOCUS ORDER. Identity, then where to
+                find me, then the way in — so the card ends on the way FURTHER INTO the site
+                rather than on the ways out of it, and its action sits at the foot exactly as each
+                goal card's does. The accepted cost is that a keyboard reader meets the
+                destinations before the card's own action; the DOM sequence and the visual
+                sequence must stay identical (SC 1.3.2, 2.4.3), so do not reorder either in CSS.
             */}
-            <div class="link-strip">
-                {LINKS.map(({link, logo, name}) => (<a href={link} target="_blank" class="chip-icon">
-                    <span class={`${iconClass(logo)} shrink-0`} aria-hidden="true"></span>
-                    <span class="sr-only">{name}</span>
-                </a>))}
+            <div class="flex flex-col gap-2">
+                {linkRows.map((row, index) => (
+                        <div class="link-strip">
+                            {row.map(({link, logo, name}) => (<a href={link} target="_blank" class="chip-icon">
+                                <span class={`${iconClass(logo)} shrink-0`} aria-hidden="true"></span>
+                                <span class="sr-only">{name}</span>
+                            </a>))}
+                            {!lastRowIsFull && index === linkRows.length - 1 && <ThemeSwitcher/>}
+                        </div>
+                ))}
+                {lastRowIsFull && (
+                        <div class="link-strip">
+                            <ThemeSwitcher/>
+                        </div>
+                )}
             </div>
             {/*
                 THE WHOLE WALL HAD NO DOOR FROM THIS PAGE until this link existed, and it opened

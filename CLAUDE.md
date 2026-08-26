@@ -178,8 +178,9 @@ block above it before giving either consumer the other's list.
     and tracked wide: **a quiet control that names itself**. The wall's filter row,
     and every item in a page header
   - `chip-icon` — the same surface pinned at 44x44 for one mark: **one of a set, or
-    a preference**. The intro card's six destinations, and the theme toggle
-    everywhere it appears
+    a preference**. The intro card's block of destinations, and the theme toggle
+    everywhere it appears — including the last cell of that block, where nothing
+    marks it out but its own stroked mark, its `button` element and its position
 
   There is deliberately **no plated box for a mark alone**. There was one, worn nine
   times on the home page, and retiring it is what this vocabulary is: an action names
@@ -189,9 +190,13 @@ block above it before giving either consumer the other's list.
   content comes from data**; `tests/control-geometry.test.ts` discovers every
   control from ITS OWN surface's signature in the shipped sheet — one route per
   world, deliberately not collapsed, because a plate and a chip have different
-  contracts, plus a third for the intro card's strip, which is the one place a row
-  of them has to fit a column — and holds that line, so a further variant is caught
-  rather than skipped. Every link must carry a
+  contracts, plus a third for the intro card's block of quiet controls, which is the
+  one place a row of them has to fit a column — and holds that line, so a further
+  variant is caught rather than skipped. **That block groups its cells a fixed number
+  to a row and this is a GROUPING, not a column count**: nothing reads a width, each
+  row is still an ordinary wrapping row whose minimum is one box, and the preference
+  takes the last cell whatever `LINKS` holds. The count that is forbidden is the one
+  a media query grants. Every link must carry a
   signifier a reader can perceive, and a build-wide gate in
   `tests/build-output.test.ts` walks every `<a>` on every page to enforce it — its
   absence let five links ship drawn exactly like the prose beside them. A bib's stub

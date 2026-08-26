@@ -60,4 +60,4 @@ Don't:
 
 ## Marks
 
-19 marks ship and no others, each a `.i-` class sized with `font-size`.
+20 marks ship and no others, each a `.i-` class sized with `font-size`.
