@@ -1,6 +1,18 @@
 # Implementation Plans
 
-**Nothing is queued.** The two-run security audit of this repository completed on 2026-08-18
+**Two plans are queued: 038 and 039, in that order.** Neither has been executed. Both were written
+on 2026-08-26 after a measured review of the site's control vocabulary, and both were revised before
+merging by an adversarial panel — four review lenses, a refute-first skeptic per finding, then a
+judge. It raised twelve findings, eight survived, and three were BLOCK; every one of them was
+invisible to `pnpm test`, for a reason worth stating plainly here rather than rediscovering:
+**a numbered plan is a proposal and the suite exempts it from the three gates that resolve a name
+against the tree.** Probed both ways at `f767cf2` — a nonexistent path, a nonexistent script and an
+undeclared constant inside a plan leave the suite green, and the same three tokens in a non-proposal
+document turn all three gates red. A green run is not evidence about a plan file; review is.
+
+The rest of this section is the record up to that point.
+
+**Nothing was queued between 037 and 038.** The two-run security audit of this repository completed on 2026-08-18
 and produced the first proposals here since 028 landed; all of them — 029 through 034 — are merged,
 archived and live, as are plans 024–028 and 035. 036 and 037 were the first proposals written since
 this directory last emptied, and both are done. **Neither came from an audit, and that is what
@@ -207,8 +219,27 @@ recreated.
 | 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **DONE** (`3f1d582`) |
 | 036 | Serve the design system as a page, and generate the agent's copy from it | P2 | M | — | **DONE** (`f052f68`) |
 | 037 | Serve the design system as markdown, in the repo and on the web | P3 | M | 036 | **DONE** (`0f923c4`) |
+| 038 | Publish the chip, put one header on every page but the home page, and give the wall a markdown twin | P2 | L | 036, 037 | **TODO** |
+| 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
+
+**Why 038 and 039 are two files, and why 039 cannot go first.** 038 publishes the chip as a real,
+gated kind of control; 039 spends it on the home page and deletes the icon plate the chip makes
+orphaned. The dependency is mechanical rather than editorial — 039's first STOP condition is the
+chip's absence — so they are **not** parallel-safe, and 039 executed first would delete a class its
+own replacement does not yet have. They also share `uno.config.ts`, `src/content/design.ts`,
+`src/pages/design.astro` and four test files.
+
+**What made them necessary is one finding: the site ships four kinds of pressable thing and
+publishes three.** The wall's filter chip is spelled only as a descendant selector, is in no census,
+and is invisible to `tests/control-geometry.test.ts`, which discovers controls by the plate's
+signature in the shipped sheet — while the build-wide link-signifier gate already has to name it as
+a special case. A gate knowing about a kind the design system does not is the defect; 038 closes it.
+Two consequences are decisions rather than discoveries and are recorded in the plans themselves: the
+chip is floored at 44px on both axes, which **grows the wall's filter row from 29.59px** and is a
+visible change to three pages nobody asked to redesign; and `/patches` gains a theme toggle, which it
+has never had.
 
 **Why 036 and 037 were two files rather than one, and why 037 could not go first.** 036 made one new
 content module the single authored source of this site's design vocabulary and rendered it as a page;
@@ -359,6 +390,46 @@ smaller* wins than the first one found, and should say so plainly when a finding
 is cosmetic.
 
 ## Findings considered and rejected
+
+### The control-vocabulary design review (2026-08-26, specimens drawn at `f767cf2`)
+
+Not an audit. Five header treatments and four intro-card treatments were built as live specimens in
+the site's own tokens and measured in a browser, then chosen by the maintainer. What follows is what
+was **rejected**, so no later run re-derives it. The reasoning sits in plans 038 and 039; only the
+verdicts are here.
+
+- **A plated header row.** Rejected on two measurements: `/patches` ships **zero** plated controls
+  today, so this would introduce the plate to a page that has none, one rung above a filter row drawn
+  deliberately in the bib's treatments; and `uno.config.ts` reserves the plate as the mark for a
+  primary action, which twelve plates of furniture across four pages dilutes.
+- **A `Copy page` split button with a dropdown** — the Stripe / Mintlify / GitBook pattern. Rejected:
+  an accessible menu-button contract would be the largest piece of client code on a domain that ships
+  zero external JavaScript files and fails the build if one appears; every "Open in …" entry
+  hard-codes a third-party origin; and it inverts the failure, making the clipboard the primary path
+  and hiding the link that always works inside a menu that needs a script.
+- **A copy-to-clipboard control at all.** The maintainer's call: opening the markdown page and
+  selecting all reaches the same outcome with no client code. This *deletes* the site's only
+  clipboard path rather than moving it.
+- **"Copy as a prompt for Claude Code / Codex".** A control aimed at another control's document,
+  copying either a URL the markdown link's `href` already is, or a sentence with no source of truth.
+- **A skip link in the header.** WCAG 2.4.1's own Understanding document excludes "individual words,
+  phrases or single links" from what counts as a block; ARIA landmarks are a sufficient technique on
+  their own, and the header is three items.
+- **A breadcrumb.** The site is two levels deep and the wall's filter row already does the sideways
+  move.
+- **Labelling the six intro-card destinations.** Measured: six labels need three lines in a 339px
+  column, trading the density problem for the one it was meant to fix.
+- **A neutral-bordered plate** (accent only on interaction). Removes the wall of red with one token
+  change, but flattens a card's one action and a social link into one drawing and leaves the 112px
+  control-row density untouched.
+- **A visible label on the theme toggle.** SC 2.5.3 requires the accessible name to contain the
+  visible label, and the name is deliberately the theme its pressed state means. Recorded in 039 as
+  worth revisiting via a fixed moon plus the chip's own filled state, which would make the toggle's
+  state visible for the first time.
+
+**Deferred rather than rejected**, and named so it is not discovered late: the Now card's explainer is
+a bare 24x24 glyph with no box — a fifth drawing on the home page, and below the target size every
+other control clears. 039 lists it out of scope on purpose.
 
 ### Run 6 (2026-08-08, audited at `219dcde`) — a re-audit of the record, not of the source
 
