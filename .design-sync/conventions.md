@@ -42,16 +42,15 @@ Don't:
 shipped as static CSS, so one that site never used does not exist: the stylesheet is the
 only authority on what a class does, and it restates both themes' tokens above its rules.
 
-Guaranteed present: `control`, `control-cta`, `text-link`, `chip`, `chip-icon`, `sr-only`,
+Guaranteed present: `control-cta`, `text-link`, `chip`, `chip-icon`, `sr-only`,
 `break-anywhere`, the mark classes, and a reset over a system sans stack.
 
 ## Controls
 
-- **`control`** — The plated surface at a box the design picks, icon-only: its content is one mark and never a word, so its width is a number rather than a guess. The social links and the theme toggle wear it.
-- **`control-cta`** — That same surface at the width of whatever contains it, holding a label and its mark centred together as one legend. Its label comes from data and must be allowed to wrap, so its height is floored rather than pinned. The goal cards' way out.
+- **`control-cta`** — The plated surface at the width of whatever contains it, holding a label and its mark centred together as one legend. It is the mark for a card's ONE action and is spent nowhere else. Its label comes from data and must be allowed to wrap, so its height is floored rather than pinned. The intro card's way in, and each goal card's way out.
 - **`text-link`** — A link that is a run of words inside a sentence or a column of figures. Each role card's company name.
 - **`chip`** — The quiet surface, holding a label that names it in a word. For getting somewhere and for setting a preference — chrome rather than a page's one action, so it wears no plate. Its label comes from data, so its box is floored rather than pinned. The patch wall's filter row, and every item in a page header.
-- **`chip-icon`** — That same quiet surface holding one mark, for a member of a set where the marks are the vocabulary. Its content is a glyph the design picked the size of, so its box is pinned. The theme toggle wherever a page header carries it.
+- **`chip-icon`** — That same quiet surface holding one mark, for a member of a set where the marks are the vocabulary, and for a preference. Its content is a glyph the design picked the size of, so its box is pinned. The intro card's row of destinations, and the theme toggle wherever it appears.
 
 Don't:
 

@@ -3,7 +3,6 @@ import Layout from "../layouts/BasicLayout.astro";
 import Card from "../components/Card/index.astro";
 import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
 import {NEXT_RACE, PATCHES} from "../content/races";
-import {PAGE_HEADER} from "../content/site";
 import {GOALS} from "../lib/goal";
 import {ICON_IDS, iconClass} from "../lib/icons";
 
@@ -66,7 +65,7 @@ const RAMP = ["text-3xl", "text-xl", "text-base", "text-sm", "text-xs"];
  */
 const MARKS = [...new Set(ICON_IDS.map(iconClass))].sort();
 
-const [PLATED, LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;
+const [LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;
 
 /*
  * EVERY CONTROL SPECIMEN GOES SOMEWHERE REAL, and the alternative was measured against the
@@ -173,14 +172,6 @@ const MARKDOWN = "/design.md";
 
                     {key === "controls" && (
                             <ul class="design-rows">
-                                <li class="design-row">
-                                    <a href="/" class="control">
-                                        <span class={iconClass(PAGE_HEADER.home_icon)} aria-hidden="true"></span>
-                                        <span class="sr-only">{PAGE_HEADER.home_label}</span>
-                                    </a>
-                                    <span class="design-name">{PLATED.name}</span>
-                                    <span class="design-role text-sm">{PLATED.role}</span>
-                                </li>
                                 <li class="design-row">
                                     {/* The label is wrapped for the reason EventsLink.astro
                                          records at length: a bare text node in a flex

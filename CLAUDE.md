@@ -154,33 +154,44 @@ block above it before giving either consumer the other's list.
 
 ### Styling System
 - **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
-  `blocklist`, **seven shortcuts**, the presets, and a `theme` key holding **only**
+  `blocklist`, **six shortcuts**, the presets, and a `theme` key holding **only**
   the five breakpoints. Those are presetWind3's own defaults restated in `rem`,
   which is load-bearing rather than cosmetic — see the note there. No colour or
   shadow token lives in `theme`; those are CSS custom properties in
   `BasicLayout.astro`
 - **The shortcuts are the site's kinds of control, and they come in TWO WORLDS
-  divided by loudness rather than by page.** The plate is the mark for a page's
-  PRIMARY ACTION; the chip is the quiet kind, for getting somewhere and for
-  preferences. Draw a plate in a page header and you have spent the strongest mark
-  this palette has on furniture. The plated world is `control-surface` (the plate,
-  accent border, hover and press — no box, and nothing wears it directly),
-  `control` (that surface at 64x48, icon-only: six social links and the theme
-  toggle where the intro card carries it), `control-cta` (that surface at the width
-  of what contains it, holding a label and its mark centred as one legend — the two
-  goal cards' way out) and `text-link` (a link that is a run of words — each role
-  card's company name). The quiet world is `chip-surface` (a hairline at a fraction
-  of the ink, the bib's 2px corner, an opaque ground, NO plate — a base nothing
-  wears directly), `chip` (that surface floored at 44px on both axes, holding a
-  label set small and tracked wide — the wall's filter row, and every item in the
-  page header) and `chip-icon` (the same surface pinned at 44x44 for one mark — the
-  theme toggle where a header carries it).
+  divided by loudness rather than by page.** THE RULE IS ONE SENTENCE: **the plate
+  is spent on a card's SINGLE ACTION and on nothing else**; everything that is
+  chrome — getting somewhere, and setting a preference — is a chip. Draw a plate in
+  a page header, or on a member of a set, and you have spent the strongest mark
+  this palette has on furniture. Each kind has one sentence:
+  - `control-surface` — the plate, accent border, hover and press. No box, and
+    nothing wears it directly
+  - `control-cta` — that surface at the width of what contains it, holding a label
+    and its mark centred as one legend: **this card's one action**. Three cards on
+    the home page have one, so three plates are drawn — the intro card's way into
+    the wall, and each goal card's way out to its sport
+  - `text-link` — **a link inside a run of words**: each role card's company name
+  - `chip-surface` — a hairline at a fraction of the ink, the bib's 2px corner, an
+    opaque ground, NO plate. A base nothing wears directly
+  - `chip` — that surface floored at 44px on both axes, holding a label set small
+    and tracked wide: **a quiet control that names itself**. The wall's filter row,
+    and every item in a page header
+  - `chip-icon` — the same surface pinned at 44x44 for one mark: **one of a set, or
+    a preference**. The intro card's six destinations, and the theme toggle
+    everywhere it appears
+
+  There is deliberately **no plated box for a mark alone**. There was one, worn nine
+  times on the home page, and retiring it is what this vocabulary is: an action names
+  itself in words, so a control that is only a glyph is a member of a set or a
+  preference, which is the quiet kind.
   **A control PINS its box or FLOORS it, and which one is decided by whether its
   content comes from data**; `tests/control-geometry.test.ts` discovers every
   control from ITS OWN surface's signature in the shipped sheet — one route per
   world, deliberately not collapsed, because a plate and a chip have different
-  contracts — and holds that line, so a further variant is caught rather than
-  skipped. Every link must carry a
+  contracts, plus a third for the intro card's strip, which is the one place a row
+  of them has to fit a column — and holds that line, so a further variant is caught
+  rather than skipped. Every link must carry a
   signifier a reader can perceive, and a build-wide gate in
   `tests/build-output.test.ts` walks every `<a>` on every page to enforce it — its
   absence let five links ship drawn exactly like the prose beside them. A bib's stub
