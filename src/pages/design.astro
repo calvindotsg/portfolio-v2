@@ -9,9 +9,9 @@ import {PALETTE, valueIn} from "../lib/palette";
 
 /*
  * THE SITE, DESCRIBING ITSELF WITH ITSELF. Every specimen on this page is the real thing:
- * a swatch is `background: var(--token)` resolved by the reader's own theme, the ramp wears
- * the utility classes the rest of the site wears, and the three controls are three working
- * links to three real pages. Nothing here is a picture of the design system.
+ * the ramp wears the utility classes the rest of the site wears, the four controls are four
+ * working links to four real pages, and every colour on it was read out of the two theme
+ * blocks at build time. Nothing here is a picture of the design system.
  *
  * WHY THAT IS THE WHOLE POINT RATHER THAN A FLOURISH. The thing this replaces was four
  * generated HTML reference cards, and before them a hand-written markdown table of hexes.
@@ -28,9 +28,10 @@ import {PALETTE, valueIn} from "../lib/palette";
  *
  * THIS PAGE MUST BE SWITCHABLE, and that is now a requirement it states rather than a piece
  * of furniture it owns. Half of what it has to show is that several tokens SWAP rather than
- * darken — the two `-on-ink` pairs, the progress bar's polarity — and a reader cannot see
- * that without changing theme. So the toggle has to be reachable from here, and the page
- * demonstrates its own second sentence instead of asserting it.
+ * darken — the two `-on-ink` pairs, the progress bar's polarity — and the colour sheet below
+ * shows both accounts side by side so a reader gets that without pressing anything. The
+ * toggle still has to be reachable, because everything AROUND the sheet re-tones and that is
+ * the second half of the same demonstration.
  *
  * WHAT CHANGED IS WHO DRAWS IT. The toggle used to be this page's own, in a two-item row
  * beside a hand-built way back, and the argument here read that it was "the one piece of
@@ -40,8 +41,8 @@ import {PALETTE, valueIn} from "../lib/palette";
  * navigating away first. This page contributes the `header` prop and nothing else.
  *
  * MODELLED ON `src/pages/patches/[...sport].astro` RATHER THAN ON THE HOME PAGE: a heading, a
- * lede, then cards, under the shared header. The bento budget on `index.astro` is a contract
- * that page owns and this one has no business inheriting.
+ * lede, a row of chips, then cards, under the shared header. The bento budget on `index.astro`
+ * is a contract that page owns and this one has no business inheriting.
  */
 
 /*
@@ -66,9 +67,20 @@ const RAMP = ["text-3xl", "text-xl", "text-base", "text-sm", "text-xs"];
  */
 const MARKS = [...new Set(ICON_IDS.map(iconClass))].sort();
 
+const SECTION_KEYS = Object.keys(SECTIONS) as (keyof typeof SECTIONS)[];
+
 /*
- * EVERY TOKEN, ITS ROLE AND WHAT IT ACTUALLY RESOLVES TO — joined here so the markup below
- * stays a loop over one list.
+ * A SECTION'S ADDRESS IS DERIVED FROM ITS KEY, NEVER FROM ITS HEADING. A key is the module's
+ * stable identifier; a heading is prose somebody may reword tomorrow, and a reworded heading
+ * that moved a URL would break every bookmark pointing at it. There is no redirect layer on
+ * this site, so renaming a key in `src/content/design.ts` is a breaking change to a public
+ * address — say so in the pull request that does it.
+ */
+const anchor = (key: keyof typeof SECTIONS) => `design-${key}`;
+
+/*
+ * EVERY TOKEN, ITS ROLE AND WHAT IT ACTUALLY RESOLVES TO IN EACH THEME — joined here so the
+ * markup below stays a loop over one list.
  *
  * THE VALUES ARE READ, NOT TYPED, which is the only reason this page may print them at all.
  * `src/lib/palette.ts` parses the two theme blocks out of `src/layouts/BasicLayout.astro`, so
@@ -92,7 +104,45 @@ const PALETTE_ROWS = TOKEN_ROLES.map(({token, role}) => {
     return {token, role, values};
 });
 
-const [LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;
+/*
+ * THE INK EACH THEME IS WRITTEN IN, needed as a literal rather than as `var(--text)` for the
+ * same reason every other cell of the sheet is a literal — see the swatch note below.
+ */
+const INK = PALETTE.find((t) => t.token === "--text");
+if (!INK) {
+    throw new Error(
+        "src/lib/palette.ts read no value for --text, so the sheet has no ink to flood the "
+        + "-on-ink specimens with and half of every pair would render as a mistake.",
+    );
+}
+
+/*
+ * THE THREE NEUTRALS COME OUT OF THE SHEET, and that is a measurement rather than a taste.
+ * Each of `--background`, `--card-background` and `--card-border` is within one step of the
+ * plate it would be drawn on, in BOTH themes — `#FAFAFA` on `#F5F5F5` in light, `#111111` on
+ * `#171717` in dark — so a row of three swatches publishes three rectangles a reader cannot
+ * tell apart. Drawn as what they ARE, a ground holding a plate holding an edge, the same three
+ * values are legible, because the specimen is the RELATIONSHIP and not the colour.
+ *
+ * NAMED RATHER THAN SLICED, AND THE LOOKUP THROWS. Taking the first three of `TOKEN_ROLES`
+ * would make this specimen a function of that list's ORDER, which is the arity defect the
+ * controls section below has just had removed. A token renamed in the layout is a failed build
+ * here rather than a neutral that quietly rejoins the sheet it cannot be read in.
+ */
+const NESTED = ["--background", "--card-background", "--card-border"];
+
+const NESTED_ROWS = NESTED.map((token) => {
+    const row = PALETTE_ROWS.find((r) => r.token === token);
+    if (!row) {
+        throw new Error(
+            `/design draws ${token} as part of its nested neutral specimen and src/content/design.ts `
+            + "no longer gives it a role, so the specimen would render a box nothing names.",
+        );
+    }
+    return row;
+});
+
+const LEDGER_ROWS = PALETTE_ROWS.filter((row) => !NESTED.includes(row.token));
 
 /*
  * EVERY CONTROL SPECIMEN GOES SOMEWHERE REAL, and the alternative was measured against the
@@ -104,14 +154,58 @@ const [LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;
  * already holds its goal cards to.
  *
  * THE TWO SPORT WALLS ARE THE CHIPS' DESTINATIONS, and they are chosen because nothing else
- * on this page uses them: the plate goes home, the call to action goes to the whole wall, and
- * the run of words goes to the first goal's sport. So the census of specimens is also a small
- * census of the site, with no destination drawn twice in two different idioms — which is the
- * very confusion this page exists to prevent.
+ * on this page uses them: the plate goes to the whole wall and the run of words goes to the
+ * first goal's sport. So the census of specimens is also a small census of the site, with no
+ * destination drawn twice in two different idioms — which is the very confusion this page
+ * exists to prevent.
  */
 const firstGoal = GOALS[0];
 const lastGoal = GOALS[GOALS.length - 1];
 const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLowerCase());
+
+/*
+ * ONE SPECIMEN PER KIND, LOOKED UP BY NAME, AND A MISSING ONE IS A FAILED BUILD.
+ *
+ * What this replaces is an array destructure of `CONTROLS` into one binding per kind, in that
+ * list's order, followed by that many hand-written rows. Publishing a kind of control meant
+ * editing the module AND two places in this file, and plan 039 had just paid that cost from
+ * the other direction: retiring the plated icon control had to touch the destructure, the
+ * specimen list and the module to remove one entry. The defect is unchanged by an entry going
+ * away; the next kind added pays it again.
+ *
+ * SO THE LOOP IS OVER `CONTROLS` AND THIS MAP IS ONLY THE DRAWING. A name the map does not
+ * answer for throws, which is the loud failure a blank cell is not: `tests/design-system.test.ts`
+ * already asserts that every name in `CONTROLS` reaches the page as TEXT, and a name printed in
+ * a list with no specimen beside it satisfies exactly that and nothing else.
+ *
+ * `form` IS WHAT THE SPECIMEN IS SHAPED LIKE, not what it is called. The two are the same today
+ * and deliberately not joined: `chip-icon` draws a mark where `chip` draws a label, and reading
+ * the kind's own name to decide would make this map an alias rather than a drawing.
+ */
+type Specimen =
+    | {form: "cta", href: string, label: string, icon: string}
+    | {form: "words", href: string, label: string}
+    | {form: "chip", href: string, label: string}
+    | {form: "mark", href: string, label: string, icon: string}
+
+const SPECIMENS: Record<string, Specimen> = {
+    "control-cta": {form: "cta", href: "/patches", label: PATCHES.heading, icon: NEXT_RACE.icon},
+    "text-link": {form: "words", href: `/patches/${firstGoal.sport}`, label: sportLabel},
+    "chip": {form: "chip", href: `/patches/${lastGoal.sport}`, label: lastGoal.goal_name},
+    "chip-icon": {form: "mark", href: `/patches/${firstGoal.sport}`, label: firstGoal.goal_name, icon: firstGoal.goal_logo},
+};
+
+const CONTROL_ROWS = CONTROLS.map(({name, role}) => {
+    const specimen = SPECIMENS[name];
+    if (!specimen) {
+        throw new Error(
+            `src/content/design.ts publishes the control kind "${name}" and src/pages/design.astro `
+            + "draws no specimen for it, so the site's own styleguide would print the name of a "
+            + "control with nothing beside it. Add an entry to SPECIMENS keyed on that name.",
+        );
+    }
+    return {name, role, specimen};
+});
 
 /*
  * THE MARKDOWN TWIN'S ADDRESS, WRITTEN ONCE ON THIS PAGE AND NOWHERE ELSE.
@@ -146,140 +240,298 @@ const MARKDOWN = "/design.md";
                 <h1 class="text-3xl font-bold m-0 break-anywhere">{DESIGN_PAGE.heading}</h1>
                 <p class="text-sm max-w-[60ch] m-0">{DESIGN_PAGE.lede}</p>
             </div>
+            {/* THE PAGE'S OWN INDEX, DERIVED FROM `SECTIONS` RATHER THAN WRITTEN OUT — one
+                 destination per key, in the module's own order, so a section published here is
+                 reachable the moment it exists.
+
+                 IT IS A ROW OF CHIPS BECAUSE THE SITE ALREADY HAS ONE. The wall's filter row is
+                 the same shape doing the same job, so this page gains a way to be entered at a
+                 section without gaining a kind of furniture. A sticky rail was the alternative
+                 and lost on this repository's own argument: furniture recedes so the page's own
+                 subject stays the loudest thing on it, and a rail costs a quarter of the measure
+                 and does nothing below the large breakpoint.
+
+                 NO `aria-current` HERE, AND THAT IS THE DIFFERENCE FROM THE WALL. There the
+                 attribute is a fact about the URL you are on; here every chip points into the
+                 page you are already reading, so a static one would be wrong in every case but
+                 the one it named. Keeping it honest would take a scroll spy — client state on a
+                 site that ships almost none, for a row short enough to read whole. */}
+            <nav class="design-index" aria-label={DESIGN_PAGE.index_label}>
+                {SECTION_KEYS.map((key) => (
+                        <a href={`#${anchor(key)}`} class="chip">{SECTIONS[key].heading}</a>
+                ))}
+            </nav>
         </div>
 
-        {(Object.keys(SECTIONS) as (keyof typeof SECTIONS)[]).map((key) => (
-                <Card title={SECTIONS[key].heading}>
-                    <p class="text-sm max-w-[60ch] mt-0 mb-4">{SECTIONS[key].lede}</p>
+        {/* THE SECTION IS THE ANCHOR, NOT THE HEADING INSIDE IT. Landing on the heading would put
+             the reader's viewport inside the card's own padding with the card's top edge already
+             gone; landing on the section puts the whole card on screen. It is named with the same
+             words its heading carries, which is what makes it a region a screen reader can be
+             sent to rather than an unnamed group.
 
-                    {key === "palette" && (
-                            <div class="design-theming">
-                                <h3 class="design-guide-heading">{THEMING.heading}</h3>
-                                <p class="text-sm max-w-[60ch] m-0">{THEMING.lede}</p>
-                                {/* THE PAGE SHOWING ITS OWN ATTRIBUTE RATHER THAN DESCRIBING ONE.
-                                     Both lines are in the markup and the stylesheet reveals whichever
-                                     matches the live `data-theme`, which is the mechanism the theme
-                                     toggle's own sun and moon already use. Press the toggle and this
-                                     changes with everything else: the block stops asserting that the
-                                     attribute is what styles the page and starts demonstrating it. */}
-                                <p class="m-0 text-sm">
-                                    {THEMING.themes.map((theme) => (
-                                            <span class="design-name design-theme-example" data-theme-example={theme}
-                                            >{THEMING.example.replace("{theme}", theme)}</span>
-                                    ))}
-                                </p>
-                            </div>
-                    )}
+             `md:col-span-2` MOVES HERE WITH IT. The section is the grid item now, so it carries
+             the span that used to reach `main` from `Card`'s own default — see the note above the
+             page header, which is the same mechanism read from the other end.
 
-                    {key === "palette" && (
-                            <ul class="design-rows">
-                                {PALETTE_ROWS.map(({token, role, values}) => (
-                                        <li class="design-row">
-                                            {token.endsWith("-on-ink") ? (
-                                                    <span class="design-ink">
-                                                        <span class="design-swatch" style={`background: var(${token})`}></span>
-                                                    </span>
-                                            ) : (
-                                                    <span class="design-swatch" style={`background: var(${token})`}></span>
-                                            )}
-                                            <span class="design-name">{token}</span>
-                                            {/* THE THEME NAMES COME OFF THE GATED LIST, not off this
-                                                 markup: `THEMING.themes` is held against the
-                                                 stylesheet's own `:root[data-theme=…]` blocks in both
-                                                 directions, and `valueIn` throws on a name it cannot
-                                                 read. So a third theme is a failed build rather than
-                                                 a row that quietly shows two of three values. */}
+             AND SO DOES `min-w-0`, WHICH IS NOT COSMETIC AND IS THE WHOLE COST OF THIS WRAPPER.
+             A grid item's automatic minimum size is its content's min-content width, EXCEPT that
+             a scroll container's is zero — and `Card` is a scroll container, because it clips. So
+             for as long as the card was the grid item, `main`'s track could shrink to the viewport
+             and the card absorbed whatever did not fit. Wrapping it puts a box that does NOT clip
+             between the two, the exemption stops applying, and the track grows to the widest
+             unbreakable word on the page. Measured on this branch at a 320px viewport and a 40px
+             root, which is the 200% WCAG asks for: 43px of horizontal document overflow from the
+             guidance columns alone, on a page that had none. This declaration hands the exemption
+             back to the card that earns it. */}
+        {SECTION_KEYS.map((key) => (
+                <section id={anchor(key)} class="md:col-span-2 min-w-0" aria-label={SECTIONS[key].heading}>
+                    <Card title={SECTIONS[key].heading}>
+                        <p class="text-sm max-w-[60ch] mt-0 mb-4">{SECTIONS[key].lede}</p>
+
+                        {key === "palette" && (
+                                <div class="design-theming">
+                                    <h3 class="design-guide-heading">{THEMING.heading}</h3>
+                                    <p class="text-sm max-w-[60ch] m-0">{THEMING.lede}</p>
+                                    {/* THE PAGE SHOWING ITS OWN ATTRIBUTE RATHER THAN DESCRIBING ONE.
+                                         Both lines are in the markup and the stylesheet reveals whichever
+                                         matches the live `data-theme`, which is the mechanism the theme
+                                         toggle's own sun and moon already use. Press the toggle and this
+                                         changes with everything else: the block stops asserting that the
+                                         attribute is what styles the page and starts demonstrating it. */}
+                                    <p class="m-0 text-sm">
+                                        {THEMING.themes.map((theme) => (
+                                                <span class="design-name design-theme-example" data-theme-example={theme}
+                                                >{THEMING.example.replace("{theme}", theme)}</span>
+                                        ))}
+                                    </p>
+                                </div>
+                        )}
+
+                        {key === "palette" && (
+                                <Fragment>
+                                    {/* THE THREE NEUTRALS, DRAWN AS THE RELATIONSHIP THEY ARE.
+
+                                         This one specimen resolves `var()` and re-tones with the reader,
+                                         where the sheet below prints literals in both themes at once, and
+                                         the asymmetry is the argument rather than an inconsistency. The
+                                         sheet has two columns because several tokens TRADE PLACES between
+                                         the themes and a single live swatch can only ever show one side of
+                                         that. These three trade nothing: a ground, a plate one step off it
+                                         and that plate's edge, in the same order, in both themes. What
+                                         there is to see is the spacing between them, it is the same
+                                         spacing either way, and drawing it live means the reader is
+                                         looking at their OWN page's neutrals with both values printed
+                                         beside them.
+
+                                         THE EDGE IS THE PLATE'S OWN BORDER, which is why the third label
+                                         sits inside the second box and not beside a swatch of its own. A
+                                         hairline that is one step off its plate is invisible as a
+                                         rectangle and obvious as an edge. */}
+                                    <div class="design-stack">
+                                        <div class="design-stack-ground">
+                                            <p class="design-stack-line">
+                                                <span class="design-name">{NESTED_ROWS[0].token}</span>
+                                                {THEMING.themes.map((theme) => (
+                                                        <span class="design-pair">
+                                                            <span class="design-eyebrow">{theme}</span>
+                                                            <span class="design-name design-hex">{valueIn(NESTED_ROWS[0].values, theme)}</span>
+                                                        </span>
+                                                ))}
+                                                <span class="design-stack-role text-sm">{NESTED_ROWS[0].role}</span>
+                                            </p>
+                                            <div class="design-stack-plate">
+                                                {NESTED_ROWS.slice(1).map(({token, role, values}) => (
+                                                        <p class="design-stack-line">
+                                                            <span class="design-name">{token}</span>
+                                                            {THEMING.themes.map((theme) => (
+                                                                    <span class="design-pair">
+                                                                        <span class="design-eyebrow">{theme}</span>
+                                                                        <span class="design-name design-hex">{valueIn(values, theme)}</span>
+                                                                    </span>
+                                                            ))}
+                                                            <span class="design-stack-role text-sm">{role}</span>
+                                                        </p>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* THE SHEET. One token per row, both of its values side by side, in
+                                         either theme.
+
+                                         THE DEVICE IS THE WALL'S, AND IT IS BORROWED ON PURPOSE. A bib
+                                         carries a ledger when a race has two accounts that must not be
+                                         reconciled — an official distance beside a recorded one, each
+                                         keeping its own clock — and the rule the whole thing rests on is
+                                         that nothing a reader can divide crosses two sources. A token with
+                                         two theme values is that shape exactly. Flattening them into one
+                                         is the specific error `OMISSIONS` in the content module refuses to
+                                         commit, and pressing a toggle to see the other half loses your
+                                         place and still only ever shows you one.
+
+                                         SO EVERY SWATCH HERE IS A LITERAL, NOT `var(--token)`. This is the
+                                         one place on the page where reading the custom property would be
+                                         the WRONG answer: `var(--card-border)` in the light column would
+                                         paint whatever the reader's live theme resolves it to, so a reader
+                                         in dark mode would be shown the dark value under a heading that
+                                         says light. The literals come out of `src/lib/palette.ts`, which
+                                         parses them from the two theme blocks at build time — the same
+                                         provenance as the hex beside them, so no value is authored here
+                                         and both columns stay put while the page re-tones around them.
+
+                                         SUBGRID RATHER THAN `display: contents`, which is where this parts
+                                         company with the bib. A row has to be able to carry the hairline
+                                         that separates it from the last one, and a row that generates no
+                                         box has no edge to draw. */}
+                                    <div class="design-ledger">
+                                        {/* ONLY THE TWO COLUMNS THAT NEED NAMING GET A HEAD, which is
+                                             the bib's own head row exactly: it labels its distance and
+                                             its clock and leaves an empty cell over the source's name.
+                                             A column of token names and a column of sentences say what
+                                             they are by being what they are, and a head over each would
+                                             be two strings this page had to invent to restate the
+                                             obvious. Which theme a value belongs to is the one fact the
+                                             cells genuinely cannot carry, so that is the one the heads
+                                             carry. */}
+                                        <div class="design-ledger-head">
                                             {THEMING.themes.map((theme) => (
-                                                    <span class="design-value">
-                                                        <span class="design-guide-heading design-value-theme">{theme}</span>
-                                                        <span class="design-name design-hex">{valueIn(values, theme)}</span>
-                                                    </span>
+                                                    <span class="design-eyebrow">{theme}</span>
                                             ))}
-                                            <span class="design-role text-sm">{role}</span>
-                                        </li>
-                                ))}
-                            </ul>
-                    )}
+                                        </div>
+                                        {LEDGER_ROWS.map(({token, role, values}) => (
+                                                <div class="design-ledger-row">
+                                                    {/* THE THEME NAMES COME OFF THE GATED LIST, not off this
+                                                         markup: `THEMING.themes` is held against the
+                                                         stylesheet's own `:root[data-theme=…]` blocks in both
+                                                         directions, and `valueIn` throws on a name it cannot
+                                                         read. So a third theme is a failed build rather than
+                                                         a sheet that quietly shows two of three columns. */}
+                                                    {THEMING.themes.map((theme) => (
+                                                            <span class="design-ledger-value">
+                                                                {token.endsWith("-on-ink") ? (
+                                                                        <span class="design-ink" style={`background: ${valueIn(INK, theme)}`}>
+                                                                            <span class="design-swatch" style={`background: ${valueIn(values, theme)}`}></span>
+                                                                        </span>
+                                                                ) : (
+                                                                        <span class="design-swatch" style={`background: ${valueIn(values, theme)}`}></span>
+                                                                )}
+                                                                <span class="design-eyebrow design-ledger-theme">{theme}</span>
+                                                                <span class="design-name design-hex">{valueIn(values, theme)}</span>
+                                                            </span>
+                                                    ))}
+                                                    <span class="design-name design-ledger-token">{token}</span>
+                                                    <span class="design-ledger-role text-sm">{role}</span>
+                                                </div>
+                                        ))}
+                                    </div>
+                                </Fragment>
+                        )}
 
-                    {key === "type" && (
-                            <ul class="design-ramp">
-                                {RAMP.map((step) => (
-                                        <li class={step}><span class="design-name">{step}</span></li>
-                                ))}
-                            </ul>
-                    )}
+                        {key === "type" && (
+                                <ul class="design-ramp">
+                                    {RAMP.map((step) => (
+                                            <li class="design-ramp-step">
+                                                <span class="design-name design-ramp-name">{step}</span>
+                                                {/* THE SPECIMEN IS THE PAGE'S OWN SENTENCE, SET AT THE STEP.
+                                                     A class name set in the size it names tells you the size
+                                                     and nothing about the face; a run of real words tells you
+                                                     the colour, the rhythm and where the step stops being
+                                                     readable. These are the words of the `h1` at the top of
+                                                     this page, read from the same module it is — so the
+                                                     largest step below IS the heading, drawn again, and
+                                                     nothing is authored to make the specimen exist. */}
+                                                <p class={`${step} design-ramp-prose`}>{DESIGN_PAGE.heading}</p>
+                                            </li>
+                                    ))}
+                                </ul>
+                        )}
 
-                    {key === "controls" && (
-                            <ul class="design-rows">
-                                <li class="design-row">
-                                    {/* The label is wrapped for the reason EventsLink.astro
-                                         records at length: a bare text node in a flex
-                                         container is an anonymous item whose automatic
-                                         minimum width is a whole word, and no selector can
-                                         reach it to say otherwise, so the words clip instead
-                                         of wrapping once the reader enlarges them. */}
-                                    <a href="/patches" class="control-cta design-cta">
-                                        <span class="design-cta-label">{PATCHES.heading}</span><span
-                                            class={`${iconClass(NEXT_RACE.icon)} shrink-0`} aria-hidden="true"></span>
-                                    </a>
-                                    <span class="design-name">{LABELLED.name}</span>
-                                    <span class="design-role text-sm">{LABELLED.role}</span>
-                                </li>
-                                <li class="design-row">
-                                    <a href={`/patches/${firstGoal.sport}`} class="text-link text-sm">{sportLabel}</a>
-                                    <span class="design-name">{WORDS.name}</span>
-                                    <span class="design-role text-sm">{WORDS.role}</span>
-                                </li>
-                                <li class="design-row">
-                                    {/* The label is a bare text node here and that is right rather
-                                         than an oversight: this kind's whole point is that it names
-                                         itself in ONE word, so there is nothing for a wrapper to
-                                         let break. The call to action above needs one because its
-                                         label is a phrase that comes from data. */}
-                                    <a href={`/patches/${lastGoal.sport}`} class="chip">{lastGoal.goal_name}</a>
-                                    <span class="design-name">{CHIP.name}</span>
-                                    <span class="design-role text-sm">{CHIP.role}</span>
-                                </li>
-                                <li class="design-row">
-                                    {/* Icon-only, so the mark IS the control and the name has to be
-                                         carried somewhere a reader who cannot see it will get it —
-                                         the same device the plated specimen above uses. */}
-                                    <a href={`/patches/${firstGoal.sport}`} class="chip-icon">
-                                        <span class={`${iconClass(firstGoal.goal_logo)} shrink-0`} aria-hidden="true"></span>
-                                        <span class="sr-only">{firstGoal.goal_name}</span>
-                                    </a>
-                                    <span class="design-name">{CHIP_ICON.name}</span>
-                                    <span class="design-role text-sm">{CHIP_ICON.role}</span>
-                                </li>
-                            </ul>
-                    )}
+                        {key === "controls" && (
+                                <ul class="design-rows">
+                                    {CONTROL_ROWS.map(({name, role, specimen}) => (
+                                            <li class="design-row">
+                                                {specimen.form === "cta" && (
+                                                        /* The label is wrapped for the reason EventsLink.astro
+                                                             records at length: a bare text node in a flex
+                                                             container is an anonymous item whose automatic
+                                                             minimum width is a whole word, and no selector can
+                                                             reach it to say otherwise, so the words clip instead
+                                                             of wrapping once the reader enlarges them. */
+                                                        <a href={specimen.href} class="control-cta design-cta">
+                                                            <span class="design-cta-label">{specimen.label}</span><span
+                                                                class={`${iconClass(specimen.icon)} shrink-0`} aria-hidden="true"></span>
+                                                        </a>
+                                                )}
+                                                {specimen.form === "words" && (
+                                                        <a href={specimen.href} class="text-link text-sm">{specimen.label}</a>
+                                                )}
+                                                {specimen.form === "chip" && (
+                                                        /* The label is a bare text node here and that is right
+                                                             rather than an oversight: this kind's whole point is
+                                                             that it names itself in ONE word, so there is nothing
+                                                             for a wrapper to let break. The call to action above
+                                                             needs one because its label is a phrase from data. */
+                                                        <a href={specimen.href} class="chip">{specimen.label}</a>
+                                                )}
+                                                {specimen.form === "mark" && (
+                                                        /* Icon-only, so the mark IS the control and the name has
+                                                             to be carried somewhere a reader who cannot see it
+                                                             will get it — the same device the plated specimen
+                                                             above uses. */
+                                                        <a href={specimen.href} class="chip-icon">
+                                                            <span class={`${iconClass(specimen.icon)} shrink-0`} aria-hidden="true"></span>
+                                                            <span class="sr-only">{specimen.label}</span>
+                                                        </a>
+                                                )}
+                                                <span class="design-name">{name}</span>
+                                                <span class="design-role text-sm">{role}</span>
+                                            </li>
+                                    ))}
+                                </ul>
+                        )}
 
-                    {key === "icons" && (
-                            <ul class="design-marks">
-                                {MARKS.map((mark) => (
-                                        <li class="design-mark">
-                                            <span class={`${mark} design-glyph`} aria-hidden="true"></span>
-                                            <span class="design-name">{mark}</span>
-                                        </li>
-                                ))}
-                            </ul>
-                    )}
+                        {key === "icons" && (
+                                <ul class="design-marks">
+                                    {MARKS.map((mark) => (
+                                            <li class="design-mark">
+                                                <span class={`${mark} design-glyph`} aria-hidden="true"></span>
+                                                <span class="design-name">{mark}</span>
+                                            </li>
+                                    ))}
+                                </ul>
+                        )}
 
-                    <div class="design-guide">
-                        <div>
-                            <h3 class="design-guide-heading">{DESIGN_PAGE.does_label}</h3>
-                            <ul class="design-list text-sm">
-                                {SECTIONS[key].does.map((line) => <li>{line}</li>)}
-                            </ul>
+                        {/* DO AND DON'T ARE DRAWN AS OPPOSITES, IN TWO CHANNELS, AND NEITHER IS A
+                             COLOUR. They used to differ by one word: same heading treatment, same
+                             marker, same ink, in the two columns whose whole subject is that they
+                             are opposites. A colour would have been the obvious repair and it is
+                             the wrong instrument twice over — `--accent` means "you can interact
+                             with this" and a column of sentences cannot, and forced-colours mode
+                             discards an author's ink outright, so a distinction carried by colour
+                             alone is a distinction some readers never receive.
+
+                             So the two channels are WEIGHT and SHAPE, on a mark drawn the same way
+                             in the heading and in front of every line beneath it: Do is a solid
+                             square, Don't is a hairline one turned on its corner. Both are
+                             geometry — a border width and a rotation — and geometry survives a
+                             palette a reader has replaced, where a fill would not. See the rule
+                             for why the solid one is not painted. */}
+                        <div class="design-guide">
+                            <div>
+                                <h3 class="design-guide-heading design-guide-do">{DESIGN_PAGE.does_label}</h3>
+                                <ul class="design-list design-do text-sm">
+                                    {SECTIONS[key].does.map((line) => <li>{line}</li>)}
+                                </ul>
+                            </div>
+                            <div>
+                                <h3 class="design-guide-heading design-guide-dont">{DESIGN_PAGE.donts_label}</h3>
+                                <ul class="design-list design-dont text-sm">
+                                    {SECTIONS[key].donts.map((line) => <li>{line}</li>)}
+                                </ul>
+                            </div>
                         </div>
-                        <div>
-                            <h3 class="design-guide-heading">{DESIGN_PAGE.donts_label}</h3>
-                            <ul class="design-list text-sm">
-                                {SECTIONS[key].donts.map((line) => <li>{line}</li>)}
-                            </ul>
-                        </div>
-                    </div>
-                </Card>
+                    </Card>
+                </section>
         ))}
     </main>
 </Layout>
@@ -294,12 +546,17 @@ const MARKDOWN = "/design.md";
      */
 
     /*
-     * A ROW WRAPS RATHER THAN BEING A GRID, and the ledger on the patch wall is why. Three
-     * columns held by a template shatter a long name into single letters at the 200% WCAG
-     * asks for, and repairing that costs two container queries. A wrapping flex row needs
-     * none: the role has a generous basis and drops to its own line the moment the specimen
-     * and the name have taken the width, at any zoom, in any card width.
+     * THE ROW OF SECTION ANCHORS. Everything a chip is — the box, the 44px floor on both axes,
+     * the hairline, the type and all three pointer states — is `chip` in uno.config.ts, so
+     * this rule is only the row it sits in. It wraps, which is what keeps its minimum content
+     * width at one chip however large the reader's text is.
      */
+    .design-index {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
     .design-rows,
     .design-ramp,
     .design-marks,
@@ -328,6 +585,15 @@ const MARKDOWN = "/design.md";
         margin-bottom: 1.5rem;
     }
 
+    /*
+     * A CONTROL ROW WRAPS RATHER THAN BEING A GRID, and this is the one list on the page that
+     * still works that way. Three columns held by a template shatter a long name into single
+     * letters at the 200% WCAG asks for, and repairing that costs container queries — which
+     * the sheet below pays, because a sheet is what a token with two values wants. A row
+     * holding one specimen, one name and one sentence wants none of it: the role has a
+     * generous basis and drops to its own line the moment the specimen and the name have taken
+     * the width, at any zoom, in any card width.
+     */
     .design-row {
         display: flex;
         flex-wrap: wrap;
@@ -347,7 +613,7 @@ const MARKDOWN = "/design.md";
      *
      * `flex: 1 1 16rem` STAYS, and the two do different jobs: the basis is what makes the role
      * drop to its own line on a narrow card, and the cap is what stops it running long on a
-     * wide one. Do not read the cap as an alignment device — the three roles in the Controls
+     * wide one. Do not read the cap as an alignment device — the four roles in the Controls
      * card already end at the same right edge, and this changes where the LINE breaks, not
      * where the column ends.
      */
@@ -357,11 +623,9 @@ const MARKDOWN = "/design.md";
     }
 
     /*
-     * A SWATCH IS THE TOKEN, NOT A PICTURE OF IT. The custom property is resolved by the
-     * reader's own cascade, so this page shows whatever the site actually ships today and
-     * re-tones the instant the toggle in the header is pressed. The hairline is what keeps
-     * the ground and the plate visible at all: two of these swatches are within one step of
-     * the surface they sit on, by design.
+     * A SWATCH IS A VALUE, DRAWN. The hairline is what keeps a swatch visible at all where its
+     * colour is close to the plate it sits on — which, with the three neutrals moved out to
+     * the stack above, is now no worse than one step for anything left in the sheet.
      */
     .design-swatch {
         display: block;
@@ -372,16 +636,27 @@ const MARKDOWN = "/design.md";
     }
 
     /*
-     * AN `-on-ink` MARK IS DRAWN ON INK. Showing it against the card is not a neutral
-     * choice — it renders the pale half of every pair as a mistake, which is the exact
-     * opposite of what the polarity rule in BasicLayout.astro says. The plate is `--text`
-     * because that is what "ink-flooded" means here: a finished bib's face.
+     * AN `-on-ink` MARK IS DRAWN ON INK, in each column on THAT column's ink. Showing it
+     * against the card is not a neutral choice — it renders the pale half of every pair as a
+     * mistake, which is the exact opposite of what the polarity rule in BasicLayout.astro
+     * says. The plate is the theme's own `--text`, because that is what "ink-flooded" means
+     * here: a finished bib's face. It arrives as an inline literal for the same reason the
+     * swatch beside it does, so the light column keeps light ink under a dark reader.
+     *
+     * IT TAKES THE SWATCH'S OWN HAIRLINE, and that is a defect the two columns created. A
+     * single live plate was `var(--text)` and therefore always the opposite of the card behind
+     * it; a sheet drawing BOTH themes has one plate per row that is the same end of the range
+     * as the card — dark-theme ink on a light card, and light-theme ink on a dark one — so
+     * without an edge that half of every pair renders as a swatch floating on the plate with no
+     * ink under it at all. Seen at 1280 in both themes before this line went in: exactly the
+     * failure the paragraph above says the plate exists to prevent, arriving from the other
+     * side.
      */
     .design-ink {
         display: inline-block;
         padding: 0.375rem;
+        border: 1px solid var(--card-border);
         border-radius: 0.5rem;
-        background: var(--text);
     }
 
     /*
@@ -408,27 +683,34 @@ const MARKDOWN = "/design.md";
      * `user-select: all` IS THE POINT OF PRINTING IT AT ALL. One click takes the whole value,
      * which is what a copy button would have bought at the cost of script on a site that ships
      * almost none. `tabular-nums` keeps the digits on a common width so a column of these reads
-     * as a column rather than as fifteen ragged strings.
-     *
-     * THE LABEL SAYS WHICH THEME, and it is set in this page's own small-caps register rather
-     * than in a new one — the same class the guidance headings wear, so the re-tone that class
-     * is due follows here for free. Only its margin is dropped: that rule is written for a
-     * heading with a list under it, and this is a word beside a value.
+     * as a column rather than as thirty ragged strings.
      */
-    .design-value {
-        display: inline-flex;
-        align-items: baseline;
-        gap: 0.375rem;
-    }
-
-    .design-value-theme {
-        margin: 0;
-    }
-
     .design-hex {
         font-size: 0.875rem;
         font-variant-numeric: tabular-nums;
         user-select: all;
+    }
+
+    /*
+     * THE SECOND OF THE PAGE'S TWO LABEL REGISTERS, AND BOTH BELONG TO THE SITE ALREADY.
+     *
+     * This is the bib's meta row — 0.625rem, 700, 0.14em — and it dresses what labels a
+     * SPECIMEN: the sheet's column heads, and the theme name beside a value wherever a column
+     * head is not there to say it. The other register is `.design-guide-heading` below, which
+     * is the chip's, and it dresses what labels a BLOCK.
+     *
+     * There used to be a third, invented here: the chip's size at a tracking of its own, on the
+     * page whose subject is that the site has a fixed vocabulary. Two of the site's own, used
+     * for the two different jobs there are, is the whole rule now — and the value is not named
+     * anywhere in this file, because a retired number written down is a number somebody restores.
+     */
+    .design-eyebrow {
+        font-size: 0.625rem;
+        line-height: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin: 0;
     }
 
     /*
@@ -453,21 +735,223 @@ const MARKDOWN = "/design.md";
         display: none;
     }
 
-    .design-ramp {
+    /*
+     * THE NESTED NEUTRAL SPECIMEN: a ground, a plate one step off it, and that plate's own
+     * edge. See the note beside the markup for why these three are drawn as a relationship
+     * rather than as three rows of the sheet, and why this is the one specimen on the page
+     * that still resolves `var()` and re-tones with the reader.
+     *
+     * NO EDGE ON THE GROUND, because the ground has none on the real site either. Its boundary
+     * is the step between it and the card it sits on — which is exactly the step a reader is
+     * here to judge, so drawing a border around it would supply the very cue the specimen is
+     * meant to test.
+     */
+    .design-stack {
+        margin-bottom: 1.5rem;
+    }
+
+    .design-stack-ground {
+        background: var(--background);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
         display: flex;
         flex-direction: column;
-        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .design-stack-plate {
+        background: var(--card-background);
+        border: 1px solid var(--card-border);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
         gap: 0.75rem;
     }
 
     /*
-     * EACH STEP IS SET IN THE SIZE IT NAMES, which is the whole specimen: there is no second
-     * column of rem values to read, and none could be added without restating what the
-     * stylesheet already says. A line of sample words was the other candidate and it says
-     * less — the reader has to hold the name and the size apart in their head.
+     * A LABEL LINE WRAPS, for the reason the control row above does: this line holds a token
+     * name, two theme-and-value pairs and a sentence, and a template that held them in columns
+     * would shatter the name at the zoom this repository tests to. A wrapping row's minimum is
+     * one of its items at every text size.
      */
-    .design-ramp li {
-        line-height: 1.4;
+    .design-stack-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.4rem 0.75rem;
+        margin: 0;
+    }
+
+    /*
+     * A THEME NAME AND ITS VALUE, AND THE PAIR WRAPS. Neither half of it can break — the word
+     * is one word and the hex is a literal — so the pair's own minimum is the wider of the two
+     * rather than their sum, and that is the difference between this page fitting a 320px
+     * phone at a 40px root and scrolling it sideways. Measured with the wrap off: 98px of
+     * horizontal document overflow at exactly that configuration, all of it this element's.
+     */
+    .design-pair {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.375rem;
+    }
+
+    .design-stack-role {
+        flex: 1 1 12rem;
+        max-width: 60ch;
+    }
+
+    /*
+     * THE SHEET.
+     *
+     * SUBGRID IS WHAT MAKES A ROW A THING, and it is the difference between this and the bib's
+     * ledger, which uses `display: contents`. A row here has to carry the hairline separating
+     * it from the one before, and an element that generates no box has no edge to draw. The
+     * head's rule under it is the first row's own top border rather than a second declaration,
+     * so there is one line in this file deciding how a row is divided from the next.
+     *
+     * `container-type: inline-size` IS ON THE SHEET AND THE ARMS BELOW ASK ABOUT THE SHEET.
+     * A viewport query would be the wrong question: the same sheet width arrives from a phone
+     * at the default text size and from a wide screen at 200%, and the arms have to catch
+     * both. `em` in the condition is the reader's own text size, which is the whole point,
+     * since the failure being avoided is what happens when they enlarge it.
+     */
+    .design-ledger {
+        container-type: inline-size;
+        display: grid;
+        grid-template-columns: auto auto minmax(0, max-content) minmax(0, 1fr);
+        column-gap: 1rem;
+        row-gap: 0;
+    }
+
+    .design-ledger-head,
+    .design-ledger-row {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        align-items: baseline;
+        row-gap: 0.35rem;
+        padding: 0.6rem 0;
+    }
+
+    .design-ledger-head {
+        padding-top: 0;
+    }
+
+    .design-ledger-row {
+        border-top: 1px solid var(--card-border);
+    }
+
+    /*
+     * A VALUE CELL IS ITS SWATCH AND ITS HEX, and the swatch sits ON the baseline the hex is
+     * set on: a box with no text in it has no baseline of its own, so a browser synthesises
+     * one at its bottom edge, and aligning to that is what puts the two on a common line
+     * rather than one floating against the other's cap height.
+     */
+    .design-ledger-value {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.375rem;
+    }
+
+    /*
+     * THE THEME NAME IS OFF SCREEN WHILE THE COLUMN HEAD IS SAYING IT, and comes back in the
+     * narrowest arm below, where the heads are gone and the two values are stacked. It is the
+     * same device `.bib-ledger-unit` uses on the wall for the same reason: a figure that has
+     * lost the heading above it has to carry what it is.
+     */
+    .design-ledger-theme {
+        display: none;
+    }
+
+    .design-ledger-role {
+        max-width: 60ch;
+    }
+
+    /*
+     * THE ROLE TAKES A LINE OF ITS OWN FIRST, because it is the only cell here that is a
+     * sentence and therefore the only one whose column can be squeezed to a word. Everything
+     * above this width keeps four columns; below it the three short cells stay in a row and
+     * the sentence gets the full measure under them.
+     */
+    @container (max-width: 46em) {
+        .design-ledger-role {
+            grid-column: 1 / -1;
+        }
+    }
+
+    /*
+     * NEXT THE TOKEN NAME, which is the longest unbreakable string in the sheet — the widest
+     * is `--sport-ride-on-ink` — so it is what starts shattering once the two value cells have
+     * taken what they need. It moves rather than breaking: a name a reader is meant to copy is
+     * worth a whole line.
+     */
+    @container (max-width: 30em) {
+        .design-ledger-token {
+            grid-column: 1 / -1;
+            /* The hairline box is the mark for "this is a literal you copy", so it has to
+               stop where the literal does. In the four-column form it fills a track that is
+               the widest name's width and a column of equal boxes reads as the sheet it is;
+               spanning every column, the same box is a rule across the row with a word at
+               one end of it. */
+            justify-self: start;
+        }
+    }
+
+    /*
+     * AND LAST THE TWO VALUES STACK, which is the arm that gives up the thing the sheet exists
+     * for — so it is the last one, and it hands the reader the theme name back in the same
+     * move. Two value cells are a swatch, a gap and seven characters each; past this width
+     * there is no arrangement that fits them on one line, in the same way the bib's clock
+     * eventually takes a line of its own rather than wrap into a different time.
+     *
+     * THE HEAD ROW GOES WITH THEM, because by here it heads nothing: with every cell of a row
+     * on its own line there are no columns for four column heads to sit over, and a reader
+     * following `DARK` down from the head would arrive at a token name.
+     */
+    @container (max-width: 18em) {
+        .design-ledger-value {
+            grid-column: 1 / -1;
+            justify-self: start;
+        }
+
+        .design-ledger-head {
+            display: none;
+        }
+
+        .design-ledger-theme {
+            display: revert;
+        }
+    }
+
+    /*
+     * THE RAMP IS SET IN REAL WORDS AT EVERY STEP, with the class name above it in the box
+     * every other literal on this page wears. The name is NOT set at the step: it is a string
+     * to copy rather than a specimen, and at the largest step it would out-shout the sentence
+     * it labels.
+     */
+    .design-ramp {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .design-ramp-step {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+
+    .design-ramp-name {
+        font-size: 0.75rem;
+    }
+
+    .design-ramp-prose {
+        margin: 0;
+        overflow-wrap: anywhere;
     }
 
     /*
@@ -543,34 +1027,34 @@ const MARKDOWN = "/design.md";
     }
 
     /*
-     * A LABEL, NOT A LEVEL — and that is the rule this class encodes, which is not the same as
-     * the rule an earlier draft of this comment stated. It said "the two column headings",
-     * and the class dresses NINE headings in the shipped page: two per section, plus the
-     * precondition above the token list. That third one heads a paragraph and a copyable
-     * literal rather than a list, so a rationale scoped to list captions was false for one of
-     * its own users. A review panel found it; the reason is corrected rather than the drawing.
+     * A LABEL, NOT A LEVEL — and that is the rule this class encodes. It dresses nine headings
+     * in the shipped page: two per section, plus the precondition above the neutral specimen.
+     * Every `h3` here names what sits under it rather than advancing the argument the `h2`
+     * above it opened, and small caps with tracking is how a label says so without spending a
+     * rule or a colour on it. They are markup peers under one `h2` and are drawn alike, which
+     * is the drawing agreeing with the outline.
      *
-     * The rule, stated so it covers all nine: every `h3` on this page names what sits under it
-     * rather than advancing the argument the `h2` above it opened, and small caps with tracking
-     * is how a label says so without spending a rule or a colour on it. They are markup peers
-     * under one `h2` and are drawn alike, which is the drawing agreeing with the outline.
+     * THE REGISTER IS THE CHIP'S, and this page now invents none. `uno.config.ts` already
+     * emits 0.75rem at 700 with 0.1em of tracking for every chip on the site, including the
+     * ones in the row of section anchors at the top of this page, so a label over a block and
+     * a control that names itself in a word are set alike — which they should be, since the
+     * site had exactly two of these registers before this page arrived and there was no third
+     * job for a third one to do. What labels a SPECIMEN takes the other one; see
+     * `.design-eyebrow`.
      *
-     * Giving the precondition a rank of its own was proposed and rejected: it would put a
-     * fourth type rank on the page for a single heading, and both screenshots show that
-     * heading is already the most prominent line between the card's `h2` and the token list —
-     * 700 weight and 0.08em of tracking out-read the 0.875rem paragraph beneath it, so size
-     * alone is the wrong instrument to read prominence with here.
-     *
-     * `--accent` was the other candidate for the treatment and is spent elsewhere on purpose:
-     * it means "you can interact with this", and nothing about a column of sentences does.
+     * `--accent` was a candidate for the treatment and is spent elsewhere on purpose: it means
+     * "you can interact with this", and nothing about a column of sentences does.
      */
     .design-guide-heading {
         font-size: 0.75rem;
         line-height: 1rem;
         font-weight: 700;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
         margin: 0 0 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 
     .design-list {
@@ -608,27 +1092,81 @@ const MARKDOWN = "/design.md";
     }
 
     /*
+     * THE TWO CHANNELS THAT TELL THE COLUMNS APART, and the reason there are two of them is
+     * the mode a reader can turn on: forced colours replaces every author ink with a system
+     * one, so anything carried by colour alone is carried for some readers and not others.
+     * FILL and SHAPE are geometry, and geometry survives the substitution intact.
+     *
+     * THE HEADING'S MARK IS THE LIST'S MARK, ENLARGED. Drawing the column's own marker in
+     * front of its heading is what ties the two together — a reader who has scrolled past the
+     * heading still has the answer in front of every line.
+     */
+    .design-guide-do::before,
+    .design-guide-dont::before {
+        content: "";
+        flex: 0 0 auto;
+        width: 0.6em;
+        height: 0.6em;
+        border: 1px solid var(--text);
+        border-radius: 1px;
+    }
+
+    /*
+     * DO IS SOLID, AND IT IS SOLID IN GEOMETRY RATHER THAN IN PAINT. `background: var(--text)`
+     * was the obvious way to fill it and is the wrong one: forced colours replaces every
+     * author BACKGROUND with the system ground, so under the mode the filled square becomes an
+     * empty one and the only thing left telling the columns apart is the rotation below —
+     * one channel, on the page that publishes the rule about not carrying meaning in colour
+     * alone. A border half the width of its own box meets itself in the middle, so these draw
+     * the same solid mark in both modes and nothing about them is a colour.
+     */
+    .design-guide-do::before {
+        border-width: 0.3em;
+    }
+
+    .design-do li::before {
+        border-width: 0.2em;
+    }
+
+    /*
+     * TURNED ON ITS CORNER RATHER THAN STRUCK THROUGH. A strike wants a second element and
+     * reads as "deleted", which is not what a don't is: these are things to avoid doing, not
+     * things that were once true. A square standing on its point is the same mark refusing to
+     * sit down.
+     */
+    .design-guide-dont::before,
+    .design-dont li::before {
+        transform: rotate(45deg);
+    }
+
+    /*
      * THE ONE PLACE ON THIS SITE WHERE A COLOUR IS THE CONTENT, AND THEREFORE THE ONE PLACE
      * THAT MAY OPT OUT OF FORCED COLOURS.
      *
      * The mode replaces every author colour with a system one, which everywhere else on this
      * site is right: a card's plate, a control's border and a bib's face are all chrome, and a
      * reader who has asked for their own palette should get it. A swatch is not chrome. Its
-     * entire information is the value of `var(--token)`, so under the mode's substitution all
-     * fifteen become one Canvas rectangle and the palette says nothing at all — the same
+     * entire information is the value it is painted, so under the mode's substitution every
+     * one of them becomes one Canvas rectangle and the sheet says nothing at all — the same
      * failure a colour picker has, which is the example the CSS Color Adjustment module itself
      * gives for this property.
+     *
+     * THE NESTED SPECIMEN IS THE SAME CASE ONE STEP FURTHER, and it is the one element here
+     * that carries WORDS inside an opted-out box. That is deliberate and it is not a hole in
+     * the paired-foreground gate next door: the three tokens it draws ARE its whole content,
+     * and the ink those labels inherit is `--text` on this site's own ground and plate — the
+     * pair every other page is set in, and the one whose contrast the repository already
+     * measures. Opting the labels back in would give them a system foreground on an author
+     * background, which is the unpaired combination that gate exists to catch.
      *
      * SCOPED AS TIGHTLY AS THE SHARED RULE IN BasicLayout.astro IS, and by that block's own
      * criterion: `forced-color-adjust: none` lets ALL author colour through on the element it
      * names, so the level actually needed is "an element whose ink IS a background-color".
-     * These two are exactly that, and neither carries a word — which is also what keeps them
-     * out of the paired-foreground check in tests/build-output.test.ts rather than exempted
-     * from it.
      *
      * THE NON-COLOUR CUE SURVIVES INTACT, which is the condition every source attaches to
-     * doing this: each swatch is named, in the hairline box beside it, in text the mode keeps.
-     * A reader who cannot use the colour still gets the whole list of tokens and their roles.
+     * doing this: every swatch is named, in the hairline box beside it, in text the mode
+     * keeps. A reader who cannot use the colour still gets the whole list of tokens, both of
+     * each one's values, and their roles.
      *
      * The labelled control takes `LinkText` for the reason EventsLink.astro takes it: the mode
      * discards the accent and the text token alike, and `LinkText` is the colour it reserves
@@ -636,7 +1174,9 @@ const MARKDOWN = "/design.md";
      */
     @media (forced-colors: active) {
         .design-swatch,
-        .design-ink {
+        .design-ink,
+        .design-stack-ground,
+        .design-stack-plate {
             forced-color-adjust: none;
         }
 
