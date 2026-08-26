@@ -2775,14 +2775,17 @@ once gave eight anchors four widths.
 
 The row assertions moved with them, and the reason is worth keeping: they were always about a **row**
 — does it wrap, can it hold the copy column open past what the card can show — and lived in the plate
-route only because the row used to be made of plates. The strip is now discovered as the one parent
-holding *more than one* pinned chip, so the lone theme control is not mistaken for a row.
+route only because the row used to be made of plates. As this plan shipped them, the strip was
+discovered as the one parent holding *more than one* pinned chip, so the lone theme control could not
+be mistaken for a row; the follow-up recorded at the foot of this entry replaced that with discovery
+of *every* row.
 
 ### Two assertions the new shape needed and nothing had
 
-- **One chip per `LINKS` entry, and the theme control is not among them.** Both halves earn their
-  keep: seven boxes want 356px of a 339px column, and a wrapping row is correct at any length, so
-  nothing else would notice a seventh destination being added.
+- **One chip per `LINKS` entry, and the theme control is not among them.** Both halves earned their
+  keep as this plan shipped: seven boxes want 356px of a 339px column, and a wrapping row is correct
+  at any length, so nothing else would notice a seventh destination being added. The second half was
+  reversed within the day — see the foot of this entry.
 - **The plate is spent once per card.** A total cannot tell three plates on three cards from three on
   two cards and a card with none — and the second is the vocabulary drifting back, which is what nine
   plated controls in one card was.
@@ -2808,3 +2811,49 @@ same hole plan **040** was written to close — which is the strongest evidence 
 ordering that exists, because two agents reached it from opposite ends on the same day.
 
 Suite: 661 → **667 passed | 7 skipped**, matching the runner's own log.
+
+### Revised the same day, on the maintainer's direction
+
+This plan left the theme control on the greeting line, and two defects on the live site came back
+within the hour — a **92px hole** between the last tagline and the controls at every width from 1024
+up, and the control sitting **74.5px** short of the rail everything else on the card shares on a
+phone. Both are consequences of what this plan shipped rather than mistakes in shipping it, and both
+are worth recording because the second one is a shape a plan cannot see.
+
+**The hole.** Retiring the plate took the copy column's content from 300px to 224, and at `md` and
+up that column is a stretched item under a cap — so `justify-between` plus a stretching type column
+put all 76px of the difference in ONE place. The arrangement was correct for the content it was
+measured against and wrong for the content that replaced it. It is centred now: 38 above, 38 below,
+and the column's optical centre within 3.5px of the portrait's.
+
+**The rail.** The control could not hold "hard right" at both tiers. Above `md` the column stretches
+and it reached the rail; below `md` `.intro-type` is `self-start` — load-bearing, since stretching it
+drags the scrim across the portrait — so the row is only as wide as the widest tagline. One control,
+two arrangements, aligned on a phone to a rail nothing else used. **A plan can specify a position
+that no single arrangement can occupy**, and only rendering it at both tiers says so.
+
+**What replaced it.** Six placements were built as real components, measured at two viewports and
+compared: on the greeting line, in the colophon as a labelled chip, a header carrying only the
+toggle, a header also carrying the colophon's `/design` link, seven chips in one row, and two rows
+differing in kind. The maintainer chose a **block four cells to a row** with the preference in the
+last cell, and **Last.fm** joined `LINKS` as a seventh destination to fill the block.
+
+Three things from it are worth carrying forward:
+
+- **The block's width sets the call to action's.** A copy column takes the widest max-content among
+  its children; four boxes ask for 200px against the taglines' 229.52, so the TYPE wins and
+  "My events" is the width of the longest line — one rail for the column. The row's max-content
+  ladder is 4 → 200, 5 → 252, 6 → 304, so the arrangement of that block is the lever on the button's
+  width, which reads as a side effect until it is measured.
+- **A grouping is not a column count.** Four-to-a-row is authored once, at every width and text
+  size, and each row is still an ordinary wrapping row whose minimum is one box — swept at 320px it
+  reflows 1 → 2 → 4 lines with zero overflow. What `uno.config.ts` forbids is a count a media query
+  GRANTS, which has to be re-tuned when either side moves. The two are easy to confuse and the
+  distinction is the whole permission.
+- **The fingerprint gate fired, correctly, on the second attempt.** This plan predicted it would
+  redden and it did not, because it watches content and this plan changed drawing. The follow-up
+  added a destination — a real content change — and it reddened immediately. The gate is sound; the
+  plan's expectation of it was not.
+
+Cost, stated because it is not free: **+36px at 430** and **+592px at 320 with a 40px root**, since
+two rows wrap into more lines than one row of six. Both remain under the pre-039 baseline.
