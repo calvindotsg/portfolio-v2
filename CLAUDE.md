@@ -154,22 +154,33 @@ block above it before giving either consumer the other's list.
 
 ### Styling System
 - **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
-  `blocklist`, **four shortcuts**, the presets, and a `theme` key holding **only**
+  `blocklist`, **seven shortcuts**, the presets, and a `theme` key holding **only**
   the five breakpoints. Those are presetWind3's own defaults restated in `rem`,
   which is load-bearing rather than cosmetic — see the note there. No colour or
   shadow token lives in `theme`; those are CSS custom properties in
   `BasicLayout.astro`
-- **The shortcuts are the site's kinds of control**: `control-surface` (the
-  plate, accent border, hover and press — no box, and nothing wears it directly),
+- **The shortcuts are the site's kinds of control, and they come in TWO WORLDS
+  divided by loudness rather than by page.** The plate is the mark for a page's
+  PRIMARY ACTION; the chip is the quiet kind, for getting somewhere and for
+  preferences. Draw a plate in a page header and you have spent the strongest mark
+  this palette has on furniture. The plated world is `control-surface` (the plate,
+  accent border, hover and press — no box, and nothing wears it directly),
   `control` (that surface at 64x48, icon-only: six social links and the theme
-  toggle), `control-cta` (that surface at the width of what contains it, holding a
-  label and its mark centred as one legend — the two goal cards' way out) and
-  `text-link` (a link that is a run of words — the wall's way back, each role
-  card's company name).
+  toggle where the intro card carries it), `control-cta` (that surface at the width
+  of what contains it, holding a label and its mark centred as one legend — the two
+  goal cards' way out) and `text-link` (a link that is a run of words — each role
+  card's company name). The quiet world is `chip-surface` (a hairline at a fraction
+  of the ink, the bib's 2px corner, an opaque ground, NO plate — a base nothing
+  wears directly), `chip` (that surface floored at 44px on both axes, holding a
+  label set small and tracked wide — the wall's filter row, and every item in the
+  page header) and `chip-icon` (the same surface pinned at 44x44 for one mark — the
+  theme toggle where a header carries it).
   **A control PINS its box or FLOORS it, and which one is decided by whether its
   content comes from data**; `tests/control-geometry.test.ts` discovers every
-  control from the surface's signature in the shipped sheet and holds that line,
-  so a third variant is caught rather than skipped. Every link must carry a
+  control from ITS OWN surface's signature in the shipped sheet — one route per
+  world, deliberately not collapsed, because a plate and a chip have different
+  contracts — and holds that line, so a further variant is caught rather than
+  skipped. Every link must carry a
   signifier a reader can perceive, and a build-wide gate in
   `tests/build-output.test.ts` walks every `<a>` on every page to enforce it — its
   absence let five links ship drawn exactly like the prose beside them. A bib's stub
@@ -217,6 +228,19 @@ block above it before giving either consumer the other's list.
 
 ### Layout Hierarchy
 - `src/layouts/BasicLayout.astro` wraps every page
+- **`src/components/PageHeader.astro` is the site's chrome, and it is ONE component
+  with four consumers.** The layout renders it from a `header` prop: the way back, the
+  markdown twin where the page has one, and the theme toggle, every item drawn as a
+  chip. `/design` and the three wall routes carry it; **`index.astro` and `404.astro`
+  do not**, and both are decisions — the home page's `<main>` has a measured height
+  budget with zero slack and keeps its chrome in the intro card, and the 404's way back
+  IS its content. A fifth page gets the header by setting the prop; do not draw a fifth
+  way back by hand, which is the duplication this closed — only one of the four pages
+  had a theme toggle, so a reader landing on the wall could not change theme at all.
+  **The header is a sibling of `<main>` and never a descendant, because that is what
+  makes it a `banner` landmark**: nested inside `<main>` it is silently demoted to a
+  generic box, nothing renders differently, and `tests/page-header.test.ts` is the only
+  thing that notices — measured, that mutation left every other test in the suite green
 - `src/pages/index.astro` — the bento grid, responsive, one screen at the default
   text size from a 797px-tall viewport up. Its `<main>` owns the height budget and the
   32/32 lg grid. That budget is a **floor with no ceiling**, and the lg rows size to
@@ -249,6 +273,17 @@ block above it before giving either consumer the other's list.
   `RaceEvent.outcome`. It is immutable history rather than an answer the calendar
   keeps re-deriving, which is the test the rule is actually made of; read the note on
   the field before adding a second
+- **Each of the wall's three URLs has a markdown twin, and it takes TWO endpoint files
+  to serve them.** `src/lib/patch-doc.ts` renders the wall as markdown; the route
+  filenames are the addresses. `src/pages/patches.md.ts` answers `/patches.md` and
+  `src/pages/patches/[sport].md.ts` answers the two sport walls — a rest parameter
+  matches zero segments only where it IS a whole path segment, so no single file under
+  `patches/` can also emit `/patches.md`. The document restates nothing: type a
+  distance, a clock, a count or a state word into `patch-doc.ts` rather than deriving
+  it and it is a second home nothing will notice, because a rendered document matches
+  its own snapshot whatever it says. It carries what `llms.txt` deliberately does not —
+  **every source that has an account of a race, each keeping its own distance beside its
+  own clock**
 - **The site has TWO clocks and they answer different questions.** `UPDATED_AT` is
   the bot's stamp — "the day the kilometres last MOVED", frozen on purpose when they
   do not — and it stays on the dateline and the required rate, whose numerator and

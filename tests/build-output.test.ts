@@ -580,29 +580,52 @@ describe("dist/", () => {
     });
 
     /**
-     * THE TWIN IS ANNOUNCED, AND ONLY WHERE THERE IS ONE. `rel="alternate"` with a markdown type
-     * is how an agent finds a page's markdown without guessing the URL, and it is a claim about
-     * THAT page: a second page carrying it would be pointing at a document that describes the
-     * first one.
+     * THE TWIN IS ANNOUNCED, IT IS ANNOUNCED ONCE, AND WHAT IT POINTS AT WAS ACTUALLY BUILT.
      *
-     * BOTH DIRECTIONS, because either alone permits the defect. Without the first, the layout
-     * prop can be dropped and the copy control silently stops revealing itself — its script takes
-     * the URL off this element — with the page and the endpoint both still shipping. Without the
-     * second, the prop can acquire a default and every page starts announcing the design spec as
-     * its own alternate rendering.
+     * `rel="alternate"` with a markdown type is how an agent finds a page's markdown without
+     * guessing the URL, and it is a claim about THAT page: a second page carrying another
+     * page's alternate would be pointing readers at a document about something else.
+     *
+     * IT USED TO NAME ONE PAGE AND IT CANNOT ANY MORE. While `/design` was the only page with
+     * a twin, `const TWIN_PAGE = "dist/design/index.html"` was an honest way to say "this one
+     * and no other". The wall has three twins now, so a hard-coded page would have had to
+     * become a hard-coded LIST — an enumeration of the build kept in a test file, which is the
+     * shape this suite exists to catch everywhere else.
+     *
+     * SO THE PROPERTY IS DERIVED INSTEAD, and it is strictly stronger than the one it replaces:
+     * a page announces at most one alternate, and every announced alternate resolves to a file
+     * the build actually emitted. That closes a hole the old gate had — it never checked that
+     * the target existed, so a page could have advertised a twin the build had stopped
+     * producing and stayed green. Both directions still hold: a page with no twin announces
+     * nothing, and a page whose announcement points nowhere fails.
+     *
+     * THE NON-VACUITY FLOOR IS THE COUNT OF ANNOUNCING PAGES, because a build that emitted no
+     * `.md` at all would satisfy every clause above by having nothing to check.
      */
-    it("announces the markdown twin on the page that has one, and on no other", () => {
-        const ANNOUNCED = /rel="alternate" type="text\/markdown"/g;
-        const TWIN_PAGE = "dist/design/index.html";
-        expect(builtPages(), "the design page is not in the build").toContain(TWIN_PAGE);
+    it("announces a markdown twin only where one was built, and never twice", () => {
+        const announced = new Map<string, string[]>();
         for (const page of builtPages()) {
-            const found = [...read(page).matchAll(ANNOUNCED)].length;
-            expect(found, page === TWIN_PAGE
-                ? `${TWIN_PAGE} must carry exactly one markdown alternate: it is what an agent reads `
-                  + "to find /design.md, and what the copy control reads to know the address"
-                : `${page} announces a markdown alternate. That rendering describes /design, so any `
-                  + "other page carrying the link is pointing readers at a document about a "
-                  + "different page").toBe(page === TWIN_PAGE ? 1 : 0);
+            const doc = parseHTML(read(page)).document;
+            // The DOM rather than a regex over raw HTML: this file records what matching
+            // `href=` by pattern cost, and an alternate is a `<link>` in the `<head>`.
+            const hrefs = [...doc.querySelectorAll('link[rel="alternate"][type="text/markdown"]')]
+                .map((el) => el.getAttribute("href") ?? "");
+            announced.set(page, hrefs);
+            expect(hrefs.length, `${page} announces ${hrefs.length} markdown alternates. A page has `
+                + "one markdown rendering or none; two addresses on one page is two answers to "
+                + "the question an agent is asking").toBeLessThanOrEqual(1);
+        }
+
+        const withTwin = [...announced].filter(([, hrefs]) => hrefs.length === 1);
+        expect(withTwin.length, "no page in the build announces a markdown twin, so every clause "
+            + "here is satisfied by having nothing to check").toBeGreaterThan(1);
+
+        for (const [page, [href]] of withTwin) {
+            const target = `dist${href}`;
+            expect(existsSync(target), `${page} announces ${href}, and the build emitted no such `
+                + "file. The announcement is how an agent finds the rendering, so one pointing at "
+                + "a document that does not exist is worse than none").toBe(true);
+            expect(read(target).length, `${target} is empty`).toBeGreaterThan(100);
         }
     });
 
@@ -1351,7 +1374,10 @@ describe("dist/", () => {
  *      declare different boxes; `classList.contains` is exact, so the check below needs both
  *      names and the goal cards' links went unsignified until it had them
  *   2. `.text-link`        the shared text-link idiom — the wall's Home link, the role cards
- *   3. `.patch-filter a`   a bordered chip; the class is on the NAV, so this needs `closest`
+ *   3. `.chip`             the quiet bordered kind — the wall's filter row and every item in
+ *      the page header. It was keyed on `.patch-filter a` while the chip was one page's
+ *      descendant selector, and this gate having to name a page's private selector was the
+ *      tell that the site shipped a kind of control the design system did not publish
  *   4. an icon-only control whose accessible name is carried by an `sr-only` span (the Now
  *      card's explainer, which is a 24px icon target and is legitimately not a text link)
  *   5. `.bib-stub-link`    a line on a bib's stub, whose signifier is the stub itself — the
@@ -1389,7 +1415,7 @@ describe("dist/", () => {
  * fixed one identically. Resolving the selector against the built DOM is the whole point.
  *
  * THE INVARIANT IS NOT "SUCH A RULE MAY NOT REACH TEXT", and getting that wrong would fail
- * correct code: `.patch-filter a[aria-current="page"]` legitimately paints `background-color:
+ * correct code: `.patch-filter .chip[aria-current="page"]` legitimately paints `background-color:
  * Highlight` on a chip that has words. It is safe because it also declares `color:
  * HighlightText` — the PAIRED system colour, which is the pairing forced-colours mode
  * guarantees a contrast for. So the rule is: opt out and paint a background, and you owe the
@@ -1541,7 +1567,7 @@ describe("every link on every page says that it is one", () => {
         // A hover-only affordance is the precise defect this whole gate exists to catch, so a
         // gate that accepts one is worse than no gate: deleting the chips' permanent border left
         // the suite green at 264/264. It also matched `.patch-filter-count`, a sibling class that
-        // draws nothing, because `\b` treats the hyphen as a boundary — hence the descendant-`a`
+        // draws nothing, because `\b` treats the hyphen as a boundary — hence the descendant
         // requirement rather than a bare class match.
         //
         // THE STATE TEST IS STRUCTURAL NOW, AND IT HAD TO BECOME SO. It was a list of pseudo-
@@ -1553,8 +1579,17 @@ describe("every link on every page says that it is one", () => {
         // 290/290, which is exactly the "worse than no gate" case the paragraph above names.
         // `isStateful` asks the inverted question (is everything here structure?), so the next
         // state cannot walk through it either. See tests/helpers/css.ts.
+        //
+        // THE CHIP IS A REAL KIND NOW, so this reads its own class rather than one page's
+        // descendant selector. It used to be keyed on `.patch-filter a` — the wall's filter row
+        // was the only wearer, and the fact that THIS GATE had to name a page's private selector
+        // was the tell that the site shipped a kind of control the design system did not
+        // publish. The condition is unchanged in substance and strictly wider in reach: the
+        // border still has to be really shipped and really unconditional, and now every wearer
+        // of the kind is covered rather than the three anchors that happened to live in one nav.
         const chipIsDrawn = parseRules(pageCss(page)).some(
-            (r) => r.selectors.some((sel) => /\.patch-filter\b[^,]*\ba\b/.test(sel) && !isStateful(sel))
+            (r) => r.selectors.some((sel) => /(^|[^\w-])\.chip(?![\w-])/.test(sel) && !isStateful(sel))
+                && (decl(r.body, "border") ?? decl(r.body, "border-width")) !== undefined
                 && (decl(r.body, "border") ?? decl(r.body, "border-color")) !== undefined,
         );
 
@@ -1562,7 +1597,7 @@ describe("every link on every page says that it is one", () => {
             if (a.classList.contains("control")) return false;
             if (a.classList.contains("control-cta")) return false;
             if (a.classList.contains("text-link")) return false;
-            if (chipIsDrawn && a.closest(".patch-filter")) return false;
+            if (chipIsDrawn && a.classList.contains("chip")) return false;
             // An icon-only control: no visible words at all, and its name comes from an sr-only
             // span. If it ever grows visible text it stops qualifying here and must wear an
             // idiom like everything else.
@@ -1605,7 +1640,7 @@ describe("every link on every page says that it is one", () => {
         expect(
             unsignified.map((a) => `${a.getAttribute("href")} "${(a.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 46)}"`),
             `${page} ships links drawn like static text. A link needs one of: .control, .control-cta, .text-link, `
-            + "a drawn .patch-filter chip, an sr-only-named icon control, or a .bib-stub-link on a "
+            + "a really-drawn .chip, an sr-only-named icon control, or a .bib-stub-link on a "
             + "bib's .bib-stub. This is the gate whose absence let five links ship unreadable as links",
         ).toEqual([]);
     });
@@ -3071,13 +3106,20 @@ describe("hashed assets are cached forever, and are hashed", () => {
          * as one undifferentiated set difference.
          */
         const ALLOWED_FILES = [
-            // `design.md` is a route, not a public asset: `src/pages/design.md.ts` serves the
-            // markdown twin of `/design` at the URL the convention asks for, which is the page's
-            // own plus the extension. It lands here rather than under a directory for the same
-            // reason `llms.txt` does — a file at the root is what the URL says, and neither name
+            // `design.md` and `patches.md` are routes, not public assets: each serves the
+            // markdown twin of a page at the URL the convention asks for, which is the page's
+            // own plus the extension. They land here rather than under a directory for the same
+            // reason `llms.txt` does — a file at the root is what the URL says, and no such name
             // is one Cloudflare Pages reads as configuration.
+            //
+            // THE WALL'S OTHER TWO TWINS ARE NOT HERE, and that asymmetry is the routing rather
+            // than an omission: `/patches/cycling.md` and `/patches/running.md` sit inside the
+            // `patches` directory below. `/patches.md` cannot, because a rest parameter matches
+            // zero segments only where it is a whole path segment — which is why the wall needs
+            // two endpoint files where `/design` needed one.
             "_headers", "404.html", "design.md", "favicon.ico", "index.html", "llms.txt",
-            "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml", "sitemap-index.xml",
+            "patches.md", "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml",
+            "sitemap-index.xml",
         ];
         const ALLOWED_DIRECTORIES = [".well-known", "_astro", "design", "patches"];
 

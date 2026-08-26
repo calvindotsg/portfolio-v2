@@ -1,9 +1,9 @@
 ---
 import Layout from "../layouts/BasicLayout.astro";
 import Card from "../components/Card/index.astro";
-import ThemeSwitcher from "../components/ThemeSwitcher.astro";
-import {CONTROLS, DESIGN_PAGE, MARKDOWN_TWIN, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
+import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
 import {NEXT_RACE, PATCHES} from "../content/races";
+import {PAGE_HEADER} from "../content/site";
 import {GOALS} from "../lib/goal";
 import {ICON_IDS, iconClass} from "../lib/icons";
 
@@ -26,16 +26,22 @@ import {ICON_IDS, iconClass} from "../lib/icons";
  * what `.design-sync/conventions.md` is generated from, which is what stops this page and
  * the document handed to the design agent from disagreeing.
  *
- * THE THEME TOGGLE IS ON THIS PAGE ON PURPOSE, and it is the one piece of furniture here
- * that is not on `/patches`. It lives in the intro card everywhere else, so the home page is
- * the only other page that has one. Half of what this page has to show is that several
- * tokens SWAP rather than darken — the two `-on-ink` pairs, the progress bar's polarity —
- * and a reader cannot see that without switching. Putting the site's own toggle in the
- * header is how the page demonstrates its own second sentence instead of asserting it.
+ * THIS PAGE MUST BE SWITCHABLE, and that is now a requirement it states rather than a piece
+ * of furniture it owns. Half of what it has to show is that several tokens SWAP rather than
+ * darken — the two `-on-ink` pairs, the progress bar's polarity — and a reader cannot see
+ * that without changing theme. So the toggle has to be reachable from here, and the page
+ * demonstrates its own second sentence instead of asserting it.
  *
- * MODELLED ON `src/pages/patches/[...sport].astro` RATHER THAN ON THE HOME PAGE: a way back,
- * a heading, a lede, then cards. The bento budget on `index.astro` is a contract that page
- * owns and this one has no business inheriting.
+ * WHAT CHANGED IS WHO DRAWS IT. The toggle used to be this page's own, in a two-item row
+ * beside a hand-built way back, and the argument here read that it was "the one piece of
+ * furniture that is not on `/patches`". That is false now: `PageHeader.astro` puts the same
+ * three items on this page and on all three wall routes, which is what closed the real gap —
+ * a reader arriving on the wall from a search result could not change theme at all without
+ * navigating away first. This page contributes the `header` prop and nothing else.
+ *
+ * MODELLED ON `src/pages/patches/[...sport].astro` RATHER THAN ON THE HOME PAGE: a heading, a
+ * lede, then cards, under the shared header. The bento budget on `index.astro` is a contract
+ * that page owns and this one has no business inheriting.
  */
 
 /*
@@ -60,18 +66,25 @@ const RAMP = ["text-3xl", "text-xl", "text-base", "text-sm", "text-xs"];
  */
 const MARKS = [...new Set(ICON_IDS.map(iconClass))].sort();
 
-const [PLATED, LABELLED, WORDS] = CONTROLS;
+const [PLATED, LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;
 
 /*
- * THE THREE CONTROL SPECIMENS GO SOMEWHERE REAL, and the alternative was measured against
- * the suite rather than argued about. An inert specimen would have to be a `span`, and a
+ * EVERY CONTROL SPECIMEN GOES SOMEWHERE REAL, and the alternative was measured against the
+ * suite rather than argued about. An inert specimen would have to be a `span`, and a
  * build-wide gate in `tests/build-output.test.ts` fails any hover rule that reaches an
- * element which cannot be interacted with — which every one of these carries. Three working
- * links is the shape that survives it, and it is the better page anyway: each specimen is
- * named with the very words the page it opens is headed with, which is the pairing rule the
- * site already holds its goal cards to.
+ * element which cannot be interacted with — which every one of these carries. Working links
+ * are the shape that survives it, and it is the better page anyway: each specimen is named
+ * with the very words the page it opens is headed with, which is the pairing rule the site
+ * already holds its goal cards to.
+ *
+ * THE TWO SPORT WALLS ARE THE CHIPS' DESTINATIONS, and they are chosen because nothing else
+ * on this page uses them: the plate goes home, the call to action goes to the whole wall, and
+ * the run of words goes to the first goal's sport. So the census of specimens is also a small
+ * census of the site, with no destination drawn twice in two different idioms — which is the
+ * very confusion this page exists to prevent.
  */
 const firstGoal = GOALS[0];
+const lastGoal = GOALS[GOALS.length - 1];
 const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLowerCase());
 
 /*
@@ -81,15 +94,15 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
  * a configured value looking for a home: it restates the endpoint's filename and nothing else.
  * A build in which the two disagreed would ship a link to a URL the site does not serve.
  *
- * IT IS PASSED TO THE LAYOUT AND READ BACK OFF THE HEAD. The layout announces it with
- * `rel="alternate"`, and the copy control's script takes the URL from that element rather than
- * carrying a second copy — so there is one address on this page, and a page that stopped
- * announcing the twin would leave a button that correctly does nothing.
+ * IT IS PASSED TO THE LAYOUT ONCE AND USED TWICE FROM THERE. The layout announces it in the
+ * head with `rel="alternate"` AND hands the same value to the header, whose markdown chip is
+ * the reader's way to it — so there is exactly one address on this page and the announcement
+ * and the link cannot disagree, because they are one value passed once.
  */
 const MARKDOWN = "/design.md";
 ---
 
-<Layout title={DESIGN_PAGE.title} description={DESIGN_PAGE.description} markdown={MARKDOWN}>
+<Layout title={DESIGN_PAGE.title} description={DESIGN_PAGE.description} markdown={MARKDOWN} header>
     <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
         {/* `md:col-span-2` IS LOAD-BEARING AND IT IS NOT ABOUT THIS BLOCK'S TEXT. `main` here
              declares no column template, so its columns are implicit — and `Card` defaults to
@@ -99,17 +112,6 @@ const MARKDOWN = "/design.md";
              rather than above the card's corner. Measured at 1280 before the fix: the header
              row resolved to 447px against the cards' 848. */}
         <div class="flex flex-col gap-4 md:col-span-2">
-            <div class="design-head">
-                {/* The way back is the wall's way back, to the character: same class, same
-                     mark, same word, same 1.5rem floor. Two pages offering the same object
-                     drawn two ways is the vocabulary break this repository keeps closing. */}
-                <p class="m-0">
-                    <a href="/" class="text-link inline-flex items-center gap-2 min-h-6 text-sm">
-                        <span class={iconClass(PATCHES.home_icon)} aria-hidden="true"></span>{PATCHES.home_label}
-                    </a>
-                </p>
-                <ThemeSwitcher/>
-            </div>
             <div class="flex flex-col gap-2">
                 {/* `break-anywhere` for the reason the wall's heading carries it: this is an
                      un-clipped text column, so its minimum intrinsic width sets the
@@ -117,38 +119,6 @@ const MARKDOWN = "/design.md";
                      sideways under text zoom rather than being absorbed by a card. */}
                 <h1 class="text-3xl font-bold m-0 break-anywhere">{DESIGN_PAGE.heading}</h1>
                 <p class="text-sm max-w-[60ch] m-0">{DESIGN_PAGE.lede}</p>
-            </div>
-            {/* TWO WAYS TO TAKE THE PAGE AWAY, AND THE ORDER IS THE ARGUMENT. The link is the
-                 whole feature: it needs the network and nothing else, it is what the head's
-                 `rel="alternate"` announces, and it is what a reader with no scripting gets.
-                 The control beside it is an enhancement over that link rather than a
-                 replacement for it, and it reveals itself only once its own script has wired
-                 it up, so a reader who cannot use it is never offered it.
-
-                 THE LINK COMES FIRST IN READING ORDER for the same reason. A plated control
-                 ahead of a run of words reads as the primary action, and the primary action
-                 here is the one that always works. */}
-            <div class="design-takeaway">
-                <p class="m-0">
-                    <a href={MARKDOWN} class="text-link text-sm">{MARKDOWN_TWIN.link_label}</a>
-                </p>
-                {/* The name does not change when the state does, which is the rule the theme
-                     toggle follows and for the same reason. What the press produces is
-                     announced in the status region after the button, which sits outside it
-                     precisely so that it is not part of its accessible name. */}
-                <button
-                        type="button"
-                        class="md-copy control"
-                        data-copy-markdown
-                        data-copied-label={MARKDOWN_TWIN.copied}
-                >
-                    <span class={`${iconClass(MARKDOWN_TWIN.icon)} md-copy-rest shrink-0`}
-                          aria-hidden="true"></span>
-                    <span class={`${iconClass(MARKDOWN_TWIN.copied_icon)} md-copy-done shrink-0`}
-                          aria-hidden="true"></span>
-                    <span class="sr-only">{MARKDOWN_TWIN.copy_name}</span>
-                </button>
-                <span class="sr-only" role="status" data-copy-status></span>
             </div>
         </div>
 
@@ -205,8 +175,8 @@ const MARKDOWN = "/design.md";
                             <ul class="design-rows">
                                 <li class="design-row">
                                     <a href="/" class="control">
-                                        <span class={iconClass(PATCHES.home_icon)} aria-hidden="true"></span>
-                                        <span class="sr-only">{PATCHES.home_label}</span>
+                                        <span class={iconClass(PAGE_HEADER.home_icon)} aria-hidden="true"></span>
+                                        <span class="sr-only">{PAGE_HEADER.home_label}</span>
                                     </a>
                                     <span class="design-name">{PLATED.name}</span>
                                     <span class="design-role text-sm">{PLATED.role}</span>
@@ -229,6 +199,27 @@ const MARKDOWN = "/design.md";
                                     <a href={`/patches/${firstGoal.sport}`} class="text-link text-sm">{sportLabel}</a>
                                     <span class="design-name">{WORDS.name}</span>
                                     <span class="design-role text-sm">{WORDS.role}</span>
+                                </li>
+                                <li class="design-row">
+                                    {/* The label is a bare text node here and that is right rather
+                                         than an oversight: this kind's whole point is that it names
+                                         itself in ONE word, so there is nothing for a wrapper to
+                                         let break. The call to action above needs one because its
+                                         label is a phrase that comes from data. */}
+                                    <a href={`/patches/${lastGoal.sport}`} class="chip">{lastGoal.goal_name}</a>
+                                    <span class="design-name">{CHIP.name}</span>
+                                    <span class="design-role text-sm">{CHIP.role}</span>
+                                </li>
+                                <li class="design-row">
+                                    {/* Icon-only, so the mark IS the control and the name has to be
+                                         carried somewhere a reader who cannot see it will get it —
+                                         the same device the plated specimen above uses. */}
+                                    <a href={`/patches/${firstGoal.sport}`} class="chip-icon">
+                                        <span class={`${iconClass(firstGoal.goal_logo)} shrink-0`} aria-hidden="true"></span>
+                                        <span class="sr-only">{firstGoal.goal_name}</span>
+                                    </a>
+                                    <span class="design-name">{CHIP_ICON.name}</span>
+                                    <span class="design-role text-sm">{CHIP_ICON.role}</span>
                                 </li>
                             </ul>
                     )}
@@ -263,57 +254,6 @@ const MARKDOWN = "/design.md";
     </main>
 </Layout>
 
-{/*
-    THE COPY CONTROL'S WHOLE BEHAVIOUR, INLINE, because the site ships no external JavaScript
-    file and a gate in tests/build-output.test.ts fails the build if one appears.
-
-    IT TAKES BOTH OF ITS STRINGS OUT OF THE DOM RATHER THAN CARRYING THEM. The URL comes off the
-    head's markdown alternate and the copied-state announcement off the button's own attribute,
-    so the address and the copy each exist once on this page and this script is the only thing
-    here that knows neither of them. A page that stopped announcing a twin leaves a control that
-    never reveals itself, which is the correct failure.
-
-    IT FETCHES RATHER THAN EMBEDDING THE DOCUMENT. The alternative is a second copy of the whole
-    spec inside this page's markup, which is the class of defect the whole of this page exists to
-    refuse — and it would be a copy nothing could gate, since the page and the endpoint would
-    both still render. The cost is one request on the first press, of a document the reader has
-    already been offered as a link.
-
-    EVERY EXIT IS SILENT AND THAT IS THE DESIGN. No clipboard, a refused permission, an offline
-    fetch: the control simply does not confirm, and the link beside it is still there. A failure
-    banner on an enhancement is a second thing to maintain for a reader who already has a
-    working path.
-*/}
-<script is:inline>
-    (() => {
-        const button = document.querySelector("[data-copy-markdown]");
-        const twin = document.querySelector('link[rel="alternate"][type="text/markdown"]');
-        if (!button || !twin || !navigator.clipboard) return;
-        const region = document.querySelector("[data-copy-status]");
-        const said = button.getAttribute("data-copied-label") || "";
-        let timer = 0;
-        button.setAttribute("data-ready", "");
-        button.addEventListener("click", async () => {
-            try {
-                const answer = await fetch(twin.href);
-                if (!answer.ok) return;
-                await navigator.clipboard.writeText(await answer.text());
-            } catch (ignored) {
-                return;
-            }
-            button.setAttribute("data-copied", "");
-            if (region) region.textContent = said;
-            clearTimeout(timer);
-            // Long enough to be read, short enough that a second press is acknowledged
-            // rather than swallowed by a confirmation still standing from the first.
-            timer = setTimeout(() => {
-                button.removeAttribute("data-copied");
-                if (region) region.textContent = "";
-            }, 2400);
-        });
-    })();
-</script>
-
 <style>
     /*
      * EVERY LENGTH BELOW IS FONT-RELATIVE EXCEPT TWO RADII, and that is this repository's
@@ -322,64 +262,6 @@ const MARKDOWN = "/design.md";
      * deleted ink. The two exceptions are the 2px corner, which is the radius a bib is drawn
      * with and is a mark rather than a measurement.
      */
-
-    .design-head {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    }
-
-    /*
-     * THE TAKEAWAY ROW: a run of words and a plated control on one line, wrapping to two when
-     * the reader's text no longer allows one. It packs at the start rather than spreading like
-     * the header above it, because these two are one offer made twice and the header's pair is
-     * two unrelated things at opposite ends of the page.
-     */
-    .design-takeaway {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    /*
-     * THE CONTROL IS NOT OFFERED UNTIL IT WORKS, and this rule is the whole of that mechanism.
-     *
-     * It needs a clipboard, a fetch and a script, and none of the three is guaranteed: a reader
-     * with scripting off, or on a page served over a connection the clipboard API refuses, gets
-     * a control that silently does nothing. The link beside it needs none of them, so the honest
-     * arrangement is that the enhancement reveals itself once its own script has confirmed it
-     * can do the job — which is what `data-ready` means, and the only thing it means.
-     *
-     * IT HIDES RATHER THAN DECLARING A DISPLAY, which is deliberate. `control` owns this box,
-     * and this repository's standing rule is that exactly one rule may declare a control's —
-     * so a positive `display` here would be a second declaration of part of it, drifting from
-     * the shortcut the day the shortcut changes. A negative rule adds no second value: with the
-     * attribute set, nothing here applies and the shortcut governs alone.
-     */
-    .md-copy:not([data-ready]) {
-        display: none;
-    }
-
-    /*
-     * The mark swaps with the state, the way the theme toggle's sun and moon do, because a glyph
-     * is what an icon-only control on this site says things with. The words that go with it are
-     * announced in the status region rather than drawn, so that the press changes what the
-     * control REPORTS without changing what it is CALLED.
-     */
-    .md-copy-done {
-        display: none;
-    }
-
-    .md-copy[data-copied] .md-copy-rest {
-        display: none;
-    }
-
-    .md-copy[data-copied] .md-copy-done {
-        display: inline-block;
-    }
 
     /*
      * A ROW WRAPS RATHER THAN BEING A GRID, and the ledger on the patch wall is why. Three

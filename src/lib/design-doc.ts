@@ -49,6 +49,32 @@ import {ICON_IDS, iconClass} from "./icons"
  *   the agent rendering therefore no longer carries. That is the price of the budget, and it is
  *   recorded in `.design-sync/NOTES.md` so that a future run with more room re-adds it knowingly.
  *
+ *   AND IT DROPS THE TYPE SECTION AND THE MARKS GUARDRAILS, which the chip's two entries paid
+ *   for. Publishing a fourth kind of control put two more roles into the one list this audience
+ *   carries whole, and the arithmetic was settled before a word was written: 4537 characters
+ *   against a 4096 budget. The two drops are measured at 242 and 251 characters and land the
+ *   document back on the headroom it had before the chip existed — which is the point, because
+ *   a budget spent down to nothing reddens on the next token role somebody adds.
+ *
+ *   WHICH TWO, AND WHY THOSE. Both were chosen on how much of the claim survives elsewhere in
+ *   the same document rather than on what was easiest to cut. Type: "no decorative or display
+ *   face" and "no intermediate step" both restate the closed set declared two sections above,
+ *   and "don't pin a height in pixels" is twinned almost verbatim by the controls don't that
+ *   remains. Marks: "don't mix another icon family in" is the closed set again, and "don't
+ *   recolour a brand mark away from what its surface needs" is the positive form of the
+ *   `--sport-*-on-ink` roles the token table still carries in full.
+ *
+ *   THE ONE GENUINE LOSS IS THE EMOJI INSTRUCTION — "don't substitute an emoji for a mark that
+ *   is not in the set" — which nothing else here twins, and which joins the accessible-name
+ *   instruction above as the second thing to re-add if a future run finds room. Both are named
+ *   in `.design-sync/NOTES.md` in that order.
+ *
+ *   THE STANDALONE `control-surface` WARNING WENT WITH IT, and that one is a strict improvement
+ *   rather than a cost. It was a sentence authored here naming one class; the module's own
+ *   controls don't now names BOTH surfaces and says the same thing, so the claim survives wider
+ *   than it was. `tests/design-system.test.ts` reads that don't and holds every surface it names
+ *   against the shipped sheet — do not restore a hand-written line here in front of it.
+ *
  * TWO PASSAGES ARE AUTHORED HERE RATHER THAN IN THE MODULE, and this is the rule for which ones:
  * the module holds what is true of the site AND of the exported bundle, and an audience's own
  * framing belongs with the rendering for that audience. The empty component namespace and the
@@ -189,7 +215,7 @@ function renderFull(): string {
         "## Overview",
         "",
         "This is one site's whole design vocabulary: a palette of theme tokens, a short type ramp,",
-        "three kinds of control and a set of marks. It is deliberately quiet — there is no webfont,",
+        "a handful of kinds of control and a set of marks. It is deliberately quiet — no webfont,",
         "no display face and no decoration that carries meaning on its own — and it is drawn to work",
         "identically in a light theme and a dark one, which is the constraint most of what follows",
         "exists to protect.",
@@ -243,7 +269,11 @@ function renderAgent(): string {
     return [
         "# calvin.sg — building with this system",
         "",
-        "**Colour, type and controls; no components** — the source site is Astro, so nothing mounts.",
+        // The opening names what this rendering ACTUALLY carries. It said "colour, type and
+        // controls" while the type section was still here; the budget took that section, so the
+        // sentence had to follow it or the document would open by promising a heading it does
+        // not have.
+        "**Colour, controls and marks; no components** — the source is Astro, so nothing mounts.",
         "The token table and the class list are complete; every other list is a guardrail.",
         "",
         themingBlock(),
@@ -256,15 +286,12 @@ function renderAgent(): string {
         "",
         "## The stylesheet is a closed set",
         "",
-        "**No utility engine runs here.** These classes came from the source site's own markup and",
-        "shipped as static CSS, so one that site never used does not exist. The stylesheet is the",
-        "only authority on what a class does, and it restates the tokens in readable form, both",
-        "themes, above the minified rules.",
+        "**No utility engine runs here.** These classes came from the source site's markup and",
+        "shipped as static CSS, so one that site never used does not exist: the stylesheet is the",
+        "only authority on what a class does, and it restates both themes' tokens above its rules.",
         "",
         `Guaranteed present: ${CONTROLS.map((c) => `\`${c.name}\``).join(", ")}, \`sr-only\`,`,
         "`break-anywhere`, the mark classes, and a reset over a system sans stack.",
-        "",
-        "**`control-surface` is not in the stylesheet** — see the controls below.",
         "",
         `## ${SECTIONS.controls.heading}`,
         "",
@@ -272,15 +299,9 @@ function renderAgent(): string {
         "",
         guardrails(SECTIONS.controls),
         "",
-        `## ${SECTIONS.type.heading}`,
-        "",
-        guardrails(SECTIONS.type),
-        "",
         `## ${SECTIONS.icons.heading}`,
         "",
         `${marks().length} marks ship and no others, each a \`.i-\` class sized with \`font-size\`.`,
-        "",
-        guardrails(SECTIONS.icons),
         "",
     ].join("\n")
 }

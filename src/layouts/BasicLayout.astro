@@ -1,4 +1,5 @@
 ---
+import PageHeader from "../components/PageHeader.astro";
 import {CAREER} from "../content/home";
 import {LINKS, METADATA} from "../content/site";
 import {BUILD_DATE} from "../lib/today";
@@ -37,9 +38,29 @@ interface Props {
      * markdown reads first, ahead of guessing the URL.
      */
     markdown?: string;
+    /**
+     * DRAW THE SITE'S PAGE HEADER ABOVE THE CONTENT — the way back, the markdown twin where
+     * there is one, and the theme toggle. Every page carries it but two, and both exceptions
+     * are decisions rather than omissions:
+     *
+     * `src/pages/index.astro` keeps its chrome in the intro card. Its `<main>` has a measured
+     * height budget with zero slack — the last link added to it cost 32px and that file records
+     * the arithmetic — so a header row there is a page that scrolls at the default text size.
+     *
+     * `src/pages/404.astro` answers a URL the site does not have, and its way back IS its
+     * content: the page lists the whole site. It also carries two named exemptions from
+     * build-wide gates, and chrome offering a fourth route out of a page whose body is nothing
+     * but routes out would be furniture arguing with its own subject.
+     *
+     * THE HEADER IS A SIBLING OF `<main>`, NEVER A DESCENDANT, and that is a positional fact
+     * rather than a class: a `<header>` inside `<main>` is demoted out of the `banner` role and
+     * nothing else here would notice. `tests/page-header.test.ts` is what stands between that
+     * and a merge.
+     */
+    header?: boolean;
 }
 
-const {title, description, noindex = false, markdown} = Astro.props;
+const {title, description, noindex = false, markdown, header = false} = Astro.props;
 
 /*
  * `<meta name="build-date">` below is the Singapore day this page was drawn for.
@@ -291,6 +312,7 @@ const schema = {
 <body
         class="bg-[var(--background)] md:min-h-screen flex flex-col justify-center items-center"
 >
+{header && <PageHeader markdown={markdown}/>}
 <slot/>
 </body>
 </html>

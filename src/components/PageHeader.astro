@@ -1,0 +1,125 @@
+---
+import ThemeSwitcher from "./ThemeSwitcher.astro";
+import {MARKDOWN_TWIN, PAGE_HEADER} from "../content/site";
+import {iconClass} from "../lib/icons";
+
+/*
+ * ONE HEADER, FOUR CONSUMERS, AND NO PAGE DRAWS ITS OWN WAY BACK ANY MORE.
+ *
+ * `/design` and the wall's three routes each hand-drew a way back, and only one of them also
+ * carried a theme toggle — so a reader arriving on the wall from a search result could not
+ * change the theme without navigating to a different page first. That is the functional gap
+ * this closes, and the duplication is what made it possible: two pages drawing one object is
+ * the vocabulary break this repository keeps closing.
+ *
+ * A FIFTH PAGE GETS THIS BY SETTING THE LAYOUT'S PROP. Do not draw a sixth way back by hand.
+ *
+ * EVERY ITEM IS A CHIP AND NOT A PLATE, which is the decision this whole component rests on.
+ * The plate is this site's mark for a page's ONE action — the intro card's links out, a goal
+ * card's way out — and `uno.config.ts` says so at length. Going home, switching theme and
+ * fetching a markdown rendering are furniture: the chrome recedes so the page's own subject
+ * stays the loudest thing on it, and the plate goes on meaning what the config says it means.
+ * The wall settles it from the other side — it ships zero plated controls, so putting three on
+ * it would have introduced the plate one rung above a row of sport chips drawn deliberately in
+ * the bib's own two treatments.
+ *
+ * THE WAY BACK AND THE WAY OUT ARE ONE MIRRORED OBJECT, which is the argument this link
+ * inherited from the wall and keeps. `EventsLink.astro` goes out to a sport's events and this
+ * comes back; they were drawn alike by hand in two places once, in the same colour as the body
+ * text around them, and they are drawn alike by construction now. WHAT CHANGED IS THE IDIOM,
+ * not the pairing: the way back was a run of words with an underline, and it is a chip here.
+ * The mirror still holds because both are shortcuts in one config rather than two hand-built
+ * treatments — see `PAGE_HEADER.home_icon`, which is deliberately the arrow the way out
+ * mirrors.
+ *
+ * THE 1.5rem FLOOR IT USED TO CARRY IS SUPERSEDED RATHER THAN DROPPED, and the figures are
+ * worth keeping because they are the reason the chip's own floor was set where it was. As a
+ * run of words this link measured 60.25 x 20 and was the only control on the site under a
+ * 24px box — SC 2.5.8's AA minimum on the nose. Measured then: it did not actually FAIL that
+ * criterion, because the spacing exception applied at 143.82px to the nearest other target, so
+ * the floor was this repository's own standard rather than the specification's. The chip is
+ * floored at 44 on both axes, which clears SC 2.5.5 (Enhanced, AAA) — strictly more than the
+ * box that argument produced, and the box belongs to the shortcut now rather than to this file.
+ *
+ * IT DECLARES NO BOX OF ITS OWN, and the styles below are layout and nothing else. A
+ * control's box is the shortcut's alone; `tests/control-geometry.test.ts` fails the build on a
+ * second rule declaring part of one, and `tests/page-header.test.ts` guards this file's own
+ * descendants for the same property locally.
+ *
+ * THE ADDRESS IS PASSED IN RATHER THAN DERIVED. The layout already receives `markdown` for the
+ * head's `rel="alternate"` and hands the same value here, so a page's twin has ONE address on
+ * it — the chip's `href` and the head's announcement cannot disagree, because they are one
+ * value passed once.
+ */
+
+interface Props {
+    /** The markdown twin's URL, or undefined on a page that has none. */
+    markdown?: string;
+}
+
+const {markdown} = Astro.props;
+---
+
+<header class="page-head w-full max-w-4xl px-2 pt-2 sm:px-4 sm:pt-4 md:px-6 md:pt-6">
+    {/* EVERY LABEL IS WRAPPED, AND EventsLink.astro RECORDS AT LENGTH WHY. A bare text node in
+         a flex container is an ANONYMOUS flex item: its automatic minimum width is a whole
+         word, and no selector can reach it to say otherwise. So the chip could not narrow past
+         its longest word, and at 320px with a 40px root the markdown chip measured 305.8px
+         against 280px of content width and scrolled the document sideways by 6px — on all four
+         pages, measured, where the build before this one carried none.
+
+         `break-anywhere` AND NOT THE FAMILIAR ONE. That class is `overflow-wrap: anywhere`,
+         which is the same break behaviour as `break-word` WITH the intrinsic minimum included —
+         and the intrinsic minimum is the whole of what is wrong here. The wall's heading
+         carries the same class for the same reason and its note records the measurement. */}
+    <a href="/" class="chip">
+        <span class={`${iconClass(PAGE_HEADER.home_icon)} shrink-0`} aria-hidden="true"></span><span
+            class="break-anywhere">{PAGE_HEADER.home_label}</span>
+    </a>
+    <div class="page-head-actions">
+        {markdown && (
+                <a href={markdown} class="chip">
+                    <span class={`${iconClass(MARKDOWN_TWIN.link_icon)} shrink-0`} aria-hidden="true"></span><span
+                        class="break-anywhere">{MARKDOWN_TWIN.link_label}</span>
+                </a>
+        )}
+        {/* THE GLYPH BOX, NOT THE LABELLED ONE. The toggle holds one mark and its name is
+             screen-reader-only, so the labelled chip would render it about 36px wide with its
+             glyph shrunk to a label's text size. A labelled chip is for a control that names
+             itself in a word; this one does not, and it stays icon-only on purpose — see the
+             note in ThemeSwitcher.astro, which records why a drawn label here would
+             contradict itself. */}
+        <ThemeSwitcher kind="chip-icon"/>
+    </div>
+</header>
+
+<style>
+    /*
+     * LAYOUT ONLY. Nothing here may declare a width, a height, padding or a border on any
+     * descendant: the boxes belong to the two chip shortcuts, and a second rule declaring part
+     * of one is the "declared twice" defect this repository has already paid for once.
+     *
+     * IT WRAPS RATHER THAN COUNTING COLUMNS. The row holds a variable number of items — the
+     * markdown chip is absent on a page with no twin — and each one grows with the reader's
+     * text, so a hand-maintained arrangement would need re-tuning every time either moved.
+     */
+    .page-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    /*
+     * The two trailing items pack together rather than spreading, because they are one group —
+     * things you do WITH this page — while the way back is somewhere else entirely. The gap is
+     * tighter than the row's for the same reason.
+     */
+    .page-head-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+</style>

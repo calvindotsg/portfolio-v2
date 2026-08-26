@@ -139,8 +139,29 @@ export const PATCHES: {
      * reader to spell it out.
      */
     dnf_name: string
-    home_label: string
-    home_icon: string
+    /**
+     * WHAT AN EARNED BIB IS CALLED, IN A DOCUMENT THAT CANNOT DRAW ONE.
+     *
+     * THE SITE HAD NO SUCH FIELD, AND THAT WAS NOT AN OVERSIGHT. On the wall a finished race
+     * needs no word at all: the bib IS the word — a patch on it, a distance in the hero, a
+     * meta row with no {@link booked_label} and no {@link dnf_result}. The state is drawn, so
+     * naming it would be a caption on a picture that already says it.
+     *
+     * THE MARKDOWN TWIN HAS NO DRAWING, so the three states have to be told apart in text or
+     * the document loses the wall's whole subject. Its two neighbours were already spelled —
+     * {@link booked_label} and {@link dnf_name} — and a document that prints a word for two of
+     * three states and silence for the third asks a reader to infer the most important one.
+     *
+     * SO IT IS NAMED HERE RATHER THAN SLICED OUT OF {@link lede}, which contains the phrase
+     * inside a sentence. A substring taken from prose is a second home that moves the day
+     * anybody rewords the first — the exact defect the whole of `src/content/` is arranged to
+     * prevent — and it would break silently, because a slice of the wrong words is still a
+     * string.
+     *
+     * SENTENCE CASE AND SPOKEN, the same device {@link dnf_name} uses: this is read rather
+     * than printed on a bib, so it takes no `text-transform` and invites no spelling-out.
+     */
+    finished_name: string
     filter_label: string
     /**
      * WHOSE ACCOUNT A LEDGER ROW IS. These two words are the whole reason the ledger works,
@@ -391,8 +412,7 @@ export const PATCHES: {
     booked_label: "Booked",
     dnf_result: "DNF",
     dnf_name: "Did not finish",
-    home_label: "Home",
-    home_icon: "ri:arrow-left-line",
+    finished_name: "Finisher Patch",
     filter_label: "Filter by sport",
     official_row: "Official",
     recorded_row: "Recorded",
@@ -477,8 +497,8 @@ export const NEXT_RACE: {
      * chevron at 13px was sized to sit inside a run of 12px words without shouting; the mark
      * is now alone at the far edge of a 48px control, where a chevron reads as a leftover
      * rather than as the button's one mark. It also lands the pair on the wall's own
-     * vocabulary — {@link PATCHES.home_icon} is `ri:arrow-left-line`, and the two are meant
-     * to be mirrored, one going out and one coming back.
+     * vocabulary — {@link PAGE_HEADER.home_icon} is `ri:arrow-left-line`, and the two are
+     * meant to be mirrored, one going out and one coming back.
      *
      * A SEMANTIC GLYPH WAS TRIED HERE AND REJECTED, which is worth recording because it is
      * the obvious idea. `ri:calendar-event-line` leading the label was built and rendered:

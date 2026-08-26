@@ -29,10 +29,9 @@
  * `src/data/races/index.ts`.
  */
 
-import {MARKDOWN_TWIN} from "../content/design"
 import {CAREER, NOW, WELCOME} from "../content/home"
 import {NEXT_RACE, PATCHES} from "../content/races"
-import {FOOTER, LINKS, NOT_FOUND} from "../content/site"
+import {FOOTER, LINKS, MARKDOWN_TWIN, NOT_FOUND, PAGE_HEADER} from "../content/site"
 import {GOALS} from "./goal"
 
 export const iconClass = (logo: string): string => `i-${logo.replace(":", "-")}`;
@@ -42,7 +41,7 @@ export const iconClass = (logo: string): string => `i-${logo.replace(":", "-")}`
  * entry earns its place by naming the constant that reaches for it, so a constant relying on
  * ANOTHER constant having already listed the same id would ship a zero-size mask box the day
  * the other one changed — with correct markup and a green build. `NOT_FOUND.home_icon` and
- * `PATCHES.home_icon` resolve to the same class today and are both here for that reason.
+ * `PAGE_HEADER.home_icon` resolve to the same class today and are both here for that reason.
  * Consumers that need the set rather than the census dedupe at the point of use.
  */
 export const ICON_IDS: readonly string[] = [
@@ -52,13 +51,12 @@ export const ICON_IDS: readonly string[] = [
     WELCOME.greeting_icon,
     FOOTER.icon,
     NOW.explainer_icon,
-    PATCHES.home_icon,
+    PAGE_HEADER.home_icon,
     PATCHES.strava_icon,
     PATCHES.official_icon,
     NEXT_RACE.icon,
     NOT_FOUND.home_icon,
-    MARKDOWN_TWIN.icon,
-    MARKDOWN_TWIN.copied_icon,
+    MARKDOWN_TWIN.link_icon,
     /*
      * THE THEME TOGGLE'S TWO MARKS, WHICH ARE THE ONLY ONES ON THIS SITE THAT DO NOT COME
      * FROM A CONTENT CONSTANT — and until `/design` existed, the only ones nothing had to

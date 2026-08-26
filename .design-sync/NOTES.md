@@ -9,7 +9,7 @@ form, so nothing can be mounted in a design tool, and the project rule that ther
 client-side UI framework makes that permanent rather than a gap to close. The converter's
 `[ZERO_MATCH] no component exports — treating as tokens-only DS` line is therefore the
 expected outcome, not a failure to debug. What ships is the palette, the reset and the
-three controls; the component namespace is empty by construction.
+control classes; the component namespace is empty by construction.
 
 ## Running it
 
@@ -65,9 +65,10 @@ There is nothing in this directory to keep in step by hand any more, and that is
 what changed.
 
 `src/content/design.ts` is the single authored description of this design system. It holds
-MEANING and no values — every token's name and role, the guidance under each heading, and the
-three controls — and it holds no counts either, because a count in a sentence is a sentence
-waiting to go stale. Three surfaces render it:
+MEANING and no values — every token's name and role, the guidance under each heading, and each
+kind of control — and it holds no counts either, because a count in a sentence is a sentence
+waiting to go stale. (This paragraph said "the three controls" until a fourth kind arrived,
+one line above the clause explaining why it should not have.) Three surfaces render it:
 
 - `/design`, a real page on the site. Its swatches are `background: var(--token)`, its type
   ramp wears the real utility classes, and its controls are working links, so nothing on it
@@ -121,6 +122,38 @@ saying the same thing from the other side, or by the token table. The exception 
 instruction to give an icon-only control an accessible name, which no don't twins, and which
 the agent rendering therefore no longer carries. If a future run gets more room — a raised
 budget, a shorter module — re-add that one first.
+
+#### The second trim: publishing the chip
+
+The paragraph above ended by predicting that "a couple of new token roles will redden it". Two
+new CONTROL roles did, and the arithmetic was settled before a word of them was written: the
+rendering came to 4,137 characters over its budget's 4,096 — 441 over — the moment `chip` and
+`chip-icon` joined the one list this audience carries whole.
+
+Two things were dropped for it, measured at 242 and 251 characters, and the document landed at
+3,933 — slightly MORE headroom than the 155 it had before. That is deliberate: a budget spent
+down to nothing reddens on whatever anybody adds next, so a trim that only just fits is a trim
+that has to be done again immediately.
+
+- **The whole `## Type` section.** Its three don'ts were the set whose claims survive closest
+  by: "no decorative or display face" and "no intermediate step" both restate the closed
+  stylesheet declared two sections above, and "don't pin a height in pixels" is twinned almost
+  verbatim by the controls don't that remains. The section went entirely rather than being left
+  as a heading with nothing under it.
+- **The `## Marks` guardrails**, keeping the size line so the section still says something.
+  "Don't mix another icon family in" is the closed set again, and "don't recolour a brand mark
+  away from what its surface needs" is the positive form of the `--sport-*-on-ink` roles the
+  token table still carries in full.
+
+**The one genuine loss is the emoji instruction** — "don't substitute an emoji for a mark that
+is not in the set" — which nothing else in the document twins. It is now SECOND in the re-add
+queue, behind the accessible-name instruction named above.
+
+A standalone sentence in the renderer warning that `control-surface` is absent went at the same
+time, and that one is a strict improvement rather than a cost: the module's own controls don't
+now names BOTH surfaces and says the same thing, so the claim survives wider than it was.
+`tests/design-system.test.ts` was retargeted to read that don't and hold every surface it names
+against the shipped sheet — do not put a hand-written line back in front of it.
 
 The gate is `AGENT_BUDGET` in `tests/design-system.test.ts` and it is asserted rather than
 written down in prose, because the failure is silent: a longer preamble still renders, still
