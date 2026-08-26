@@ -1,4 +1,4 @@
-import themeSource from "../layouts/BasicLayout.astro?raw"
+import {readFileSync} from "node:fs"
 
 /**
  * WHAT EVERY THEME TOKEN RESOLVES TO, READ OUT OF THE BLOCK THAT DECLARES IT.
@@ -16,26 +16,43 @@ import themeSource from "../layouts/BasicLayout.astro?raw"
  * this mechanism. Printing it as text is that mechanism with a different output: nothing here is
  * typed, so nothing here can drift. Type a hex into this file and the licence is gone.
  *
- * THE IMPORT FORM IS LOAD-BEARING AND WAS MEASURED, NOT CHOSEN. Three ways to reach the source
- * were run against a real `astro build` and a real `vitest run`:
+ * THE READ FORM IS LOAD-BEARING AND WAS MEASURED, NOT CHOSEN. Three ways to reach the source
+ * were run against a real `astro build`, a real `vitest run` AND the orphan-rule gate in
+ * `tests/build-output.test.ts`, which is the one that decided it:
  *
- *   - `import … from "../layouts/BasicLayout.astro?raw"` — works in both. This one.
- *   - `readFileSync("src/layouts/BasicLayout.astro")`, cwd-relative — works in both, and depends
- *     on the working directory rather than on the module graph.
- *   - `readFileSync(new URL("…", import.meta.url))` — works under vitest and FAILS the build with
- *     `ENOENT`, because Astro bundles the SSR modules into a temporary directory before running
- *     them, so the path resolves next to the bundle rather than next to the source.
+ *   - `readFileSync` on a path relative to the working directory — works everywhere. This one.
+ *   - `import … from "../layouts/BasicLayout.astro?raw"` — builds and tests clean, and SHIPS
+ *     DEAD CSS. UnoCSS's Vite pipeline includes any id matching `.astro` followed by end-of-id
+ *     or a query, so the raw module's id matches and the extractor is handed the layout's
+ *     entire text — 806 lines of prose, comments and declarations. Measured: eight ordinary
+ *     words in that file became utility rules nobody wears, and the orphan gate went red on a
+ *     correct page. There is no query that escapes the pattern, so this form cannot be kept
+ *     without editing the utility config to exclude it — which is a decision about the whole
+ *     engine, not about this module.
+ *   - `readFileSync(new URL("…", import.meta.url))` — works under vitest and FAILS the build
+ *     with `ENOENT`, because Astro bundles the SSR modules into a temporary directory before
+ *     running them, so the path resolves next to the bundle rather than next to the source.
  *
- * `?raw` needs no filesystem access, is a real module edge so a rebuild picks up an edit, and
- * needs no type declaration: `astro/client` already declares `*?raw`.
+ * WHAT THE CHOSEN FORM COSTS, said plainly: it has no module edge, so `astro dev` serves the
+ * values it read when the module first loaded until the server restarts. Every shipped artifact
+ * is built from scratch and `pnpm test` builds first, so nothing a reader or a gate sees can be
+ * stale — and the read happens at module scope, on the server, during a build. This file must
+ * never reach a browser.
  *
  * NOTHING REACHABLE FROM `uno.config.ts` MAY IMPORT THIS MODULE. That config loads
- * `src/lib/icons.ts` through unconfig/jiti, which has no Vite and therefore no `?raw` — an import
- * that reached this file from that graph would kill `astro build` before a test ran. State it as
- * a graph rather than as a directory: `src/lib/goal.ts` is in that graph and this file is not.
- * `src/lib/design-doc.ts` and `src/pages/design.astro` are the two consumers and neither is
- * reachable from the config.
+ * `src/lib/icons.ts` through unconfig/jiti, and a config that read the filesystem at load time
+ * would run this read on every extractor pass. State the guard as a graph rather than as a
+ * directory: `src/lib/goal.ts` is in that graph and this file is not. `src/lib/design-doc.ts`
+ * and `src/pages/design.astro` are the two consumers and neither is reachable from the config.
  */
+
+/**
+ * WHERE THE VALUES ARE AUTHORED, as a path from the project root.
+ *
+ * `CLAUDE.md` names this file as the home of every colour token and that stays true — this
+ * module adds a reader, not a second author.
+ */
+const THEME_SOURCE = "src/layouts/BasicLayout.astro"
 
 /** One token, and what it resolves to in each theme. Ordered as the stylesheet declares them. */
 export type TokenValues = {token: string, light: string, dark: string}
@@ -80,18 +97,18 @@ function parsePalette(source: string): readonly TokenValues[] {
     const light = blocks.light, dark = blocks.dark
     if (!light || !dark) {
         throw new Error(
-            "src/lib/palette.ts parsed no light and/or dark theme block out of "
-            + "src/layouts/BasicLayout.astro. Every surface that publishes a value reads this "
-            + "module, so an empty palette would ship a page and a spec with blank cells and a "
-            + "green build. Check the `:root[data-theme=…]` selectors.",
+            `src/lib/palette.ts parsed no light and/or dark theme block out of ${THEME_SOURCE}. `
+            + "Every surface that publishes a value reads this module, so an empty palette would "
+            + "ship a page and a spec with blank cells and a green build. Check the "
+            + "`:root[data-theme=…]` selectors.",
         )
     }
     return Object.keys(light).map((token) => {
         const inDark = dark[token]
         if (inDark === undefined) {
             throw new Error(
-                `src/layouts/BasicLayout.astro declares ${token} in the light theme and not in the `
-                + "dark one, so it resolves to nothing for every reader on dark.",
+                `${THEME_SOURCE} declares ${token} in the light theme and not in the dark one, so `
+                + "it resolves to nothing for every reader on dark.",
             )
         }
         return {token, light: light[token]!, dark: inDark}
@@ -107,4 +124,24 @@ function parsePalette(source: string): readonly TokenValues[] {
  * sheet — which lower-cases and folds `#111111` to `#111` — is normalised at the assertion
  * instead. Lower-casing here would change what every surface prints.
  */
-export const PALETTE: readonly TokenValues[] = parsePalette(themeSource)
+export const PALETTE: readonly TokenValues[] = parsePalette(readFileSync(THEME_SOURCE, "utf8"))
+
+/**
+ * ONE TOKEN'S VALUE IN ONE NAMED THEME, so a surface can label its cells from
+ * `THEMING.themes` rather than typing a theme name of its own.
+ *
+ * The two names live in this module because it has to look them up in the parsed blocks anyway;
+ * `src/content/design.ts` declares them for the surfaces and is gated against the stylesheet's
+ * own selectors. A THIRD home on a page or in a renderer is what this exists to prevent — and
+ * because it THROWS on a name it does not know, a theme added to that list without being added
+ * here fails the build instead of rendering a row with an empty cell.
+ */
+export function valueIn(values: TokenValues, theme: string): string {
+    if (theme === "light") return values.light
+    if (theme === "dark") return values.dark
+    throw new Error(
+        `src/lib/palette.ts has no reading of ${values.token} in a theme called "${theme}". A `
+        + "theme was added to src/content/design.ts or to the layout and this module was not "
+        + "taught to read its block.",
+    )
+}
