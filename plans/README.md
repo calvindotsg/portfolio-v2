@@ -1,7 +1,8 @@
 # Implementation Plans
 
-**Two plans are queued: 038 and 039, in that order.** Neither has been executed. Both were written
-on 2026-08-26 after a measured review of the site's control vocabulary, and both were revised before
+**One plan is queued: 039.** 038 is done — merged as `0e78e22` (#213) and live — so the dependency
+039's first STOP condition names is satisfied and it is executable now. Both were written on
+2026-08-26 after a measured review of the site's control vocabulary, and both were revised before
 merging by an adversarial panel — four review lenses, a refute-first skeptic per finding, then a
 judge. It raised twelve findings, eight survived, and three were BLOCK; every one of them was
 invisible to `pnpm test`, for a reason worth stating plainly here rather than rediscovering:
@@ -9,6 +10,14 @@ invisible to `pnpm test`, for a reason worth stating plainly here rather than re
 against the tree.** Probed both ways at `f767cf2` — a nonexistent path, a nonexistent script and an
 undeclared constant inside a plan leave the suite green, and the same three tokens in a non-proposal
 document turn all three gates red. A green run is not evidence about a plan file; review is.
+
+**What executing 038 added to that.** The panel's eight surviving findings were all about the
+plan's prose. Three defects the plan could not have caught surfaced only once the code ran, and
+each is in `done/README.md`: a guard the plan prescribed that turns out to be **unreachable**, an
+assertion whose discovery predicate made it **unfalsifiable**, and a 6px horizontal overflow at
+320px that no gate in this repository can see because there is no layout engine in the suite. Two
+of the three were found by mutating rather than by reading. **Review hardens a plan's reasoning;
+only execution measures it.**
 
 The rest of this section is the record up to that point.
 
@@ -219,23 +228,26 @@ recreated.
 | 035 | Serve /.well-known/security.txt, and link it from SECURITY.md | P2 | S | — | **DONE** (`3f1d582`) |
 | 036 | Serve the design system as a page, and generate the agent's copy from it | P2 | M | — | **DONE** (`f052f68`) |
 | 037 | Serve the design system as markdown, in the repo and on the web | P3 | M | 036 | **DONE** (`0f923c4`) |
-| 038 | Publish the chip, put one header on every page but the home page, and give the wall a markdown twin | P2 | L | 036, 037 | **TODO** |
+| 038 | Publish the chip, put one header on every page but the home page, and give the wall a markdown twin | P2 | L | 036, 037 | **DONE** (`0e78e22`) |
 | 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
-**Why 038 and 039 are two files, and why 039 cannot go first.** 038 publishes the chip as a real,
-gated kind of control; 039 spends it on the home page and deletes the icon plate the chip makes
-orphaned. The dependency is mechanical rather than editorial — 039's first STOP condition is the
-chip's absence — so they are **not** parallel-safe, and 039 executed first would delete a class its
-own replacement does not yet have. They also share `uno.config.ts`, `src/content/design.ts`,
-`src/pages/design.astro` and four test files.
+**Why 038 and 039 are two files, and why 039 could not go first.** 038 published the chip as a
+real, gated kind of control; 039 spends it on the home page and deletes the icon plate the chip
+makes orphaned. The dependency was mechanical rather than editorial — 039's first STOP condition is
+the chip's absence — so they were **not** parallel-safe, and 039 executed first would have deleted
+a class its own replacement did not yet have. **That condition is now satisfied**: the chip ships
+as `chip-surface`, `chip` and `chip-icon`. They also share `uno.config.ts`,
+`src/content/design.ts`, `src/pages/design.astro` and four test files, so 039 should be re-read
+against the merged tree before it is dispatched — 038 rewrote parts of all four.
 
-**What made them necessary is one finding: the site ships four kinds of pressable thing and
-publishes three.** The wall's filter chip is spelled only as a descendant selector, is in no census,
-and is invisible to `tests/control-geometry.test.ts`, which discovers controls by the plate's
-signature in the shipped sheet — while the build-wide link-signifier gate already has to name it as
-a special case. A gate knowing about a kind the design system does not is the defect; 038 closes it.
+**What made them necessary is one finding: the site shipped four kinds of pressable thing and
+published three.** The wall's filter chip was spelled only as a descendant selector, was in no
+census, and was invisible to `tests/control-geometry.test.ts`, which discovers controls by the
+plate's signature in the shipped sheet — while the build-wide link-signifier gate already had to
+name it as a special case. A gate knowing about a kind the design system does not is the defect;
+038 closed it, and that gate now reads the chip's own class like every other kind.
 Two consequences are decisions rather than discoveries and are recorded in the plans themselves: the
 chip is floored at 44px on both axes, which **grows the wall's filter row from 29.59px** and is a
 visible change to three pages nobody asked to redesign; and `/patches` gains a theme toggle, which it
@@ -395,8 +407,8 @@ is cosmetic.
 
 Not an audit. Five header treatments and four intro-card treatments were built as live specimens in
 the site's own tokens and measured in a browser, then chosen by the maintainer. What follows is what
-was **rejected**, so no later run re-derives it. The reasoning sits in plans 038 and 039; only the
-verdicts are here.
+was **rejected**, so no later run re-derives it. The reasoning sits in 039 and in 038, which is
+archived under `done/` now that it has shipped; only the verdicts are here.
 
 - **A plated header row.** Rejected on two measurements: `/patches` ships **zero** plated controls
   today, so this would introduce the plate to a page that has none, one rung above a filter row drawn
