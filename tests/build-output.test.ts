@@ -1351,7 +1351,10 @@ describe("dist/", () => {
  *      declare different boxes; `classList.contains` is exact, so the check below needs both
  *      names and the goal cards' links went unsignified until it had them
  *   2. `.text-link`        the shared text-link idiom — the wall's Home link, the role cards
- *   3. `.patch-filter a`   a bordered chip; the class is on the NAV, so this needs `closest`
+ *   3. `.chip`             the quiet bordered kind — the wall's filter row and every item in
+ *      the page header. It was keyed on `.patch-filter a` while the chip was one page's
+ *      descendant selector, and this gate having to name a page's private selector was the
+ *      tell that the site shipped a kind of control the design system did not publish
  *   4. an icon-only control whose accessible name is carried by an `sr-only` span (the Now
  *      card's explainer, which is a 24px icon target and is legitimately not a text link)
  *   5. `.bib-stub-link`    a line on a bib's stub, whose signifier is the stub itself — the
@@ -1541,7 +1544,7 @@ describe("every link on every page says that it is one", () => {
         // A hover-only affordance is the precise defect this whole gate exists to catch, so a
         // gate that accepts one is worse than no gate: deleting the chips' permanent border left
         // the suite green at 264/264. It also matched `.patch-filter-count`, a sibling class that
-        // draws nothing, because `\b` treats the hyphen as a boundary — hence the descendant-`a`
+        // draws nothing, because `\b` treats the hyphen as a boundary — hence the descendant
         // requirement rather than a bare class match.
         //
         // THE STATE TEST IS STRUCTURAL NOW, AND IT HAD TO BECOME SO. It was a list of pseudo-
@@ -1553,8 +1556,17 @@ describe("every link on every page says that it is one", () => {
         // 290/290, which is exactly the "worse than no gate" case the paragraph above names.
         // `isStateful` asks the inverted question (is everything here structure?), so the next
         // state cannot walk through it either. See tests/helpers/css.ts.
+        //
+        // THE CHIP IS A REAL KIND NOW, so this reads its own class rather than one page's
+        // descendant selector. It used to be keyed on `.patch-filter a` — the wall's filter row
+        // was the only wearer, and the fact that THIS GATE had to name a page's private selector
+        // was the tell that the site shipped a kind of control the design system did not
+        // publish. The condition is unchanged in substance and strictly wider in reach: the
+        // border still has to be really shipped and really unconditional, and now every wearer
+        // of the kind is covered rather than the three anchors that happened to live in one nav.
         const chipIsDrawn = parseRules(pageCss(page)).some(
-            (r) => r.selectors.some((sel) => /\.patch-filter\b[^,]*\ba\b/.test(sel) && !isStateful(sel))
+            (r) => r.selectors.some((sel) => /(^|[^\w-])\.chip(?![\w-])/.test(sel) && !isStateful(sel))
+                && (decl(r.body, "border") ?? decl(r.body, "border-width")) !== undefined
                 && (decl(r.body, "border") ?? decl(r.body, "border-color")) !== undefined,
         );
 
@@ -1562,7 +1574,7 @@ describe("every link on every page says that it is one", () => {
             if (a.classList.contains("control")) return false;
             if (a.classList.contains("control-cta")) return false;
             if (a.classList.contains("text-link")) return false;
-            if (chipIsDrawn && a.closest(".patch-filter")) return false;
+            if (chipIsDrawn && a.classList.contains("chip")) return false;
             // An icon-only control: no visible words at all, and its name comes from an sr-only
             // span. If it ever grows visible text it stops qualifying here and must wear an
             // idiom like everything else.
@@ -1605,7 +1617,7 @@ describe("every link on every page says that it is one", () => {
         expect(
             unsignified.map((a) => `${a.getAttribute("href")} "${(a.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 46)}"`),
             `${page} ships links drawn like static text. A link needs one of: .control, .control-cta, .text-link, `
-            + "a drawn .patch-filter chip, an sr-only-named icon control, or a .bib-stub-link on a "
+            + "a really-drawn .chip, an sr-only-named icon control, or a .bib-stub-link on a "
             + "bib's .bib-stub. This is the gate whose absence let five links ship unreadable as links",
         ).toEqual([]);
     });

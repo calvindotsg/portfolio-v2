@@ -182,7 +182,7 @@ const description = goal === undefined
             </div>
             <nav class="patch-filter" aria-label={PATCHES.filter_label}>
                 {filters.map((f) => (
-                        <a href={f.href} aria-current={f.active ? "page" : undefined}>
+                        <a href={f.href} class="chip" aria-current={f.active ? "page" : undefined}>
                             {f.label}<span class="patch-filter-count">{f.count}</span>
                         </a>
                 ))}
@@ -236,21 +236,19 @@ const description = goal === undefined
         gap: 0.5rem;
     }
 
-    .patch-filter a {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4em;
-        padding: 0.3rem 0.7rem;
-        border: 1px solid color-mix(in srgb, var(--text) 32%, transparent);
-        border-radius: 2px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        text-decoration: none;
-        color: var(--text);
-        transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
-    }
+    /*
+     * THE CHIP'S OWN DRAWING IS NO LONGER HERE. The box, the type, the resting hairline and
+     * the shared hover, press and held press are `chip` in uno.config.ts, which is where a
+     * kind of control on this site is written down — this row was the only wearer, spelled as
+     * a descendant selector, so the site shipped a fourth kind of pressable thing that the
+     * design system did not publish and the geometry gate could not see.
+     *
+     * WHAT IS LEFT BELOW IS EVERYTHING THIS ROW DOES THAT THE KIND DOES NOT: the current page
+     * drawn like a bib you have earned, and the two states that have to answer to it. Their
+     * order is measured and each carries its own argument — read them before touching one.
+     * They out-specify the shortcut, so the cascade they were written against is intact and
+     * the overlap with it is expected.
+     */
 
     /*
      * Guarded because a touch browser applies `:hover` on tap and keeps it until the reader
@@ -262,7 +260,7 @@ const description = goal === undefined
      * tests/build-output.test.ts fails the build on one that does not.
      */
     @media (hover: hover) {
-        .patch-filter a:hover {
+        .patch-filter .chip:hover {
             border-color: var(--accent);
             color: var(--accent);
         }
@@ -293,7 +291,7 @@ const description = goal === undefined
      * the chip you are already on is the one press that cannot be telling you a page is
      * coming.
      */
-    .patch-filter a[data-leaving] {
+    .patch-filter .chip[data-leaving] {
         border-color: var(--accent);
         color: var(--accent);
         /* Snap, for the reason the shortcut's own press does: the base rule above transitions
@@ -303,7 +301,7 @@ const description = goal === undefined
         transition: none;
     }
 
-    .patch-filter a[aria-current="page"] {
+    .patch-filter .chip[aria-current="page"] {
         background-color: var(--text);
         border-color: var(--text);
         color: var(--background);
@@ -323,7 +321,7 @@ const description = goal === undefined
      * correct — the press is feedback about the finger, not a claim about which page is open,
      * and `aria-current` continues to carry the real state throughout.
      */
-    .patch-filter a:active {
+    .patch-filter .chip:active {
         border-color: var(--accent);
         color: var(--accent);
         /* A tap is ~100ms against a 300ms colour transition, so without this the reader saw
@@ -351,7 +349,7 @@ const description = goal === undefined
      * `transition: none` is not optional — the snap gate in tests/build-output.test.ts walks
      * every rule that carries a press and a `color`, and a bare colour here fails the deploy.
      */
-    .patch-filter a[aria-current="page"]:active {
+    .patch-filter .chip[aria-current="page"]:active {
         color: var(--background);
         transition: none;
     }
@@ -395,7 +393,7 @@ const description = goal === undefined
      * forced-colours mode. The pin keeps the border a system colour.
      */
     @media (forced-colors: active) {
-        .patch-filter a[aria-current="page"] {
+        .patch-filter .chip[aria-current="page"] {
             forced-color-adjust: none;
             background-color: Highlight;
             border-color: CanvasText;

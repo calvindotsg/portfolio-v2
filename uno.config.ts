@@ -364,6 +364,80 @@ export default defineConfig({
      *                      a label and its mark centred as one legend. The two goal cards' way out.
      *   `text-link`        a link that is a run of words inside a sentence or a column of
      *                      figures. The wall's way back, and each role card's company name.
+     *   `chip-surface`     the quiet surface: a hairline at a fraction of the ink, the bib's
+     *                      own 2px corner, an opaque ground, and the same hover, press and
+     *                      held press the plate has. No box, and NO PLATE.
+     *   `chip`             that surface at a 44px floor on both axes, holding a label set
+     *                      small and tracked wide. The wall's filter row, and every item in
+     *                      the page header.
+     *   `chip-icon`        the same surface pinned at 44 x 44, holding one mark. The theme
+     *                      toggle where a header carries it.
+     *
+     * THE CHIP IS THE FOURTH KIND, AND IT EXISTED FOR A YEAR BEFORE IT WAS PUBLISHED. It was
+     * spelled `.patch-filter a` — a descendant selector in one page's scoped `<style>`, in
+     * none of the places this vocabulary is written down, and invisible to
+     * `tests/control-geometry.test.ts`, which discovers controls by the PLATE'S signature in
+     * the shipped sheet. The tell was in the gate one file along: the build-wide "every link
+     * says it is one" check had to name the chip as a special case, so the gate knew about a
+     * kind the design system did not. Anything drawn as a chip anywhere else would have been
+     * a fourth undocumented copy.
+     *
+     * IT DOES NOT WEAR THE PLATE, AND THAT IS THE WHOLE DISTINCTION. The paragraphs above say
+     * the offset plate is this site's mark for a PRIMARY ACTION — the intro card's links out,
+     * a goal card's one way out — and that wearing it elsewhere either dilutes the mark or
+     * claims a size the thing is not. Going home, switching theme and fetching a markdown
+     * rendering are not primary actions; they are furniture, and furniture recedes so the
+     * page's own subject stays the loudest thing on it. The wall is the proof: it ships zero
+     * plated controls, and putting three on it would have introduced the plate one rung above
+     * a filter row drawn deliberately in the bib's own two treatments.
+     *
+     * 44px ON BOTH AXES IS A DECISION, NOT AN INHERITANCE. The chip measured 29.59px tall for
+     * as long as it was a descendant selector, which clears SC 2.5.8 (Minimum, AA, 24px) and
+     * misses SC 2.5.5 (Enhanced, AAA, 44px) that every plated control already meets. Two
+     * options were measured before choosing: at 30px the wall is untouched and a whole class
+     * of control stays at AA; at 44 every control on the site clears AAA and a row mixing a
+     * labelled chip with a glyph chip sits level. The second was chosen, and it made the
+     * wall's filter row visibly taller — a change to three pages nobody asked to redesign,
+     * and the price of publishing this as a real, gated kind.
+     *
+     * A FLOOR ON THE LABELLED BOX AND A PIN ON THE GLYPH BOX, which is the distinction
+     * `control-cta` and `control` already draw and for the identical reason: `chip`'s label
+     * comes from data and must be allowed to grow with the reader's text, so a pinned height
+     * would clip it; `chip-icon` holds one mark the design picked the size of.
+     * `tests/control-geometry.test.ts` discovers both from this surface's signature and holds
+     * that line, so a third box is caught rather than skipped.
+     *
+     * IT IS OPAQUE, AND THAT MATTERS SOMEWHERE ELSE THAN WHERE IT SHOWS. `.patch-filter a`
+     * declared no background and was transparent against whatever it sat on — survivable on
+     * the wall, where the filter row sits directly on the page ground, so `--background` is
+     * the colour it was already resolving to. It is NOT survivable in the intro card, where
+     * below `md` the portrait is painted behind the copy column and a transparent chip would
+     * put a hairline box over a photograph. The ground belongs to the surface rather than to
+     * one wearer's local override, which is the whole reason this shortcut exists.
+     *
+     * WHAT THE EXTRACTION CHANGED BESIDES THE HEIGHT, because "behaviour-neutral" would have
+     * been a claim rather than a measurement. Everything below is the chip joining the
+     * vocabulary the other three shortcuts already speak, and each was checked against the
+     * rendered box rather than reasoned about:
+     *
+     *   - `transition-colors` widens the property list from three names to the engine's six
+     *     and moves the curve from CSS's own `ease-in-out` (0.42, 0, 0.58, 1) to this file's
+     *     (0.4, 0, 0.2, 1). The three extra properties are ones the chip never animates, and
+     *     the curve is the one every other control on the site already eases on — the note
+     *     below quotes its 8.5%-at-50ms figure, which is what `active:transition-none` exists
+     *     to defeat.
+     *   - `cursor-pointer` was absent because an anchor gets it from the user agent. The
+     *     glyph box goes on a `<button>`, which does not.
+     *   - `text-xs` brings a `line-height` the hand-written rule had no opinion about. It
+     *     cannot move anything here: the box is a flex container floored at 44px with its
+     *     items centred on the cross axis, so the line box is not what sets the height.
+     *
+     * THE FOUR STATE RULES ON THE WALL STAY WHERE THEY ARE, retargeted and not moved. Their
+     * ORDER relative to `[aria-current="page"]` is measured, is argued in place, and is what
+     * keeps the current chip's label readable under a held press — see
+     * `src/pages/patches/[...sport].astro`. They out-specify everything this shortcut emits,
+     * so the cascade they were written against is unchanged; the duplication that creates is
+     * expected rather than a tidy-up waiting to happen.
      *
      * A BASE IS NOT THE THING THAT WENT WRONG LAST TIME, and the distinction matters because
      * the paragraphs above retire a `control-surface` by name. Read the three mechanisms listed
@@ -518,6 +592,9 @@ export default defineConfig({
         "control": "control-surface text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center",
         "control-cta": "control-surface text-xs min-h-12 w-full px-3 py-1 inline-flex flex-wrap items-center justify-center gap-x-2",
         "text-link": "underline decoration-from-font underline-offset-[0.18em] self-start text-[var(--text)] hover:text-[var(--accent)] active:text-[var(--accent)] active:transition-none data-[leaving]:text-[var(--accent)] data-[leaving]:transition-none transition-colors duration-300 ease-in-out",
+        "chip-surface": "border border-[color-mix(in_srgb,var(--text)_32%,transparent)] rounded-[2px] text-[var(--text)] bg-[var(--background)] no-underline cursor-pointer hover:text-[var(--accent)] hover:border-[var(--accent)] active:text-[var(--accent)] active:border-[var(--accent)] active:transition-none data-[leaving]:text-[var(--accent)] data-[leaving]:border-[var(--accent)] data-[leaving]:transition-none transition-colors duration-300 ease-in-out",
+        "chip": "chip-surface inline-flex items-center gap-[0.4em] min-h-11 min-w-11 px-[0.7rem] py-[0.3rem] text-xs font-bold tracking-[0.1em] uppercase",
+        "chip-icon": "chip-surface inline-flex items-center justify-center shrink-0 w-11 h-11",
     },
     presets: [
         /**
