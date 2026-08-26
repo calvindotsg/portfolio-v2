@@ -1,5 +1,5 @@
 import stravaProgress from "../data/strava-progress.json"
-import {NEXT_RACE} from "../content/races"
+import {NEXT_RACE, PATCHES} from "../content/races"
 import {GOAL_YEAR} from "../data/goals"
 import type {Goal, Sport} from "./goal"
 import {EVENTS} from "../data/races"
@@ -793,6 +793,55 @@ export function patchDateSegments(event: RaceEvent): PatchDateSegment[] | null {
 export function formatPatchDate(event: RaceEvent): string | null {
     const segments = patchDateSegments(event)
     return segments === null ? null : segments.map((s) => s.text).join("")
+}
+
+/**
+ * THE ORGANISER'S ACCOUNT OF A RACE: the figure, and the NAME of the clock it came off.
+ *
+ * THE PAIR IS THE POINT, AND IT IS NOT A CONVENIENCE WRAPPER. `Patch.astro` had this as two
+ * adjacent `const`s under a comment that argued the case exactly: *"The two are derived
+ * together on purpose: reading the time in one place and the word in another is how a bib ends
+ * up announcing a gun time as a net one."* That argument held inside one file and stopped
+ * holding the moment a SECOND consumer — the wall's markdown twin — derived the same pair for
+ * itself. Two files applying one rule is the same defect the comment describes, with a longer
+ * gap between the two halves.
+ *
+ * SO THE TWO CANNOT BE TAKEN SEPARATELY. Returning one object rather than two functions is
+ * what makes the mistake unavailable: there is no way to read the time here and decide the word
+ * somewhere else, because the word arrives attached to the figure it names.
+ *
+ * `net_time` WINS WHERE IT EXISTS — it is the rider's own race, mat to mat, and it is the
+ * figure a runner quotes. A sheet that publishes only a gun time gets the gun word, and
+ * `OfficialResult` in `./race.ts` records why neither is ever derived from the other by
+ * subtraction.
+ *
+ * UNDEFINED MEANS "NO ACCOUNT TO PRINT", which is two different data shapes deliberately
+ * collapsed: a race with no `official` block at all, and one whose sheet published a result
+ * with no time on it. Neither can fill a clock column, and no caller has ever wanted to tell
+ * them apart — a bib falls back to the plain race name in both, and the twin omits the clause.
+ *
+ * IT LIVES HERE RATHER THAN IN `./race.ts`, WHICH IS WHERE THE OBVIOUS READING PUTS IT, and
+ * the reason is a cycle rather than taste. This needs the VALUES `PATCHES.net_clock` and
+ * `PATCHES.gun_clock`; `src/content/races.ts` imports `./race.ts` for real, so a value import
+ * back the other way closes the loop that `uno.config.ts` drags through jiti — the failure
+ * `src/lib/goal.ts` documents at its own head, where the same tension is resolved with
+ * `import type`. That escape is not available to a function that must read the strings. This
+ * module already imports content values and is already imported by both consumers, so it costs
+ * no new edge anywhere.
+ */
+export type OfficialAccount = {
+    /** The figure the row prints, `H:MM:SS`. */
+    time: string
+    /** Which of the two clocks that figure is, named — {@link PATCHES.net_clock} or {@link PATCHES.gun_clock}. */
+    clock: string
+}
+
+export function officialAccount(event: RaceEvent): OfficialAccount | undefined {
+    const official = event.official
+    if (official === undefined) return undefined
+    const time = official.net_time ?? official.gun_time
+    if (time === undefined) return undefined
+    return {time, clock: official.net_time === undefined ? PATCHES.gun_clock : PATCHES.net_clock}
 }
 
 /**

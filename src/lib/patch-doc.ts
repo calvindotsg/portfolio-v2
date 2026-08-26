@@ -1,6 +1,6 @@
 import {NEXT_RACE, PATCHES} from "../content/races"
 import {goalForSport, type Sport} from "./goal"
-import {formatPatchDate, patchState, patchWall} from "./projection"
+import {formatPatchDate, officialAccount, patchState, patchWall} from "./projection"
 import {raceKm, recordingKm, recordingsOf, stravaActivityUrl, type RaceEvent} from "./race"
 
 /**
@@ -32,12 +32,13 @@ import {raceKm, recordingKm, recordingsOf, stravaActivityUrl, type RaceEvent} fr
  * part, each carrying THAT PART'S own figures, because the race's summed distance and its
  * first-start-to-last-stop elapsed belong to the race and never to a part.
  *
- * A KNOWN DUPLICATION, NAMED RATHER THAN HIDDEN. One derivation here — which of the two
- * official clocks a row prints — also exists in `src/components/Patch.astro`, which built it
- * first. It is two lines and it is the same rule said twice, which is a second home by any
- * honest reading. The right fix is to lift it into `./race.ts` and have the bib and this file
- * both read it; that touches a component this change was scoped away from, so it is recorded
- * here and left for whoever takes it deliberately. Change one and you must change the other.
+ * THE ORGANISER'S ACCOUNT COMES FROM ONE FUNCTION, and this file is half the reason it exists.
+ * Which of the two clocks a row quotes, and which figure goes with it, were derived here AND in
+ * `src/components/Patch.astro` — one rule in two files, which is exactly what that component's
+ * own comment warns produces a bib announcing a gun time as a net one. `officialAccount` in
+ * `./projection.ts` returns the pair as one object so they cannot be taken apart, and its
+ * header records why it is not in `./race.ts` (a value import of the clock words would close a
+ * cycle that `uno.config.ts` drags through jiti).
  *
  * IT NAMES NO PATH IN THIS TREE. Its readers are fetching a URL and have no checkout to open,
  * which is the same rule `renderDesignDoc("agent")` follows and for the same reason.
@@ -53,10 +54,6 @@ const stateWord = (event: RaceEvent): string => {
     return PATCHES.finished_name
 }
 
-/** Which of the two clocks an official row is quoting. See `OfficialResult` in `./race.ts`. */
-const officialClockWord = (event: RaceEvent): string =>
-    event.official?.net_time === undefined ? PATCHES.gun_clock : PATCHES.net_clock
-
 const link = (label: string, url: string) => `[${label}](${url})`
 
 /** `130.03` prints itself and `158.10` does not, so one site must not describe one race two ways. */
@@ -66,13 +63,15 @@ function bullets(event: RaceEvent, unit: string): string[] {
     if (patchState(event) === "booked") return []
     const out: string[] = []
     const official = event.official
-    const officialTime = official?.net_time ?? official?.gun_time
+    // The figure and the NAME of the clock it came off, as one object, from the same function
+    // the bib reads. They must not be taken apart — see `officialAccount` in `./projection.ts`.
+    const account = officialAccount(event)
 
     // THE RESULTS SHEET GOES FIRST, which is the bib's order and its reason: both cited sheets
     // render for a logged-out visitor where every Strava link on this wall is a login wall.
     if (official !== undefined && event.advertised_km !== undefined) {
         const figures = [`${km(event.advertised_km)} ${unit}`];
-        if (officialTime !== undefined) figures.push(`${officialClockWord(event)} ${officialTime}`)
+        if (account !== undefined) figures.push(`${account.clock} ${account.time}`)
         const row = `- ${PATCHES.official_row} — ${figures.join(", ")}`
         out.push(official.url === undefined ? row : `${row} — ${link(PATCHES.official_link, official.url)}`)
     }

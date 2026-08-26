@@ -3,7 +3,7 @@ import {PATCHES} from "../content/races";
 import {NEW_TAB_NOTICE} from "../content/site";
 import {goalForSport} from "../lib/goal";
 import {type RaceEvent, raceKm, recordingKm, recordingsOf, stravaActivityUrl} from "../lib/race";
-import {formatPatchDate, patchDateSegments, type PatchState} from "../lib/projection";
+import {formatPatchDate, officialAccount, patchDateSegments, type PatchState} from "../lib/projection";
 import {iconClass} from "../lib/icons";
 
 interface Props {
@@ -166,14 +166,21 @@ const dateText = formatPatchDate(event) ?? "";
  */
 const raceName = PATCHES.race_name.replace("{race}", event.name).replace("{date}", dateText);
 /*
- * THE OFFICIAL ACCOUNT, READ ONCE. `net_time` wins where it exists — it is the rider's own
- * race, mat to mat — and the clock's NAME travels with the figure so the link can say which
- * one it is. The two are derived together on purpose: reading the time in one place and the
- * word in another is how a bib ends up announcing a gun time as a net one.
+ * THE OFFICIAL ACCOUNT, READ ONCE — and the reading now happens in one place for the whole
+ * SITE rather than for this file. `net_time` wins where it exists, it is the rider's own race
+ * mat to mat, and the clock's NAME travels with the figure so the link can say which one it is.
+ *
+ * THE TWO ARE DERIVED TOGETHER ON PURPOSE: reading the time in one place and the word in
+ * another is how a bib ends up announcing a gun time as a net one. That argument used to be
+ * enforced by these two lines sitting adjacent, which held exactly as long as this was the only
+ * consumer — the wall's markdown twin then derived the same pair for itself, and one rule
+ * applied in two files is the same defect with a longer gap between the halves. `officialAccount`
+ * in `../lib/projection.ts` returns the pair as one object, so taking them separately is no
+ * longer expressible; its header carries the argument and the reason it cannot live in
+ * `../lib/race.ts`.
  */
 const official = event.official;
-const officialTime = official?.net_time ?? official?.gun_time;
-const officialClock = official?.net_time === undefined ? PATCHES.gun_clock : PATCHES.net_clock;
+const account = officialAccount(event);
 /*
  * THE LEDGER, BUILT AS ROWS RATHER THAN AS BRANCHES IN THE MARKUP. Each row is one source's
  * own distance beside that same source's own clock, which is the rule the whole device rests
@@ -203,7 +210,7 @@ const officialClock = official?.net_time === undefined ? PATCHES.gun_clock : PAT
 const ledger: {who: string, km: string, time: string}[] = [];
 if (state !== "booked") {
     if (official !== undefined && event.advertised_km !== undefined) {
-        ledger.push({who: PATCHES.official_row, km: event.advertised_km.toFixed(2), time: officialTime ?? ""});
+        ledger.push({who: PATCHES.official_row, km: event.advertised_km.toFixed(2), time: account?.time ?? ""});
     }
     if (recordings.length > 0 || event.elapsed_time !== undefined) {
         ledger.push({
@@ -231,9 +238,11 @@ if (official?.url !== undefined) {
         label: PATCHES.official_link,
         // A sheet can publish a result with no time on it — see `OfficialResult`. The clock
         // phrase then has nothing to name, so the link falls back to the plain race name
-        // rather than announcing "net time , …".
-        name: officialTime === undefined ? raceName : PATCHES.official_name
-            .replace("{clock}", officialClock).replace("{time}", officialTime)
+        // rather than announcing "net time , …". That is one of the two shapes
+        // `officialAccount` collapses into `undefined`; the other is a race with no sheet at
+        // all, and this branch wants the same answer for both.
+        name: account === undefined ? raceName : PATCHES.official_name
+            .replace("{clock}", account.clock).replace("{time}", account.time)
             .replace("{race}", event.name).replace("{date}", dateText),
     });
 }

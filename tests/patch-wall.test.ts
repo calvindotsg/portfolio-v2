@@ -13,8 +13,10 @@ import {
     raceKm, type RaceEvent, type Recording, recordingKm, recordingsOf, stravaActivityUrl,
 } from "../src/lib/race";
 import {
-    bookedAhead, formatPatchDate, patchDateSegments, patchState, type PatchState, patchWall, UPDATED_AT,
+    bookedAhead, formatPatchDate, officialAccount, patchDateSegments, patchState, type PatchState,
+    patchWall, UPDATED_AT,
 } from "../src/lib/projection";
+import {renderPatchWall} from "../src/lib/patch-doc";
 import {iconClass} from "../src/lib/icons";
 import {contrast, luminance, over, toHex} from "./helpers/contrast";
 import {decl, isKeyframeStep, lastDecl, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
@@ -2845,5 +2847,57 @@ describe("the bib's grid template holds every area its rows claim", () => {
             + " class-subset resolver cannot represent — the template it certifies is not the one the"
             + " browser resolves. Make it a single-class rule, or teach the resolver.",
         ).toEqual([]);
+    });
+});
+
+/**
+ * THE BIB AND THE TWIN QUOTE THE SAME CLOCK FOR THE SAME RACE.
+ *
+ * This is the property the shared `officialAccount` exists to guarantee, asserted across the two
+ * consumers rather than inside either — which is the only place it can be seen. Each renderer is
+ * internally consistent whatever it decides; the defect is the two of them DISAGREEING, and a
+ * unit test of either one passes straight through it.
+ *
+ * IT IS DELIBERATELY NOT MOCKED. `tests/patch-doc.test.ts` mocks `EVENTS` to reach a shape the
+ * calendar does not hold, which is why this cross-consumer check cannot live there: it compares
+ * a rendered bib against the twin, and both must be reading the REAL calendar for the comparison
+ * to be about anything.
+ */
+describe("the bib and the markdown twin agree about the official account", () => {
+    const documented = () => patchWall().map((p) => p.event).filter((e) => officialAccount(e) !== undefined);
+
+    it("finds a race with an official time at all, or this suite asserts nothing", () => {
+        expect(documented().length, "no race on the wall carries an official time, so the "
+            + "agreement below has no subject").toBeGreaterThan(0);
+    });
+
+    it("prints one clock word per race, the same one in both renderings", async () => {
+        const twin = renderPatchWall();
+        const container = await AstroContainer.create();
+        for (const event of documented()) {
+            const account = officialAccount(event)!;
+            const other = account.clock === PATCHES.net_clock ? PATCHES.gun_clock : PATCHES.net_clock;
+
+            // The bib says which clock in its stub link's accessible name — see `official_name`.
+            //
+            // READ AS THE RENDERED STRING, not `body.textContent`: linkedom leaves `body` empty
+            // on these fragments, which this file's own header records. A `''` compared against
+            // a clock word fails with a message that reads like a missing label rather than like
+            // a broken instrument, which is exactly how long it took to spot the first time.
+            const bib = await container.renderToString(Patch, {props: {event, state: patchState(event)}});
+            expect(bib, `${event.name}: the bib does not name the clock its own account came off`)
+                .toContain(account.clock);
+            expect(bib, `${event.name}: the bib names BOTH clocks, so one of them is wrong`)
+                .not.toContain(other);
+
+            // The twin says it in the official bullet.
+            const line = twin.split("\n").find((l) => l.includes(PATCHES.official_row)
+                && l.includes(account.time));
+            expect(line, `${event.name}: the twin has no official line carrying ${account.time}`)
+                .toBeDefined();
+            expect(line, `${event.name}: the twin quotes ${other} where the bib quotes ${account.clock} — `
+                + "the two renderings disagree about which clock this figure came off")
+                .toContain(account.clock);
+        }
     });
 });
