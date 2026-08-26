@@ -9,8 +9,9 @@ import {EVENTS} from "../src/data/races";
 import stravaProgress from "../src/data/strava-progress.json";
 import {
     UPDATED_AT, bookedAhead, daysRemaining, eventsInYear, formatDateline, goalStatus,
-    goalStatusLine, nextRace, parseIsoDate, patchesEarned, patchState, patchWall,
+    goalStatusLine, nextRace, officialAccount, parseIsoDate, patchesEarned, patchState, patchWall,
 } from "../src/lib/projection";
+import {PATCHES} from "../src/content/races";
 import type {RaceEvent} from "../src/lib/race";
 import {BUILD_DATE, singaporeDate as siteSingaporeDate} from "../src/lib/today";
 import {nextProgress, serialise, singaporeDate} from "../scripts/fetch-strava-progress.mjs";
@@ -1026,5 +1027,64 @@ describe("the rendered page", () => {
         // card-fill.test.ts:347 fires at +1 child with a message naming neither
         // cards nor datelines, so an implementer would hunt the wrong red.
         expect(document.querySelector("main")!.children.length).toBe(6);
+    });
+});
+
+/**
+ * THE ORGANISER'S ACCOUNT IS ONE OBJECT, AND THAT IS THE WHOLE CONTRACT.
+ *
+ * `Patch.astro` used to derive the figure and the clock's name as two adjacent `const`s, under
+ * a comment arguing they must be read together: reading the time in one place and the word in
+ * another is how a bib announces a gun time as a net one. That held while the bib was the only
+ * consumer. The wall's markdown twin then derived the same pair for itself — one rule in two
+ * files, which is the same defect with a longer gap between the halves.
+ *
+ * So the assertions below are about the PAIRING as much as about either value: a `time` that
+ * came off `gun_time` must arrive carrying the gun word, and the two must never be separable.
+ */
+describe("officialAccount", () => {
+    const withOfficial = (official: Record<string, string> | undefined): RaceEvent =>
+        ({date: "2024-01-01", name: "Fixture", sport: "running", country: "Nowhere",
+            advertised_km: 21.10, official} as unknown as RaceEvent);
+
+    it("prefers the chip time, and names it as the chip time", () => {
+        const account = officialAccount(withOfficial({net_time: "3:30:59", gun_time: "3:48:04"}));
+        expect(account?.time, "net_time is the rider's own race, mat to mat").toBe("3:30:59");
+        expect(account?.clock, "the figure came off the chip, so it must say so").toBe(PATCHES.net_clock);
+    });
+
+    it("falls back to the gun time, and names THAT correctly", () => {
+        // The pairing assertion that matters. Getting the fallback right while keeping the net
+        // word is the exact failure the two halves were split apart by, and it is invisible on a
+        // page — both strings are real, and the row still reads plausibly.
+        const account = officialAccount(withOfficial({gun_time: "2:19:11"}));
+        expect(account?.time).toBe("2:19:11");
+        expect(account?.clock, "a gun figure announced as a chip time is the defect this exists to stop")
+            .toBe(PATCHES.gun_clock);
+    });
+
+    it("gives the two clock words different names, or nothing above discriminates", () => {
+        expect(PATCHES.net_clock, "the two clocks must be distinguishable").not.toBe(PATCHES.gun_clock);
+    });
+
+    it("collapses both no-account shapes to undefined", () => {
+        // A race with no sheet at all, and a sheet that published a result with no time on it.
+        // Neither can fill a clock column and no caller has wanted to tell them apart.
+        expect(officialAccount(withOfficial(undefined)), "no official block").toBeUndefined();
+        expect(officialAccount(withOfficial({url: "https://example.test/"})), "a sheet with no time")
+            .toBeUndefined();
+    });
+
+    it("reads the real calendar, so this suite is not only about fixtures", () => {
+        const documented = EVENTS.filter((e) => officialAccount(e) !== undefined);
+        expect(documented.length, "no race on the calendar carries an official time — every "
+            + "assertion here would be about fixtures alone").toBeGreaterThan(0);
+        for (const event of documented) {
+            const account = officialAccount(event)!;
+            expect([PATCHES.net_clock, PATCHES.gun_clock],
+                `${event.name} names a clock that is neither of the two`).toContain(account.clock);
+            expect(account.time, `${event.name} has an unparseable official time`)
+                .toMatch(/^\d+:\d{2}:\d{2}$/);
+        }
     });
 });
