@@ -2715,3 +2715,144 @@ Measured on the immutable preview hash URL from the deploy job's own log rather 
 `pr-N` alias: all four twins answer 200 with `content-type: text/markdown; charset=utf-8`, no
 `content-disposition`, and each is **SHA-256-identical to the artifact the suite gated**. The
 runner's own log reports `654 passed | 7 skipped (661)`, matching the local run.
+
+## Plan 039 — the home page's two tiers, and the icon plate retired
+
+Merged as `b1eea8a` (#217). The home page drew the site's boldest mark **nine times**: six
+secondary destinations in the intro card were as loud as each goal card's one action and louder
+than the way into the site's signature content, which was a plain underlined link, and the seventh
+was the theme toggle — a preference, first in the row, in a profile's clothes. After it, the
+vocabulary is smaller than it was: the plate means *this card's one action*, the labelled chip
+means *a quiet control that names itself*, the glyph chip means *one of a set, or a preference*,
+and the text link means *a link inside a run of words*.
+
+### The plan contradicted itself, and only executing it settled which half was right
+
+Step 5.1 and a done criterion both say the page ends with **two** plated controls, the goal cards'.
+Step 3 creates a third on the intro card, and the maintenance notes say "three cards, three plates".
+Three is right and it is what shipped. The contradiction survived an adversarial panel of four
+lenses with a refute-first skeptic per finding — a review reads a plan for whether each claim is
+defensible, and both halves were, separately. Nothing but building it puts them side by side.
+
+**The transferable shape: a plan's internal arithmetic is only checked by the executor.** The suite
+cannot see it (a numbered plan is a proposal and is exempt from the three gates that resolve a name
+against the tree), and a reviewer checking claims one at a time will not either.
+
+### The gate that was supposed to force the hero regeneration cannot see this kind of change
+
+Step 6 is emphatic — "that gate will go red on purpose" — and it did not. `tests/content.test.ts`
+fingerprints the intro card's **content**: the h1 stack, the greeting mark, the words and mark of
+the way to the wall, the social glyphs in order, the portrait's bytes. This plan changed none of
+them. It changed the **drawing**, and the gate's own note says exactly that: "this watches the
+CONTENT, not the drawing … the control geometry restyles the hero without moving this fingerprint."
+
+So `public/preview.jpg` — README's image and the site's `og:image` — was owed **by hand** on the
+largest redraw the card has had, and the mechanism that exists to stop it going stale is blind to
+the whole class. It has now gone stale invisibly twice and been saved by a human twice. Recorded
+here rather than fixed: closing it means fingerprinting the shipped stylesheet's control rules as
+well as the content, which is a different plan.
+
+### The central geometric claim did not reproduce, because the plan mis-modelled the card
+
+Step 7's claim — the copy column drops below the portrait's 275px at 1024, "so the portrait sets
+the card's height again" — is a **STOP condition** if false. It is false, and the reason matters
+more than the outcome: at `md` and up the copy column is a *stretched* flex item under
+`md:max-h-[18.75rem]`, so its rendered height is **300 in both builds and would be 300 if the
+column were empty**. It never reported its content. The card is 728 × 357 in both because at `lg`
+its height comes from its grid row, not from either column.
+
+What actually moved is the content the column holds: **300 → 228**. And the height saving lands
+exactly where the card is content-sized, measured on two builds served side by side:
+
+| | before | after |
+|---|---|---|
+| 430 × 932 document / card | 1698 / 414 × 294.77 | **1678 / 414 × 274** |
+| 430 × 932 @ 24px root, card | 406 × 675.14 | **406 × 530** |
+| 320 × 700 document / card | 1998 / 304 × 450.77 | **1902 / 304 × 354** |
+| 320 × 700 @ 40px root, card | 10269 / 280 × 1858.89 | **9662 / 280 × 1252** |
+| 1024 / 1440 desktop | — | unchanged, rect for rect |
+| the row | 339 × 112, 7 items, 2 lines | **304 × 44, 6 items, 1 line** |
+
+**Read a STOP condition's consequence, not only its predicate.** This one guards against "the
+height saving this plan promises is not there"; the saving is there, and larger than the plan
+claimed, at every viewport that can show it. Stopping on the literal predicate would have shelved a
+change that delivers.
+
+### The vacuity floor was the load-bearing failure, exactly as the reconcile predicted
+
+Deleting the plate's icon box leaves `iconBoxes()` empty in `tests/control-geometry.test.ts`, and
+**five assertions loop over that population** — without the floor they would every one have passed
+by iterating over nothing. Four moved to the strip; the floor itself became the *rule* that emptied
+it: a plated glyph box must not exist. That is one line, and it fails on a returning icon plate, on
+a plate that has stopped declaring a width, and on the `w-max` spelling that once gave eight
+anchors four different widths. **The partition survives precisely because it is what notices.**
+
+### A row's assertions belong to the row, not to the surface that happens to draw it
+
+The wrapping and minimum-width arguments — four separately-closed holes, a fitted budget model
+validated against eight measured outcomes — lived in the plate route only because the row used to
+be made of plates. They moved **whole** to a third route keyed on the home page, with the only
+substantive change being which population declares the width they compare against. The strip is
+discovered as *the one parent holding more than one pinned chip*, so the theme control's box, alone
+on the greeting line and wearing the identical class, is not mistaken for a row. Discovering it by
+class would have found two parents and failed; discovering it by tag would have gone stale the
+first time a non-link joined it.
+
+### One gate the plan's scope list did not name, and it had to move
+
+`tests/mobile-hero-contrast.test.ts` counted the way to the wall as a line of the hero copy, on the
+stated ground that "a link over an un-scrimmed photo is the same legibility problem as a tagline
+over one". True of a run of underlined words; the replacement is a plated control and paints an
+**opaque page ground** before any of its ink lands — which is why the six destinations have sat
+outside that block for as long as it has existed. So the assertion follows the mechanism rather
+than the placement: what is asserted now is the **ground**, so a control moved out of that block
+that did *not* declare one fails here — the case that would otherwise ship silently.
+
+The plan named that file only as a STOP condition, and reading it as one would have been wrong: the
+STOP is about the contrast floor, which is arithmetic over the theme tokens and never moved.
+
+### Two assertions the shape needs that nothing had
+
+- **the strip holds one chip per `LINKS` entry, and the theme control is not in it.** Both halves
+  are needed and neither implies the other: the count catches a seventh destination added without
+  anyone re-measuring the column (seven boxes want 356px of a 339px column), and naming the toggle
+  catches it being moved back in, which leaves the count right for a page that has grown a seventh
+  box. A wrapping row is correct at any length, so no other assertion notices either.
+- **the plate is spent once per card.** A total cannot tell three plates on three cards from three
+  on two cards and a card with none — and the second is the vocabulary drifting back, which is
+  exactly what nine plated controls in one card was. The rule, not the census.
+
+Required mutation proof: a seventh box in the strip took `pnpm test` **RED** with five failures
+including the new assertion by name; removing it returned **667 passed**. Working tree clean either
+side.
+
+### Two suites admitted conditionally, and neither needed touching
+
+The reconcile admitted `tests/design-system.test.ts` and `tests/icon-alignment.test.ts` on the
+strength of a **partial simulation** — deleting the shortcut alone, which is an incoherent
+intermediate state this plan never produces. Both self-healed: the first regenerates from
+`CONTROLS`, and the second counts flex-hosted marks, unmoved because every replacement box is
+`inline-flex` like the one it replaced. The reconcile said not to trust its own figure and to
+re-run the suite instead, which was the right instruction.
+
+### A gap found while executing, named rather than closed
+
+`/design`, `/design.md` and `DESIGN.md` all render from `CONTROLS` in `src/content/design.ts`, and
+the two committed documents are file snapshots — but **nothing gates that the `/design` page draws
+a specimen per entry**. The page hand-draws each one behind a positional destructure, so adding a
+control would document one the page never shows, and deleting one required a hand edit here that no
+gate would have demanded. Out of this plan's scope; it is the same shape as the exemption-in-a-gate
+tell that produced 038.
+
+### Housekeeping, measured
+
+- The agent copy is **3877 against its 4096 budget**, 219 spare — up from 163, because the deleted
+  control role freed more than the widened lede spent. First time in three plans that the budget
+  went the right way without a trim.
+- `public/preview.jpg`: the pipeline reproduces the established composition exactly (card 824 × 357,
+  captured 3296px wide, resized 1180 × 511 at (10, 63) on 1200 × 630 `#111111`, q82 4:4:4 mozjpeg).
+  A fresh render of `origin/main` differs from the committed file by a **~1px resample offset with
+  no content delta**, which is the pipeline validated; the branch-vs-main diff is a **555 × 433 box
+  on the left half of the card** and nothing on the portrait, which is the containment proof.
+- 1Password locked mid-session and one commit fell back to `--no-gpg-sign`; re-signed by amend once
+  it was unlocked, and all four commits verify `G` before the push.

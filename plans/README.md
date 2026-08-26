@@ -1,23 +1,30 @@
 # Implementation Plans
 
-**One plan is queued: 039.** 038 is done — merged as `0e78e22` (#213) and live — so the dependency
-039's first STOP condition names is satisfied and it is executable now. Both were written on
-2026-08-26 after a measured review of the site's control vocabulary, and both were revised before
-merging by an adversarial panel — four review lenses, a refute-first skeptic per finding, then a
-judge. It raised twelve findings, eight survived, and three were BLOCK; every one of them was
-invisible to `pnpm test`, for a reason worth stating plainly here rather than rediscovering:
-**a numbered plan is a proposal and the suite exempts it from the three gates that resolve a name
-against the tree.** Probed both ways at `f767cf2` — a nonexistent path, a nonexistent script and an
-undeclared constant inside a plan leave the suite green, and the same three tokens in a non-proposal
-document turn all three gates red. A green run is not evidence about a plan file; review is.
+**Nothing is queued.** 038 and 039 are both done — merged as `0e78e22` (#213) and `b1eea8a`
+(#217), archived, and live. They were written on 2026-08-26 after a measured review of the site's
+control vocabulary, and both were revised before merging by an adversarial panel — four review
+lenses, a refute-first skeptic per finding, then a judge. It raised twelve findings, eight
+survived, and three were BLOCK; every one of them was invisible to `pnpm test`, for a reason worth
+stating plainly here rather than rediscovering: **a numbered plan is a proposal and the suite
+exempts it from the three gates that resolve a name against the tree.** Probed both ways at
+`f767cf2` — a nonexistent path, a nonexistent script and an undeclared constant inside a plan leave
+the suite green, and the same three tokens in a non-proposal document turn all three gates red. A
+green run is not evidence about a plan file; review is.
 
-**What executing 038 added to that.** The panel's eight surviving findings were all about the
-plan's prose. Three defects the plan could not have caught surfaced only once the code ran, and
-each is in `done/README.md`: a guard the plan prescribed that turns out to be **unreachable**, an
-assertion whose discovery predicate made it **unfalsifiable**, and a 6px horizontal overflow at
-320px that no gate in this repository can see because there is no layout engine in the suite. Two
-of the three were found by mutating rather than by reading. **Review hardens a plan's reasoning;
-only execution measures it.**
+**What executing those two added to that, and it is the same lesson twice.** The panel's eight
+surviving findings were all about the plans' prose. Every defect that mattered surfaced only once
+the code ran, and each is in `done/README.md`: from 038, a guard the plan prescribed that turns out
+to be **unreachable**, an assertion whose discovery predicate made it **unfalsifiable**, and a 6px
+horizontal overflow at 320px that no gate here can see because there is no layout engine in the
+suite; from 039, a plan that **contradicted itself** about how many plated controls the page ends
+with, a required regeneration whose gate **cannot see the class of change that owed it**, and a
+central geometric claim that did not reproduce because the plan had mis-modelled the box it was
+about. Most were found by mutating or by measuring rather than by reading. **Review hardens a
+plan's reasoning; only execution measures it.**
+
+**And 039 added one that generalises past this repository**: read a STOP condition's *consequence*,
+not only its predicate. Its predicate was false and the consequence it guarded against — "the
+height saving this plan promises is not there" — was false in the other direction, by up to 607px.
 
 The rest of this section is the record up to that point.
 
@@ -229,18 +236,18 @@ recreated.
 | 036 | Serve the design system as a page, and generate the agent's copy from it | P2 | M | — | **DONE** (`f052f68`) |
 | 037 | Serve the design system as markdown, in the repo and on the web | P3 | M | 036 | **DONE** (`0f923c4`) |
 | 038 | Publish the chip, put one header on every page but the home page, and give the wall a markdown twin | P2 | L | 036, 037 | **DONE** (`0e78e22`) |
-| 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **TODO** |
+| 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **DONE** (`b1eea8a`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
-**Why 038 and 039 are two files, and why 039 could not go first.** 038 published the chip as a
-real, gated kind of control; 039 spends it on the home page and deletes the icon plate the chip
-makes orphaned. The dependency was mechanical rather than editorial — 039's first STOP condition is
-the chip's absence — so they were **not** parallel-safe, and 039 executed first would have deleted
-a class its own replacement did not yet have. **That condition is now satisfied**: the chip ships
-as `chip-surface`, `chip` and `chip-icon`. They also share `uno.config.ts`,
-`src/content/design.ts`, `src/pages/design.astro` and four test files, so 039 should be re-read
-against the merged tree before it is dispatched — 038 rewrote parts of all four.
+**Why 038 and 039 were two files, and why 039 could not have gone first.** 038 published the chip
+as a real, gated kind of control; 039 spent it on the home page and deleted the icon plate the chip
+made orphaned. The dependency was mechanical rather than editorial — 039's first STOP condition was
+the chip's absence — so they were **not** parallel-safe, and 039 executed first would have deleted a
+class its own replacement did not yet have. They also shared `uno.config.ts`,
+`src/content/design.ts`, `src/pages/design.astro` and four test files, which is why 039 was
+reconciled against the merged tree before it was dispatched; that reconcile is the reason its
+execution found three plan defects rather than a stale excerpt.
 
 **What made them necessary is one finding: the site shipped four kinds of pressable thing and
 published three.** The wall's filter chip was spelled only as a descendant selector, was in no
@@ -249,9 +256,10 @@ plate's signature in the shipped sheet — while the build-wide link-signifier g
 name it as a special case. A gate knowing about a kind the design system does not is the defect;
 038 closed it, and that gate now reads the chip's own class like every other kind.
 Two consequences are decisions rather than discoveries and are recorded in the plans themselves: the
-chip is floored at 44px on both axes, which **grows the wall's filter row from 29.59px** and is a
-visible change to three pages nobody asked to redesign; and `/patches` gains a theme toggle, which it
-has never had.
+chip is floored at 44px on both axes, which **grew the wall's filter row from 29.59px** and is a
+visible change to three pages nobody asked to redesign; and `/patches` gained a theme toggle, which it
+had never had. 039 then spent that floor a second time — the home page's six destinations are 44px
+glyph chips on one line where seven plated boxes took two.
 
 **Why 036 and 037 were two files rather than one, and why 037 could not go first.** 036 made one new
 content module the single authored source of this site's design vocabulary and rendered it as a page;
@@ -407,13 +415,15 @@ is cosmetic.
 
 Not an audit. Five header treatments and four intro-card treatments were built as live specimens in
 the site's own tokens and measured in a browser, then chosen by the maintainer. What follows is what
-was **rejected**, so no later run re-derives it. The reasoning sits in 039 and in 038, which is
-archived under `done/` now that it has shipped; only the verdicts are here.
+was **rejected**, so no later run re-derives it. The reasoning sits in 038 and 039, both archived
+under `done/` now that they have shipped; only the verdicts are here.
 
-- **A plated header row.** Rejected on two measurements: `/patches` ships **zero** plated controls
-  today, so this would introduce the plate to a page that has none, one rung above a filter row drawn
-  deliberately in the bib's treatments; and `uno.config.ts` reserves the plate as the mark for a
-  primary action, which twelve plates of furniture across four pages dilutes.
+- **A plated header row.** Rejected on two measurements: `/patches` shipped **zero** plated controls
+  even then, so this would have introduced the plate to a page that has none, one rung above a filter
+  row drawn deliberately in the bib's treatments; and `uno.config.ts` reserves the plate as the mark
+  for a primary action, which twelve plates of furniture across four pages dilutes. That reservation
+  is now the whole rule — 039 deleted the plate's icon box, so the plate is spent on a card's single
+  action and on nothing else.
 - **A `Copy page` split button with a dropdown** — the Stripe / Mintlify / GitBook pattern. Rejected:
   an accessible menu-button contract would be the largest piece of client code on a domain that ships
   zero external JavaScript files and fails the build if one appears; every "Open in …" entry
@@ -431,17 +441,20 @@ archived under `done/` now that it has shipped; only the verdicts are here.
   move.
 - **Labelling the six intro-card destinations.** Measured: six labels need three lines in a 339px
   column, trading the density problem for the one it was meant to fix.
-- **A neutral-bordered plate** (accent only on interaction). Removes the wall of red with one token
-  change, but flattens a card's one action and a social link into one drawing and leaves the 112px
-  control-row density untouched.
+- **A neutral-bordered plate** (accent only on interaction). Removed the wall of red with one token
+  change, but flattened a card's one action and a social link into one drawing and left the 112px
+  row density untouched. 039 took the density instead: that row is 44px on one line now.
 - **A visible label on the theme toggle.** SC 2.5.3 requires the accessible name to contain the
-  visible label, and the name is deliberately the theme its pressed state means. Recorded in 039 as
+  visible label, and the name is deliberately the theme its pressed state means. 039 recorded it as
   worth revisiting via a fixed moon plus the chip's own filled state, which would make the toggle's
-  state visible for the first time.
+  state visible for the first time; that idea is still open and is now the cheapest of the three
+  things 039 deferred.
 
 **Deferred rather than rejected**, and named so it is not discovered late: the Now card's explainer is
-a bare 24x24 glyph with no box — a fifth drawing on the home page, and below the target size every
-other control clears. 039 lists it out of scope on purpose.
+a bare 24x24 glyph with no box, and below the target size every other control clears. 039 listed it
+out of scope on purpose and it is now the **fourth** drawing on the home page rather than the fifth,
+since the plated glyph box that made a fifth is gone. It is the obvious next plan: it is the last
+control on that page that answers to none of the four kinds.
 
 ### Run 6 (2026-08-08, audited at `219dcde`) — a re-audit of the record, not of the source
 
