@@ -1,9 +1,10 @@
 # Implementation Plans
 
-**Five plans are queued: the chain 040 → 041 → 042 → 043 → 044.** They came from a rethink of
-`/design` on 2026-08-26. **039 is done** — merged as `b1eea8a` (#217), live, and archived.
+**Four plans are queued: 041 → 042 → 043 → 044.** They came from a rethink of `/design` on
+2026-08-26, as the chain that opened with 040. **039 and 040 are both done** — merged as `b1eea8a`
+(#217) and `eb09d90` (#223), live, and archived.
 
-**Why the new four are a chain and not a set.** They were written in the order a defect forced,
+**Why the five are a chain and not a set.** They were written in the order a defect forced,
 not in the order the work was imagined. The rethink began as "redraw the page", and two mutations
 run against `71bc7e1` turned it into four:
 
@@ -19,10 +20,13 @@ nothing was holding the renderings to the module: the snapshots compare each gen
 with its own committed copy, which proves it was regenerated rather than that anything was
 rendered, and the only assertion SPECIFIC to the built page was a type-step census — other gates do
 reach it, but every one is a build-wide universal about links, hover, presses and the page header,
-and none can see which sections the page carries. So **040 closes
-that first**, and 041, 042 and 043 each add something — values, a drawing, two sections — that
-would otherwise be able to reach one surface and not the others with a green run. 043's first step
-is to re-prove 040's gate bites before relying on it.
+and none can see which sections the page carries. So **040 closed that first**, and 041, 042 and 043
+each add something — values, a drawing, two sections — that would otherwise be able to reach one
+surface and not the others with a green run. Both mutations above were re-run at `3eb4098` before
+040 was executed and both were still silent; each of the five gates 040 shipped has since been shown
+to fail on a stimulus of its own. 043's first step is to re-prove 040's gate bites before relying on
+it, and that step is worth keeping rather than striking: it is cheap, and the whole point of the
+chain is that no plan after this one trusts a gate it did not watch bite.
 
 **The drawing in 042 was CONFIRMED by the maintainer on 2026-08-26**, from three whole-page
 alternatives drawn as live mockups in the site's own tokens. What was approved is the ledger sheet
@@ -268,7 +272,7 @@ recreated.
 | 037 | Serve the design system as markdown, in the repo and on the web | P3 | M | 036 | **DONE** (`0f923c4`) |
 | 038 | Publish the chip, put one header on every page but the home page, and give the wall a markdown twin | P2 | L | 036, 037 | **DONE** (`0e78e22`) |
 | 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **DONE** (`b1eea8a`) |
-| 040 | Hold all three renderings to their one source | P1 | M | — | **TODO** |
+| 040 | Hold all three renderings to their one source | P1 | M | — | **DONE** (`eb09d90`) |
 | 041 | Publish a token's two values, not just its role | P2 | M | 040 | **TODO** |
 | 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **TODO** |
 | 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **TODO** |
@@ -276,9 +280,11 @@ recreated.
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
-**How the 040–043 chain divides, and why each boundary is real.** 040 is a gate and nothing else:
-it adds assertions and makes one renderer iterate a list it currently hand-writes, and its own
-verification is that `DESIGN.md` does not change by a byte. 041 publishes every token's two values,
+**How the 040–043 chain divides, and why each boundary is real.** 040 was a gate and nothing else:
+it added assertions and made one renderer iterate a list it had hand-written, and its own
+verification was that `DESIGN.md` did not change by a byte — which held, first time, and was carried
+further on the preview, where the page and its markdown twin both came back byte-identical to what
+production was already serving. 041 publishes every token's two values,
 derived at build time from the two theme blocks in `src/layouts/BasicLayout.astro` — which do not
 move, because Astro's `inlineStylesheets: "auto"` once pushed those very tokens from a chunk into
 the page and took sixteen tests red with nothing wrong with the page. 042 is the only one of the

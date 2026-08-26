@@ -2899,3 +2899,81 @@ Three things from it are worth carrying forward:
 
 Cost, stated because it is not free: **+36px at 430** and **+592px at 320 with a 40px root**, since
 two rows wrap into more lines than one row of six. Both remain under the pre-039 baseline.
+
+## Plan 040 — every rendering held to the one module it comes from
+
+Merged as `eb09d90` (#223). A section could be added to `src/content/design.ts` and reach `/design`
+alone, or removed from the page and stay in every document, with `pnpm test` green either way. Five
+gates close both directions. What follows is only what executing it established.
+
+### The premise had drifted in count and held in substance
+
+The plan's baseline was 661 tests at `71bc7e1`; the tree was at `3eb4098` and measured **667**, with
+five files named in Scope changed by #217 and #221 in between. Both mutations were re-run rather than
+trusted, and both were still silent — the same page-yes / three-documents-no split, the same exit 0,
+the same totals as the unmutated run. The drift check earned its place a second way: the plan quoted
+`src/content/design.ts:199` for a declaration that now sits at 195. **An excerpt can be correct while
+its line number is not**, and comparing the excerpts is what the instruction actually asks for.
+
+### The plan predicted which gate would stop catching its own founding mutation, and was right
+
+After the renderer iterates, the fifth-section mutation renders into the document by construction and
+the page always iterated — so gates 1 and 2 cannot see it. It reddens **gate 4 and the `DESIGN.md`
+snapshot**, because the key is in no declared list. A plan that says in advance which of its own gates
+will go quiet is the only reason that quiet is legible rather than alarming.
+
+The consequence is a rule: **gate 1 needed its own mutation and would otherwise have shipped unproven.**
+Filtering `type` out of the iteration takes it red naming `SECTIONS.type`. A gate whose only stimulus
+is caught by a different gate has never been shown to fail.
+
+### An ordered assertion shadows the one after it — mutate each separately
+
+Gate 5 asserts controls and then token roles. Mutated together — a control's name replaced on the page
+AND `TOKEN_ROLES.slice(1)` on its loop — only the control half reported. The token half is unreachable
+while the first fails, so a single combined mutation certifies half a gate. Mutated apart, each names
+its own casualty: `[ 'chip-icon' ]` and `[ '--background' ]`.
+
+### The entity decode is load-bearing, and the number is four
+
+The plan warned that an apostrophe ships as `&#39;`. Removing `decodeEntities` from the page-reading
+helper and rebuilding turns **two gates red on entirely correct content** — four `TOKEN_ROLES` entries
+and one `SECTIONS.palette` line. This is written down because the tempting repair is to loosen the
+needle into a substring, and a loosened needle is how a gate starts passing on content that is wrong.
+The haystack is normalised; the needle is compared as the module authored it.
+
+The same reasoning decided gate 3's shape. Its negative half asserts a heading is ABSENT, and a bare
+`"Type"` would redden the day any sentence in that document used the word. Measured: `type` appears
+nowhere in the agent's document today, so the loose form would have been green — and green for a
+reason that has nothing to do with what it claims to check. `## Type`, as the document draws it, is
+the form that can only be wrong about the thing it is about.
+
+### Declaring a list and gating it are the same act here
+
+`AGENT_SECTIONS` and `AGENT_DROPS` are consumed by no other line of `src/lib/design-doc.ts`. Left
+unexported they are unused locals and `pnpm check` fails, so the declaration cannot exist as
+documentation-only: **the export is what makes the list real, and the test is its only reader.**
+A declared subset is not a complete one — the agent is meant to carry less than the repository's spec.
+What is forbidden is carrying less than it says it does.
+
+### Two measurement traps, both hit
+
+**`git checkout -- <path>` ate uncommitted work mid-harness.** Reverting a mutation on
+`src/lib/design-doc.ts` reverted the step-2 and step-3 edits in the same file, because they were not
+committed. The plan's own warning was about a *bare* `git checkout --`; naming the exact file is no
+protection when the mutation and the change share it. Commit before the first mutation, not after the
+last.
+
+**`SKIP_BUILD=1` reuses whatever `dist/` the LAST build left.** The first entity-decode probe ran
+against a page still carrying an earlier mutation and reported a missing token that was missing for
+the wrong reason. Any measurement that reads `dist/` after reverting a source mutation needs
+`pnpm build` between the two.
+
+### The renderer was rewritten and the bytes did not move
+
+`pnpm test:update` left `DESIGN.md` and `.design-sync/conventions.md` byte-identical first time, which
+was the plan's check that iterating introduced no second defect. The preview deployment carried that
+further than the repository can: fetched from the immutable hash URL out of the deploy job's log and
+compared with live production, `/design.md` and `/design/` are both **byte-identical**. A `DESIGN.md`
+diff says nothing about what the host serves; this does.
+
+`pnpm test` 672 passed / 7 skipped, read out of the runner's log rather than locally.
