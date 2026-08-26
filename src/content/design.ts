@@ -59,6 +59,18 @@ export const DESIGN_PAGE: {
     lede: string
     /** The meta description. A crawler reads it with no heading beside it. */
     description: string
+    /**
+     * THE NAME OF THE ROW OF SECTION ANCHORS, and it exists because a reference document is
+     * entered at a section rather than at the top. It is the page's only string that names a
+     * piece of its own furniture — the same job `PATCHES.filter_label` does for the wall's
+     * filter row — and it is here rather than in the route for the reason the Configuration
+     * rule in README.md gives: a value a person would retune has exactly three homes and a
+     * page is not one of them.
+     *
+     * The row is a live index of {@link SECTIONS}, so this label must stay true however many
+     * sections there are. It counts nothing and names none of them.
+     */
+    index_label: string
     /** The two column headings every section's guidance sits under. */
     does_label: string
     donts_label: string
@@ -66,14 +78,15 @@ export const DESIGN_PAGE: {
     title: `${NAME} — ${METADATA.name}`,
     heading: NAME,
     link_label: NAME,
-    lede: "Everything below is the real thing. The swatches resolve the same custom properties "
-        + "every other page does, the ramp wears the real classes, and the controls are the "
-        + "controls. Nothing here is authored twice — every value on this page is read out of the "
-        + "block that declares it, which is why the page can tell you what each colour is and "
-        + "still not be able to go out of date. Change the theme and the whole page re-tones with "
-        + "the site.",
+    lede: "Everything below is the real thing. The colour sheet prints both themes at once, the "
+        + "ramp wears the real classes, and the controls are the controls. Nothing here is "
+        + "authored twice — every value on this page is read out of the block that declares it, "
+        + "which is why the page can tell you what each colour is and still not be able to go out "
+        + "of date. Change the theme and the page re-tones around a record that does not, which is "
+        + "what keeps both columns readable in either one.",
     description: "The colours, the type ramp, the controls and the marks this site is built from, "
         + "drawn live from the stylesheet it ships.",
+    index_label: "Jump to a section",
     does_label: "Do",
     donts_label: "Don't",
 }

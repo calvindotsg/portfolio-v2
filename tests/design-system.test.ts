@@ -105,21 +105,32 @@ const designPageText = () =>
     collapsed(decodeEntities(readFileSync(DESIGN_PAGE_FILE, "utf8").replace(/<[^>]*>/g, "")));
 
 /**
- * EACH `.design-row` ON THE BUILT PAGE, REDUCED TO THE LITERALS IT DRAWS IN A BOX.
+ * EVERY ELEMENT ON THE BUILT PAGE WEARING ONE OF THESE CLASSES IS ONE ROW OF SOMETHING.
  *
  * The page sets every string a reader is meant to copy — a token name, a class name, a mark's
- * name, and now a value — in the hairline box `.design-name` draws. Reducing a row to that list
- * is what lets a gate ask about ONE row rather than about the document, and comparing by
- * EQUALITY rather than by substring is what keeps `--sport-ride` out of `--sport-ride-on-ink`'s
- * row. Astro scopes with a `data-astro-cid-…` attribute rather than an extra class, so the class
+ * name, and a value — in the hairline box `.design-name` draws. Reducing a row to that list is
+ * what lets a gate ask about ONE row rather than about the document, and comparing by EQUALITY
+ * rather than by substring is what keeps `--sport-ride` out of `--sport-ride-on-ink`'s row.
+ * Astro scopes with a `data-astro-cid-…` attribute rather than an extra class, so the class
  * attribute is matched as authored.
+ *
+ * THE PALETTE IS DRAWN IN TWO SHAPES NOW AND BOTH ARE ROWS. Plan 042 took the three neutrals
+ * out of the sheet — each is within one step of the plate it would have been drawn on, in both
+ * themes, so three swatches published three rectangles nobody could tell apart — and redrew
+ * them as one nested specimen whose labels are `.design-stack-line`. The other twelve are
+ * `.design-ledger-row`. A gate that knew only about the sheet would go quietly vacuous for the
+ * three, which is exactly the failure this file's own header describes one level up.
  */
-const designRowLiterals = () => {
+const rowLiterals = (rowClass: string) => {
     const html = readFileSync(DESIGN_PAGE_FILE, "utf8");
-    return [...html.matchAll(/<li class="design-row"[^>]*>([\s\S]*?)<\/li>/g)].map((row) =>
-        [...row[1]!.matchAll(/<span class="[^"]*\bdesign-name\b[^"]*"[^>]*>([\s\S]*?)<\/span>/g)]
+    const row = new RegExp(`<(\\w+) class="[^"]*\\b${rowClass}\\b[^"]*"[^>]*>([\\s\\S]*?)</\\1>`, "g");
+    return [...html.matchAll(row)].map((match) =>
+        [...match[2]!.matchAll(/<span class="[^"]*\bdesign-name\b[^"]*"[^>]*>([\s\S]*?)<\/span>/g)]
             .map((box) => collapsed(decodeEntities(box[1]!.replace(/<[^>]*>/g, "")))));
 };
+
+/** The two shapes the palette is drawn in, as one list of rows. See {@link rowLiterals}. */
+const paletteRowLiterals = () => [...rowLiterals("design-ledger-row"), ...rowLiterals("design-stack-line")];
 
 /** Every line of a section a reader is meant to be able to find, wherever it is rendered. */
 const sectionLines = (section: typeof SECTIONS[keyof typeof SECTIONS]) =>
@@ -588,15 +599,18 @@ describe("the design system this site publishes", () => {
      * them. If that ever stops being true, assert the normalised form and say why here — do not
      * loosen this to a substring of the token name, which would make it unfalsifiable.
      *
-     * Plan 042 restacks exactly these rows under container queries, which is where a dropped
-     * cell is easiest to introduce and hardest to see.
+     * Plan 042 restacked exactly these rows under container queries, which is where a dropped
+     * cell is easiest to introduce and hardest to see — and split them across two drawings, one
+     * of which the arms below reduce to a single line per token. See {@link paletteRowLiterals}.
      */
     it("prints each token's own two values in that token's own row", () => {
         expect(PALETTE.length, "PALETTE is empty — this gate would assert nothing")
             .toBeGreaterThan(10);
-        const rows = designRowLiterals();
-        expect(rows.length, `no .design-row parsed out of ${DESIGN_PAGE_FILE} — this gate would be vacuous`)
-            .toBeGreaterThan(PALETTE.length);
+        const rows = paletteRowLiterals();
+        expect(rows.length, `fewer rows parsed out of ${DESIGN_PAGE_FILE} than the palette has `
+            + "tokens — one of the two drawings has stopped being found, and this gate would be "
+            + "vacuous for every token it drew")
+            .toBeGreaterThanOrEqual(PALETTE.length);
         expect(PALETTE.flatMap(({token, light, dark}) => {
             const row = rows.find((literals) => literals.includes(token));
             if (!row) return [`${token}: the page draws no row naming it`];
@@ -610,6 +624,118 @@ describe("the design system this site publishes", () => {
             `${DESIGN_PAGE_FILE} draws fewer value cells than the palette has values, so a whole `
             + "column has been dropped from the row")
             .toBeGreaterThanOrEqual(PALETTE.length * 2);
+    });
+
+    /**
+     * A SECTION HAS AN ADDRESS AND SOMETHING THAT GOES THERE, and both halves are needed.
+     *
+     * A reference document is entered from a search result at a section rather than at the top,
+     * and before plan 042 this one had no addressable section at all: reaching Marks meant
+     * scrolling past everything above it. The row of chips under the lede is the site's answer,
+     * derived from `SECTIONS` so a section published in the module is reachable the moment it
+     * exists.
+     *
+     * THE ID IS COUNTED, NOT MERELY FOUND. A duplicated `id` is the defect that actually breaks
+     * an anchor — the second one is unreachable and the browser silently takes the first — and
+     * "does the page contain this string" answers yes for a duplicate as readily as for a unique
+     * one. So this counts occurrences and demands exactly one.
+     *
+     * THE ADDRESS IS DERIVED FROM THE KEY AND THAT IS A PUBLIC CONTRACT. A heading is prose
+     * somebody may reword; a key is the module's stable identifier. Renaming one breaks every
+     * bookmark pointing at that section, and there is no redirect layer on this site.
+     */
+    it("gives every section an address, and a chip that goes there", () => {
+        const keys = Object.keys(SECTIONS) as (keyof typeof SECTIONS)[];
+        expect(keys.length, "SECTIONS is empty — this gate would assert nothing").toBeGreaterThan(0);
+        const html = readFileSync(DESIGN_PAGE_FILE, "utf8");
+        const occurrences = (needle: string) => html.split(needle).length - 1;
+        expect(keys.map((key) => `${key}: ${occurrences(`id="design-${key}"`)}`)
+            .filter((line) => !line.endsWith(": 1")),
+            `${DESIGN_PAGE_FILE} must carry exactly one id="design-<key>" per section. Zero is a `
+            + "chip pointing nowhere; two is an anchor a reader can only reach half of")
+            .toEqual([]);
+        expect(keys.filter((key) => occurrences(`href="#design-${key}"`) < 1),
+            `${DESIGN_PAGE_FILE} publishes a section with no chip linking to it, so the page's own `
+            + "index is shorter than the page")
+            .toEqual([]);
+    });
+
+    /**
+     * A KIND OF CONTROL IS DRAWN, NOT JUST NAMED. The gate above asks whether every name in
+     * `CONTROLS` reaches the page as text, and a name printed in a list with nothing beside it
+     * satisfies exactly that — which is the state plan 042's throw makes impossible at build time
+     * and this makes impossible in the artifact.
+     *
+     * THE SPECIMEN IS MATCHED BY THE KIND'S OWN CLASS, in the row that names the kind, so the two
+     * cannot drift apart: a row labelled `chip-icon` whose specimen wears `chip` is a specimen of
+     * the wrong control, and is caught here rather than read as a pass. Class tokens are compared
+     * whole for that reason — `chip` is a prefix of `chip-icon`.
+     */
+    it("draws a specimen for every kind of control, not just its name", () => {
+        expect(CONTROLS.length, "CONTROLS is empty — this gate would assert nothing")
+            .toBeGreaterThan(1);
+        const html = readFileSync(DESIGN_PAGE_FILE, "utf8");
+        const rows = [...html.matchAll(/<li class="design-row"[^>]*>([\s\S]*?)<\/li>/g)].map((m) => m[1]!);
+        expect(rows.length, `no .design-row parsed out of ${DESIGN_PAGE_FILE} — this gate would be vacuous`)
+            .toBeGreaterThanOrEqual(CONTROLS.length);
+        const named = (row: string) =>
+            [...row.matchAll(/<span class="[^"]*\bdesign-name\b[^"]*"[^>]*>([\s\S]*?)<\/span>/g)]
+                .map((box) => collapsed(decodeEntities(box[1]!.replace(/<[^>]*>/g, ""))));
+        const wears = (row: string, kind: string) =>
+            [...row.matchAll(/<a\b[^>]*\sclass="([^"]*)"/g)]
+                .some((a) => a[1]!.split(/\s+/).includes(kind));
+        expect(CONTROLS.map(({name}) => name).filter((name) => {
+            const row = rows.find((r) => named(r).includes(name));
+            return !row || !wears(row, name);
+        }),
+            `${DESIGN_PAGE_FILE} names these kinds of control and draws no link wearing them, so `
+            + "the site's own styleguide publishes a vocabulary a reader cannot see an example of")
+            .toEqual([]);
+    });
+
+    /**
+     * THIS PAGE INVENTS NO LABEL REGISTER, and the two it uses are read from where they are
+     * declared rather than restated here.
+     *
+     * It had three. The site owns two — the chip's `0.75rem / 700 / 0.1em` in `uno.config.ts`, and
+     * the bib's meta row at `0.625rem / 700 / 0.14em` — and `.design-guide-heading` arrived with
+     * the chip's size at 0.08em of tracking, which is the chip's register with the one number
+     * nobody could give a reason for changed. The page that documents the system grew the system
+     * a register.
+     *
+     * ASSERTED AS A SET RATHER THAN AS TWO EQUALITIES, because the failure is a THIRD value
+     * appearing and a pair of equalities cannot see one. Both members of the set are derived: the
+     * chip's from the shortcut source, the bib's from the wall page's own shipped rule. Nothing
+     * about this gate knows what either number is, which is the difference between it and the
+     * `grep -c '0.08em'` that would have caught only the one register that has already gone.
+     */
+    it("sets every label on this page in one of the site's own two registers", () => {
+        const tracking = (value: string) => value.trim().replace(/^0(?=\.)/, "");
+        const chip = (unoConfig.shortcuts as Record<string, string>).chip;
+        expect(typeof chip, "uno.config.ts publishes no `chip` shortcut — this gate would be vacuous")
+            .toBe("string");
+        const chipTracking = (chip as string).match(/tracking-\[([^\]]+)\]/)?.[1];
+        expect(chipTracking, "the `chip` shortcut declares no tracking, so the register a label over "
+            + "a block is set in cannot be read off it").toBeTruthy();
+
+        const wallCss = pageCss("dist/patches/index.html");
+        const bibTracking = wallCss.match(/\.bib-meta[^{]*\{[^}]*letter-spacing:\s*([^;}]+)/)?.[1];
+        expect(bibTracking, "the wall ships no .bib-meta letter-spacing, so the register a specimen's "
+            + "own eyebrow is set in cannot be read off it").toBeTruthy();
+
+        const allowed = new Set([tracking(chipTracking!), tracking(bibTracking!)]);
+        expect(allowed.size, "the two registers resolved to one value — this gate would allow a third "
+            + "by accident").toBe(2);
+
+        const found = [...pageCss(DESIGN_PAGE_FILE).matchAll(/letter-spacing:\s*([^;}]+)/g)]
+            .map((m) => tracking(m[1]!));
+        expect(found.length, `${DESIGN_PAGE_FILE} ships no letter-spacing at all — this gate would be `
+            + "vacuous").toBeGreaterThan(1);
+        expect([...new Set(found)].filter((v) => !allowed.has(v)).sort(),
+            `${DESIGN_PAGE_FILE} sets a label in a register the site does not have. The two it may `
+            + `use are ${[...allowed].join(" and ")}: the chip's, for a label over a block, and the `
+            + "bib's, for a specimen's own eyebrow")
+            .toEqual([]);
     });
 
     it("shows every type step the stylesheet ships", () => {
