@@ -25,7 +25,11 @@
   hand-writes. No drawing changes, no values move, no stylesheet is touched.
 - **Depends on**: **039**, for sequencing rather than semantics. 039 is in flight and removes one
   entry from `CONTROLS` in `src/content/design.ts` and one specimen from `src/pages/design.astro`.
-  This plan reads both but changes neither. Land 039 first for a clean apply.
+  This plan reads both but changes neither, and gate 5 stays green under that removal because 039
+  deletes the entry and its specimen together. Land 039 first for a clean apply.
+  **Do not execute these two in parallel**: both modify `tests/design-system.test.ts` and both
+  regenerate `DESIGN.md` and `.design-sync/conventions.md`, so whichever lands second must re-run
+  `pnpm test:update` and re-read the diff.
 - **Category**: tests
 - **Planned at**: commit `71bc7e1`, 2026-08-26
 - **Baseline measured at `71bc7e1`**: `pnpm test` → 22 files passed, 1 skipped; 661 passed,
@@ -77,9 +81,11 @@ The cause is two-sided and each side is a separate defect:
    `SECTIONS.controls`, `SECTIONS.icons`) while `src/pages/design.astro` iterates
    `Object.keys(SECTIONS)`. The `SECTIONS` type is a closed union, so widening it does not make the
    compiler ask the renderer about the new key — it just goes unrendered.
-2. **The built HTML page has exactly one assertion over it in the whole suite** — the type-ramp
-   census at `tests/design-system.test.ts:387`. Nothing checks that the page carries a section
-   heading, a token role, a control's role or a line of guidance.
+2. **The only assertion SPECIFIC to the built page is a type-step census** —
+   `tests/design-system.test.ts:387`. Other gates do reach this page, but every one of them is a
+   build-wide universal walked over all pages — link signifiers, hover, presses, the page header —
+   and none of them can see which sections the page carries. Nothing checks that it carries a
+   section heading, a token role, a control's role or a line of guidance.
 
 This is the failure the whole `src/content/design.ts` architecture was built to prevent, and it is
 the one the next three plans walk straight into: 041 adds values, 042 redraws the page, 043 adds
@@ -246,11 +252,13 @@ suite, **STOP** — the tree has moved and this plan's premise needs re-deriving
 In `src/lib/design-doc.ts`, `renderFull()` renders every entry of `SECTIONS` by iterating it,
 in the object's own key order, instead of naming four keys.
 
-The complication is that two sections carry an extra block between the lede and the guidance —
+The complication is that three of the four sections carry an extra block between the lede and the
+guidance —
 `palette` gets `tokenTable()`, `icons` gets `markInventory()`, and `controls` gets `controlList()`.
 Keep those as a lookup keyed by section name, so an unknown section renders heading, lede and
 guidance and nothing else — which is the right default, and is exactly what
-`src/pages/design.astro` already does with its `key === "palette"` conditionals.
+`src/pages/design.astro` already does with its per-key conditionals — it branches on all four keys,
+not only `palette`.
 
 The theming block and the Overview stay where they are: neither is a member of `SECTIONS`.
 
@@ -296,14 +304,21 @@ when one heading is swapped for another.
 **Gate 2 — every section reaches the page.** For every entry of `SECTIONS`, its `heading` and its
 `lede` appear in the built `dist/design/index.html`, and so does every `does` and `donts` line.
 
-Two traps to handle explicitly, and both must be handled by **normalising the haystack**, never by
-loosening the needle to a substring:
+**NORMALISE THE PAGE ONCE, AND USE IT FOR EVERY ASSERTION IN THIS PLAN THAT READS
+`dist/design/index.html` — gates 2 and 5 both.** Two traps, and both are handled by normalising the
+haystack, never by loosening the needle to a substring:
 
-- The page is HTML, so an apostrophe in a guidance line ships as `&#39;`. Decode the entities in
-  the page text before comparing, or compare against an encoded copy of the needle — pick one and
-  say which in a comment.
+- The page is HTML, so an apostrophe ships as `&#39;`. That is not hypothetical and it is not
+  confined to guidance lines: four entries in `TOKEN_ROLES` carry an apostrophe in their `role`
+  (`a card's plate…`, `that plate's edge`, `the Now card's live indicator dot`, `that dot's
+  decorative pulsing halo`), so gate 5 fails on **correct content** without this. Decode the
+  entities in the page text before comparing, or compare against an encoded copy of the needle —
+  pick one and say which in a comment.
 - Astro may split a text node. Strip tags from the page body before matching, so a needle broken
   across an element boundary still matches.
+
+Write this as one shared helper both gates call, so a third page-reading gate added later inherits
+it rather than rediscovering the apostrophe.
 
 Before trusting this gate, **prove it can fail**: re-run Mutation B and confirm gate 2 goes red
 naming `icons`. Record the message in the pull request body.
@@ -328,8 +343,10 @@ the gate named above and nothing else unrelated.
 
 `CLAUDE.md`'s Content Management section says each content module's own head says what it holds.
 Add to the design system's neighbourhood — two sentences, no more — that `src/content/design.ts` is
-rendered onto four surfaces and that `tests/design-system.test.ts` now holds every one of them to
-it in both directions, with the agent audience's subset declared rather than implicit.
+the one authored description of this system, and that `tests/design-system.test.ts` now holds every
+rendering of it to that module in both directions, with the agent audience's subset declared rather
+than implicit. **State the property, not the cardinality**: do not write how many surfaces there
+are, which is what the next paragraph forbids and what this repository has a standing rule about.
 
 Do not enumerate the surfaces as a count and do not list the gates. `tests/docs-drift.test.ts`
 resolves backticked paths against the tree, so every path you name must exist.
@@ -370,10 +387,19 @@ Machine-checkable. ALL must hold:
 - [ ] `pnpm test` exits 0
 - [ ] `git diff --exit-code DESIGN.md` → exit 0 (no published prose changed)
 - [ ] `git diff --exit-code .design-sync/conventions.md` → exit 0
-- [ ] `grep -c 'SECTIONS\.\(palette\|type\|controls\|icons\)' src/lib/design-doc.ts` → the only
-      remaining matches are inside `renderAgent()` and the declared-subset structure; `renderFull()`
-      names no section key
-- [ ] Mutation A reddens the suite, and the failing test is gate 1 or gate 2
+- [ ] `grep -n 'SECTIONS\.\(palette\|type\|controls\|icons\)' src/lib/design-doc.ts` → **every
+      hit's line number falls outside `renderFull()`'s span.** Use `grep -n` and check the
+      positions, not `grep -c`: a count cannot establish *where* the matches are, which is the whole
+      property. Gate 1 and the byte-identical `DESIGN.md` diff are what actually own this; the grep
+      is how you see it at a glance
+- [ ] Mutation A reddens the suite, and the failing tests are **gate 4** and the `DESIGN.md` file
+      snapshot — *not* gates 1 or 2. After step 2 a fifth key renders into the document by
+      construction and the page already iterates, so neither of those can see it; what catches it
+      is that the key is in no declared list. Record gate 4's message in the pull request body
+- [ ] **Gate 1 has its own mutation, because Mutation A no longer reaches it**: re-hand-list one
+      section out of the iteration in `renderFull()` (or make the extra-block lookup swallow a key)
+      and confirm gate 1 goes red naming that section. Record the message. A gate whose mutation was
+      never run is a gate nobody has shown can fail — which is this plan's own standard
 - [ ] Mutation B reddens the suite, and the failing test is gate 2
 - [ ] `git diff --name-only` lists only files from the In-scope section
 - [ ] `plans/README.md` is **unmodified**

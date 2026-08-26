@@ -132,7 +132,13 @@ cannot open this repository to look a reason up.
 Measured at `71bc7e1`: the rendering is **3,933** characters, so **163 spare**. Two whole sections
 in the agent audience do not fit, and step 4 is where that is decided rather than discovered.
 
-**Re-measure both figures.** Plan 039 changes the length of that document and 041 may too.
+**Re-measure, and expect a bigger number than 163.** Both plans ahead of this one move it: 039
+removes a control role from the one list this audience carries whole, which is worth roughly two
+hundred characters, and 041 rewrites the palette "Don't" that this audience also carries. Neither
+saving is asserted anywhere, so **measure it rather than taking a figure from here** — 041's step 6
+is required to report the post-rewrite count in its pull request body, which is the number to start
+from. The point of naming the direction is that an executor who measures 163 again should suspect
+the measurement, not the plan.
 
 ### What already carries the argument, and must not be copied wholesale
 

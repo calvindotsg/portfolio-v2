@@ -20,8 +20,12 @@
 
 - **Priority**: P2
 - **Effort**: M
-- **Risk**: LOW — nothing moves. One new derivation, one new gate, and three documents gain a
-  column. No stylesheet changes, so no contrast, layout or cascade assertion can be disturbed.
+- **Risk**: LOW-MED. No value moves and no theme block is touched, so no contrast assertion can be
+  disturbed. But this plan is **not** invisible on the page, and an earlier draft of this line
+  claimed it was: step 3 adds one scoped class and two items to each of fifteen `.design-row`
+  items, which is a stylesheet change and a layout change. `.design-row`'s own comment warns that
+  this row shatters a long token name at the 200% zoom WCAG asks for, and no suite here has a
+  layout engine — so step 3 carries a browser measurement rather than relying on the gates.
 - **Depends on**: **040**, which makes every rendering of `src/content/design.ts` provably reach
   every surface. Hard dependency in one direction only: without it, a document that stopped
   carrying the new value columns would still match its own snapshot. Also **039**, for sequencing
@@ -185,11 +189,13 @@ The final clause — "the values stay in the stylesheet" — is the sentence thi
 - **`src/content/` is for meaning, `src/lib/` is for derivation.** `goal.ts` and `projection.ts`
   are the exemplars: they read authored data and compute. The new module is one of those and goes
   in `src/lib/`.
-- **Nothing under `src/content/` may import the new module.** `uno.config.ts` loads
-  `src/lib/icons.ts` through unconfig/jiti, and that module imports `src/content/home`,
-  `src/content/races` and `src/content/site` — so those three and their graph run under jiti. Keep
-  the new module out of that graph; `src/lib/design-doc.ts` and `src/pages/design.astro` may import
-  it freely because neither is reachable from `uno.config.ts`.
+- **Nothing REACHABLE FROM `uno.config.ts` may import the new module.** State the guard by graph,
+  not by directory — a directory rule is both too wide and too narrow. `uno.config.ts` loads
+  `src/lib/icons.ts` through unconfig/jiti; that module imports `src/content/home`,
+  `src/content/races`, `src/content/site` **and `src/lib/goal.ts`**, which is in `src/lib/` and is
+  in the graph anyway. Verify the graph yourself rather than trusting this list — it is a fact
+  about imports on the day it was written. `src/lib/design-doc.ts` and `src/pages/design.astro` may
+  import the new module freely because neither is reachable from `uno.config.ts`.
 - **Generated files are committed and gated by snapshot.** `DESIGN.md` and
   `.design-sync/conventions.md` are regenerated with `pnpm test:update` and drift fails `pnpm test`.
 - **Comments carry the argument.** Every module in `src/` opens with why it exists. Match that —
@@ -223,8 +229,11 @@ The final clause — "the values stay in the stylesheet" — is the sentence thi
 - `tests/palette.test.ts` (create)
 - `tests/design-system.test.ts` (modify — one new gate; existing ones untouched)
 - `src/pages/design.astro` (modify — the palette specimen only)
-- `src/lib/design-doc.ts` (modify — `tokenTable` and one authored sentence)
-- `src/content/design.ts` (modify — the `colors` omission's reason, and one palette "Don't")
+- `src/lib/design-doc.ts` (modify — `tokenTable`, and the Overview paragraph in `renderFull()`
+  whose "neither can tell you a colour" clause step 6 falsifies)
+- `src/content/design.ts` (modify — the `colors` omission's reason, one palette "Don't", **and
+  `DESIGN_PAGE.lede`**, which says "Nothing here restates a value" under the h1 of a page that will
+  print thirty hexes)
 - `DESIGN.md` (regenerate — never hand-edit)
 - `.design-sync/conventions.md` (regenerate — never hand-edit)
 - `.design-sync/NOTES.md` (modify — record the budget decision in step 5)
@@ -238,6 +247,10 @@ The final clause — "the values stay in the stylesheet" — is the sentence thi
   `inlineStylesheets: "auto"` once pushed these very tokens from a chunk into the page and took
   sixteen tests red with nothing wrong with the page — the story is written out in
   `tests/helpers/css.ts`. Anything that changes how this stylesheet ships is its own plan.
+- **`AGENT_BUDGET`'s value in `tests/design-system.test.ts`. It may not be raised.** The number is
+  a design agent's context window rather than this repository's, and its provenance is written
+  beside it. If the agent rendering will not fit, that is a finding for the pull request body, not
+  an edit — see the STOP conditions.
 - `themeTokens()` and the four `it(` blocks that already exist in `tests/design-system.test.ts`
   above line 230. They gate the built CSS and are the reason this plan is low-risk.
 - The drawing of `/design` — its layout, its cards, its navigation, its Do/Don't columns. Plan 042
@@ -324,7 +337,24 @@ Assertions, each with a message naming what a failure means:
    `tests/helpers/css.ts` and the same `:root[data-theme=…]` parse the existing suite uses, and
    compare token names AND values. This is the assertion that makes the whole plan safe: it proves
    the values the page prints are the values the browser resolves.
-6. **At least one token's two values differ.** If light and dark were ever parsed from the same
+
+   **COMPARE CANONICALLY, NOT VERBATIM — the built sheet is MINIFIED and a verbatim comparison is a
+   false red on correct code.** The minifier lower-cases hex and folds `#111111` to `#111`, so of
+   the thirty declarations only a handful survive a literal match. `tests/build-output.test.ts:1056`
+   already reads theme values out of the built sheet and is the working example; `expandHex` in
+   `tests/helpers/contrast.ts` covers the shorthand half of the problem but not the case half.
+   Normalise both sides at the comparison — lower-case, and expand three digits to six.
+   **Do NOT normalise inside the palette module.** Step 1 captures the source verbatim, and a
+   done criterion below greps `DESIGN.md` for a case-sensitive `A82334`; lower-casing in the parser
+   turns that criterion red.
+6. **Every value reaches the full markdown rendering, and none reaches the agent one.** For every
+   `PALETTE` entry, both values appear in `renderDesignDoc("full")`; for the agent rendering, no
+   hex appears at all. This is the document-side twin of step 4's page-side gate, and without it
+   the chain reopens the exact hole plan 040 was ordered first to close — a value that reaches the
+   page and not the spec, with a snapshot that matches itself either way. It also holds step 5.2's
+   measured budget decision in **both** directions rather than only recording it in `NOTES.md`.
+   Vacuity floor on `PALETTE.length`.
+7. **At least one token's two values differ.** If light and dark were ever parsed from the same
    block, every pair would be identical and assertions 1–5 would all still pass. Measured at
    `71bc7e1`, `--text` is `#0B0B0B` / `#FAFAFA`; assert the property ("some token's values
    differ"), not that pair, so the gate survives a repalette.
@@ -339,6 +369,11 @@ work elsewhere in the tree. Record the observed failure message in the pull requ
 
 ### Step 3: Print both values on the page
 
+**This drawing is provisional and plan 042 re-draws it.** 042 replaces this whole specimen with a
+four-column ledger, so the rows you add here are rework by design. The split is deliberate rather
+than an oversight: 042's direction is unconfirmed by its own step 0, so folding this work into it
+would risk `/design` never publishing a value at all. Draw it plainly and do not over-invest.
+
 In `src/pages/design.astro`, the `key === "palette"` branch: join `TOKEN_ROLES` to `PALETTE` by
 token name and render each row's two values after the token name and before the role.
 
@@ -350,30 +385,51 @@ Add one class for it; do not invent a second treatment and do not add a copy but
 needs script, and this site ships almost none.
 
 Each value needs a label saying which theme it is, and the label may not be a bare word floating
-beside a hex. Use the register the page already has after 041 has not yet run: the existing
-`.design-guide-heading` label style is the page's only small-caps register today, and reusing it
-here is correct. **Do not add a third register.**
+beside a hex. The page today carries **two** uppercase registers — the page header's chips, which
+are the site's own, and `.design-guide-heading`, which this page invented. Set the theme labels in
+`.design-guide-heading`. That class is re-toned to the chip's register by plan 042, so taking it
+here means the labels follow that correction for free. **Do not invent a new register for these
+labels.**
 
 Keep the row wrapping. `.design-row` is a wrapping flex row on purpose — the comment above it
 explains that a three-column grid shatters a long name into single letters at the 200% zoom WCAG
 asks for. Two more items in that row must not turn it into a grid.
 
 **Verify**: `pnpm build`, then
-`grep -o 'design-hex[^<]*' dist/design/index.html | head -4` → four matches carrying hexes.
-Then `pnpm preview` and read the page at 1280 and at 390 in both themes; confirm no row overflows
-its card horizontally at either width.
+`grep -o 'design-hex' dist/design/index.html | wc -l` → at least twice `PALETTE.length`.
+Then `pnpm preview` and read the page in both themes at **1280, 390 and 320**, and again **at a
+40px root font size**. Required at every one of those: no horizontal document overflow, and no
+token name broken mid-word. This is a browser step because the suite has no layout engine, and
+`.design-row`'s own comment is the reason it is needed — two more items in a wrapping row is
+exactly the pressure that comment describes. Record the measurements in the pull request body.
 
 ### Step 4: Add the page-side gate
 
 In `tests/design-system.test.ts`, in the block that already reads `DESIGN_PAGE_FILE`, add one
-assertion: **every token in `PALETTE` has both of its values present in the built
-`dist/design/index.html`.** Not "some hex is present" — that would pass on a single row.
+assertion: **every token's row in the built page carries that token's own two values.**
 
-Watch the trap the existing suite already names in its own comments: the minifier may shorten
-`#111111` to `#111` inside a *stylesheet*, but these values are page **text**, not declarations, so
-they ship verbatim. Assert the verbatim form, and if that turns out to be false, assert the
-normalised form and say why in a comment — do not loosen the assertion to a substring of the token
-name, which would make it unfalsifiable.
+**Assert PER ROW, not per document, and this is the load-bearing part of the step.** A
+document-wide substring test is not the property: measured at `71bc7e1`, the two theme blocks
+declare thirty values over only **fourteen distinct hexes** — `#A82334` is worn by eight tokens,
+`#F3A3AA` by five, `#F9CDD3` by three, and three more by two each. So "both of this token's values
+appear somewhere in the page" stays green for most tokens with **both of their own cells missing**,
+because another token supplies the string. Locate each row by its token name, which is unique and
+already rendered in `.design-name`, and require that row's own text to carry its pair. Keep a floor
+of twice `PALETTE.length` value cells as a companion check, and say in the comment why the
+document-wide form is insufficient — otherwise someone will simplify it back.
+
+Plan 042 restacks exactly these rows under container queries, which is where a dropped cell is
+easiest to introduce and hardest to see.
+
+Watch the trap the existing suite already names in its own comments — and note it cuts the
+opposite way here from step 2. The minifier shortens `#111111` to `#111` and lower-cases inside a
+*stylesheet*, which is why step 2's assertion 5 must compare canonically. These values are page
+**text**, not declarations, so they ship verbatim and the verbatim form is the right assertion.
+If that turns out to be false, assert the normalised form and say why in a comment — do not loosen
+the assertion to a substring of the token name, which would make it unfalsifiable.
+
+The page also needs the entity and split-text-node normalisation plan 040 introduces for its
+page-reading gates. Reuse that helper rather than writing a second one.
 
 **Verify**: `SKIP_BUILD=1 pnpm test design-system` → all pass.
 
@@ -424,7 +480,48 @@ In `src/content/design.ts`:
    reader will otherwise see a hex on the page and conclude the rule was abandoned. State it as:
    *authoring a value here is forbidden; deriving one and printing it is what the page is for.*
 
+4. **`DESIGN_PAGE.lede`.** It reads "Nothing here restates a value, so nothing here can go out of
+   date". After this plan the page prints thirty hexes under that sentence. It is not enough to
+   delete the clause — the *reason* it gave is the page's whole claim and is still true. Say the
+   true, stronger version: nothing here is **authored** twice; every value on the page is read out
+   of the block that declares it, which is why the page cannot go out of date even though it now
+   tells you what each colour is.
+
 **Verify**: `pnpm test:update`, then `SKIP_BUILD=1 pnpm test design-system content` → all pass.
+Then **re-measure `.design-sync/conventions.md`** and report the character count and the remaining
+headroom in the pull request body. Step 2's palette "Don't" is carried by the agent audience, so
+rewriting it moves that number, and plan 043's whole budget argument starts from it.
+
+### Step 6b: Correct the spec's own Overview — it currently promises the opposite
+
+**This step is why the plan cannot stop at step 6, and skipping it ships a document that contradicts
+itself on one screen.** `renderFull()` in `src/lib/design-doc.ts` authors an Overview paragraph that
+lands at `DESIGN.md:41-44` and in the byte-identical `/design.md`:
+
+```
+It restates no value. What each token is FOR is authored in `src/content/design.ts`; what
+each token IS lives in the theme block of `src/layouts/BasicLayout.astro` …
+the first of those, so neither can disagree with it — and neither can tell you a colour,
+because neither is where a colour is written down.
+```
+
+Step 5 puts a four-column hex table a few lines beneath that. Correct the paragraph in
+`src/lib/design-doc.ts` — not in `DESIGN.md`, which is generated. What it must say after: the
+values are not authored here, they are **read** from the theme block, which is why the table below
+can carry both of a token's values and still have exactly one home.
+
+**Do not defer this to plan 042.** 042 declares `src/lib/design-doc.ts` out of scope, and its own
+step 0 may stop the plan entirely, so nothing else in the chain repairs this sentence.
+
+**The third site needs no change and that is worth saying so nobody "fixes" it.**
+`src/pages/design.astro`'s header rule — *if you are about to type a hex, a rem or a class name
+that the build already knows, stop* — remains exactly true of a derived value. Step 6.3 adds the
+sentence that makes the distinction explicit rather than leaving a future reader to infer the rule
+was abandoned.
+
+**Verify**: `pnpm test:update`, then
+`grep -c 'tell you a colour' DESIGN.md` → **0**, and
+`grep -c 'restates no value' DESIGN.md` → **0**.
 
 ### Step 7: Tell `CLAUDE.md`
 
@@ -480,9 +577,17 @@ Machine-checkable. ALL must hold:
       no matches — no value has been typed into a second home
 - [ ] `grep -c 'A82334' DESIGN.md` returns a non-zero count — the spec now publishes values
 - [ ] `grep -c 'A82334' .design-sync/conventions.md` returns **0** — the agent brief does not
-- [ ] `pnpm build && grep -c 'design-hex' dist/design/index.html` returns at least 30
-      (two per token; re-derive the floor from `PALETTE.length` rather than trusting 30 if the
-      palette has changed)
+- [ ] `pnpm build && grep -o 'design-hex' dist/design/index.html | wc -l` returns at least twice
+      `PALETTE.length`. **`grep -o … | wc -l`, not `grep -c`** — `grep -c` counts matching *lines*,
+      and Astro emits this markup on very few of them, so the count would never reach the floor
+      however correct the page was. Keep "at least": the scoped `.design-hex` rule in the page's own
+      `<style>` contributes one further match
+- [ ] `grep -c 'tell you a colour' DESIGN.md` returns **0** and `grep -c 'restates no value'
+      DESIGN.md` returns **0** — the spec no longer promises the opposite of what it now does
+- [ ] `grep -c 'restates a value' src/content/design.ts` returns **0** — `DESIGN_PAGE.lede` has been
+      corrected rather than left contradicting its own page
+- [ ] The pull request body carries the step 3 browser measurements: 1280, 390 and 320, both themes,
+      and again at a 40px root, each with the overflow and word-breaking result
 - [ ] `git diff --name-only` lists only files from the In-scope section
 - [ ] `plans/README.md` is **unmodified**
 
@@ -500,7 +605,8 @@ Stop and report back (do not improvise) if:
 - The agent budget assertion goes red. That means step 5's decision was wrong for the tree as it
   now stands; report the measured character count and the budget rather than trimming
   `src/content/design.ts` to fit, which would take guidance off `/design` to buy room in a third
-  document.
+  document. **Raising `AGENT_BUDGET` is not an option available to you** — the number is a design
+  agent's context window rather than this repository's, and its provenance is written beside it.
 - Any assertion in `tests/design-system.test.ts` above line 230 changes behaviour. Those gate the
   built CSS; this plan must not be able to move them.
 - You find yourself typing a hex, a rem or a count into any file.

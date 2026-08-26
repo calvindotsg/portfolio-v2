@@ -9,7 +9,7 @@
 > body instead and leave the index untouched.
 >
 > **Drift check (run first)**:
-> `git diff --stat 71bc7e1..HEAD -- src tests uno.config.ts CLAUDE.md`
+> `git diff --stat 71bc7e1..HEAD -- src tests uno.config.ts CLAUDE.md DESIGN.md .design-sync`
 > If any file named in "Scope" changed, compare the "Current state" excerpts against the live code
 > before proceeding; on a mismatch, treat it as a STOP condition.
 >
@@ -23,7 +23,8 @@
 
 - **Priority**: P2
 - **Effort**: L
-- **Risk**: MED — this is the only plan of the four that changes what a page looks like. The page
+- **Risk**: MED — this is the only plan of the four that **redraws** a page. (041 also changes what
+  `/design` looks like, in one specimen; it is not invisible and its own Risk line says so.) The page
   has no layout engine behind it in the suite, so two of its properties (horizontal overflow at
   320px, and behaviour at a 200% text zoom) can only be measured in a browser. Step 8 is not
   optional.
@@ -44,7 +45,9 @@
 
 Measured on the built page at `71bc7e1`:
 
-- **3,558px tall at a 1280 viewport** (`<main>`'s box), **6,054px at 390**.
+- **3,626px of document at a 1280 viewport, 6,054px at 390** — both `body`'s height. `<main>`'s own
+  height at 1280 is 3,558px. Quote one property or the other and say which: `get box` returns
+  `height` and `bottom` side by side and an earlier draft of this line mixed them.
 - **Four identical cards in one column.** At 1280 the specimen rows occupy about half the card's
   width; the only two-column block on the page is Do/Don't.
 - **No section index, no anchors, no permalinks.** Reaching the Marks section means scrolling past
@@ -396,7 +399,10 @@ Machine-checkable. ALL must hold:
 - [ ] `grep -c 'design-guide-heading' src/pages/design.astro` is non-zero and
       `grep -c '0.08em' src/pages/design.astro` is 0
 - [ ] `grep -c 'const \[' src/pages/design.astro` is 0 — no arity destructure remains
-- [ ] For every key of `SECTIONS`: `grep -c 'id="design-<key>"' dist/design/index.html` is 1
+- [ ] For every key of `SECTIONS`: `grep -o 'id="design-<key>"' dist/design/index.html | wc -l` is
+      **1**. Use `grep -o … | wc -l`, not `grep -c`: `grep -c` counts matching lines and would
+      report 1 for a duplicated id as readily as for a unique one — and a duplicated id is exactly
+      the defect that breaks an anchor
 - [ ] `git diff --name-only` lists only files from the In-scope section
 - [ ] The pull request body carries the step 1 and step 8 measurements, at all three widths, both
       themes, and the 200%-zoom result

@@ -17,7 +17,9 @@ run against `71bc7e1` turned it into four:
 The architecture those four surfaces rest on is "one authored module, three renderings", and
 nothing was holding the renderings to the module: the snapshots compare each generated document
 with its own committed copy, which proves it was regenerated rather than that anything was
-rendered, and the built page had exactly one assertion over it in the whole suite. So **040 closes
+rendered, and the only assertion SPECIFIC to the built page was a type-step census — other gates do
+reach it, but every one is a build-wide universal about links, hover, presses and the page header,
+and none can see which sections the page carries. So **040 closes
 that first**, and 041, 042 and 043 each add something — values, a drawing, two sections — that
 would otherwise be able to reach one surface and not the others with a green run. 043's first step
 is to re-prove 040's gate bites before relying on it.
@@ -271,8 +273,9 @@ verification is that `DESIGN.md` does not change by a byte. 041 publishes every 
 derived at build time from the two theme blocks in `src/layouts/BasicLayout.astro` — which do not
 move, because Astro's `inlineStylesheets: "auto"` once pushed those very tokens from a chunk into
 the page and took sixteen tests red with nothing wrong with the page. 042 is the only one of the
-four that changes what a page looks like, and it is the only one whose done criteria include
-measurements a browser has to take, because there is no layout engine in the suite. 043 is writing.
+four that **redraws** a page — 041 changes one specimen on `/design` and is not invisible either, so
+both carry browser measurements in their done criteria, because there is no layout engine in the
+suite. 043 is writing.
 
 **Splitting 041 out of 042 was forced by an arithmetic result, not a preference.** A second colour
 column cannot resolve `var(--token)` — only the live theme's value is reachable from CSS — so the
@@ -285,7 +288,8 @@ temporary directory before running them. 041 specifies the first and records why
 **One measurement decides what the design agent's brief can carry.** `.design-sync/conventions.md`
 was **3,933 characters against its 4,096 budget** at `71bc7e1` — 163 spare. Two value columns over
 the token table cost about 323, and two new sections cost more, so both 041 and 043 keep the agent
-audience smaller than the full one and record the trade. Neither may raise the budget: the number is
+audience smaller than the full one and record the trade, and each names the refusal in its own Out
+of scope and STOP conditions. Neither may raise the budget: the number is
 somebody else's context window and its provenance is written beside it in
 `tests/design-system.test.ts`.
 
