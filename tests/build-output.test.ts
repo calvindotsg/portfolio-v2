@@ -3083,13 +3083,20 @@ describe("hashed assets are cached forever, and are hashed", () => {
          * as one undifferentiated set difference.
          */
         const ALLOWED_FILES = [
-            // `design.md` is a route, not a public asset: `src/pages/design.md.ts` serves the
-            // markdown twin of `/design` at the URL the convention asks for, which is the page's
-            // own plus the extension. It lands here rather than under a directory for the same
-            // reason `llms.txt` does — a file at the root is what the URL says, and neither name
+            // `design.md` and `patches.md` are routes, not public assets: each serves the
+            // markdown twin of a page at the URL the convention asks for, which is the page's
+            // own plus the extension. They land here rather than under a directory for the same
+            // reason `llms.txt` does — a file at the root is what the URL says, and no such name
             // is one Cloudflare Pages reads as configuration.
+            //
+            // THE WALL'S OTHER TWO TWINS ARE NOT HERE, and that asymmetry is the routing rather
+            // than an omission: `/patches/cycling.md` and `/patches/running.md` sit inside the
+            // `patches` directory below. `/patches.md` cannot, because a rest parameter matches
+            // zero segments only where it is a whole path segment — which is why the wall needs
+            // two endpoint files where `/design` needed one.
             "_headers", "404.html", "design.md", "favicon.ico", "index.html", "llms.txt",
-            "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml", "sitemap-index.xml",
+            "patches.md", "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml",
+            "sitemap-index.xml",
         ];
         const ALLOWED_DIRECTORIES = [".well-known", "_astro", "design", "patches"];
 
