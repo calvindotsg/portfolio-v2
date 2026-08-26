@@ -2488,3 +2488,114 @@ it was already past. Trim the guidance in the module if a future run disagrees, 
 **037 is unblocked and its premise now holds** — the module and the renderer it parameterises both
 exist. Its own note is explicit that `conventions.md` stays a separate, terser rendering rather than
 being merged with `DESIGN.md`, and the size trade above is the evidence for why.
+
+## Plan 037 — the same design system as markdown, in the repo and on the web
+
+Merged as `0f923c4` (#209), and live at https://calvin.sg/design.md. It renders the module 036
+authored into the two surfaces `/design` cannot serve: a generated `DESIGN.md` at the repository
+root, which the `improve` pipeline globs for by name during recon, and a markdown twin at the
+page's own URL plus the extension. **They are the same bytes**, and that is asserted against the
+built artifact rather than inferred from the shared call.
+
+### The budget was arithmetic before it was a judgement, and that reverses an instruction
+
+036's own note named this as the one trade to re-decide rather than inherit: the generated
+document had grown to **7,372 characters** against a preamble budget of two to four thousand,
+because it absorbed the do/don't guidance the four deleted reference cards used to carry. That
+note said to trim the guidance in the module rather than in the renderer.
+
+**Measured before anything was cut, that instruction is not available.** The module's own strings
+— both theme lines, every token role, every control role and both guidance lists — come to
+**4,128 characters**. They overrun a 4,096 budget *before a single word of the document's own*, so
+"carry everything" was never on the table; and trimming the module now would take guidance off
+`/design` and out of `DESIGN.md` to buy room in a third document, which is a worse trade than the
+one it was written to prevent. The audience parameter is what makes the instruction obsolete
+rather than wrong: it did not exist when the note was written.
+
+So the trim happens in the **agent audience**, which keeps the don'ts and drops the dos — a don't
+names an output that looks right and is wrong, which no table of tokens can imply, where a do
+largely restates the table and the class list beside it — and drops the section ledes and the
+mark inventory, keeping only the size of that set. The result is **3,941 characters**, and
+`.design-sync/NOTES.md` now carries the reversal with its reason.
+
+**What that cost is named rather than glossed**, which is the part worth carrying forward: every
+dropped do but one is twinned by a don't saying the same thing from the other side, or by the
+token table. The exception is *"give an icon-only control an accessible name"*, which no don't
+twins and which the agent's copy no longer carries. It is recorded as the first thing to re-add
+if a future run gets more room. **A budget met by deleting what the reader acts on is a budget met
+in name** — naming the one casualty is what keeps that honest.
+
+### The format was a real spec, and the palette cannot be expressed in it
+
+`DESIGN.md` is not a free-form document: it has a published format, with typed token groups in
+YAML front matter and a canonical section order, and following it is what makes the file legible
+to anything that globs for the name. The full rendering opens with the format's `Overview` and
+carries front matter using the format's own `omitted` key.
+
+**Every token group is omitted, and the colour reason is the load-bearing one.** That schema maps
+one name to one value. Every token here has TWO, one per theme, and several trade places rather
+than darkening — so a single map would not be a lossy rendering of this palette, it would be a
+FALSE one, and false in the direction that breaks whichever theme nobody wrote down. Declaring the
+omission with that as its reason is the spec's own mechanism for exactly this, and it is the
+difference between a document that looks unfinished and one that says what it is doing. There is
+no `version` key: that is the format's own moving value and nothing here could keep a claim about
+it true.
+
+### The one thing no gate in this repository can assert
+
+The static build discards a route's response headers — `src/pages/llms.txt.ts` carries that
+measurement — so what a reader receives for the twin is decided by the host from the extension. An
+`application/octet-stream` would make it download instead of display, and the whole surface would
+be worse than not shipping it.
+
+Measured on the preview deploy, on the **immutable hash URL taken from the deploy job's own log**
+rather than the `pr-N` alias, which moves: `content-type: text/markdown; charset=utf-8`, no
+`content-disposition`. The same request confirmed the served bytes carry `DESIGN.md`'s SHA-256, so
+it is one measurement of two things — the header, and that the host publishes the artifact the
+suite gated. `public/_headers` is therefore untouched: a rule setting a header the host already
+sends correctly is a rule nobody can tell is doing anything.
+
+`pnpm preview` answers the same value locally, and that was recorded during the run explicitly as
+the WRONG measurement rather than filed as the answer. The two agreeing is a coincidence worth
+having and was never evidence in advance.
+
+### The gate the plan's scope list did not predict
+
+`dist/` grew a new root file, and `tests/build-output.test.ts` holds that set to an allow-list so
+that a Cloudflare Pages control file cannot arrive unnoticed. Nothing in the plan mentioned it.
+This is the fourth run in a row where a plan's scope list was short and the suite said so, which
+is the argument for grepping the suite by name for whatever a plan adds rather than trusting the
+list.
+
+### Verification
+
+`pnpm check` → 0 errors; `pnpm eslint` → clean; `pnpm test` → **628 passed | 7 skipped (635)**,
+read off the runner's own log rather than a local run. `tests/design-system.test.ts` goes 10 →
+**14**, and `tests/build-output.test.ts` gains two.
+
+**Eight mutations, each killed and restored**, with the harness committing first so the reverts
+could not eat uncommitted work: a changed role reddens both file snapshots; the agent rendering
+naming a `src/` path, and the full rendering naming none, redden the same gate from opposite
+sides; carrying the dos reddens the budget; empty renderings redden token completeness; the route
+rendering the wrong audience reddens the byte-identity gate; and the page dropping its alternate
+link, or a second page gaining one, redden the announcement gate both ways.
+
+Verified against the bytes production serves rather than against the branch: the twin is
+byte-identical to the committed file by SHA-256, the page announces it and no other page does, and
+`llms.txt` lists it. The front matter parses as YAML into the format's schema; one `h1`, six `h2`,
+`Overview` first, no duplicate heading. The document says twenty marks ship and the stylesheet has
+exactly twenty `.i-` rules, in both directions.
+
+### What a future run should know
+
+**The copy control is an enhancement over a link and is drawn as one.** It reveals itself only
+after its own inline script confirms a clipboard, so a reader who cannot use it is never offered
+it, and the link beside it needs nothing but the network. It hides with a NEGATIVE rule
+(`.md-copy:not([data-ready])`) rather than declaring a display of its own, because the control
+shortcut owns that box and exactly one rule may declare it.
+
+**Add an audience to `renderDesignDoc`, never a second renderer.** Two functions producing design
+prose would disagree in silence: a file snapshot only ever compares a document with itself, so
+both would stay green while saying different things. The budget gate has about 155 characters of
+headroom, so a couple of new token roles will redden it — that is the gate working, and the fix is
+to trim the agent audience, never the module.
