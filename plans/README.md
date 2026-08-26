@@ -1,6 +1,44 @@
 # Implementation Plans
 
-**One plan is queued: 039.** 038 is done — merged as `0e78e22` (#213) and live — so the dependency
+**Five plans are queued: the chain 040 → 041 → 042 → 043 → 044.** They came from a rethink of
+`/design` on 2026-08-26. **039 has landed** (`b1eea8a`, #217) and its archive is a separate change.
+
+**Why the new four are a chain and not a set.** They were written in the order a defect forced,
+not in the order the work was imagined. The rethink began as "redraw the page", and two mutations
+run against `71bc7e1` turned it into four:
+
+- A fifth section added to `SECTIONS` in `src/content/design.ts` **rendered on `/design` and reached
+  none of the three generated documents** — not `DESIGN.md`, not the `/design.md` route, not
+  `.design-sync/conventions.md`. `pnpm test` stayed at exit 0 with the same totals as the unmutated
+  baseline.
+- The whole Marks section removed from `src/pages/design.astro` **shipped a page without it while
+  the documents kept it.** `pnpm test` again exit 0, same totals.
+
+The architecture those four surfaces rest on is "one authored module, three renderings", and
+nothing was holding the renderings to the module: the snapshots compare each generated document
+with its own committed copy, which proves it was regenerated rather than that anything was
+rendered, and the only assertion SPECIFIC to the built page was a type-step census — other gates do
+reach it, but every one is a build-wide universal about links, hover, presses and the page header,
+and none can see which sections the page carries. So **040 closes
+that first**, and 041, 042 and 043 each add something — values, a drawing, two sections — that
+would otherwise be able to reach one surface and not the others with a green run. 043's first step
+is to re-prove 040's gate bites before relying on it.
+
+**The drawing in 042 was CONFIRMED by the maintainer on 2026-08-26**, from three whole-page
+alternatives drawn as live mockups in the site's own tokens. What was approved is the ledger sheet
+**carrying two elements from the tile-wall direction** — its nested neutral specimen and its chip row
+of section anchors — reviewed as a second mockup drawing the combination in full, both themes, every
+section. 042's Status records the scope; anything the mockup did not show is still open. The two
+alternatives that lost are in "Findings considered and rejected" below.
+
+**The maintainer also widened the chain twice on the same day**, and both are worth naming because
+they are decisions rather than discoveries: `/design` publishes **three** new sections rather than
+two — an access section was asked for over this directory's own recommendation to defer it, and that
+recommendation survives as the section's brief — and `DESIGN.md` and `/design.md` are to follow the
+`google-labs-code/design.md` standards, which is what 041's front-matter work and the whole of 044
+answer.
+
+038 is done — merged as `0e78e22` (#213) and live — so the dependency
 039's first STOP condition names is satisfied and it is executable now. Both were written on
 2026-08-26 after a measured review of the site's control vocabulary, and both were revised before
 merging by an adversarial panel — four review lenses, a refute-first skeptic per finding, then a
@@ -230,8 +268,39 @@ recreated.
 | 037 | Serve the design system as markdown, in the repo and on the web | P3 | M | 036 | **DONE** (`0f923c4`) |
 | 038 | Publish the chip, put one header on every page but the home page, and give the wall a markdown twin | P2 | L | 036, 037 | **DONE** (`0e78e22`) |
 | 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **TODO** |
+| 040 | Hold all three renderings to their one source | P1 | M | 039 (sequencing) | **TODO** |
+| 041 | Publish a token's two values, not just its role | P2 | M | 040 | **TODO** |
+| 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **TODO** |
+| 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **TODO** |
+| 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
+
+**How the 040–043 chain divides, and why each boundary is real.** 040 is a gate and nothing else:
+it adds assertions and makes one renderer iterate a list it currently hand-writes, and its own
+verification is that `DESIGN.md` does not change by a byte. 041 publishes every token's two values,
+derived at build time from the two theme blocks in `src/layouts/BasicLayout.astro` — which do not
+move, because Astro's `inlineStylesheets: "auto"` once pushed those very tokens from a chunk into
+the page and took sixteen tests red with nothing wrong with the page. 042 is the only one of the
+four that **redraws** a page — 041 changes one specimen on `/design` and is not invisible either, so
+both carry browser measurements in their done criteria, because there is no layout engine in the
+suite. 043 is writing.
+
+**Splitting 041 out of 042 was forced by an arithmetic result, not a preference.** A second colour
+column cannot resolve `var(--token)` — only the live theme's value is reachable from CSS — so the
+ledger in 042 has to be handed both values, and the only way to hand it both without a second home
+is the derivation 041 builds. Three ways to reach the source were measured against a real build and
+a real test run: a `?raw` import works in both, a working-directory-relative read works in both, and
+`import.meta.url` **fails in the build** with `ENOENT`, because Astro bundles the SSR modules into a
+temporary directory before running them. 041 specifies the first and records why.
+
+**One measurement decides what the design agent's brief can carry.** `.design-sync/conventions.md`
+was **3,933 characters against its 4,096 budget** at `71bc7e1` — 163 spare. Two value columns over
+the token table cost about 323, and two new sections cost more, so both 041 and 043 keep the agent
+audience smaller than the full one and record the trade, and each names the refusal in its own Out
+of scope and STOP conditions. Neither may raise the budget: the number is
+somebody else's context window and its provenance is written beside it in
+`tests/design-system.test.ts`.
 
 **Why 038 and 039 are two files, and why 039 could not go first.** 038 published the chip as a
 real, gated kind of control; 039 spends it on the home page and deletes the icon plate the chip
@@ -402,6 +471,57 @@ smaller* wins than the first one found, and should say so plainly when a finding
 is cosmetic.
 
 ## Findings considered and rejected
+
+### The `/design` rethink (2026-08-26, mockups drawn at `71bc7e1`)
+
+Not an audit. Three whole-page directions were drawn as live mockups in the site's own tokens and
+the shipped control metrics, and one was **recommended** — by the advisor, on the arguments below.
+The maintainer had not confirmed it when 042 was written, which is why that plan's step 0 is to
+find the confirmation or stop. What follows is what the recommendation argued **against**, so no
+later run re-derives it; it is not a record of anything the maintainer decided.
+
+- **A sticky reference rail** — a left column carrying the section index, specimens on the right,
+  the shape Polaris, Carbon and Spectrum all take. Rejected on this repository's own argument: the
+  chip's rationale in `uno.config.ts` says furniture recedes so the page's own subject stays the
+  loudest thing on it, and a rail spends about a quarter of a `max-w-4xl` measure on furniture
+  while doing nothing below the `lg` breakpoint. It is also the answer you would draw from a
+  screenshot of any other design system, which is the specific thing the maintainer rejects.
+- **A specimen-tile wall** — sections as dense grids of tiles borrowed from the patch wall's
+  grammar. Rejected as a container, **kept as two specimens**: its two-theme swatch pair and its
+  nested ground/plate/edge stack are both in 042. The container lost because a tile grid is a
+  gallery and about half the roles in `src/content/design.ts` are full sentences a tile has no room
+  for — and because a tile has room for one value where a token has two.
+- **A scroll-spy on the section index** — rejected outright. It is client state on a site that
+  ships almost no script, and a static `aria-current` on a section link would be false in every
+  case but one. 042 says so as a STOP condition rather than leaving it to be re-proposed.
+- **De-anchoring `:root[data-theme=…]` so a subtree could wear the other theme.** This was the
+  first answer to drawing two themes at once and it survived until the values question was asked.
+  It is refused for a measured reason and a structural one: `tests/helpers/css.ts` records that a
+  rebalanced chunk once pushed those tokens inline and took sixteen tests red with nothing wrong
+  with the page, and the selector shape has readers outside the suite — `.design-sync/prepare-css.mjs`
+  detects the one sheet defining it. Deriving the values (041) makes the whole question moot,
+  which is the better kind of answer.
+- **Reading the values at runtime with `getComputedStyle`** — rejected. It costs a fifth inline
+  script, gives nothing to the markdown twin or the repository spec, and prints nothing with
+  JavaScript off.
+- **Publishing a `colors` map in `DESIGN.md`'s front matter** — **this rejection was WRONG and is
+  recorded here as a correction rather than deleted.** It was refused on the grounds that the format
+  "maps one name to one value" and a two-theme palette therefore cannot be expressed. That premise
+  was never measured, and it is false: the group is a flat `<token-name>: <Color>` map whose names the
+  spec explicitly says "may follow any consistent naming convention", so `light-*` / `dark-*` is
+  expressible. Measured with the official linter `@google/design.md` v0.4.0 on 2026-08-26 —
+  30 tokens named that way lint at **0 errors**, one `missing-primary` warning, which a
+  `primary: "{colors.light-accent}"` alias clears to **0 errors, 0 warnings**; and
+  `export --format css-vars` over the result emits **33 CSS custom properties**. Omitting the group
+  costs the format's whole toolchain — Tailwind v3 and v4, W3C Design Tokens, CSS variables — for a
+  constraint the format does not impose. **041 now publishes the group and deletes the omission.**
+  The general lesson is the one this directory keeps relearning: a premise about somebody else's
+  format is a lead, and the tool is right there.
+- **A copy-to-clipboard control beside each value** — rejected. It needs script, and a literal
+  drawn in the page's hairline box with `user-select: all` is already selectable in one gesture.
+- **Raising the design agent's character budget to fit more guidance** — rejected in advance, in
+  both 041 and 043, and named as a STOP condition rather than a judgement call. The number is
+  somebody else's context window.
 
 ### The control-vocabulary design review (2026-08-26, specimens drawn at `f767cf2`)
 
