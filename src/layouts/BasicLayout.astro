@@ -117,7 +117,7 @@ const {title, description, noindex = false, markdown, header = false} = Astro.pr
  * `tests/card-fill.test.ts` now forbids an absolute one anywhere inside a card.
  * Swept as ink past each card's BOTTOM clip edge: 0 at every viewport from 320 to 2560
  * wide, at every root size from 16px to 40px. Name the edge — the right edge was NOT zero
- * when that sweep was published, and it took its own change to close (the control-row
+ * when that sweep was published, and it took its own change to close (the strip's own
  * note further down this file, and index.astro). A card grows vertically with its content
  * and never horizontally, which is the whole reason the two edges needed separate work.
  *
@@ -622,11 +622,28 @@ const schema = {
 
        `justify-content` is deliberately absent: a wrapping row packs its items at
        the start of the line already, so declaring it restated the default. The
-       ladder needed it to stop content-sized tracks stretching. */
-    .control-row {
+       ladder needed it to stop content-sized tracks stretching.
+
+       WHAT THIS ROW HOLDS CHANGED UNDER IT, AND EVERY FIGURE ABOVE WAS TAKEN BEFORE THAT.
+       It held seven plated controls — six destinations and the theme toggle, at 64x48 with
+       a 1rem separation. It holds six quiet glyph boxes now: the toggle went to the
+       greeting line, and the plate went with the rule that it is a card's ONE action. Read
+       the measurements above as a record of the ladder's replacement, which is what they
+       are about and what is unchanged by this; every one of them is a statement about a
+       WRAPPING ROW rather than about a particular box, and the mechanism they establish is
+       what still governs.
+
+       THE SEPARATION IS NARROWER AND THE DIRECTION IS THE SAFE ONE, but it was re-measured
+       rather than argued from the paragraphs above. Six boxes at the site's target-size
+       floor with a 0.5rem separation ask for 304px of a 339px column, so the row is ONE
+       line at the default text size where seven plated boxes took two; at 1rem the same six
+       ask for 344 and wrap. The row's MAXIMUM content width — every item on one line — is
+       what the three classes in IntroCard.astro were measured against, and it shrank with
+       this change rather than growing, so none of the three was widened into a new risk. */
+    .link-strip {
         display: flex;
         flex-wrap: wrap;
-        gap: 1rem; /* separates the controls from each other, on both axes */
+        gap: 0.5rem; /* separates the destinations from each other, on both axes */
     }
 
     /* Card entrance — replaces the JS stagger. Pure CSS, no client bundle.

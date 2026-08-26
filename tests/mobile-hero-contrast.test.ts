@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import {describe, expect, it} from "vitest";
 import {WELCOME} from "../src/content/home";
 import {contrast, over} from "./helpers/contrast";
-import {pageCss} from "./helpers/css";
+import {pageCss, parseRules} from "./helpers/css";
 
 /**
  * Below `md` the portrait is painted behind the tagline. Whether that type is
@@ -133,15 +133,53 @@ describe("mobile hero legibility", () => {
         // property is about its EXTENT: the scrim has to cover whatever the copy column
         // holds. The eyebrow has since gone and the two taglines are paragraphs — the
         // scrim's job did not change, so the assertion should not have been able to fail.
-        // The copy lines PLUS the hero's way to the wall, which is a line of the block for
-        // scrim purposes even though it is a control: the veil has to cover whatever the
-        // column holds, and a link over an un-scrimmed photo is the same legibility problem
-        // as a tagline over one.
         const lines = type!.querySelectorAll("h1, p");
         expect(lines.length, "every line of the hero copy must sit inside the scrimmed block")
-            .toBe(WELCOME.description.length + 1);
+            .toBe(WELCOME.description.length);
+
+        /*
+         * THE WAY TO THE WALL LEFT THIS BLOCK, AND THE MECHANISM THAT LETS IT IS WHAT IS
+         * ASSERTED IN ITS PLACE.
+         *
+         * It used to be counted as a line of the copy — "a link over an un-scrimmed photo is
+         * the same legibility problem as a tagline over one" — and that was true of what it
+         * WAS: a run of underlined words with no ground of its own. It is a plated control
+         * now, so it paints an OPAQUE page ground and an accent edge before any of its ink
+         * lands, exactly as the destinations beside it do and always did. Those have sat
+         * outside this block for as long as it has existed, for this reason and no other.
+         *
+         * SO THE PROPERTY IS UNCHANGED AND THE ASSERTION MOVED WITH THE MECHANISM: nothing
+         * legible sits on an unveiled photo. What is asserted is the GROUND rather than the
+         * placement, because placement is what changed and the ground is what makes it safe —
+         * a control moved out of this block that did NOT declare its own ground would fail
+         * here, which is the case that would otherwise ship silently.
+         *
+         * It must ALSO be outside, and that half is not about contrast at all: this block is
+         * stretched by whatever it holds and below `md` the scrim is a pseudo-element of it,
+         * so a full-width control inside drags the veil across the photograph — measured at
+         * 97.55% of the photo veiled against 81.63%, i.e. the mask's job undone and the
+         * portrait's focal point with it.
+         */
+        const wall = document.querySelector('main a[href="/patches"]');
+        expect(wall, "the hero's way to the whole wall must be on the page").toBeTruthy();
         expect(type!.querySelector('a[href="/patches"]'),
-            "the hero's link to the whole wall must sit inside the scrim, not beside it").toBeTruthy();
+            "the way to the wall is a plated control and must stay OUT of the type block: this "
+            + "block stretches to what it holds and the scrim is a pseudo-element of it, so a "
+            + "full-width control inside drags the veil across the portrait").toBeNull();
+
+        const grounded = [wall!, ...document.querySelectorAll("main .link-strip a")];
+        expect(grounded.length, "no control sits outside the scrim — this assertion would be vacuous")
+            .toBeGreaterThan(1);
+        const sheetRules = parseRules(sheet());
+        for (const el of grounded) {
+            const classes = (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
+            const opaque = sheetRules.some((r) => !r.nested
+                && r.selectors.some((sel) => classes.some((c) => sel === `.${c}`))
+                && /background-color:\s*var\(--background\)/.test(r.body));
+            expect(opaque, `<${el.tagName.toLowerCase()} class="${el.getAttribute("class")}"> sits outside the `
+                + "scrim and declares no opaque page ground, so its ink lands straight on the photograph "
+                + "below md — which is the legibility problem the scrim exists for").toBe(true);
+        }
         expect(type!.querySelectorAll("h1").length, "the greeting is the page's one top-level heading")
             .toBe(1);
         expect(document.querySelectorAll("main h1").length,

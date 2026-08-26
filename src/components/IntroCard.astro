@@ -1,12 +1,20 @@
 ---
 import Card from "./Card/index.astro";
 import {WELCOME} from "../content/home";
-import {NEXT_RACE, PATCHES} from "../content/races";
+import {PATCHES} from "../content/races";
 import {LINKS, METADATA} from "../content/site";
 import {iconClass} from "../lib/icons";
+import EventsLink from "./EventsLink.astro";
 import ThemeSwitcher from "./ThemeSwitcher.astro";
 import {Image} from "astro:assets";
 import portfolioImage from '../assets/me.webp'
+
+/*
+ * The first line of the stack is the greeting and carries the mark; the rest are
+ * taglines. Split here rather than by index inside the markup, because only the
+ * first one shares its row with the theme control.
+ */
+const [greeting, ...taglines] = WELCOME.description
 
 /*
  * Mobile hero (below `md`), see the <style> rules at the foot of this file.
@@ -103,46 +111,67 @@ import portfolioImage from '../assets/me.webp'
                     document goes 1774 -> 1754 — the eyebrow's own line, given back. Deleting
                     a line of copy is not a no-op and should not be described as one.
                 */}
-                {WELCOME.description.map((item, index) => (index === 0
-                    ? <h1 class="m-0 font-light text-xl"><span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span> {item}</h1>
-                    : <p class="m-0 font-light text-xl">{item}</p>))}
                 {/*
-                    THE WHOLE WALL HAD NO DOOR FROM THIS PAGE. `/patches` is in the sitemap and
-                    was reachable from nowhere on the home page: the only two internal links are
-                    the goal cards' per-sport controls, so seeing every race meant picking a sport
-                    you did not ask for and then un-picking it with the "All" chip.
+                    THE GREETING IS A MASTHEAD ROW NOW, AND IT IS TALLER THAN THE TAGLINES ON PURPOSE.
 
-                    IT COSTS NO HEIGHT ON DESKTOP, which is why it goes here rather than into the
-                    card grid — but say where it DOES cost, because the two differ. The copy column
-                    is `justify-between` against a 275px portrait and had 84px of unspent height at
-                    lg; this spends 33 of it and the card measures the same 824x357, document still
-                    900. Nothing in the grid budget is touched.
+                    The theme control sits on it, hard right, opposite the identity — the same
+                    arrangement the site's own header takes on every other page, and it costs no
+                    row of its own. It is deliberately NOT a seventh item in the strip below:
+                    measured, seven boxes of that size at that separation ask for 356px against a
+                    339px column and wrap, stranding the preference on a line by itself.
 
-                    On a 390px phone there is no spare column to spend: the card grows 354 -> 387px
-                    and the document 1754 -> 1787. Against `main` before this whole change set —
-                    which also deleted the eyebrow's line — the net is +13px of mobile document.
-                    That is the honest figure; "costs no height" on its own would be a desktop
-                    measurement quoted as a page-wide one.
-
-                    Its label is `PATCHES.heading` — the very words the page it opens is headed
-                    with — for the same reason EventsLink's label is, and its mark is the mirror
-                    of the site's own way back: `PAGE_HEADER.home_icon` is a left arrow up there,
-                    this is the right arrow going out. No new copy and no new icon vocabulary.
+                    THE UNEVENNESS WAS MEASURED AND ACCEPTED, so read this before filing it. The
+                    control's box is the site's target-size floor, so this line renders 44px tall
+                    against the taglines' 30. That is the reading the row asks for: a masthead
+                    carrying the name and one preference, not a line of the paragraph. Do not
+                    close the gap by shrinking the control under the floor — the floor is what
+                    SC 2.5.5 asks for and the whole quiet vocabulary is built on it.
                 */}
-                <p class="m-0 mt-2">
-                    <a href="/patches" class="text-link inline-flex items-center gap-2 min-h-6 text-sm">
-                        {PATCHES.heading}
-                        <span class={`${iconClass(NEXT_RACE.icon)} shrink-0`} aria-hidden="true"></span>
-                    </a>
-                </p>
+                <div class="flex items-center justify-between gap-2">
+                    <h1 class="m-0 font-light text-xl"><span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span> {greeting}</h1>
+                    <ThemeSwitcher kind="chip-icon"/>
+                </div>
+                {taglines.map((item) => (<p class="m-0 font-light text-xl">{item}</p>))}
             </div>
-            <div class="control-row">
-                <ThemeSwitcher/>
-                {LINKS.map(({link, logo, name}) => (<a href={link} target="_blank" class="control">
+            {/*
+                SIX PLACES TO FIND ME, DRAWN QUIETLY, AND THEN THE ONE WAY IN.
+
+                These six used to be the site's loudest mark, seven times over on one screen:
+                five profiles, the résumé and the theme control, every one of them plated. The
+                plate is the mark for a card's ONE action, so nine wearers on the home page was
+                that mark spent on furniture — and it inverted the hierarchy, drawing six ways
+                to LEAVE louder than the one way further in. They are members of a set, which
+                is what the quiet glyph box is for; the toggle is a preference and has gone to
+                the masthead, so this row holds destinations and nothing else.
+
+                THE ORDER IS THE DECISION AND IT IS ALSO THE FOCUS ORDER. Identity, then where
+                to find me, then the way in — so the card ends on the way FURTHER INTO the site
+                rather than on six ways out of it, and its action sits at the foot exactly as
+                each goal card's does. The accepted cost is that a keyboard reader meets the
+                six before the card's own action; the DOM sequence and the visual sequence must
+                stay identical (SC 1.3.2, 2.4.3), so do not reorder either one in CSS.
+            */}
+            <div class="link-strip">
+                {LINKS.map(({link, logo, name}) => (<a href={link} target="_blank" class="chip-icon">
                     <span class={`${iconClass(logo)} shrink-0`} aria-hidden="true"></span>
                     <span class="sr-only">{name}</span>
                 </a>))}
             </div>
+            {/*
+                THE WHOLE WALL HAD NO DOOR FROM THIS PAGE until this link existed, and it opened
+                as a run of underlined words — the quietest idiom the site has, on the way into
+                its signature content, while six outbound profiles beside it wore the loudest.
+                It is the intro card's one action now and it is drawn as one, which is the same
+                object each goal card already ends on.
+
+                IT IS THE SAME COMPONENT AS THOSE TWO, deliberately: the label wrapping, the
+                keyboard focus indicator measured against the plate, and the forced-colours repair are all
+                properties of a control rather than of a card, and a second call to action would
+                own three copies of them. Its label is `PATCHES.heading` — the very words the
+                page it opens is headed with, which `tests/build-output.test.ts` asserts in both
+                directions — and its mark is the mirror of the site's own way back.
+            */}
+            <EventsLink href="/patches" label={PATCHES.heading}/>
         </div>
         <div class="flex items-center justify-center p-4 shrink-0">
             <Image

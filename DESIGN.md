@@ -103,13 +103,12 @@ Don't:
 
 ## Controls
 
-Which kind to reach for is decided by what the control CONTAINS and by how loud it should be. The surface belongs to the kind rather than to all of them: the offset plate under an --accent hairline is the mark for a page's ONE action, and a quiet hairline at a fraction of the ink is for chrome — getting somewhere, and setting a preference. Every specimen below is a working link to the page it names.
+Which kind to reach for is decided by what the control CONTAINS and by how loud it should be. The surface belongs to the kind rather than to all of them: the offset plate under an --accent hairline is the mark for a page's ONE action and is spent on nothing else, and a quiet hairline at a fraction of the ink is for chrome — getting somewhere, and setting a preference. So there is no plated box for a mark alone: an action names itself in words, and a control that is only a glyph is a member of a set or a preference, which is the quiet kind. Every specimen below is a working link to the page it names.
 
-- **`control`** — The plated surface at a box the design picks, icon-only: its content is one mark and never a word, so its width is a number rather than a guess. The social links and the theme toggle wear it.
-- **`control-cta`** — That same surface at the width of whatever contains it, holding a label and its mark centred together as one legend. Its label comes from data and must be allowed to wrap, so its height is floored rather than pinned. The goal cards' way out.
+- **`control-cta`** — The plated surface at the width of whatever contains it, holding a label and its mark centred together as one legend. It is the mark for a card's ONE action and is spent nowhere else. Its label comes from data and must be allowed to wrap, so its height is floored rather than pinned. The intro card's way in, and each goal card's way out.
 - **`text-link`** — A link that is a run of words inside a sentence or a column of figures. Each role card's company name.
 - **`chip`** — The quiet surface, holding a label that names it in a word. For getting somewhere and for setting a preference — chrome rather than a page's one action, so it wears no plate. Its label comes from data, so its box is floored rather than pinned. The patch wall's filter row, and every item in a page header.
-- **`chip-icon`** — That same quiet surface holding one mark, for a member of a set where the marks are the vocabulary. Its content is a glyph the design picked the size of, so its box is pinned. The theme toggle wherever a page header carries it.
+- **`chip-icon`** — That same quiet surface holding one mark, for a member of a set where the marks are the vocabulary, and for a preference. Its content is a glyph the design picked the size of, so its box is pinned. The intro card's row of destinations, and the theme toggle wherever it appears.
 
 Do:
 

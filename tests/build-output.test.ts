@@ -799,8 +799,14 @@ describe("dist/", () => {
     it("heads each destination with the words the control that reaches it wears", () => {
         const home = parseHTML(read("dist/index.html")).document;
         const controls = [...home.querySelectorAll(".events-link")];
+        // ONE PER GOAL CARD, PLUS THE INTRO CARD'S WAY IN. The `+ 1` is the third wearer and it
+        // is named rather than absorbed into a bound: the intro card's action reaches the WHOLE
+        // wall, so it has no goal to be derived from and it is the one destination on this page
+        // that no `GOALS` entry accounts for. The pairing below is what the count is for and it
+        // reaches all three identically — the wall is headed with the very words that control
+        // wears, exactly as each sport wall is.
         expect(controls.length, "no events controls on the home page — this assertion would be vacuous")
-            .toBe(GOALS.length);
+            .toBe(GOALS.length + 1);
 
         const headings = new Map<string, string>();
         for (const control of controls) {
@@ -1368,16 +1374,19 @@ describe("dist/", () => {
  *
  * WHAT COUNTS AS A SIGNIFIER, and the list is deliberately of KINDS rather than of elements:
  *
- *   1. `.control`          the styled 64x48 box with the offset plate — six social links
- *   1b. `.control-cta`     the same surface holding a label and a trailing mark — the two goal
- *      cards' way out. A separate class rather than a modifier of the first, because the two
- *      declare different boxes; `classList.contains` is exact, so the check below needs both
- *      names and the goal cards' links went unsignified until it had them
+ *   1. `.control-cta`      the offset plate under an accent border, holding a label and a
+ *      trailing mark — a card's ONE action, worn three times on the home page. There was a
+ *      second plated class beside it, a 64x48 icon-only box worn by the six social links and
+ *      the theme toggle; it is retired, and the row that wore it is a strip of glyph chips.
+ *      `classList.contains` is exact, so this list needs every name that is really worn —
+ *      the goal cards' links went unsignified for as long as it named only the other one
  *   2. `.text-link`        the shared text-link idiom — the wall's Home link, the role cards
  *   3. `.chip`             the quiet bordered kind — the wall's filter row and every item in
  *      the page header. It was keyed on `.patch-filter a` while the chip was one page's
  *      descendant selector, and this gate having to name a page's private selector was the
- *      tell that the site shipped a kind of control the design system did not publish
+ *      tell that the site shipped a kind of control the design system did not publish.
+ *      `.chip-icon` is deliberately NOT on this list: the probe below matches an exact class
+ *      token, and every wearer of the glyph box is icon-only and passes under kind 4
  *   4. an icon-only control whose accessible name is carried by an `sr-only` span (the Now
  *      card's explainer, which is a 24px icon target and is legitimately not a text link)
  *   5. `.bib-stub-link`    a line on a bib's stub, whose signifier is the stub itself — the
@@ -1594,7 +1603,6 @@ describe("every link on every page says that it is one", () => {
         );
 
         const unsignified = links.filter((a) => {
-            if (a.classList.contains("control")) return false;
             if (a.classList.contains("control-cta")) return false;
             if (a.classList.contains("text-link")) return false;
             if (chipIsDrawn && a.classList.contains("chip")) return false;
@@ -1611,7 +1619,8 @@ describe("every link on every page says that it is one", () => {
             // gate exists to check was never checked for them. Excluding `.sr-only` subtrees and
             // reading the rest of `textContent` is what the branch always meant. The genuinely
             // icon-only controls are unaffected — they have no visible text under either reading,
-            // and they are caught by `.control` a few lines above in any case.
+            // and the intro card's six destinations are exactly this shape — a glyph box with an
+            // sr-only name — which is why the glyph chip needs no entry of its own above.
             const srOnly = a.querySelector(".sr-only");
             const seen = a.cloneNode(true) as Element;
             for (const hidden of [...seen.querySelectorAll(".sr-only")]) hidden.remove();
@@ -1639,7 +1648,7 @@ describe("every link on every page says that it is one", () => {
 
         expect(
             unsignified.map((a) => `${a.getAttribute("href")} "${(a.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 46)}"`),
-            `${page} ships links drawn like static text. A link needs one of: .control, .control-cta, .text-link, `
+            `${page} ships links drawn like static text. A link needs one of: .control-cta, .text-link, `
             + "a really-drawn .chip, an sr-only-named icon control, or a .bib-stub-link on a "
             + "bib's .bib-stub. This is the gate whose absence let five links ship unreadable as links",
         ).toEqual([]);
@@ -1650,8 +1659,8 @@ describe("hover styles promise only interactions that exist", () => {
     const INTERACTIVE = new Set(["a", "button", "input", "select", "textarea", "summary", "label"]);
 
     /**
-     * Run against EVERY page. The patch wall is the first thing on this site to put a
-     * hover style on something other than `.control` — the filter row's links and the
+     * Run against EVERY page. The patch wall was the first thing on this site to put a
+     * hover style on something other than a plated control — the filter row's links and the
      * back link both take one — and a home-page-only check would never look at either.
      */
     it.each(builtPages())("applies no hover rule to an element that cannot be interacted with (%s)", (page) => {
@@ -1825,10 +1834,11 @@ describe("a hover style needs a pointer to produce it", () => {
 });
 
 describe("the offset plate actually paints", () => {
-    // One entry per plated SELECTOR, not per plated element: `.control` is worn by
-    // every control (it was two classes until they were unified, and the toggle's
-    // narrower variant was the reason they were not one size).
-    const PLATED = [".control", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
+    // One entry per plated SELECTOR, not per plated element. There is exactly one box on
+    // the plate now — a card's one action — where there were two, and before that three
+    // that disagreed about every metric. The portrait casts the same plate and always did;
+    // it is here because this gate is about the VALUE painting, not about controls.
+    const PLATED = [".control-cta", ".md\\:shadow-\\[10px_10px_0_var\\(--shadow\\)\\]"];
 
     /** The `--un-shadow` value the built sheet gives `selector`. */
     const plate = (css: string, selector: string) => {

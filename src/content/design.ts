@@ -148,24 +148,19 @@ export const TOKEN_ROLES: readonly {token: string, role: string}[] = [
 /**
  * THE SITE'S KINDS OF CONTROL, said in the vocabulary `uno.config.ts` uses for them.
  *
- * A box metric belongs to the shortcut, not to this sentence: `control` is pinned because
+ * A box metric belongs to the shortcut, not to this sentence: `chip-icon` is pinned because
  * its content is one mark and never a word, and saying WHICH numbers it is pinned to would
  * put a second home under a value the config already owns. The page draws the real thing
  * beside each of these, so a reader gets the measurement by looking at it.
  */
 export const CONTROLS: readonly {name: string, role: string}[] = [
     {
-        name: "control",
-        role: "The plated surface at a box the design picks, icon-only: its content is one mark "
-            + "and never a word, so its width is a number rather than a guess. The social links "
-            + "and the theme toggle wear it.",
-    },
-    {
         name: "control-cta",
-        role: "That same surface at the width of whatever contains it, holding a label and its "
-            + "mark centred together as one legend. Its label comes from data and must be "
-            + "allowed to wrap, so its height is floored rather than pinned. The goal cards' "
-            + "way out.",
+        role: "The plated surface at the width of whatever contains it, holding a label and its "
+            + "mark centred together as one legend. It is the mark for a card's ONE action and "
+            + "is spent nowhere else. Its label comes from data and must be allowed to wrap, so "
+            + "its height is floored rather than pinned. The intro card's way in, and each goal "
+            + "card's way out.",
     },
     {
         name: "text-link",
@@ -182,8 +177,9 @@ export const CONTROLS: readonly {name: string, role: string}[] = [
     {
         name: "chip-icon",
         role: "That same quiet surface holding one mark, for a member of a set where the marks "
-            + "are the vocabulary. Its content is a glyph the design picked the size of, so its "
-            + "box is pinned. The theme toggle wherever a page header carries it.",
+            + "are the vocabulary, and for a preference. Its content is a glyph the design "
+            + "picked the size of, so its box is pinned. The intro card's row of destinations, "
+            + "and the theme toggle wherever it appears.",
     },
 ]
 
@@ -240,9 +236,12 @@ export const SECTIONS: Readonly<Record<"palette" | "type" | "controls" | "icons"
         heading: "Controls",
         lede: "Which kind to reach for is decided by what the control CONTAINS and by how loud it "
             + "should be. The surface belongs to the kind rather than to all of them: the offset "
-            + "plate under an --accent hairline is the mark for a page's ONE action, and a quiet "
-            + "hairline at a fraction of the ink is for chrome — getting somewhere, and setting a "
-            + "preference. Every specimen below is a working link to the page it names.",
+            + "plate under an --accent hairline is the mark for a page's ONE action and is spent "
+            + "on nothing else, and a quiet hairline at a fraction of the ink is for chrome — "
+            + "getting somewhere, and setting a preference. So there is no plated box for a mark "
+            + "alone: an action names itself in words, and a control that is only a glyph is a "
+            + "member of a set or a preference, which is the quiet kind. Every specimen below is "
+            + "a working link to the page it names.",
         does: [
             "Give every link a signifier a reader can perceive: an underline, a mark, or a border.",
             "Let a labelled control wrap. Its width belongs to its container; its height belongs to its text.",

@@ -95,222 +95,97 @@ export default defineConfig({
         breakpoints: {sm: "40rem", md: "48rem", lg: "64rem", xl: "80rem", "2xl": "96rem"},
     },
     /**
-     * The one styled control. Seven elements wear it: the six social-link anchors
-     * in the intro card, and the theme toggle, which is a real button. It is a
-     * class and not a component because those elements legitimately differ — only
-     * the look is shared, and a component that picks the caller's element is how a
-     * `button` ended up illegally nested inside an `a` in the first place.
+     * THE PLATED SURFACE — an offset plate under an `--accent` hairline, and the site's mark
+     * for a page's ONE ACTION. It is a base: nothing wears it directly, and exactly one box
+     * composes it today, `control-cta`.
      *
-     * It was nine until the two goal cards' calls to action were removed: both
-     * pointed at the same Strava profile the intro card's social link already
-     * reaches, and a logged-out visitor meets a login wall there. Every measured
-     * figure below was taken when there were nine, and the numbers are still the
-     * numbers — the box is declared, so it does not depend on how many elements
-     * wear it. Read "nine" in the history below as "the nine that then existed",
-     * not as a count to re-derive.
+     * THE RULE THE WHOLE VOCABULARY NOW RESTS ON is that a card spends this mark once. Three
+     * cards on the home page have an action and three plates are drawn: the intro card's way
+     * into the wall, and each goal card's way out to its sport. Everything that is chrome —
+     * getting somewhere, and setting a preference — wears the quiet surface below instead. A
+     * fourth plate on that page is the rule broken, not a fourth wearer.
      *
-     * There used to be a `control-surface` base plus `control` and
-     * `control-compact` box variants, and the two variants disagreed about every
-     * box metric: the anchors rendered four different widths across 57–62 at 46
-     * tall, and the toggle 60 x 40 — five distinct boxes over nine elements.
-     * Three separate mechanisms produced that, all of them now gone:
+     * IT USED TO HAVE AN ICON-ONLY SIBLING AND THAT IS THE SHAPE OF THE DEFECT, so it is
+     * recorded rather than deleted with it. A 4rem x 3rem plated glyph box was worn nine times
+     * on one screen — six outbound destinations, the theme toggle and the two goal cards —
+     * which drew six ways to LEAVE the site exactly as loud as each card's one action, and
+     * louder than the way further in. `/patches` ships zero plated controls and is the proof
+     * the site can do without them. The measurement that settled it: at 1024x797 the intro
+     * card's row of them was 339 x 112 over two lines against a 275px portrait, so the buttons
+     * and not the photograph set that card's height.
      *
-     *   1. Nothing declared a width. `w-max` plus horizontal padding made each
-     *      button `42px + its icon's width`, and presetIcons emits each icon at
-     *      the ARTWORK's aspect ratio — 0.75em for strava, 0.88em for
-     *      linkedin/instagram, 0.97em for github/telegram, and 1em for all three
-     *      Remix icons (sun, moon, and the résumé PDF glyph, which is why that
-     *      link was the widest anchor at 62.00px). So the icon's proportions
-     *      leaked into the button's.
-     *   2. `max-h-[40px]` on the compact variant, not its padding, is what made
-     *      the toggle 6px shorter. Both call sites make the control a grid or
-     *      flex item, so its height came from stretching, and the vertical
-     *      padding was inert; the cap was the whole difference.
-     *   3. `max-w-[60px]` on the same variant was BELOW that button's own content
-     *      width (2px border + 40px padding + a 20px icon = 62px), so under
-     *      border-box the icon child shrank to 18px — the sun and moon artwork
-     *      shipped squashed 10% horizontally. The icon is 1em; the cap was
-     *      deforming it, rather than the icon being authored small.
+     * WHAT THE ICON BOX ESTABLISHED THAT STILL GOVERNS, because the arguments outlived the
+     * class and the quiet glyph box inherited every one of them:
      *
-     * So the box is now DECLARED rather than capped, once, for every control:
-     * 64 x 48px, which is 2px larger on each axis than the widest button that used
-     * to ship, so nothing shrank. 48px clears WCAG 2.2 SC 2.5.5's 44x44 AAA
-     * target, which the 40px toggle was the one control to fail; SC 2.5.8's 24x24
-     * AA floor was never the binding constraint here, and 48px is also exactly
-     * Material's 48dp.
+     *   1. A CONTROL'S BOX IS DECLARED, NOT CAPPED. Three variants once disagreed about every
+     *      metric and produced five distinct boxes over nine elements: nothing declared a
+     *      width, so `w-max` plus padding made each button "padding + its icon's own aspect"
+     *      and presetIcons emits each glyph at the ARTWORK's ratio; a height cap made the
+     *      toggle 6px shorter than its neighbours and the one control to fail SC 2.5.5; and a
+     *      width cap BELOW the content width squashed that toggle's artwork 10% horizontally
+     *      under border-box. A cap makes a control smaller than its content and deforms it.
+     *   2. THE BOX IS FONT-RELATIVE. It spent one revision in device pixels for a good reason
+     *      that has since expired: the cards' heights came from a page grid clamped between
+     *      two absolute lengths while every card clips, so a control that grew under text-only
+     *      zoom was simply sheared off. The height budget and every breakpoint are
+     *      text-relative now, the page grows and scrolls instead of clipping, and a swept 16px
+     *      to 40px root loses 0 ink at each card's bottom clip edge. What an absolute box costs
+     *      instead is a target that shrinks against the type beside it.
+     *   3. NOTHING OUTSIDE THE SHORTCUT MAY RESTATE THE BOX, and the container is where that
+     *      would most naturally happen. It once sized its items with `auto` tracks for exactly
+     *      that reason; a track size, a basis or a hard-coded length on the row lets the two
+     *      drift apart. `tests/control-geometry.test.ts` forbids all three, for a plate and for
+     *      a chip alike.
+     *   4. A HAND-TUNED COUNT AGAINST A TEXT-RELATIVE BOX HAS TO BE RE-TUNED WHENEVER EITHER
+     *      SIDE MOVES, and it was wrong twice here in opposite directions. Three media queries
+     *      granted that row 3/2/1 columns; the ladder stopped at two, two text-relative boxes
+     *      plus their separation were 9rem, and a card is only ever as wide as the viewport
+     *      allows — so past some reader text size two no longer fitted, the grid held the intro
+     *      card's copy column open at its own min-content width, and the card sheared the hero
+     *      copy. 136.84px of text ink at 320 wide and a 40px root, 47.44 at 32, inside the
+     *      WCAG 1.4.4 bracket, and a BUTTON shearing from a 28px root on a 320px phone. SAMPLE
+     *      THE ONSET rather than taking the first root a sweep happens to hit: that onset was
+     *      reported at 32 from a sweep whose lowest sample it was, and the same sweep measured
+     *      the bottom edge while the damage was on the right. The counting is gone entirely —
+     *      the row wraps, so its minimum content width is one item at every text size and there
+     *      is no number left to get wrong.
      *
-     * DO NOT JUSTIFY THE 48 WITH A TOOL. Lighthouse's tap-target audit — the source of
-     * the "48-CSS-pixel finger" — was REMOVED in v12.0.0 (2024-04-01), and axe's
-     * `target-size` measures 24px, so no automated check ships a 48px floor any more. The
-     * number stands on SC 2.5.5 and on nothing shrinking.
+     * DO NOT JUSTIFY A TARGET SIZE WITH A TOOL. Lighthouse's tap-target audit — the source of
+     * the "48-CSS-pixel finger" — was REMOVED in v12.0.0 (2024-04-01), and axe's `target-size`
+     * measures 24px, so no automated check ships a 48px floor any more. Every box here stands
+     * on SC 2.5.5's 44 and on nothing shrinking.
      *
-     * THE BOX IS FONT-RELATIVE — `w-16 h-12`, which is 4rem x 3rem, the same
-     * 64 x 48 at the 16px root every browser ships. It spent one revision in px and
-     * the reason it did is worth keeping, because it was a good reason that has since
-     * expired.
+     * THE OFFSET PLATE IS WRITTEN AS ONE COMPLETE ARBITRARY VALUE — offsets, blur and colour
+     * together. Splitting it into a geometry utility and a colour-only one is what made the
+     * plate invisible for as long as it existed: presetWind3 expands the geometry to
+     * `--un-shadow: 2px 2px 0 var(--un-shadow-color)` with no fallback, and a colour-only
+     * arbitrary shadow does not define `--un-shadow-color`, so the whole declaration was
+     * invalid at computed-value time and the controls rendered flat. A complete value emits its
+     * own fallback and survives. The portrait always did this and always cast its plate.
      *
-     * The cards' heights used to come from an lg page grid clamped between two
-     * absolute lengths, so they did NOT grow with the root font-size while every card
-     * clips (`overflow-hidden` on Card) — a control that grew under text-only zoom was
-     * simply sheared off. Measured then, worst bottom shear at 1440x900 for the old
-     * build / a 3rem box / a 48px box: root 20px 0 / 16.0 / 0; root 22px
-     * 25.5 / 57.5 / 21.5; root 24px 55 / 99 / 51. A px box was the only one of the
-     * three that never did worse than what shipped before, so px it was, and the note
-     * ended "the real defect is that a card cannot grow with its contents, and until
-     * that changes a growing control only buys a clipped one".
+     * `active:shadow-none` still wins: it sets the same `--un-shadow` variable from a `:active`
+     * selector, which outranks the shortcut's own rule.
      *
-     * That is what changed. The height budget and the breakpoints are both
-     * text-relative now (the breakpoint note above; `main` in index.astro), the page
-     * grows and scrolls instead of clipping, and the sweep measures 0 ink lost from a
-     * 16px root to a 40px one at each card's BOTTOM clip edge. So the protection a px
-     * box bought no longer exists to buy: what it costs instead is a tap target that
-     * shrinks against the type beside it, since 64 x 48 next to 40px text is a smaller
-     * target in the reader's terms than 64 x 48 next to 16px text. Every figure below
-     * about the declared box — 64 x 48, the 2px clearance, the target-size arithmetic —
-     * is unchanged, because at the default root size this is the same box.
+     * box-shadow is deliberately OUTSIDE the colour transition, so the plate snaps rather than
+     * fading. Two reasons, both measured. Press/release symmetry: the press state and its 3px
+     * offset are both instant, and adding box-shadow to the transition list makes the plate
+     * re-inflate over 300ms after the button has already sprung back. And it would buy nothing
+     * during a theme change anyway: the card behind sweeps through mid-grey, so at the midpoint
+     * the border sits at 1.01:1 and the label at 1.31:1 whatever the plate does. The plate is
+     * not the outlier there.
      *
-     * THE KNOCK-ON THIS PARAGRAPH USED TO PREDICT WAS BACKWARDS, and it cost a shipped
-     * defect, so it is corrected here rather than quietly replaced. It said the control
-     * row's column-count queries "drop a column slightly before the controls
-     * actually stop fitting", costing height and no ink. They dropped a column far too
-     * LATE: the ladder stopped at two columns, two text-relative controls plus their gap
-     * are 9rem, and a card is only ever as wide as the viewport allows — so once the text
-     * is large enough two controls no longer fit a narrow card, the grid held the intro
-     * card's copy column open at its own min-content width, and the card sheared the hero
-     * copy. 136.84 of text ink at 320px wide and a 40px root; 47.44 at a 32px root, inside
-     * the WCAG 1.4.4 bracket. On a 320px viewport two controls stop fitting at a 25px root
-     * and the card starts shearing a BUTTON at 28. SAMPLE THE ONSET, DO NOT TAKE THE FIRST
-     * ROOT A SWEEP HAPPENS TO HIT: that onset was reported at 32 from a sweep whose lowest
-     * sample it was, and the same sweep measured the bottom edge while the damage was on
-     * the right.
+     * `shrink-0` IS NOT ON THIS SURFACE AND MUST NOT BE, which is the one thing the label box
+     * needs said in the opposite direction from its retired sibling. A glyph box has a declared
+     * width to defend against a flex parent — measured, two of them went 64 -> 47.80px as flex
+     * items with the width already in place — and a label box is ASKING for its container's
+     * width, so pinning it against shrinking is a declaration with nothing to say, and on a
+     * narrow card it is the thing that pushes the control past the clip edge. The quiet glyph
+     * box below carries the token for the reason the plated one did.
      *
-     * THE BOUND IS GONE ENTIRELY NOW, which is the answer to the class rather than to the
-     * instance. The ladder was first extended to reach one column, with the bound derived
-     * from a fitted budget and asserted at every width; then the counting was deleted
-     * outright — the control row wraps, so its minimum content width is one control at
-     * every text size, and there is no number left to get wrong. That is what makes the
-     * rem box safe to keep rather than merely preferable. The conclusion that survives: a
-     * px bound left behind to part company with every other breakpoint was never the
-     * answer, and a hand-tuned count compared against a text-relative box has to be
-     * re-tuned every time either side moves — it was wrong twice here, in opposite
-     * directions. `tests/control-geometry.test.ts` asserts the invariant that replaced it.
-     *
-     * What the build before last did here was accidental and is still worth knowing:
-     * `max-h-[50px]` let the anchors grow to 50px and then stopped them, which is why
-     * they survived zoom at all.
-     *
-     * Two things follow from declaring the box, and both are load-bearing:
-     * the icon has to be centred by the CONTAINER, because `text-center` cannot
-     * centre anything in an inline-block whose content box equals its content;
-     * and `w-max` had to be REMOVED rather than out-ordered. Within one shortcut
-     * UnoCSS emits BOTH conflicting declarations in authoring order and the LAST
-     * one wins by the cascade (the minifier then drops the dead one) — so
-     * `w-16 w-max` really does resolve to max-content, and only the reverse order
-     * looks like the width surviving. The width CAN win, which is exactly why the token
-     * has to be absent rather than merely early.
-     *
-     * NOTHING OUTSIDE THIS SHORTCUT MAY RESTATE THE WIDTH, and the container the
-     * controls sit in is where that would most naturally happen. It used to size
-     * them with `auto` tracks for exactly this reason; it is a wrapping row now
-     * (BasicLayout) and the same rule holds with one fewer moving part — an item's
-     * width comes from here, so a track size, a basis or a hard-coded 4rem on the
-     * row would let the two drift apart and bring back the ragged columns. The
-     * control-geometry test forbids all three on a control.
-     *
-     * The offset plate is written as ONE complete arbitrary value — offsets,
-     * blur and colour together. Splitting it into a geometry utility and a
-     * colour-only one is what made the plate invisible for as long as it
-     * existed: presetWind3 expands the geometry to
-     * `--un-shadow: 2px 2px 0 var(--un-shadow-color)` with no fallback, and a
-     * colour-only arbitrary shadow does not define `--un-shadow-color`, so the
-     * whole declaration was invalid at computed-value time and the controls
-     * rendered flat. A complete value emits its own fallback and survives. The
-     * portrait always did this and always cast its plate; the controls did not.
-     *
-     * `active:shadow-none` still wins: it sets the same `--un-shadow` variable
-     * from a `:active` selector, which outranks the shortcut's own rule.
-     *
-     * box-shadow is deliberately OUTSIDE the colour transition, so the plate
-     * snaps rather than fading. Two reasons, both measured. Press/release
-     * symmetry: the press state and its 3px offset are both instant, and adding
-     * box-shadow to the transition list makes the plate re-inflate over 300ms
-     * after the button has already sprung back — on every click of all nine
-     * plated elements. And it would buy nothing during a theme change anyway:
-     * the card behind sweeps through mid-grey, so at the midpoint the border
-     * sits at 1.01:1 and the label at 1.31:1 whatever the plate does. The plate
-     * is not the outlier there.
-     *
-     * The declared box replaces the old `w-max`, whose removal no test caught at
-     * the time. It was defended on the grounds that a control stretches to its
-     * grid track without it, which is true and is now handled by the width
-     * itself; a stretched control is also what the target-size audit used to
-     * object to. There is no horizontal padding any more either: at 64px wide the
-     * content box is 62px and holds any of these icons with room to spare, and
-     * padding cannot survive alongside a box this size without contradicting it
-     * (a 44px square, for comparison, has room for 2px of content beside the old
-     * `px-5`, which is why that number was rejected).
-     *
-     * `shrink-0` on the surface is a LIVE GUARD, and the distinction from "load-bearing"
-     * is the whole point: the mechanism it defends against became APPLICABLE again with the
-     * wrapping row, but no reachable configuration currently triggers it. Removing the token
-     * changes no control's rendered width at any measured configuration; force the row
-     * narrower than one control and a control goes 64 -> 40 without it and holds 64 with it.
-     * DO NOT OVERSTATE IT TO "load-bearing" — that invites someone to "verify" it by
-     * deleting it, seeing nothing change, and concluding the note is stale. It is worth
-     * knowing that it has been all three things in turn — necessary, inert, and
-     * applicable-but-unexercised — because that is why it was never removed. It was added
-     * for a real measured failure: the two goal CTAs were flex items, flex-shrink outranks
-     * a declared width, and they measured 47.80px at lg with the width already in place.
-     * Removing those CTAs left all seven remaining controls as grid items of a column
-     * ladder, where nothing shrinks, and the token went inert — kept anyway, on the grounds
-     * that the next control dropped into a flex row would silently lose its box.
-     *
-     * That is exactly what happened, to all seven at once: the ladder is gone and the
-     * control row wraps, so every control is a flex item again and flex-shrink is once
-     * more the one thing standing between a declared 64px box and a compressed one on a
-     * narrow viewport. Keeping a token whose justification had expired turned out to
-     * cost nothing and save the defect; `tests/control-geometry.test.ts` asserts it
-     * (`pins the box against a flex parent`) rather than leaving it to hold by luck.
-     *
-     * The icon spans carry `shrink-0` at both call sites rather than relying on
-     * there being slack. It costs one already-emitted rule and it is what stops
-     * mechanism 3 above from ever recurring on a future wider icon.
-     *
-     * WHY 64 WIDE AND NOT A 48 SQUARE — asked and deliberately answered "leave
-     * it", so the next person does not have to redo the research.
-     *
-     * 64 was never an aesthetic number: it was picked as 2px clear of the widest
-     * button that shipped before, so that nothing shrank when the sizes were
-     * unified. A 48px square is a one-token change (`w-[48px]`) and was built and
-     * measured — all nine controls land 48.000 x 48.000, icons undeformed, tracks
-     * 48px, the whole suite green, no clipping at any width.
-     *
-     * The two are accessibility-EQUIVALENT, which is the part worth recording:
-     * both clear SC 2.5.8 (AA, 24px) and SC 2.5.5 (AAA, 44px) on bounding-box
-     * measurement, and 48 lands exactly on Android's and Material's 48dp
-     * recommendation while clearing Apple's 44pt. Nothing in the HCI literature
-     * favours either aspect ratio — the one study that varies width and height
-     * independently (MacKenzie & Buxton, CHI '92) yields two co-equal models that
-     * disagree, and it explicitly rejects the "bigger total area is easier" model.
-     *
-     * The single geometric asymmetry, and it is thin: SC 2.5.8's size test asks
-     * whether a solid axis-aligned square can be inscribed in the target, and with
-     * `rounded-lg` (8px) a 48x48 box inscribes only 43.31px — 0.69px under the AAA
-     * number — where 64x48 inscribes 48. That construction is only stated under
-     * the 24px criterion, no shipping tool computes it, and both sizes clear 24 by
-     * a mile, so it is not a reason on its own. It just happens to lean the same
-     * way as leaving things alone.
-     *
-     * So the choice rests on grounds outside WCAG, i.e. it is purely aesthetic,
-     * and the wider-than-tall silhouette is the one that shipped. Flip the width
-     * token if the square is wanted; `public/preview.jpg` has to be regenerated
-     * with it, because it is both the README hero and the OG image.
-     *
-     * Comments in THIS file are safe to write tokens in: the extraction pipeline
-     * does not read the config (probed — a token planted in a config comment
-     * emitted no rule). Inside `src/**` it does, including .astro frontmatter,
-     * which is what the blocklist above is about. The orphan-rule test is the
-     * backstop if that ever changes.
+     * Comments in THIS file are safe to write tokens in: the extraction pipeline does not read
+     * the config (probed — a token planted in a config comment emitted no rule). Inside `src/**`
+     * it does, including .astro frontmatter, which is what the blocklist above is about. The
+     * orphan-rule test is the backstop if that ever changes.
      */
     /*
      * WHY `text-link` EXISTS: THREE LINKS WERE DRAWN EXACTLY LIKE STATIC TEXT. Two friends
@@ -589,7 +464,6 @@ export default defineConfig({
      */
     shortcuts: {
         "control-surface": "text-[var(--text)] bg-[var(--background)] border border-[var(--accent)] hover:text-[var(--accent)] shadow-[2px_2px_0_var(--shadow)] active:text-[var(--accent)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] active:transition-none data-[leaving]:text-[var(--accent)] data-[leaving]:shadow-none data-[leaving]:translate-x-[3px] data-[leaving]:translate-y-[3px] data-[leaving]:transition-none transition-colors duration-300 ease-in-out cursor-pointer rounded-lg",
-        "control": "control-surface text-xl w-16 h-12 shrink-0 inline-flex justify-center items-center",
         "control-cta": "control-surface text-xs min-h-12 w-full px-3 py-1 inline-flex flex-wrap items-center justify-center gap-x-2",
         "text-link": "underline decoration-from-font underline-offset-[0.18em] self-start text-[var(--text)] hover:text-[var(--accent)] active:text-[var(--accent)] active:transition-none data-[leaving]:text-[var(--accent)] data-[leaving]:transition-none transition-colors duration-300 ease-in-out",
         "chip-surface": "border border-[color-mix(in_srgb,var(--text)_32%,transparent)] rounded-[2px] text-[var(--text)] bg-[var(--background)] no-underline cursor-pointer hover:text-[var(--accent)] hover:border-[var(--accent)] active:text-[var(--accent)] active:border-[var(--accent)] active:transition-none data-[leaving]:text-[var(--accent)] data-[leaving]:border-[var(--accent)] data-[leaving]:transition-none transition-colors duration-300 ease-in-out",
