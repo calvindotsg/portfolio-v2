@@ -1317,23 +1317,51 @@ describe("the intro card's strip fits its column, whatever the reader's text siz
      * has grown a seventh box. The row assertions below would still pass in both cases —
      * a wrapping row is correct at any length — so nothing else here notices.
      */
-    it("holds one chip per destination, with the theme control outside it", () => {
-        const strip = chipStrip();
+    it("holds one cell per destination plus the preference, and the preference is last", () => {
         const NOT_RENDERED = new Set(["script", "style", "template", "link", "meta", "title"]);
-        const items = [...strip.children].filter((c) => !NOT_RENDERED.has(c.tagName.toLowerCase()));
-        expect(
-            items.map((el) => `<${el.tagName.toLowerCase()} class="${el.getAttribute("class")}">`),
-            "the strip must hold exactly one item per entry in `LINKS` and nothing else",
-        ).toHaveLength(LINKS.length);
+        const rows = chipRows().map(([el]) => [...el.children].filter((c) => !NOT_RENDERED.has(c.tagName.toLowerCase())));
+        const cells = rows.flat();
 
+        // ONE CELL PER DESTINATION, PLUS ONE. Derived from `LINKS` so a destination added or
+        // removed moves both sides at once; the `+ 1` is the preference and is named rather
+        // than absorbed, because it is the one cell that is not a destination.
+        expect(
+            cells.map((el) => `<${el.tagName.toLowerCase()} class="${el.getAttribute("class")}">`),
+            "the block must hold exactly one cell per entry in `LINKS`, plus the theme control, and nothing else",
+        ).toHaveLength(LINKS.length + 1);
+
+        /*
+         * THE PREFERENCE IS LAST, AND THAT POSITION IS THE ONLY THING MARKING IT OUT.
+         *
+         * It wears the same box as the destinations beside it, deliberately: the design system
+         * publishes this box as "a member of a set, where the marks are the vocabulary, and for
+         * a preference", the destinations are solid brand marks against its stroked UI mark, and
+         * it is a `button` where they are anchors. What it must never do is sit BETWEEN
+         * destinations — interleaved, the mark is the only thing left saying it is not one, and
+         * the reading a set gives its members would swallow it.
+         */
         const toggle = document.querySelector("#theme-toggle");
         expect(toggle, "the page must still carry a theme control").toBeTruthy();
         expect(
-            strip.contains(toggle),
-            "the theme control is back in the strip. It is a preference rather than a destination, "
-            + "and seven boxes of this size do not fit the copy column — the seventh wraps to a line "
-            + "of its own",
-        ).toBe(false);
+            cells.indexOf(toggle as Element),
+            "the theme control must be the LAST cell of the block. It is the one cell that is not "
+            + "a destination, and its position is what says so — interleaved among them, nothing "
+            + "but the mark distinguishes a preference from a place to go",
+        ).toBe(cells.length - 1);
+
+        /*
+         * NO ROW MAY OUTGROW THE FIRST. The rows are a GROUPING authored in the component —
+         * a fixed number of cells per row, applied at every width — and nothing here reads that
+         * number, so this asks the property instead: the first row is the widest the block gets.
+         * A row that grew past it would be the block silently re-flowing into a shape nobody
+         * chose, which is what a hand-tuned column count does when either side moves.
+         */
+        for (const [i, row] of rows.entries()) {
+            expect(
+                row.length,
+                `row ${i + 1} of the block holds ${row.length} cells against the first row's ${rows[0].length}`,
+            ).toBeLessThanOrEqual(rows[0].length);
+        }
     });
 
     /**
@@ -1444,36 +1472,60 @@ describe("the intro card's strip fits its column, whatever the reader's text siz
      * different page. Narrowing it here keeps the strip's own assertions (wrapping,
      * packing, the minimum-width bound) pointed at the box they were measured against.
      */
-    const chipStrip = () => {
+    /**
+     * EVERY ROW OF QUIET CONTROLS ON THIS PAGE, in document order.
+     *
+     * The quiet controls are laid out as a BLOCK of rows rather than as one row: the
+     * destinations are grouped a fixed number to a row and the preference takes the last
+     * cell. So there is no single "the strip" to find any more, and a helper that insisted
+     * on one would fail on a correct page — which is what the version this replaces did.
+     *
+     * Discovered as the parents of pinned chips, in document order, rather than by naming a
+     * class: this class has been renamed twice, and a gate keyed on a name certifies whatever
+     * it happens to find.
+     */
+    const chipRows = () => {
         const controls = elementsOf(pinned());
-        expect(controls.length, "no pinned-chip elements — every assertion about their strip would be vacuous").toBeGreaterThan(1);
+        expect(controls.length, "no pinned-chip elements — every assertion about their rows would be vacuous").toBeGreaterThan(1);
         const perParent = new Map<Element, Element[]>();
         for (const control of controls) {
             const parent = control.parentElement!;
             perParent.set(parent, [...(perParent.get(parent) ?? []), control]);
         }
-        /*
-         * A ROW IS A PARENT HOLDING MORE THAN ONE OF THEM, and the discrimination is not a
-         * convenience — it is the whole subject. Every argument below is about what a row of
-         * boxes does to the column that contains it, and a box that is ALONE in its parent has
-         * no row and no minimum-width claim to make. The theme control is exactly that: it
-         * wears the same box, sits on the greeting line opposite the identity, and is one item.
-         *
-         * Written as "the parent with more than one" rather than "the parent that is not the
-         * masthead", because a name is what rots — this class has been renamed twice — and
-         * because the property that matters really is the plurality. Exactly one such box may
-         * exist: two would mean "the strip" names more than one thing and every assertion below
-         * would cover whichever one it happened to find first, which is the failure mode the
-         * predecessor of this helper actually shipped.
-         */
-        const rows = [...perParent.entries()].filter(([, held]) => held.length > 1);
+        const rows = [...perParent.entries()];
+        expect(rows.length, "no parent holds a pinned chip — the block has stopped existing").toBeGreaterThan(0);
+        return rows;
+    };
+
+    /**
+     * ONE ROW STANDS FOR ALL OF THEM, AND THAT IS ASSERTED RATHER THAN ASSUMED.
+     *
+     * The arguments below — the row wraps, and it can never hold the copy column wider than
+     * one chip — are read out of the STYLESHEET and out of the chain of ancestors above the
+     * row. Both are decided by the row's class and by its parent, so rows that share a class
+     * and a parent are indistinguishable to every one of them, and checking each in turn would
+     * re-run the same resolution against the same inputs.
+     *
+     * So this returns the first row and PINS the premise: every row wears exactly the same
+     * class list and they are all siblings. Break either and the representative stops
+     * representing, and this fails rather than quietly covering one row of several — which is
+     * the failure mode the single-row helper this replaces actually shipped.
+     */
+    const chipStrip = () => {
+        const rows = chipRows().map(([el]) => el);
+        const classes = [...new Set(rows.map((el) => el.getAttribute("class") ?? ""))];
         expect(
-            rows.map(([el, held]) => `<${el.tagName.toLowerCase()} class="${el.getAttribute("class")}"> x${held.length}`),
-            "exactly one box on this page may hold a ROW of pinned chips. Zero means the strip has "
-            + "stopped being a row and every assertion below is vacuous; two means \"the strip\" names "
-            + "more than one box and the minimum-width argument covers only one of them",
+            classes,
+            "the rows of quiet controls do not all wear the same class, so the row checked below "
+            + "does not stand for the others and each would need resolving on its own",
         ).toHaveLength(1);
-        return rows[0][0];
+        const parents = [...new Set(rows.map((el) => el.parentElement))];
+        expect(
+            parents.map((p) => `<${p?.tagName.toLowerCase()} class="${p?.getAttribute("class")}">`),
+            "the rows of quiet controls are not siblings, so the chain of ancestors charged below "
+            + "is not the chain every row pays",
+        ).toHaveLength(1);
+        return rows[0];
     };
 
     /**

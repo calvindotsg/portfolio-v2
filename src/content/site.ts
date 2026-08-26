@@ -93,6 +93,11 @@ export const LINKS: {
 }, {
     link: "https://t.me/calvindotsg/", logo: "fa6-brands:telegram", name: "Telegram Profile"
 }, {
+    // The one entry that is neither work nor sport. The rest of this list says what
+    // Calvin does; this says what he listens to, and it is a RECORD rather than a feed,
+    // which is the same shape as everything else this site publishes.
+    link: "https://last.fm/user/geektech510", logo: "fa6-brands:lastfm", name: "Last.fm Profile"
+}, {
     // "View", not "Download": the file opens in a tab rather than saving.
     link: "/resume.pdf", logo: "ri:file-pdf-2-line", name: "View résumé (PDF)"
 },];
