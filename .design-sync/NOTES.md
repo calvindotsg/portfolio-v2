@@ -201,36 +201,33 @@ scope, and the reason the list was the wrong mechanism is argued in place there.
   those two readers looked at rather than merely re-run.
 - The vendored React is uploaded and unused — there is nothing here to mount it in.
 
-## Owed: what the host answers for /design.md
+## What the host answers for /design.md — measured, and nothing is owed
 
-**Unmeasured, and it must be measured rather than reasoned about.** The static build discards a
-route's response headers — `src/pages/llms.txt.ts` carries that measurement — so the
-`content-type` a reader actually receives for `/design.md` is decided by Cloudflare Pages from
-the extension, and nothing in this repository can assert it. If it answers
-`application/octet-stream`, the twin downloads instead of displaying and the surface is worse
-than not shipping it.
+**`content-type: text/markdown; charset=utf-8`, with no `content-disposition`**, so the twin
+displays rather than downloading. Measured 2026-08-26 against the preview deploy of PR #209, on
+the immutable hash URL `d00ecf20.calvindotsg.pages.dev` taken from the deploy job's own log
+rather than the `pr-N` alias, which moves. The same request confirmed the served bytes share
+`DESIGN.md`'s SHA-256 — so this is one measurement of two things: the header, and that the host
+publishes the artifact the suite gated.
 
-It could not be measured when the twin landed: measuring needs a deployed origin, and the plan
-that shipped this forbids pushing or opening a pull request unless the operator asks for it.
-So the procedure is written down instead. Against a preview host, once one exists:
+**Why it needed measuring at all, and why the local answer did not count.** The static build
+discards a route's response headers — `src/pages/llms.txt.ts` carries that measurement — so the
+value a reader receives is decided by Cloudflare Pages from the `.md` extension, and nothing in
+this repository can assert it. `pnpm preview` also answers `text/markdown`, and that is Astro's
+preview server reading a MIME table on somebody's machine: the repository's own standing
+distinction is that a local preview is not the bytes the host serves, and this is that gap one
+header along. The two agreeing is a coincidence worth having and was not evidence in advance.
 
-    curl -sI https://<preview-host>/design.md | grep -i content-type
+**So `public/_headers` is untouched, on purpose.** A rule setting a header the host already sends
+correctly is a rule nobody can tell is doing anything, and this file has **no most-specific-match
+rule** — every rule whose path matches applies in the order written, the first to set a name
+replaces the host's value and a LATER one APPENDS to it, so a header name may appear in exactly
+one rule. `tests/build-output.test.ts` holds that invariant.
 
-- `text/markdown` or `text/plain` — nothing to do. Record the answer here, with its date, and
-  delete this section's "unmeasured" framing.
-- Anything else — add a rule to `public/_headers` setting `content-type: text/markdown;
-  charset=utf-8` for `/design.md`, and re-measure after the deploy. That file has **no
-  most-specific-match rule**: every rule whose path matches applies in the order written, the
-  first to set a name replaces the host's value and a LATER one APPENDS to it, so a header name
-  may appear in exactly one rule. `tests/build-output.test.ts` holds that invariant.
+**Re-measure rather than trusting this.** The value is the host's, derived from an extension, and
+nothing in this tree gates it: a Pages change to that MIME table would move it with no commit
+here. If it ever answers `application/octet-stream`, the twin downloads instead of displaying and
+the surface is worse than not shipping it — the remedy is the `_headers` rule above, placed
+deliberately and re-measured after the deploy.
 
-`public/_headers` is deliberately untouched until the measurement exists. A rule added on a
-guess is a rule nobody can tell is doing anything.
-
-**One measurement exists and it is the wrong one, which is worth writing down so nobody mistakes
-it for the right one.** Served locally out of `dist/` by `pnpm preview` on 2026-08-26, the answer
-is `Content-Type: text/markdown` — but that is Astro's preview server reading a MIME table, on a
-machine, and it says nothing about what Cloudflare Pages does with the same bytes. The site's own
-prose already makes this distinction about the artifact as a whole: a local preview is not the
-bytes the host serves, and this is the same gap one header along. Treat it as a reason to expect
-good news, not as the measurement.
+    curl -sI https://<hash>.calvindotsg.pages.dev/design.md | grep -i content-type
