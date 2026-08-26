@@ -3066,3 +3066,133 @@ Verified on the preview deploy rather than only locally: `/design.md` served fro
 hash URL is **byte-identical** to the committed `DESIGN.md`, and `/design/` carries 31 `design-hex`
 occurrences against production's 0. `pnpm test` 680 passed / 7 skipped, read out of the runner's
 log.
+
+## Plan 042 — the palette drawn as a ledger, both themes at once
+
+Merged as `b3e4837` (#227). `/design` could show one theme at a time, had no anchor anywhere on
+it, published three colour specimens a reader could not tell apart, drew Do and Don't identically,
+and had invented a third small-caps register on the page whose subject is that this site has a
+fixed vocabulary. The colour section is a sheet now — `LIGHT · DARK · TOKEN · ROLE`, both columns
+always drawn — and the page is entered at a section. What follows is only what executing it
+established.
+
+### A grid item that CLIPS has an automatic minimum size of zero, and a wrapper takes that away
+
+The page had never scrolled sideways and nobody had written down why. It is not the content:
+`min-width: auto` on a grid item resolves to **0** when the item is a scroll container, and `Card`
+sets `overflow-hidden`. For as long as the card was the grid item, `main`'s track could shrink to
+the viewport and the card absorbed the rest.
+
+Step 2 needs each section to have an `id`, and `Card` takes no such prop and is out of scope — so
+each card was wrapped in a `<section>`. That put a box which does **not** clip between the card and
+the grid, the exemption stopped applying, and the track grew to the widest unbreakable word on the
+page: **43px of horizontal document overflow at a 320px viewport and a 40px root**, all of it from
+the guidance columns, on markup whose CSS had not changed at all.
+
+`min-w-0` on the wrapper hands the exemption back to the box that earns it. Nothing in the suite
+can see this — `page-fit` and `card-fill` read `dist/index.html` only, and there is no layout
+engine anywhere in it. It was found by bisection: hide a subtree, re-read
+`scrollWidth - clientWidth`, repeat. A rect dump cannot find it, because every element in the
+overflowing column reports the same `right`.
+
+**The general rule: inserting any element between a grid or flex container and an item that clips
+changes the container's intrinsic width.** It is a purely structural edit with no style change and
+no content change, and it is invisible to every gate here.
+
+### Drawing both themes at once inverts the reason the ink plate exists
+
+`.design-ink` floods a plate with `--text` so an `-on-ink` mark is shown on ink — the page's own
+comment says drawing it against the card renders the pale half of every pair as a mistake. A single
+live plate is `var(--text)`, so it is always the opposite of the card behind it and needs no edge.
+
+A sheet drawing both themes has, in every `-on-ink` row, **one plate at the same end of the range as
+the card** — dark-theme ink on a light card, light-theme ink on a dark one. Without a border that
+plate is invisible and its swatch floats on nothing, which is exactly the failure the plate was
+introduced to prevent, arriving from the other side. It takes `.design-swatch`'s own hairline now.
+Seen in both themes at 1280 before and after; no gate reaches it.
+
+### Forced colours eats `background-color`, so "filled versus hollow" is one channel, not two
+
+Step 5 requires the two guidance columns to differ in at least two channels *because one of them
+will be a colour*. The obvious drawing — a solid marker against a hollow one — satisfies that on
+its face and does not survive: the mode substitutes the system ground for the author's background
+on anything that has not opted out, so the solid square becomes an empty one and only the rotation
+is left.
+
+What survives is geometry. The solid mark is a **border half the width of its own box**, which
+meets itself in the middle and draws the same in both modes with no paint at all. Verified by
+injecting the substitution the mode performs rather than by reasoning about it — there is no media
+emulation in the tooling here, and CDP's makes the queries match without reproducing the painting.
+
+### Two smaller instances of one class: an unbreakable pair has the SUM as its minimum
+
+A cell holding a theme name and a hex holds two strings neither of which can break. Laid out
+`nowrap`, its min-content is their **sum**; with `flex-wrap: wrap` it is the **wider of the two**.
+That difference was 98px of horizontal overflow at 320 / 40px root, from two cells. The general
+form is worth carrying: whenever a flex cell's children are each atomic, its wrap behaviour is a
+sizing decision, not a cosmetic one.
+
+### A redraw that splits one drawing into two shapes silences a row-parsing gate
+
+041's per-row value gate parsed `<li class="design-row">`. This plan moved three of fifteen tokens
+out of that element entirely, into the nested neutral specimen. **The gate stayed green and simply
+stopped asking about those three** — its per-token lookup found no row and took the branch nobody
+had a stimulus for. The parser takes the row class as a parameter now and unions both shapes, and
+the vacuity floor moved with it, from a count that included control rows to `>= PALETTE.length`.
+Watched failing by renaming one row class: *expected 3 to be >= 15*.
+
+### "No third register" is an allowed SET, not a pair of equalities
+
+The natural gate for "this page invents no register" is two equalities — heading tracking equals the
+chip's, eyebrow tracking equals the bib's. That gate cannot see the failure it exists to catch: the
+failure is a **third** value appearing somewhere else, and both equalities stay green while it does.
+
+What shipped derives both permitted values from their declaration sites — the chip's out of
+`uno.config.ts`'s shortcut string, the bib's out of the wall page's own shipped `.bib-meta` rule —
+asserts the two are distinct, and then subtracts the set from every `letter-spacing` the page
+carries. Two traps on the way: the minifier drops the leading zero, so `0.08em` ships as `.08em` and
+an unnormalised needle reddens on correct CSS; and the plan's own `grep -c '0.08em'` done criterion
+is satisfied by a **comment** — two of them, both recording the retired value as archaeology. The
+number is not written down anywhere in the file now. A retired number written down is one somebody
+restores.
+
+### The plan's scope line forbids the key its own step requires
+
+Step 2 requires the chip row to be "a `<nav>` with an accessible name". An accessible name is a
+string, and this repository's Configuration rule gives a string a person would retune exactly three
+homes, none of which is a route file. The Scope section admits changes to `src/content/design.ts`
+in `SECTIONS.*.lede` and `DESIGN_PAGE.lede` only — "no new keys". The two cannot both be obeyed.
+
+`DESIGN_PAGE.index_label` was added, because the standing rule outranks a plan's narrower scope and
+the alternative is the defect plan 035 shipped. The scope line's intent is legible once read for it:
+it guards the design system's *published vocabulary*, which is what 043 owns. Two further strings
+were nearly invented for the sheet's `TOKEN` and `ROLE` column heads and were not needed — the
+wall's own ledger heads its figures and leaves an empty cell over the name column. **A column of
+token names says what it is by being what it is.**
+
+### `DESIGN_PAGE.lede` changed and nothing regenerated
+
+The lede lost the clause the drawing falsified — "the swatches resolve the same custom properties
+every other page does" — which is no longer true of the sheet, whose swatches are inline literals
+so that the light column stays light under a dark reader. `pnpm test:update` produced no diff:
+`design-doc.ts` renders `heading`, `description`, `does_label` and `donts_label` from
+`DESIGN_PAGE`, and not `lede`. Worth knowing before budgeting a lede rewrite against `AGENT_BUDGET`.
+
+### What the browser measured
+
+`<main>`, in px, against production as the before-tree:
+
+| viewport | root | before | after (light) | after (dark) |
+|---|---|---|---|---|
+| 1280 | 16 | 3652 | 4171 | 4175 |
+| 390 | 16 | 6604 | 7047 | 7052 |
+| 320 | 16 | 8095 | 9148 | 9153 |
+| 320 | 40 | 61548 | 60101 | 60110 |
+
+Taller at every default size — the ramp gained a line of prose per step and the palette a nested
+specimen — and **1.4k shorter at 200% zoom**, because the sheet's narrowest arm packs a token into
+four short lines where four wrapping rows took more. Zero horizontal overflow in all eight cells;
+every chip 44×44 or better at a 16px root and 110px at a 40px one. The sheet's arms hand over at
+49.88em / 20.25em / 15.88em / 3.95em of its own inline size, with no token name broken mid-word at
+any of them. Clipped ink at 320 / 40px root is 2.1px over 12 elements — **the same 12 elements and
+the same 2.1px production reports today**, so the redraw changes it by nothing.
