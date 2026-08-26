@@ -3,11 +3,32 @@ import {NEXT_RACE} from "../content/races";
 import type {Goal} from "../lib/goal";
 import {iconClass} from "../lib/icons";
 
-interface Props {
-    goal: Goal;
-}
+/*
+ * TWO CALLERS, TWO WAYS TO SAY THE SAME THING, AND THE UNION IS WHAT KEEPS THEM APART.
+ *
+ * A goal card hands over its goal and this derives both halves from it — that is the
+ * original caller and nothing about what it renders changes. The intro card's way in
+ * points at the whole wall rather than at one sport, so it has no goal to derive from
+ * and states the pair outright.
+ *
+ * IT IS A UNION AND NOT TWO OPTIONAL FIELDS, deliberately. With three independent
+ * optionals a caller can pass a goal AND a label, and the two would disagree about what
+ * this control says while the compiler watched; `never` on the other arm's fields makes
+ * each shape exclusive, which is the same device `src/lib/race.ts` uses to keep a booked
+ * race from carrying a recording. Read `props` rather than destructuring — narrowing a
+ * discriminated union survives the property access and does not survive the destructure.
+ *
+ * WHY THIS RATHER THAN A SECOND COMPONENT. Everything below this line is a property of a
+ * control and not of a card: the label wrapper that lets an enlarged phrase break, the
+ * keyboard focus indicator whose offset was measured against the plate, and the forced-colours repair.
+ * A second call to action would own three copies of them, and the one that is not on the
+ * home page's critical path is the one that would rot.
+ */
+type Props =
+    | {goal: Goal, href?: never, label?: never}
+    | {goal?: never, href: string, label: string};
 
-const {goal} = Astro.props;
+const props = Astro.props;
 
 /*
  * THE WAY OUT OF THE GOAL CARD, AND NOTHING ELSE.
@@ -113,12 +134,15 @@ const {goal} = Astro.props;
  * tests/build-output.test.ts fails the build by name when they do. All four were caught here
  * on the first run.)
  */
-const label = NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase());
+const href = props.goal ? `/patches/${props.goal.sport}` : props.href;
+const label = props.goal
+    ? NEXT_RACE.control.replace("{sport}", props.goal.goal_name.toLowerCase())
+    : props.label;
 ---
 
 <a
         class="events-link control-cta"
-        href={`/patches/${goal.sport}`}
+        href={href}
 ><span class="events-link-label">{label}</span><span
         class={`${iconClass(NEXT_RACE.icon)} shrink-0`} aria-hidden="true"></span></a>
 
