@@ -1,8 +1,8 @@
 # Implementation Plans
 
-**Four plans are queued: 041 → 042 → 043 → 044.** They came from a rethink of `/design` on
-2026-08-26, as the chain that opened with 040. **039 and 040 are both done** — merged as `b1eea8a`
-(#217) and `eb09d90` (#223), live, and archived.
+**Three plans are queued: 042 → 043 → 044.** They came from a rethink of `/design` on
+2026-08-26, as the chain that opened with 040. **039, 040 and 041 are all done** — merged as
+`b1eea8a` (#217), `eb09d90` (#223) and `a0be477` (#225), live, and archived.
 
 **Why the five are a chain and not a set.** They were written in the order a defect forced,
 not in the order the work was imagined. The rethink began as "redraw the page", and two mutations
@@ -273,7 +273,7 @@ recreated.
 | 038 | Publish the chip, put one header on every page but the home page, and give the wall a markdown twin | P2 | L | 036, 037 | **DONE** (`0e78e22`) |
 | 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **DONE** (`b1eea8a`) |
 | 040 | Hold all three renderings to their one source | P1 | M | — | **DONE** (`eb09d90`) |
-| 041 | Publish a token's two values, not just its role | P2 | M | 040 | **TODO** |
+| 041 | Publish a token's two values, not just its role | P2 | M | 040 | **DONE** (`a0be477`) |
 | 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **TODO** |
 | 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **TODO** |
 | 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **TODO** |
@@ -284,29 +284,37 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 it added assertions and made one renderer iterate a list it had hand-written, and its own
 verification was that `DESIGN.md` did not change by a byte — which held, first time, and was carried
 further on the preview, where the page and its markdown twin both came back byte-identical to what
-production was already serving. 041 publishes every token's two values,
-derived at build time from the two theme blocks in `src/layouts/BasicLayout.astro` — which do not
+production was already serving. 041 published every token's two values,
+derived at build time from the two theme blocks in `src/layouts/BasicLayout.astro` — which did not
 move, because Astro's `inlineStylesheets: "auto"` once pushed those very tokens from a chunk into
 the page and took sixteen tests red with nothing wrong with the page. 042 is the only one of the
-four that **redraws** a page — 041 changes one specimen on `/design` and is not invisible either, so
-both carry browser measurements in their done criteria, because there is no layout engine in the
-suite. 043 is writing.
+four that **redraws** a page — 041 changed one specimen on `/design` and was not invisible either, so
+both carried browser measurements in their done criteria, because there is no layout engine in the
+suite; 041's came back clean at twelve points, three widths by two themes by two root font sizes.
+043 is writing.
 
 **Splitting 041 out of 042 was forced by an arithmetic result, not a preference.** A second colour
 column cannot resolve `var(--token)` — only the live theme's value is reachable from CSS — so the
 ledger in 042 has to be handed both values, and the only way to hand it both without a second home
-is the derivation 041 builds. Three ways to reach the source were measured against a real build and
+is the derivation 041 built. Three ways to reach the source were measured against a real build and
 a real test run: a `?raw` import works in both, a working-directory-relative read works in both, and
 `import.meta.url` **fails in the build** with `ENOENT`, because Astro bundles the SSR modules into a
-temporary directory before running them. 041 specifies the first and records why.
+temporary directory before running them. **041 specified the first and shipped the second**, because
+executing it found a fourth reader those two measurements could not see: UnoCSS's Vite pipeline
+matches any id ending `.astro` or `.astro?…`, so `?raw` hands the extractor the whole layout as text
+and eight ordinary words in it ship as utility rules nobody wears. See
+[`done/README.md`](done/README.md) § "Plan 041". A plan that measures "does it build" and "does it
+test" has not measured "what else reads this".
 
-**One measurement decides what the design agent's brief can carry.** `.design-sync/conventions.md`
-was **3,933 characters against its 4,096 budget** at `71bc7e1` — 163 spare. Two value columns over
-the token table cost about 323, and two new sections cost more, so both 041 and 043 keep the agent
-audience smaller than the full one and record the trade, and each names the refusal in its own Out
-of scope and STOP conditions. Neither may raise the budget: the number is
-somebody else's context window and its provenance is written beside it in
-`tests/design-system.test.ts`.
+**One measurement decides what the design agent's brief can carry, and 041 moved it.**
+`.design-sync/conventions.md` was **3,933 characters against its 4,096 budget** at `71bc7e1` — 163
+spare — and stood at 3,859 on the merged tree 041 executed against. Two value columns over the token
+table were measured at about 384 there, so 041 kept the agent audience roles-only and recorded the
+trade in `.design-sync/NOTES.md`; rewriting the palette's first don't then took the document to
+**3,935 — 161 spare**, which is the figure **043 starts from**, not 163 and not 237. Two new sections
+cost more than that, so 043 names its refusal in its own Out of scope and STOP conditions. Neither
+may raise the budget: the number is somebody else's context window and its provenance is written
+beside it in `tests/design-system.test.ts`.
 
 **Why 038 and 039 are two files, and why 039 could not go first.** 038 published the chip as a
 real, gated kind of control; 039 spends it on the home page and deletes the icon plate the chip
@@ -521,9 +529,11 @@ later run re-derives it; it is not a record of anything the maintainer decided.
   expressible. Measured with the official linter `@google/design.md` v0.4.0 on 2026-08-26 —
   30 tokens named that way lint at **0 errors**, one `missing-primary` warning, which a
   `primary: "{colors.light-accent}"` alias clears to **0 errors, 0 warnings**; and
-  `export --format css-vars` over the result emits **33 CSS custom properties**. Omitting the group
-  costs the format's whole toolchain — Tailwind v3 and v4, W3C Design Tokens, CSS variables — for a
-  constraint the format does not impose. **041 now publishes the group and deletes the omission.**
+  `export --format css-vars` over the result emits one custom property per token plus one per alias.
+  Omitting the group costs the format's whole toolchain — Tailwind v3 and v4, W3C Design Tokens, CSS
+  variables — for a constraint the format does not impose. **041 published the group, deleted the
+  omission, and measured the export at 32 properties** — 30 tokens and two aliases, against the 33
+  this line predicted from a shape that was never shipped.
   The general lesson is the one this directory keeps relearning: a premise about somebody else's
   format is a lead, and the tool is right there.
 - **A copy-to-clipboard control beside each value** — rejected. It needs script, and a literal
