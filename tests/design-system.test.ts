@@ -1,6 +1,7 @@
 import {readFileSync} from "node:fs";
 import {describe, expect, it} from "vitest";
 
+import unoConfig from "../uno.config";
 import {SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
 import {renderDesignDoc} from "../src/lib/design-doc";
 import {ICON_IDS, iconClass} from "../src/lib/icons";
@@ -179,11 +180,39 @@ describe("the design system this site publishes", () => {
             .toEqual([]);
     });
 
-    it("keeps the one class that document warns is absent absent", () => {
-        expect(conventions()).toContain("`control-surface` is not in the stylesheet");
-        expect(css.includes(".control-surface{"),
-            "`control-surface` now ships a rule, so the warning in " + CONVENTIONS + " is false")
-            .toBe(false);
+    /**
+     * THE DOCUMENT NAMES THE SURFACES IT SAYS ARE ABSENT, AND EVERY ONE OF THEM MUST BE. This
+     * used to assert a single hand-written sentence in `src/lib/design-doc.ts` — "`control-
+     * surface` is not in the stylesheet" — which was fine while the site had one base. It has
+     * two now, and a gate keyed on one class name would have certified a document that had
+     * silently stopped mentioning the other.
+     *
+     * SO IT READS THE CLAIM RATHER THAN A LITERAL. The warning lives in the module's own
+     * controls guidance, is rendered into BOTH audiences, and names its surfaces in prose; this
+     * pulls every `*-surface` token out of that sentence and holds each against the shipped
+     * sheet. A surface added to `uno.config.ts` and left out of the guidance is caught by the
+     * floor below rather than passing unnoticed, which is the direction that matters — the
+     * failure being guarded is a base class that starts shipping a rule nothing wears, and a
+     * document that goes on saying it does not.
+     */
+    it("keeps every surface that document warns is absent absent", () => {
+        const warning = SECTIONS.controls.donts.find((line) => line.includes("-surface"));
+        expect(warning, "the controls guidance no longer warns about a surface class at all")
+            .toBeDefined();
+        const named = [...warning!.matchAll(/\b([a-z][\w-]*-surface)\b/g)].map((m) => m[1]!);
+        expect(new Set(named).size, "no surface class parsed out of that warning — this gate would be vacuous")
+            .toBeGreaterThan(1);
+        for (const surface of new Set(named)) {
+            expect(conventions(), `${CONVENTIONS} does not carry the warning about \`${surface}\``)
+                .toContain(surface);
+            expect(css.includes(`.${surface}{`),
+                `\`${surface}\` now ships a rule, so the warning in ${CONVENTIONS} is false`)
+                .toBe(false);
+        }
+        // Both bases really are shortcuts in the config, so the sentence is about something.
+        const shortcuts = Object.keys(unoConfig.shortcuts as Record<string, string>);
+        expect([...new Set(named)].filter((s) => !shortcuts.includes(s)),
+            "the guidance warns about a surface that is not a shortcut at all").toEqual([]);
     });
 
     /**

@@ -61,18 +61,25 @@ const RAMP = ["text-3xl", "text-xl", "text-base", "text-sm", "text-xs"];
  */
 const MARKS = [...new Set(ICON_IDS.map(iconClass))].sort();
 
-const [PLATED, LABELLED, WORDS] = CONTROLS;
+const [PLATED, LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;
 
 /*
- * THE THREE CONTROL SPECIMENS GO SOMEWHERE REAL, and the alternative was measured against
- * the suite rather than argued about. An inert specimen would have to be a `span`, and a
+ * EVERY CONTROL SPECIMEN GOES SOMEWHERE REAL, and the alternative was measured against the
+ * suite rather than argued about. An inert specimen would have to be a `span`, and a
  * build-wide gate in `tests/build-output.test.ts` fails any hover rule that reaches an
- * element which cannot be interacted with — which every one of these carries. Three working
- * links is the shape that survives it, and it is the better page anyway: each specimen is
- * named with the very words the page it opens is headed with, which is the pairing rule the
- * site already holds its goal cards to.
+ * element which cannot be interacted with — which every one of these carries. Working links
+ * are the shape that survives it, and it is the better page anyway: each specimen is named
+ * with the very words the page it opens is headed with, which is the pairing rule the site
+ * already holds its goal cards to.
+ *
+ * THE TWO SPORT WALLS ARE THE CHIPS' DESTINATIONS, and they are chosen because nothing else
+ * on this page uses them: the plate goes home, the call to action goes to the whole wall, and
+ * the run of words goes to the first goal's sport. So the census of specimens is also a small
+ * census of the site, with no destination drawn twice in two different idioms — which is the
+ * very confusion this page exists to prevent.
  */
 const firstGoal = GOALS[0];
+const lastGoal = GOALS[GOALS.length - 1];
 const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLowerCase());
 
 /*
@@ -198,6 +205,27 @@ const MARKDOWN = "/design.md";
                                     <a href={`/patches/${firstGoal.sport}`} class="text-link text-sm">{sportLabel}</a>
                                     <span class="design-name">{WORDS.name}</span>
                                     <span class="design-role text-sm">{WORDS.role}</span>
+                                </li>
+                                <li class="design-row">
+                                    {/* The label is a bare text node here and that is right rather
+                                         than an oversight: this kind's whole point is that it names
+                                         itself in ONE word, so there is nothing for a wrapper to
+                                         let break. The call to action above needs one because its
+                                         label is a phrase that comes from data. */}
+                                    <a href={`/patches/${lastGoal.sport}`} class="chip">{lastGoal.goal_name}</a>
+                                    <span class="design-name">{CHIP.name}</span>
+                                    <span class="design-role text-sm">{CHIP.role}</span>
+                                </li>
+                                <li class="design-row">
+                                    {/* Icon-only, so the mark IS the control and the name has to be
+                                         carried somewhere a reader who cannot see it will get it —
+                                         the same device the plated specimen above uses. */}
+                                    <a href={`/patches/${firstGoal.sport}`} class="chip-icon">
+                                        <span class={`${iconClass(firstGoal.goal_logo)} shrink-0`} aria-hidden="true"></span>
+                                        <span class="sr-only">{firstGoal.goal_name}</span>
+                                    </a>
+                                    <span class="design-name">{CHIP_ICON.name}</span>
+                                    <span class="design-role text-sm">{CHIP_ICON.role}</span>
                                 </li>
                             </ul>
                     )}

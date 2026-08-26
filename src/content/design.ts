@@ -169,8 +169,21 @@ export const CONTROLS: readonly {name: string, role: string}[] = [
     },
     {
         name: "text-link",
-        role: "A link that is a run of words inside a sentence or a column of figures. The wall's "
-            + "way back, and each role card's company name.",
+        role: "A link that is a run of words inside a sentence or a column of figures. Each role "
+            + "card's company name.",
+    },
+    {
+        name: "chip",
+        role: "The quiet surface, holding a label that names it in a word. For getting somewhere "
+            + "and for setting a preference — chrome rather than a page's one action, so it wears "
+            + "no plate. Its label comes from data, so its box is floored rather than pinned. The "
+            + "patch wall's filter row, and every item in a page header.",
+    },
+    {
+        name: "chip-icon",
+        role: "That same quiet surface holding one mark, for a member of a set where the marks "
+            + "are the vocabulary. Its content is a glyph the design picked the size of, so its "
+            + "box is pinned. The theme toggle wherever a page header carries it.",
     },
 ]
 
@@ -225,17 +238,18 @@ export const SECTIONS: Readonly<Record<"palette" | "type" | "controls" | "icons"
     },
     controls: {
         heading: "Controls",
-        lede: "Three kinds, and which one to use is decided by what the control CONTAINS rather "
-            + "than by how important it is. All three share one surface: a hairline in --accent, "
-            + "a hard offset plate in --shadow, and colour moving over 300ms. Every specimen "
-            + "below is a working link to the page it names.",
+        lede: "Which kind to reach for is decided by what the control CONTAINS and by how loud it "
+            + "should be. The surface belongs to the kind rather than to all of them: the offset "
+            + "plate under an --accent hairline is the mark for a page's ONE action, and a quiet "
+            + "hairline at a fraction of the ink is for chrome — getting somewhere, and setting a "
+            + "preference. Every specimen below is a working link to the page it names.",
         does: [
             "Give every link a signifier a reader can perceive: an underline, a mark, or a border.",
             "Let a labelled control wrap. Its width belongs to its container; its height belongs to its text.",
             "Draw the press, and snap it. A tap is over long before a 300ms colour ramp finishes, so a pressed state must not ease.",
         ],
         donts: [
-            "Reach for control-surface. It is a source-level shortcut the other two compose, nothing wears it directly, and it is not in the shipped stylesheet.",
+            "Reach for a surface class. control-surface and chip-surface are source-level shortcuts the boxes compose, nothing wears either directly, and neither is in the shipped stylesheet.",
             "Draw a link exactly like the prose beside it.",
             "Pin a control's height in pixels. The box is sized in rem so that it grows with the reader's text.",
         ],

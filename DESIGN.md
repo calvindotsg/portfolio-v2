@@ -33,7 +33,7 @@ omitted:
 ## Overview
 
 This is one site's whole design vocabulary: a palette of theme tokens, a short type ramp,
-three kinds of control and a set of marks. It is deliberately quiet — there is no webfont,
+a handful of kinds of control and a set of marks. It is deliberately quiet — no webfont,
 no display face and no decoration that carries meaning on its own — and it is drawn to work
 identically in a light theme and a dark one, which is the constraint most of what follows
 exists to protect.
@@ -103,11 +103,13 @@ Don't:
 
 ## Controls
 
-Three kinds, and which one to use is decided by what the control CONTAINS rather than by how important it is. All three share one surface: a hairline in --accent, a hard offset plate in --shadow, and colour moving over 300ms. Every specimen below is a working link to the page it names.
+Which kind to reach for is decided by what the control CONTAINS and by how loud it should be. The surface belongs to the kind rather than to all of them: the offset plate under an --accent hairline is the mark for a page's ONE action, and a quiet hairline at a fraction of the ink is for chrome — getting somewhere, and setting a preference. Every specimen below is a working link to the page it names.
 
 - **`control`** — The plated surface at a box the design picks, icon-only: its content is one mark and never a word, so its width is a number rather than a guess. The social links and the theme toggle wear it.
 - **`control-cta`** — That same surface at the width of whatever contains it, holding a label and its mark centred together as one legend. Its label comes from data and must be allowed to wrap, so its height is floored rather than pinned. The goal cards' way out.
-- **`text-link`** — A link that is a run of words inside a sentence or a column of figures. The wall's way back, and each role card's company name.
+- **`text-link`** — A link that is a run of words inside a sentence or a column of figures. Each role card's company name.
+- **`chip`** — The quiet surface, holding a label that names it in a word. For getting somewhere and for setting a preference — chrome rather than a page's one action, so it wears no plate. Its label comes from data, so its box is floored rather than pinned. The patch wall's filter row, and every item in a page header.
+- **`chip-icon`** — That same quiet surface holding one mark, for a member of a set where the marks are the vocabulary. Its content is a glyph the design picked the size of, so its box is pinned. The theme toggle wherever a page header carries it.
 
 Do:
 
@@ -117,7 +119,7 @@ Do:
 
 Don't:
 
-- Reach for control-surface. It is a source-level shortcut the other two compose, nothing wears it directly, and it is not in the shipped stylesheet.
+- Reach for a surface class. control-surface and chip-surface are source-level shortcuts the boxes compose, nothing wears either directly, and neither is in the shipped stylesheet.
 - Draw a link exactly like the prose beside it.
 - Pin a control's height in pixels. The box is sized in rem so that it grows with the reader's text.
 

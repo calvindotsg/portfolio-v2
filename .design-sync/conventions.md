@@ -1,6 +1,6 @@
 # calvin.sg — building with this system
 
-**Colour, type and controls; no components** — the source site is Astro, so nothing mounts.
+**Colour, controls and marks; no components** — the source is Astro, so nothing mounts.
 The token table and the class list are complete; every other list is a guardrail.
 
 ## Set data-theme, or nothing is styled
@@ -38,42 +38,27 @@ Don't:
 
 ## The stylesheet is a closed set
 
-**No utility engine runs here.** These classes came from the source site's own markup and
-shipped as static CSS, so one that site never used does not exist. The stylesheet is the
-only authority on what a class does, and it restates the tokens in readable form, both
-themes, above the minified rules.
+**No utility engine runs here.** These classes came from the source site's markup and
+shipped as static CSS, so one that site never used does not exist: the stylesheet is the
+only authority on what a class does, and it restates both themes' tokens above its rules.
 
-Guaranteed present: `control`, `control-cta`, `text-link`, `sr-only`,
+Guaranteed present: `control`, `control-cta`, `text-link`, `chip`, `chip-icon`, `sr-only`,
 `break-anywhere`, the mark classes, and a reset over a system sans stack.
-
-**`control-surface` is not in the stylesheet** — see the controls below.
 
 ## Controls
 
 - **`control`** — The plated surface at a box the design picks, icon-only: its content is one mark and never a word, so its width is a number rather than a guess. The social links and the theme toggle wear it.
 - **`control-cta`** — That same surface at the width of whatever contains it, holding a label and its mark centred together as one legend. Its label comes from data and must be allowed to wrap, so its height is floored rather than pinned. The goal cards' way out.
-- **`text-link`** — A link that is a run of words inside a sentence or a column of figures. The wall's way back, and each role card's company name.
+- **`text-link`** — A link that is a run of words inside a sentence or a column of figures. Each role card's company name.
+- **`chip`** — The quiet surface, holding a label that names it in a word. For getting somewhere and for setting a preference — chrome rather than a page's one action, so it wears no plate. Its label comes from data, so its box is floored rather than pinned. The patch wall's filter row, and every item in a page header.
+- **`chip-icon`** — That same quiet surface holding one mark, for a member of a set where the marks are the vocabulary. Its content is a glyph the design picked the size of, so its box is pinned. The theme toggle wherever a page header carries it.
 
 Don't:
 
-- Reach for control-surface. It is a source-level shortcut the other two compose, nothing wears it directly, and it is not in the shipped stylesheet.
+- Reach for a surface class. control-surface and chip-surface are source-level shortcuts the boxes compose, nothing wears either directly, and neither is in the shipped stylesheet.
 - Draw a link exactly like the prose beside it.
 - Pin a control's height in pixels. The box is sized in rem so that it grows with the reader's text.
-
-## Type
-
-Don't:
-
-- Introduce a decorative or display face. There is no webfont to pair one with.
-- Invent an intermediate step because something is a little too big.
-- Pin a height in pixels. Text that grows then clips instead of pushing.
 
 ## Marks
 
 19 marks ship and no others, each a `.i-` class sized with `font-size`.
-
-Don't:
-
-- Substitute an emoji for a mark that is not in the set.
-- Mix another icon family in. The ones that ship do different jobs and were chosen against each other.
-- Recolour a brand mark away from what the surface it sits on needs for contrast.
