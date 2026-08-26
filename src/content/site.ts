@@ -166,6 +166,67 @@ export const THEME_TOGGLE: {
 }
 
 /**
+ * THE CHROME EVERY PAGE BUT THE HOME PAGE CARRIES — the way back, said once.
+ *
+ * IT IS HERE RATHER THAN IN {@link PATCHES}, AND THAT MOVE IS THE WHOLE REASON THIS BLOCK
+ * EXISTS. The way back used to be the patch wall's own copy, and `src/pages/design.astro`
+ * reached across for it — so a page about colour tokens read the racing module to find out
+ * what the word for going home is. Two pages drawing one object is the vocabulary break
+ * this repository keeps closing; two pages drawing one object out of ONE page's constants
+ * is the same break with a longer import. The header is site chrome, so its words live
+ * with the site's copy, beside {@link THEME_TOGGLE} and {@link NOT_FOUND} — the other two
+ * strings that belong to the frame rather than to any one page.
+ *
+ * {@link home_icon} is deliberately the same glyph as {@link NOT_FOUND.home_icon}, for the
+ * reason that block gives: these are the site's ways back and drawing them alike is the
+ * point. It still earns its OWN entry in the census in `src/lib/icons.ts` — relying on
+ * another constant to have already emitted a class is how a mark ships as a zero-size mask
+ * box behind a green build.
+ */
+export const PAGE_HEADER: {
+    /** The words on the way back. */
+    home_label: string
+    /** The mark beside them. */
+    home_icon: string
+} = {
+    home_label: "Home",
+    home_icon: "ri:arrow-left-line",
+}
+
+/**
+ * THE WAY TO THE MARKDOWN RENDERING OF WHATEVER PAGE IS CARRYING THE HEADER.
+ *
+ * IT IS SITE CHROME NOW, WHICH IS WHY IT MOVED OUT OF `src/content/design.ts`. It was one
+ * page's furniture while `/design` was the only page with a twin; the header puts the same
+ * chip on the wall's three routes, so the string belongs with the frame rather than with
+ * the one page that happened to need it first. `src/content/` is split by KIND, and the
+ * frame is the kind this is.
+ *
+ * {@link link_label} IS A CHIP'S LABEL AND IS SIZED LIKE ONE. It used to read as a whole
+ * instruction, which was right while it was hidden inside a run of prose; it is DRAWN now,
+ * in a control whose type is set small and tracked wide, and one word is what fits there.
+ * `llms.txt` is the one other reader of this idea and it wants a sentence per entry — four
+ * list items all reading the same word would be four links a crawler cannot tell apart —
+ * so that file gives each twin its own words rather than lengthening this one.
+ *
+ * WHAT IS NOT HERE ANY MORE: a copy-to-clipboard button's name, its confirmation and its
+ * two marks. The maintainer's answer to "how do I take this page away" is to open the
+ * markdown rendering and select all, which is the same outcome with no client code — and
+ * deleting it took the site's only clipboard path with it. The WAI-ARIA argument that
+ * paragraph carried is not lost: the identical rule still governs {@link THEME_TOGGLE},
+ * where it is written out in full.
+ */
+export const MARKDOWN_TWIN: {
+    /** The words on the chip that opens the markdown rendering of this page. */
+    link_label: string
+    /** The mark it wears. */
+    link_icon: string
+} = {
+    link_label: "Markdown",
+    link_icon: "ri:markdown-line",
+}
+
+/**
  * THE PAGE THAT ANSWERS A URL THIS SITE DOES NOT HAVE, and it exists because of what the
  * host does WITHOUT it rather than because a 404 is nice to have.
  *
@@ -181,7 +242,7 @@ export const THEME_TOGGLE: {
  * so the line under it spends its words on the only thing a reader can act on — that this
  * site is small enough to list in full, and here it is.
  *
- * {@link home_icon} is deliberately the same glyph as {@link PATCHES.home_icon}: the two
+ * {@link home_icon} is deliberately the same glyph as {@link PAGE_HEADER.home_icon}: the two
  * are the site's only ways back, and drawing them alike is the same argument the wall's
  * back link makes about `EventsLink`. It still gets its OWN entry in `uno.config.ts`'s
  * safelist rather than riding on the wall's — the note there is explicit that relying on

@@ -139,8 +139,6 @@ export const PATCHES: {
      * reader to spell it out.
      */
     dnf_name: string
-    home_label: string
-    home_icon: string
     filter_label: string
     /**
      * WHOSE ACCOUNT A LEDGER ROW IS. These two words are the whole reason the ledger works,
@@ -391,8 +389,6 @@ export const PATCHES: {
     booked_label: "Booked",
     dnf_result: "DNF",
     dnf_name: "Did not finish",
-    home_label: "Home",
-    home_icon: "ri:arrow-left-line",
     filter_label: "Filter by sport",
     official_row: "Official",
     recorded_row: "Recorded",
@@ -477,8 +473,8 @@ export const NEXT_RACE: {
      * chevron at 13px was sized to sit inside a run of 12px words without shouting; the mark
      * is now alone at the far edge of a 48px control, where a chevron reads as a leftover
      * rather than as the button's one mark. It also lands the pair on the wall's own
-     * vocabulary — {@link PATCHES.home_icon} is `ri:arrow-left-line`, and the two are meant
-     * to be mirrored, one going out and one coming back.
+     * vocabulary — {@link PAGE_HEADER.home_icon} is `ri:arrow-left-line`, and the two are
+     * meant to be mirrored, one going out and one coming back.
      *
      * A SEMANTIC GLYPH WAS TRIED HERE AND REJECTED, which is worth recording because it is
      * the obvious idea. `ri:calendar-event-line` leading the label was built and rendered:

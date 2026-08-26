@@ -260,44 +260,6 @@ export const SECTIONS: Readonly<Record<"palette" | "type" | "controls" | "icons"
 }
 
 /**
- * THE MARKDOWN TWIN'S OWN FURNITURE — the two ways a reader takes this page away with them.
- *
- * The link is the whole feature and the button is an enhancement over it: one is an anchor to
- * a URL and works with the network alone, the other needs a clipboard, a fetch and a script.
- * That ordering is deliberate rather than a fallback plan — a page whose subject is that it
- * restates nothing should not need JavaScript to hand you what it says.
- *
- * THE NAME DOES NOT CHANGE WHEN THE STATE DOES, which is the same rule `THEME_TOGGLE` follows
- * in `src/content/site.ts` and for the same reason: WAI-ARIA's toggle guidance offers a
- * changing name INSTEAD of an exposed state, never both. So {@link MARKDOWN_TWIN.copy_name} is
- * written to be true before and after the press, and {@link MARKDOWN_TWIN.copied} is announced
- * separately, in a live region the button owns. The mark swaps with it, because a glyph is what
- * this site's icon-only controls say things with.
- *
- * BOTH MARKS ARE IDS RATHER THAN CLASS NAMES, so `src/lib/icons.ts` can carry them in the
- * census by naming this constant — the idiom every other mark on the site is authored in. The
- * theme toggle is the one exception and its own note says so; do not add a second.
- */
-export const MARKDOWN_TWIN: {
-    /** The words on the link out to the markdown rendering of this page. */
-    link_label: string
-    /** The button's accessible name. State-independent — see this block's header. */
-    copy_name: string
-    /** What the live region says once the clipboard has it. */
-    copied: string
-    /** The mark the button wears at rest. */
-    icon: string
-    /** The mark it wears while {@link MARKDOWN_TWIN.copied} stands. */
-    copied_icon: string
-} = {
-    link_label: "Read this page as markdown",
-    copy_name: "Copy this page as markdown",
-    copied: "Copied",
-    icon: "ri:file-copy-line",
-    copied_icon: "ri:check-line",
-}
-
-/**
  * WHAT THIS DESIGN SYSTEM DELIBERATELY DOES NOT PUBLISH AS A VALUE, and why each one is a
  * decision rather than a gap.
  *

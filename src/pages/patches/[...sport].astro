@@ -3,7 +3,7 @@ import Layout from "../../layouts/BasicLayout.astro";
 import Card from "../../components/Card/index.astro";
 import Patch from "../../components/Patch.astro";
 import {NEXT_RACE, PATCHES} from "../../content/races";
-import {METADATA} from "../../content/site";
+import {METADATA, PAGE_HEADER} from "../../content/site";
 import {GOALS, goalForSport, type Sport} from "../../lib/goal";
 import {patchWall} from "../../lib/projection";
 import {iconClass} from "../../lib/icons";
@@ -144,7 +144,7 @@ const description = goal === undefined
                         href="/"
                         class="text-link inline-flex items-center gap-2 min-h-6 text-sm"
                 >
-                    <span class={iconClass(PATCHES.home_icon)} aria-hidden="true"></span>{PATCHES.home_label}
+                    <span class={iconClass(PAGE_HEADER.home_icon)} aria-hidden="true"></span>{PAGE_HEADER.home_label}
                 </a>
             </p>
             <div class="flex flex-col gap-2">

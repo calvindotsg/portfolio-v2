@@ -125,9 +125,9 @@ Don't:
 
 Every mark here is in the stylesheet because some page uses it, so the set grows with the site rather than ahead of it. Nothing outside this set is available: a class with no rule renders as a mask box at zero size, which is an absent icon with correct markup and a green build.
 
-These 20 ship and no others. Remix Icon (15):
+These 19 ship and no others. Remix Icon (14):
 
-`i-ri-arrow-left-line`, `i-ri-arrow-right-line`, `i-ri-check-line`, `i-ri-file-copy-line`, `i-ri-file-list-3-line`, `i-ri-file-pdf-2-line`, `i-ri-heart-fill`, `i-ri-information-line`, `i-ri-moon-line`, `i-ri-open-arm-line`, `i-ri-riding-line`, `i-ri-run-line`, `i-ri-search-line`, `i-ri-sun-line`, `i-ri-tools-line`.
+`i-ri-arrow-left-line`, `i-ri-arrow-right-line`, `i-ri-file-list-3-line`, `i-ri-file-pdf-2-line`, `i-ri-heart-fill`, `i-ri-information-line`, `i-ri-markdown-line`, `i-ri-moon-line`, `i-ri-open-arm-line`, `i-ri-riding-line`, `i-ri-run-line`, `i-ri-search-line`, `i-ri-sun-line`, `i-ri-tools-line`.
 
 Brand marks (5):
 

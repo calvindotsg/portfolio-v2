@@ -5,7 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import Patch from "../src/components/Patch.astro";
 import {PATCHES} from "../src/content/races";
-import {NEW_TAB_NOTICE} from "../src/content/site";
+import {NEW_TAB_NOTICE, PAGE_HEADER} from "../src/content/site";
 import {GOAL_YEAR} from "../src/data/goals";
 import {goalForSport, GOALS, type Sport} from "../src/lib/goal";
 import {EVENTS} from "../src/data/races";
@@ -1775,7 +1775,7 @@ describe("dist/patches", () => {
             .flatMap((s) => (s.getAttribute("class") ?? "").split(/\s+/))
             .filter((c) => c.startsWith("i-"));
         expect(new Set(icons).size, "the wall must render both sports' icons").toBe(GOALS.length);
-        for (const cls of new Set([...icons, iconClass(PATCHES.home_icon)])) {
+        for (const cls of new Set([...icons, iconClass(PAGE_HEADER.home_icon)])) {
             const rule = css.match(new RegExp(`\\.${cls}\\{([^}]*)\\}`))?.[1];
             expect(rule, `${cls} has no CSS rule — it renders at zero size, silently`).toBeTruthy();
             expect(rule, `${cls} must carry a mask image`).toContain("--un-icon:url(");

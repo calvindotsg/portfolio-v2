@@ -1,8 +1,8 @@
 import type {APIRoute} from "astro"
-import {DESIGN_PAGE, MARKDOWN_TWIN} from "../content/design"
+import {DESIGN_PAGE} from "../content/design"
 import {ABOUT_ME, CAREER, PROJECTS} from "../content/home"
 import {NEXT_RACE, PATCHES} from "../content/races"
-import {LINKS, METADATA} from "../content/site"
+import {LINKS, METADATA, PAGE_HEADER} from "../content/site"
 import {GOAL_YEAR} from "../data/goals"
 import {GOALS} from "../lib/goal"
 import {EVENTS} from "../data/races"
@@ -191,7 +191,7 @@ export const GET: APIRoute = ({site}) => {
         // goal card's control wears. See the note above `heading` in `[...sport].astro`,
         // which fixed that break once already. An answer engine citing "the Patches page"
         // would be naming something that exists under no such name.
-        `- [${PATCHES.home_label}](${abs("/")}): the goals, the day job, and where to find me`,
+        `- [${PAGE_HEADER.home_label}](${abs("/")}): the goals, the day job, and where to find me`,
         `- [${PATCHES.heading}](${abs("/patches/")}): every race and challenge, finished or not`,
         ...GOALS.map((goal) =>
             `- [${NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())}]`
@@ -209,8 +209,15 @@ export const GET: APIRoute = ({site}) => {
         // IT IS NOT UNDER `## Optional`. That heading is reserved by the spec for what can be
         // skipped when a shorter context is needed, and this is the opposite: it is the cheapest
         // complete answer on the list.
-        `- [${MARKDOWN_TWIN.link_label}](${abs("/design.md")}): the same design system as markdown, `
-        + "byte-identical to DESIGN.md in the repository",
+        // EACH TWIN GETS ITS OWN SENTENCE, and it can no longer be `MARKDOWN_TWIN.link_label`.
+        // That string is a CHIP'S LABEL now — one word, drawn in a control, sized to fit there —
+        // and four list items all reading the same word would be four links a crawler cannot
+        // tell apart. So the link text names the page each one renders, which is what this
+        // file's own rule about calling a page what the site calls it asks for anyway. No
+        // count in any of them: the wall grows every time a race is entered, and this file has
+        // already had to delete one count for exactly that reason.
+        `- [The design system as markdown](${abs("/design.md")}): the same design system as `
+        + "markdown, byte-identical to DESIGN.md in the repository",
         "",
         "## Projects",
         "",
