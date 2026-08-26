@@ -15,6 +15,13 @@
  * here. That is the whole defect this module exists to prevent, and the reason the four
  * generated reference cards it replaced were retired rather than repaired.
  *
+ * THE RULE IS ABOUT AUTHORING, AND `/design` NOW PRINTS THIRTY HEXES UNDER IT. Both are
+ * true and the distinction is the point: AUTHORING a value here is forbidden, DERIVING one
+ * and printing it is what the page is for. A swatch has always published a value by reading
+ * it — `background: var(--token)` — and `src/lib/palette.ts` publishes the same fact as text
+ * by the same mechanism. Neither can drift, because neither is a second home. A future reader
+ * seeing a colour on that page has not found the rule abandoned.
+ *
  * NO COUNTS EITHER, in any string a reader can see. "Fifteen tokens" and "eighteen marks"
  * are both true today and neither is gated anywhere, so both are a stale sentence waiting
  * for the next token or the next icon. Say the property; let the page render the set.
@@ -61,8 +68,10 @@ export const DESIGN_PAGE: {
     link_label: NAME,
     lede: "Everything below is the real thing. The swatches resolve the same custom properties "
         + "every other page does, the ramp wears the real classes, and the controls are the "
-        + "controls. Nothing here restates a value, so nothing here can go out of date — change "
-        + "the theme and the whole page re-tones with the site.",
+        + "controls. Nothing here is authored twice — every value on this page is read out of the "
+        + "block that declares it, which is why the page can tell you what each colour is and "
+        + "still not be able to go out of date. Change the theme and the whole page re-tones with "
+        + "the site.",
     description: "The colours, the type ramp, the controls and the marks this site is built from, "
         + "drawn live from the stylesheet it ships.",
     does_label: "Do",
@@ -211,7 +220,7 @@ export const SECTIONS: Readonly<Record<"palette" | "type" | "controls" | "icons"
             "Use an -on-ink variant on a surface flooded with --text, which is the only place it is right.",
         ],
         donts: [
-            "Hardcode a hex. There is no token here whose value is worth restating.",
+            "Hardcode a hex, even one printed here. Only the token name carries BOTH values, so a literal is right in at most one theme and wrong in the other.",
             "Reach for --brand-ink to draw something interactive. That is --accent's job, and the two only coincide in light mode.",
             "Assume dark is light with the lightness inverted. --progress-fill and --progress-track deliberately trade places.",
         ],
@@ -282,21 +291,19 @@ export const SECTIONS: Readonly<Record<"palette" | "type" | "controls" | "icons"
  * omitted here, and the reasons below are the whole of the argument this module's header makes,
  * said once more in the format's own vocabulary for a reader who arrives through it.
  *
- * THE COLOUR REASON IS THE LOAD-BEARING ONE AND IT IS NOT SQUEAMISHNESS ABOUT COPYING A HEX.
- * That format maps one name to one value. Every token here has TWO, one per theme, and several
- * trade places rather than darkening — so a single map would not be a lossy rendering of this
- * palette, it would be a false one, and it would be false in the direction that makes a design
- * fail in whichever theme was not written down. Saying so is worth more than shipping half.
+ * COLOURS ARE NOT AMONG THEM, AND THEY USED TO BE. This list once opened with the `colors` group
+ * and called that omission the load-bearing one: the format maps one name to one value, every
+ * token here has two, and a single map would be false in whichever theme was not written down.
+ * The premise was measured and does not hold — the format's own words are that the mapping from
+ * palettes to tokens "may follow any consistent naming convention", so a theme-prefixed pair is
+ * one map with both themes in it rather than a single map missing one. The group is published
+ * now, derived from the theme blocks by `src/lib/palette.ts`, with a `primary` alias written in
+ * the format's own reference syntax so nothing is typed twice. What stays omitted is every group
+ * this system genuinely has no scale for.
  *
  * The keys are the format's, not this repository's, so they are spelled the way it spells them.
  */
 export const OMISSIONS: readonly {section: string, reason: string}[] = [
-    {
-        section: "colors",
-        reason: "Every token is defined twice, once per theme, and several swap polarity rather "
-            + "than darkening. One name to one value cannot say that, so the roles are published "
-            + "here and the values stay in the stylesheet, where both themes are.",
-    },
     {
         section: "typography",
         reason: "There is no webfont and no display face: the ramp is a handful of steps over the "

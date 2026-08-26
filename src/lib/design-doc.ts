@@ -1,5 +1,6 @@
 import {CONTROLS, DESIGN_PAGE, OMISSIONS, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design"
 import {ICON_IDS, iconClass} from "./icons"
+import {PALETTE, valueIn} from "./palette"
 
 /**
  * THE DESIGN SYSTEM AS MARKDOWN, RENDERED TWICE FOR TWO READERS THAT CANNOT SHARE A DOCUMENT.
@@ -101,6 +102,26 @@ import {ICON_IDS, iconClass} from "./icons"
 /** `full` may point into this tree; `agent` may not, because its reader has no copy of it. */
 export type DocAudience = "full" | "agent"
 
+/**
+ * WHICH OF THIS SITE'S TOKENS PLAY THE FORMAT'S SEMANTIC COLOUR ROLES.
+ *
+ * AUTHORED HERE RATHER THAN IN `src/content/design.ts`, by that module's own rule: it holds what
+ * is true of the site AND of the exported bundle, and this pair is true of neither — it is a fact
+ * about the front matter of ONE rendering, in a vocabulary (`primary`, `neutral`) that belongs to
+ * the DESIGN.md format rather than to this design system. `/design` never says it and the agent's
+ * document has no front matter to say it in.
+ *
+ * WHY THESE TWO TOKENS. `primary` is the format's required role and its linter warns without one,
+ * saying the agent will otherwise auto-generate key colours; the interactive affordance is the
+ * nearest thing this palette has to a driver colour, and it is what a reader would reach for
+ * first. `neutral` is the page ground, which is what the format's own example uses that role for.
+ * Nothing else here maps: there is no secondary or tertiary palette to claim.
+ */
+const PALETTE_ALIASES: readonly (readonly [string, string])[] = [
+    ["primary", "--accent"],
+    ["neutral", "--background"],
+]
+
 const bullets = (lines: readonly string[]) => lines.map((line) => `- ${line}`).join("\n")
 
 const listing = (label: string, lines: readonly string[]) => [`${label}:`, "", bullets(lines)].join("\n")
@@ -143,6 +164,7 @@ function frontMatter(): string {
         "---",
         `name: "${DESIGN_PAGE.heading}"`,
         `description: "${DESIGN_PAGE.description}"`,
+        ...colorTokens(),
         "omitted:",
         ...OMISSIONS.flatMap(({section, reason}) => [
             `  - section: ${section}`,
@@ -151,6 +173,52 @@ function frontMatter(): string {
         ]),
         "---",
     ].join("\n")
+}
+
+/**
+ * THE `colors` GROUP, IN THE FORMAT'S OWN SCHEMA — a flat `<token-name>: <Color>` map.
+ *
+ * THIS GROUP USED TO BE DECLARED OMITTED, AND THE STATED REASON WAS FALSE. It said one name to
+ * one value cannot say that a token has two, one per theme, several of them trading places. The
+ * premise sounds right and the format does not impose it: its own words are that "the exact
+ * mapping from color palettes to color tokens may follow any consistent naming convention", so a
+ * theme prefix IS such a convention and a two-theme palette is expressible. Measured with
+ * `@google/design.md` v0.4.0 — a thirty-token map named this way lints at zero errors and zero
+ * warnings once a `primary` exists, and `export --format css-vars` emits one custom property per
+ * token. Declaring the group omitted cost the format's whole toolchain: Tailwind themes, W3C
+ * design tokens and CSS custom properties, all generable from values and none from prose.
+ *
+ * THE NAMES ARE DERIVED, NOT WRITTEN. The prefix is one string and the rest is `PALETTE`; the
+ * leading `--` is stripped because a YAML key beginning with a dash is not what the format's
+ * `<token-name>` means. Which themes exist comes off `THEMING.themes`, the list gated against the
+ * stylesheet's own selectors.
+ *
+ * THE TWO ALIASES ARE THE FORMAT'S `{colors.x}` REFERENCE SYNTAX, so neither repeats a hex. They
+ * exist because the linter warns when colours are defined and no `primary` is: without one "the
+ * agent will auto-generate key colors", which is control over the palette given away for a line.
+ * THEY POINT AT THE FIRST THEME, AND THAT IS A DECISION RATHER THAN AN ACCIDENT — it is what the
+ * site serves with no stored preference, which `THEMING.themes` states in as many words and
+ * `THEMING.lede` repeats for a reader.
+ */
+function colorTokens(): string[] {
+    const key = (theme: string, token: string) => `${theme}-${token.replace(/^--/, "")}`
+    const first = THEMING.themes[0]!
+    const alias = ([role, token]: readonly [string, string]) => {
+        if (!PALETTE.some((t) => t.token === token)) {
+            throw new Error(
+                `src/lib/design-doc.ts points the ${role} alias at ${token}, which the stylesheet `
+                + "no longer defines. A reference to a key that is not there is a broken-ref error "
+                + "in the DESIGN.md format — pick a token that exists.",
+            )
+        }
+        return `  ${role}: "{colors.${key(first, token)}}"`
+    }
+    return [
+        "colors:",
+        ...PALETTE_ALIASES.map(alias),
+        ...THEMING.themes.flatMap((theme) =>
+            PALETTE.map((values) => `  ${key(theme, values.token)}: "${valueIn(values, theme)}"`)),
+    ]
 }
 
 /**
@@ -169,11 +237,55 @@ const themingBlock = () => [
     ...THEMING.themes.map((theme) => `    ${THEMING.example.replace("{theme}", theme)}`),
 ].join("\n")
 
-const tokenTable = () => [
-    "| Token | Role |",
-    "|---|---|",
-    ...TOKEN_ROLES.map(({token, role}) => `| \`${token}\` | ${role} |`),
-].join("\n")
+/**
+ * THE TOKEN TABLE, AND THE ONE PLACE THE TWO AUDIENCES DRAW A DIFFERENT SHAPE.
+ *
+ * The full rendering carries each token's two values beside its role, read out of the theme
+ * blocks by `src/lib/palette.ts`. The agent's carries the roles alone, and THAT IS A MEASURED
+ * DECISION RATHER THAN AN OMISSION — measured twice, at `b1eea8a` and again here: that document
+ * is 3,859 characters against the 4,096 budget asserted below this file, so 237 spare, and two
+ * value columns over the current token list cost about 384. They do not fit.
+ *
+ * THEY ALSO SHOULD NOT. That audience is handed the bundle's own stylesheet, and the closed-set
+ * section a few lines down tells it so in as many words: the sheet "restates both themes' tokens
+ * above its rules". Spending a system prompt on a table its reader can read out of an artifact it
+ * is already holding is the most expensive duplication available. `tests/palette.test.ts` holds
+ * this in BOTH directions so the decision cannot quietly reverse itself.
+ *
+ * AN AUDIENCE PARAMETER RATHER THAN A SECOND FUNCTION, which is this file's own rule stated at
+ * the top: two functions producing design prose will disagree, and the disagreement is invisible
+ * because each still matches its own committed copy.
+ */
+const tokenTable = (audience: DocAudience) => {
+    if (audience === "agent") {
+        return [
+            "| Token | Role |",
+            "|---|---|",
+            ...TOKEN_ROLES.map(({token, role}) => `| \`${token}\` | ${role} |`),
+        ].join("\n")
+    }
+    // THE COLUMNS COME OFF `THEMING.themes`, which is the list gated against the stylesheet's own
+    // `:root[data-theme=…]` blocks in both directions — so a theme is named once in this
+    // repository and this table follows it. `valueIn` throws on a name it cannot read, which
+    // makes a third theme a failed build rather than a table with a column of blanks.
+    const value = (token: string, theme: string) => {
+        const values = PALETTE.find((t) => t.token === token)
+        if (!values) {
+            throw new Error(
+                `src/content/design.ts gives ${token} a role and src/lib/palette.ts read no value `
+                + "for it, so this table would publish a blank cell.",
+            )
+        }
+        return `\`${valueIn(values, theme)}\``
+    }
+    const column = (theme: string) => `${theme.charAt(0).toUpperCase()}${theme.slice(1)}`
+    return [
+        `| Token | ${THEMING.themes.map(column).join(" | ")} | Role |`,
+        `|${"---|".repeat(THEMING.themes.length + 2)}`,
+        ...TOKEN_ROLES.map(({token, role}) =>
+            `| \`${token}\` | ${THEMING.themes.map((t) => value(token, t)).join(" | ")} | ${role} |`),
+    ].join("\n")
+}
 
 const controlList = () => CONTROLS.map(({name, role}) => `- **\`${name}\`** — ${role}`).join("\n")
 
@@ -208,7 +320,7 @@ function markInventory(): string {
  * per-key block beside a loop over the same list.
  */
 const SECTION_BLOCKS: Partial<Record<keyof typeof SECTIONS, () => string>> = {
-    palette: tokenTable,
+    palette: () => tokenTable("full"),
     controls: controlList,
     icons: markInventory,
 }
@@ -258,11 +370,12 @@ function renderFull(): string {
         "identically in a light theme and a dark one, which is the constraint most of what follows",
         "exists to protect.",
         "",
-        "It restates no value. What each token is FOR is authored in `src/content/design.ts`; what",
+        "It authors no value. What each token is FOR is authored in `src/content/design.ts`; what",
         "each token IS lives in the theme block of `src/layouts/BasicLayout.astro`, and the classes",
         "come from `uno.config.ts`. This document and the page at `/design` are both rendered from",
-        "the first of those, so neither can disagree with it — and neither can tell you a colour,",
-        "because neither is where a colour is written down.",
+        "those, so neither can disagree with them — and the table below can carry both of a token's",
+        "values, in the front matter and in prose, because every one of them is READ out of that",
+        "theme block by `src/lib/palette.ts` rather than written down a second time here.",
         "",
         themingBlock(),
         "",
@@ -308,7 +421,7 @@ function renderAgent(): string {
         "",
         `## ${SECTIONS.palette.heading}`,
         "",
-        tokenTable(),
+        tokenTable("agent"),
         "",
         guardrails(SECTIONS.palette),
         "",

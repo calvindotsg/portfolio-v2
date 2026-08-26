@@ -121,8 +121,8 @@ function parsePalette(source: string): readonly TokenValues[] {
  * reader copies off `/design` are the values a browser resolves.
  *
  * NOT NORMALISED. The source spelling is what ships, and the comparison against the minified
- * sheet — which lower-cases and folds `#111111` to `#111` — is normalised at the assertion
- * instead. Lower-casing here would change what every surface prints.
+ * sheet — which lower-cases a hex and folds a six-digit one to three where the pairs repeat — is
+ * normalised at the assertion instead. Lower-casing here would change what every surface prints.
  */
 export const PALETTE: readonly TokenValues[] = parsePalette(readFileSync(THEME_SOURCE, "utf8"))
 

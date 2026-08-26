@@ -574,11 +574,13 @@ describe("the design system this site publishes", () => {
      * EVERY TOKEN'S ROW CARRIES THAT TOKEN'S OWN TWO VALUES — asked PER ROW, and that is the
      * load-bearing half of this gate rather than a nicety.
      *
-     * A document-wide substring test is not the property. The two theme blocks declare thirty
-     * values over only FOURTEEN distinct hexes: `#A82334` is worn by eight tokens, `#F3A3AA` by
-     * five, `#F9CDD3` by three and three more by two each. So "both of this token's values appear
-     * somewhere in the page" stays green for most of them with BOTH of their own cells missing,
-     * because another token supplies the string. Do not simplify this back.
+     * A document-wide substring test is not the property, because THIS PALETTE REUSES VALUES
+     * HEAVILY: measured as it stands, the two theme blocks declare thirty values over only
+     * fourteen distinct ones, and the most-worn of those is the value of eight different tokens.
+     * So "both of this token's values appear somewhere in the page" stays green for most tokens
+     * with BOTH of their own cells missing, because another token supplies the string. Measured
+     * by rotating every row's value cells onto its neighbour — every value still present
+     * document-wide, and this went red naming twenty-nine of the thirty. Do not simplify it back.
      *
      * VERBATIM, NOT NORMALISED, AND THE ASYMMETRY WITH `tests/palette.test.ts` IS DELIBERATE.
      * That suite compares against the minified STYLESHEET, where the value is a declaration the

@@ -1,12 +1,40 @@
 ---
 name: "How this site is drawn"
 description: "The colours, the type ramp, the controls and the marks this site is built from, drawn live from the stylesheet it ships."
+colors:
+  primary: "{colors.light-accent}"
+  neutral: "{colors.light-background}"
+  light-background: "#FAFAFA"
+  light-card-background: "#F5F5F5"
+  light-card-border: "#E5E5E5"
+  light-shadow: "#A82334"
+  light-accent: "#A82334"
+  light-text: "#0B0B0B"
+  light-progress-fill: "#A82334"
+  light-progress-track: "#E3B3B8"
+  light-status-live: "#A82334"
+  light-status-halo: "#A82334"
+  light-brand-ink: "#A82334"
+  light-sport-ride: "#A82334"
+  light-sport-ride-on-ink: "#F3A3AA"
+  light-sport-run: "#1F4E9C"
+  light-sport-run-on-ink: "#9FC0F0"
+  dark-background: "#111111"
+  dark-card-background: "#171717"
+  dark-card-border: "#2C2C2C"
+  dark-shadow: "#F3A3AA"
+  dark-accent: "#F9CDD3"
+  dark-text: "#FAFAFA"
+  dark-progress-fill: "#F9CDD3"
+  dark-progress-track: "#462F32"
+  dark-status-live: "#F3A3AA"
+  dark-status-halo: "#F9CDD3"
+  dark-brand-ink: "#F3A3AA"
+  dark-sport-ride: "#F3A3AA"
+  dark-sport-ride-on-ink: "#A82334"
+  dark-sport-run: "#9FC0F0"
+  dark-sport-run-on-ink: "#1F4E9C"
 omitted:
-  - section: colors
-    reason: >-
-      Every token is defined twice, once per theme, and several swap polarity rather than
-      darkening. One name to one value cannot say that, so the roles are published here
-      and the values stay in the stylesheet, where both themes are.
   - section: typography
     reason: >-
       There is no webfont and no display face: the ramp is a handful of steps over the
@@ -38,11 +66,12 @@ no display face and no decoration that carries meaning on its own — and it is 
 identically in a light theme and a dark one, which is the constraint most of what follows
 exists to protect.
 
-It restates no value. What each token is FOR is authored in `src/content/design.ts`; what
+It authors no value. What each token is FOR is authored in `src/content/design.ts`; what
 each token IS lives in the theme block of `src/layouts/BasicLayout.astro`, and the classes
 come from `uno.config.ts`. This document and the page at `/design` are both rendered from
-the first of those, so neither can disagree with it — and neither can tell you a colour,
-because neither is where a colour is written down.
+those, so neither can disagree with them — and the table below can carry both of a token's
+values, in the front matter and in prose, because every one of them is READ out of that
+theme block by `src/lib/palette.ts` rather than written down a second time here.
 
 ## Set data-theme, or nothing is styled
 
@@ -55,23 +84,23 @@ Every token is defined only under the two theme blocks — there is no bare :roo
 
 The tokens below carry the whole design. Each is defined twice — once per theme — and nowhere else, so a design is on-brand exactly to the degree it reaches for these and nothing else. A mark meant for an ink-flooded surface is drawn on one here, because showing it against the page ground renders the pale half of every pair as a mistake.
 
-| Token | Role |
-|---|---|
-| `--background` | the page ground |
-| `--card-background` | a card's plate, one step off the ground |
-| `--card-border` | that plate's edge |
-| `--shadow` | the offset plate cast by the portrait and the controls |
-| `--accent` | the interactive affordance: control border, hover ink |
-| `--text` | body ink |
-| `--progress-fill` | the marked region of a progress bar |
-| `--progress-track` | the unmarked remainder of that bar |
-| `--status-live` | the Now card's live indicator dot |
-| `--status-halo` | that dot's decorative pulsing halo |
-| `--brand-ink` | a brand-coloured glyph standing in for a word in prose |
-| `--sport-ride` | the cycling mark where it sits on a card |
-| `--sport-ride-on-ink` | the same mark on an ink-coloured surface |
-| `--sport-run` | the running mark on a card |
-| `--sport-run-on-ink` | the same mark on ink |
+| Token | Light | Dark | Role |
+|---|---|---|---|
+| `--background` | `#FAFAFA` | `#111111` | the page ground |
+| `--card-background` | `#F5F5F5` | `#171717` | a card's plate, one step off the ground |
+| `--card-border` | `#E5E5E5` | `#2C2C2C` | that plate's edge |
+| `--shadow` | `#A82334` | `#F3A3AA` | the offset plate cast by the portrait and the controls |
+| `--accent` | `#A82334` | `#F9CDD3` | the interactive affordance: control border, hover ink |
+| `--text` | `#0B0B0B` | `#FAFAFA` | body ink |
+| `--progress-fill` | `#A82334` | `#F9CDD3` | the marked region of a progress bar |
+| `--progress-track` | `#E3B3B8` | `#462F32` | the unmarked remainder of that bar |
+| `--status-live` | `#A82334` | `#F3A3AA` | the Now card's live indicator dot |
+| `--status-halo` | `#A82334` | `#F9CDD3` | that dot's decorative pulsing halo |
+| `--brand-ink` | `#A82334` | `#F3A3AA` | a brand-coloured glyph standing in for a word in prose |
+| `--sport-ride` | `#A82334` | `#F3A3AA` | the cycling mark where it sits on a card |
+| `--sport-ride-on-ink` | `#F3A3AA` | `#A82334` | the same mark on an ink-coloured surface |
+| `--sport-run` | `#1F4E9C` | `#9FC0F0` | the running mark on a card |
+| `--sport-run-on-ink` | `#9FC0F0` | `#1F4E9C` | the same mark on ink |
 
 Do:
 
@@ -81,7 +110,7 @@ Do:
 
 Don't:
 
-- Hardcode a hex. There is no token here whose value is worth restating.
+- Hardcode a hex, even one printed here. Only the token name carries BOTH values, so a literal is right in at most one theme and wrong in the other.
 - Reach for --brand-ink to draw something interactive. That is --accent's job, and the two only coincide in light mode.
 - Assume dark is light with the lightness inverted. --progress-fill and --progress-track deliberately trade places.
 

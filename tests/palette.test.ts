@@ -89,10 +89,10 @@ describe("the palette read out of the block that declares it", () => {
      * shipped stylesheet says it is, agree — names AND values, both themes, both directions.
      * Without it a page could publish a colour the browser has never resolved.
      *
-     * COMPARED CANONICALLY, NOT VERBATIM. The minifier lower-cases hex and folds `#111111` to
-     * `#111`, so a literal comparison is red on correct code for most of these thirty. Both
-     * sides are lower-cased and expanded to six digits at the comparison; the module itself
-     * keeps the source spelling, because that spelling is what the page and the spec print.
+     * COMPARED CANONICALLY, NOT VERBATIM. The minifier lower-cases a hex and folds a six-digit
+     * one to three where the pairs repeat, so a literal comparison is red on correct code for
+     * nearly every declaration. Both sides are lower-cased and expanded to six digits at the
+     * comparison; the module keeps the source spelling, because that is what the surfaces print.
      */
     it("agrees with the built stylesheet, token for token and value for value", () => {
         const css = pageCss();
