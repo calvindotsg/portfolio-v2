@@ -5,6 +5,7 @@ import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../content/
 import {NEXT_RACE, PATCHES} from "../content/races";
 import {GOALS} from "../lib/goal";
 import {ICON_IDS, iconClass} from "../lib/icons";
+import {PALETTE, valueIn} from "../lib/palette";
 
 /*
  * THE SITE, DESCRIBING ITSELF WITH ITSELF. Every specimen on this page is the real thing:
@@ -64,6 +65,32 @@ const RAMP = ["text-3xl", "text-xl", "text-base", "text-sm", "text-xs"];
  * the set wants the set.
  */
 const MARKS = [...new Set(ICON_IDS.map(iconClass))].sort();
+
+/*
+ * EVERY TOKEN, ITS ROLE AND WHAT IT ACTUALLY RESOLVES TO — joined here so the markup below
+ * stays a loop over one list.
+ *
+ * THE VALUES ARE READ, NOT TYPED, which is the only reason this page may print them at all.
+ * `src/lib/palette.ts` parses the two theme blocks out of `src/layouts/BasicLayout.astro`, so
+ * the rule at the top of this file is untouched: nothing here restates a value the build does
+ * not already know, and the hex beside a swatch is the same fact the swatch itself is, said in
+ * the form somebody can copy.
+ *
+ * THE JOIN THROWS RATHER THAN RENDERING A GAP. `TOKEN_ROLES` and the palette are held to each
+ * other by `tests/palette.test.ts` in both directions, so a mismatch here is already a red
+ * suite — but a missing entry would otherwise reach the page as an empty cell in a build that
+ * succeeded, and this page's whole claim is that it cannot be out of date.
+ */
+const PALETTE_ROWS = TOKEN_ROLES.map(({token, role}) => {
+    const values = PALETTE.find((t) => t.token === token);
+    if (!values) {
+        throw new Error(
+            `src/content/design.ts gives ${token} a role and src/lib/palette.ts read no value for `
+            + "it, so /design would draw a swatch with nothing to copy beside it.",
+        );
+    }
+    return {token, role, values};
+});
 
 const [LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;
 
@@ -146,7 +173,7 @@ const MARKDOWN = "/design.md";
 
                     {key === "palette" && (
                             <ul class="design-rows">
-                                {TOKEN_ROLES.map(({token, role}) => (
+                                {PALETTE_ROWS.map(({token, role, values}) => (
                                         <li class="design-row">
                                             {token.endsWith("-on-ink") ? (
                                                     <span class="design-ink">
@@ -156,6 +183,18 @@ const MARKDOWN = "/design.md";
                                                     <span class="design-swatch" style={`background: var(${token})`}></span>
                                             )}
                                             <span class="design-name">{token}</span>
+                                            {/* THE THEME NAMES COME OFF THE GATED LIST, not off this
+                                                 markup: `THEMING.themes` is held against the
+                                                 stylesheet's own `:root[data-theme=…]` blocks in both
+                                                 directions, and `valueIn` throws on a name it cannot
+                                                 read. So a third theme is a failed build rather than
+                                                 a row that quietly shows two of three values. */}
+                                            {THEMING.themes.map((theme) => (
+                                                    <span class="design-value">
+                                                        <span class="design-guide-heading design-value-theme">{theme}</span>
+                                                        <span class="design-name design-hex">{valueIn(values, theme)}</span>
+                                                    </span>
+                                            ))}
                                             <span class="design-role text-sm">{role}</span>
                                         </li>
                                 ))}
@@ -358,6 +397,38 @@ const MARKDOWN = "/design.md";
         border-radius: 2px;
         padding: 0.1em 0.35em;
         overflow-wrap: anywhere;
+    }
+
+    /*
+     * A VALUE IS A LITERAL, SO IT WEARS THE BOX EVERY OTHER LITERAL ON THIS PAGE WEARS. The
+     * treatment above is this page's answer to having no monospace face, and a hex is the
+     * clearest case of the thing it was invented for: a string a reader is meant to copy. So
+     * there is no second treatment here — only a size and two behaviours the box does not have.
+     *
+     * `user-select: all` IS THE POINT OF PRINTING IT AT ALL. One click takes the whole value,
+     * which is what a copy button would have bought at the cost of script on a site that ships
+     * almost none. `tabular-nums` keeps the digits on a common width so a column of these reads
+     * as a column rather than as fifteen ragged strings.
+     *
+     * THE LABEL SAYS WHICH THEME, and it is set in this page's own small-caps register rather
+     * than in a new one — the same class the guidance headings wear, so the re-tone that class
+     * is due follows here for free. Only its margin is dropped: that rule is written for a
+     * heading with a list under it, and this is a word beside a value.
+     */
+    .design-value {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.375rem;
+    }
+
+    .design-value-theme {
+        margin: 0;
+    }
+
+    .design-hex {
+        font-size: 0.875rem;
+        font-variant-numeric: tabular-nums;
+        user-select: all;
     }
 
     /*

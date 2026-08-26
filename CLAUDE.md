@@ -240,7 +240,13 @@ block above it before giving either consumer the other's list.
   `:root[data-theme]` in `src/layouts/BasicLayout.astro`; that block's header
   comment defines each token's role and the progress-bar polarity rule — read it
   before changing a colour. The active theme is written to `<html data-theme>`
-  by an inline `<script is:inline>` in `<head>` before first paint
+  by an inline `<script is:inline>` in `<head>` before first paint.
+  **Those two blocks are also READ AT BUILD TIME, as text, by `src/lib/palette.ts`**,
+  which is what lets `/design` and `DESIGN.md` print what each token IS without a
+  second home for any value. Their selector shape is therefore load-bearing for
+  three readers rather than one — that module, `themeTokens()` in
+  `tests/design-system.test.ts`, and `.design-sync/prepare-css.mjs` — so
+  de-anchoring `:root` or moving the block retargets all three
 
 ### Layout Hierarchy
 - `src/layouts/BasicLayout.astro` wraps every page

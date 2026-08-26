@@ -32,7 +32,7 @@ Every token is defined only under the two theme blocks — there is no bare :roo
 
 Don't:
 
-- Hardcode a hex. There is no token here whose value is worth restating.
+- Hardcode a hex, even one printed here. Only the token name carries BOTH values, so a literal is right in at most one theme and wrong in the other.
 - Reach for --brand-ink to draw something interactive. That is --accent's job, and the two only coincide in light mode.
 - Assume dark is light with the lightness inverted. --progress-fill and --progress-track deliberately trade places.
 

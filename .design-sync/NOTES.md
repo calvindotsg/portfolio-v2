@@ -162,6 +162,24 @@ somebody else. It sits at the TOP of the skill's stated range, so it is a ceilin
 target, and there is not much slack left under it — a couple of new token roles will redden it,
 which is the gate doing its job rather than a defect.
 
+#### The third decision: the values are published, and this document does not carry them
+
+`/design`, `DESIGN.md` and `/design.md` now print each token's LIGHT and DARK value, read out of
+the theme blocks by `src/lib/palette.ts`. **This document keeps the roles-only table, and that is
+measured rather than an omission.** Re-measured on the merged tree before the change: the agent
+rendering was 3,859 characters against the 4,096 budget, so 237 spare, and two value columns over
+the current token list cost about 384. They do not fit.
+
+**They also should not.** This audience is handed the exported stylesheet, and the closed-set
+section already tells it that sheet "restates both themes' tokens above its rules" — so the values
+are in an artifact the reader is holding. Spending a system prompt on a table that reader can read
+out of its own bundle is the most expensive duplication available. `tests/palette.test.ts` asserts
+the decision in BOTH directions: every value reaches the full rendering, and none reaches this one.
+
+Rewriting the palette's first don't — it said "there is no token here whose value is worth
+restating", which had become false about its own page — moved the figure to **3,935 characters,
+161 spare**. That is a real narrowing and the next thing added to the module will feel it.
+
 ### What was retired, and why it was not repaired
 
 A generator script in this directory wrote four reference HTML cards — palette, type and
