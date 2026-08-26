@@ -226,3 +226,11 @@ So the procedure is written down instead. Against a preview host, once one exist
 
 `public/_headers` is deliberately untouched until the measurement exists. A rule added on a
 guess is a rule nobody can tell is doing anything.
+
+**One measurement exists and it is the wrong one, which is worth writing down so nobody mistakes
+it for the right one.** Served locally out of `dist/` by `pnpm preview` on 2026-08-26, the answer
+is `Content-Type: text/markdown` — but that is Astro's preview server reading a MIME table, on a
+machine, and it says nothing about what Cloudflare Pages does with the same bytes. The site's own
+prose already makes this distinction about the artifact as a whole: a local preview is not the
+bytes the host serves, and this is the same gap one header along. Treat it as a reason to expect
+good news, not as the measurement.
