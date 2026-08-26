@@ -580,29 +580,52 @@ describe("dist/", () => {
     });
 
     /**
-     * THE TWIN IS ANNOUNCED, AND ONLY WHERE THERE IS ONE. `rel="alternate"` with a markdown type
-     * is how an agent finds a page's markdown without guessing the URL, and it is a claim about
-     * THAT page: a second page carrying it would be pointing at a document that describes the
-     * first one.
+     * THE TWIN IS ANNOUNCED, IT IS ANNOUNCED ONCE, AND WHAT IT POINTS AT WAS ACTUALLY BUILT.
      *
-     * BOTH DIRECTIONS, because either alone permits the defect. Without the first, the layout
-     * prop can be dropped and the copy control silently stops revealing itself — its script takes
-     * the URL off this element — with the page and the endpoint both still shipping. Without the
-     * second, the prop can acquire a default and every page starts announcing the design spec as
-     * its own alternate rendering.
+     * `rel="alternate"` with a markdown type is how an agent finds a page's markdown without
+     * guessing the URL, and it is a claim about THAT page: a second page carrying another
+     * page's alternate would be pointing readers at a document about something else.
+     *
+     * IT USED TO NAME ONE PAGE AND IT CANNOT ANY MORE. While `/design` was the only page with
+     * a twin, `const TWIN_PAGE = "dist/design/index.html"` was an honest way to say "this one
+     * and no other". The wall has three twins now, so a hard-coded page would have had to
+     * become a hard-coded LIST — an enumeration of the build kept in a test file, which is the
+     * shape this suite exists to catch everywhere else.
+     *
+     * SO THE PROPERTY IS DERIVED INSTEAD, and it is strictly stronger than the one it replaces:
+     * a page announces at most one alternate, and every announced alternate resolves to a file
+     * the build actually emitted. That closes a hole the old gate had — it never checked that
+     * the target existed, so a page could have advertised a twin the build had stopped
+     * producing and stayed green. Both directions still hold: a page with no twin announces
+     * nothing, and a page whose announcement points nowhere fails.
+     *
+     * THE NON-VACUITY FLOOR IS THE COUNT OF ANNOUNCING PAGES, because a build that emitted no
+     * `.md` at all would satisfy every clause above by having nothing to check.
      */
-    it("announces the markdown twin on the page that has one, and on no other", () => {
-        const ANNOUNCED = /rel="alternate" type="text\/markdown"/g;
-        const TWIN_PAGE = "dist/design/index.html";
-        expect(builtPages(), "the design page is not in the build").toContain(TWIN_PAGE);
+    it("announces a markdown twin only where one was built, and never twice", () => {
+        const announced = new Map<string, string[]>();
         for (const page of builtPages()) {
-            const found = [...read(page).matchAll(ANNOUNCED)].length;
-            expect(found, page === TWIN_PAGE
-                ? `${TWIN_PAGE} must carry exactly one markdown alternate: it is what an agent reads `
-                  + "to find /design.md, and what the copy control reads to know the address"
-                : `${page} announces a markdown alternate. That rendering describes /design, so any `
-                  + "other page carrying the link is pointing readers at a document about a "
-                  + "different page").toBe(page === TWIN_PAGE ? 1 : 0);
+            const doc = parseHTML(read(page)).document;
+            // The DOM rather than a regex over raw HTML: this file records what matching
+            // `href=` by pattern cost, and an alternate is a `<link>` in the `<head>`.
+            const hrefs = [...doc.querySelectorAll('link[rel="alternate"][type="text/markdown"]')]
+                .map((el) => el.getAttribute("href") ?? "");
+            announced.set(page, hrefs);
+            expect(hrefs.length, `${page} announces ${hrefs.length} markdown alternates. A page has `
+                + "one markdown rendering or none; two addresses on one page is two answers to "
+                + "the question an agent is asking").toBeLessThanOrEqual(1);
+        }
+
+        const withTwin = [...announced].filter(([, hrefs]) => hrefs.length === 1);
+        expect(withTwin.length, "no page in the build announces a markdown twin, so every clause "
+            + "here is satisfied by having nothing to check").toBeGreaterThan(1);
+
+        for (const [page, [href]] of withTwin) {
+            const target = `dist${href}`;
+            expect(existsSync(target), `${page} announces ${href}, and the build emitted no such `
+                + "file. The announcement is how an agent finds the rendering, so one pointing at "
+                + "a document that does not exist is worse than none").toBe(true);
+            expect(read(target).length, `${target} is empty`).toBeGreaterThan(100);
         }
     });
 

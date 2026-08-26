@@ -193,9 +193,19 @@ export const GET: APIRoute = ({site}) => {
         // would be naming something that exists under no such name.
         `- [${PAGE_HEADER.home_label}](${abs("/")}): the goals, the day job, and where to find me`,
         `- [${PATCHES.heading}](${abs("/patches/")}): every race and challenge, finished or not`,
-        ...GOALS.map((goal) =>
+        // THE TWIN GOES DIRECTLY UNDER THE PAGE IT TWINS, so an agent reading the list top to
+        // bottom meets the cheaper rendering of a page immediately after the page itself. The
+        // wall's twin carries what the race lines above deliberately do not: where a race is
+        // known TWICE — a certified course and a GPS trace — each account keeps its own
+        // distance beside its own clock, instead of one summary line choosing between them.
+        `- [The whole wall as markdown](${abs("/patches.md")}): the same events as markdown, `
+        + "each race carrying every source that has an account of it",
+        ...GOALS.flatMap((goal) => [
             `- [${NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase())}]`
-            + `(${abs(`/patches/${goal.sport}/`)}): ${goal.goal_name.toLowerCase()} events only`),
+            + `(${abs(`/patches/${goal.sport}/`)}): ${goal.goal_name.toLowerCase()} events only`,
+            `- [${goal.goal_name} events as markdown](${abs(`/patches/${goal.sport}.md`)}): `
+            + `the ${goal.goal_name.toLowerCase()} wall as markdown`,
+        ]),
         `- [${DESIGN_PAGE.heading}](${abs("/design/")}): the site's own design system — every colour token, `
         + "type step, control and mark it is built from, drawn live",
         // THE SAME PAGE IN THE FORMAT THIS FILE IS ITSELF WRITTEN IN, and it is listed here for

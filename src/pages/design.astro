@@ -1,7 +1,6 @@
 ---
 import Layout from "../layouts/BasicLayout.astro";
 import Card from "../components/Card/index.astro";
-import ThemeSwitcher from "../components/ThemeSwitcher.astro";
 import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
 import {NEXT_RACE, PATCHES} from "../content/races";
 import {PAGE_HEADER} from "../content/site";
@@ -27,16 +26,22 @@ import {ICON_IDS, iconClass} from "../lib/icons";
  * what `.design-sync/conventions.md` is generated from, which is what stops this page and
  * the document handed to the design agent from disagreeing.
  *
- * THE THEME TOGGLE IS ON THIS PAGE ON PURPOSE, and it is the one piece of furniture here
- * that is not on `/patches`. It lives in the intro card everywhere else, so the home page is
- * the only other page that has one. Half of what this page has to show is that several
- * tokens SWAP rather than darken — the two `-on-ink` pairs, the progress bar's polarity —
- * and a reader cannot see that without switching. Putting the site's own toggle in the
- * header is how the page demonstrates its own second sentence instead of asserting it.
+ * THIS PAGE MUST BE SWITCHABLE, and that is now a requirement it states rather than a piece
+ * of furniture it owns. Half of what it has to show is that several tokens SWAP rather than
+ * darken — the two `-on-ink` pairs, the progress bar's polarity — and a reader cannot see
+ * that without changing theme. So the toggle has to be reachable from here, and the page
+ * demonstrates its own second sentence instead of asserting it.
  *
- * MODELLED ON `src/pages/patches/[...sport].astro` RATHER THAN ON THE HOME PAGE: a way back,
- * a heading, a lede, then cards. The bento budget on `index.astro` is a contract that page
- * owns and this one has no business inheriting.
+ * WHAT CHANGED IS WHO DRAWS IT. The toggle used to be this page's own, in a two-item row
+ * beside a hand-built way back, and the argument here read that it was "the one piece of
+ * furniture that is not on `/patches`". That is false now: `PageHeader.astro` puts the same
+ * three items on this page and on all three wall routes, which is what closed the real gap —
+ * a reader arriving on the wall from a search result could not change theme at all without
+ * navigating away first. This page contributes the `header` prop and nothing else.
+ *
+ * MODELLED ON `src/pages/patches/[...sport].astro` RATHER THAN ON THE HOME PAGE: a heading, a
+ * lede, then cards, under the shared header. The bento budget on `index.astro` is a contract
+ * that page owns and this one has no business inheriting.
  */
 
 /*
@@ -89,15 +94,15 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
  * a configured value looking for a home: it restates the endpoint's filename and nothing else.
  * A build in which the two disagreed would ship a link to a URL the site does not serve.
  *
- * IT IS PASSED TO THE LAYOUT AND READ BACK OFF THE HEAD. The layout announces it with
- * `rel="alternate"`, and the copy control's script takes the URL from that element rather than
- * carrying a second copy — so there is one address on this page, and a page that stopped
- * announcing the twin would leave a button that correctly does nothing.
+ * IT IS PASSED TO THE LAYOUT ONCE AND USED TWICE FROM THERE. The layout announces it in the
+ * head with `rel="alternate"` AND hands the same value to the header, whose markdown chip is
+ * the reader's way to it — so there is exactly one address on this page and the announcement
+ * and the link cannot disagree, because they are one value passed once.
  */
 const MARKDOWN = "/design.md";
 ---
 
-<Layout title={DESIGN_PAGE.title} description={DESIGN_PAGE.description} markdown={MARKDOWN}>
+<Layout title={DESIGN_PAGE.title} description={DESIGN_PAGE.description} markdown={MARKDOWN} header>
     <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
         {/* `md:col-span-2` IS LOAD-BEARING AND IT IS NOT ABOUT THIS BLOCK'S TEXT. `main` here
              declares no column template, so its columns are implicit — and `Card` defaults to
@@ -107,17 +112,6 @@ const MARKDOWN = "/design.md";
              rather than above the card's corner. Measured at 1280 before the fix: the header
              row resolved to 447px against the cards' 848. */}
         <div class="flex flex-col gap-4 md:col-span-2">
-            <div class="design-head">
-                {/* The way back is the wall's way back, to the character: same class, same
-                     mark, same word, same 1.5rem floor. Two pages offering the same object
-                     drawn two ways is the vocabulary break this repository keeps closing. */}
-                <p class="m-0">
-                    <a href="/" class="text-link inline-flex items-center gap-2 min-h-6 text-sm">
-                        <span class={iconClass(PAGE_HEADER.home_icon)} aria-hidden="true"></span>{PAGE_HEADER.home_label}
-                    </a>
-                </p>
-                <ThemeSwitcher/>
-            </div>
             <div class="flex flex-col gap-2">
                 {/* `break-anywhere` for the reason the wall's heading carries it: this is an
                      un-clipped text column, so its minimum intrinsic width sets the
@@ -268,14 +262,6 @@ const MARKDOWN = "/design.md";
      * deleted ink. The two exceptions are the 2px corner, which is the radius a bib is drawn
      * with and is a mark rather than a measurement.
      */
-
-    .design-head {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    }
 
     /*
      * A ROW WRAPS RATHER THAN BEING A GRID, and the ledger on the patch wall is why. Three

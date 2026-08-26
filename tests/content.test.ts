@@ -5,7 +5,7 @@ import {describe, expect, it} from "vitest";
 
 import {ABOUT_ME, CAREER, NOW, WELCOME} from "../src/content/home";
 import {NEXT_RACE, PATCHES} from "../src/content/races";
-import {FOOTER, LINKS, METADATA, THEME_TOGGLE} from "../src/content/site";
+import {FOOTER, LINKS, MARKDOWN_TWIN, METADATA, PAGE_HEADER, THEME_TOGGLE} from "../src/content/site";
 import {clampToGoal, GOALS, goalForSport, type Sport} from "../src/lib/goal";
 import {kmFromMetres, type RaceEvent, raceKm, type Recording, recordingKm} from "../src/lib/race";
 import stravaProgress from "../src/data/strava-progress.json";
@@ -387,6 +387,60 @@ describe("THEME_TOGGLE", () => {
      */
     it("names a state rather than an action, since the state is what changes", () => {
         expect(THEME_TOGGLE.name.toLowerCase(), "a name that changes and a pressed state contradict each other").not.toMatch(/^(switch|toggle|change|turn|enable|activate)\b/);
+    });
+});
+
+/**
+ * THE PAGE HEADER'S OWN COPY — the three strings the site's chrome is made of.
+ *
+ * They live in `src/content/site.ts` because the header is the FRAME rather than any one
+ * page. Both moved here in the same change: the way back was the patch wall's copy and
+ * `/design` reached across for it, so a page about colour tokens read the racing module to
+ * find out what the word for going home is.
+ */
+describe("PAGE_HEADER and MARKDOWN_TWIN", () => {
+    it("gives every field something to draw", () => {
+        for (const [key, value] of Object.entries({...PAGE_HEADER, ...MARKDOWN_TWIN})) {
+            expect(value.trim(), `${key} is empty, so the header draws a gap`).not.toBe("");
+        }
+    });
+
+    it("names icons from an installed iconify collection", () => {
+        // Same shape as the LINKS assertion above and for the same reason: a presetIcons
+        // class that generated nothing renders as a mask box at zero size — an icon that is
+        // silently absent behind correct markup and a green build.
+        for (const [key, id] of Object.entries({
+            home_icon: PAGE_HEADER.home_icon,
+            link_icon: MARKDOWN_TWIN.link_icon,
+        })) {
+            expect(id, `${key} must be "collection:icon"`).toContain(":");
+            expect(ICON_COLLECTIONS, `${key} uses collection "${id.split(":")[0]}"`)
+                .toContain(id.split(":")[0]);
+        }
+    });
+
+    /**
+     * THE BOUND IS THE CHIP'S, NOT THE SENTENCE'S, and that distinction is the whole reason
+     * `llms.txt` gives its twin entries their own words rather than reading this constant.
+     *
+     * This label is DRAWN now — in a control whose type is set small, tracked wide and set in
+     * capitals — where it used to be a run of words hidden inside prose, and it shortened from
+     * a whole instruction to one word when it moved. A chip's label has to fit beside its mark
+     * on a row that also holds the way back and the theme toggle; a sentence there wraps the
+     * header onto a second line at the default text size.
+     *
+     * SO THE NUMBER IS A CEILING ON A DRAWN LABEL rather than a house style. It is generous
+     * against the word that is there — the point is to catch a sentence coming back, not to
+     * pin a length.
+     */
+    it("keeps the markdown chip's label short enough to be a label", () => {
+        expect(MARKDOWN_TWIN.link_label.length,
+            `"${MARKDOWN_TWIN.link_label}" is drawn inside a chip beside a mark, on a row that also `
+            + "holds the way back and the theme toggle. A sentence belongs in llms.txt, which "
+            + "writes its own")
+            .toBeLessThanOrEqual(16);
+        expect(MARKDOWN_TWIN.link_label.trim().includes(" "),
+            "a chip names itself in a word; this one is a phrase").toBe(false);
     });
 });
 
