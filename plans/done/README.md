@@ -2977,3 +2977,92 @@ compared with live production, `/design.md` and `/design/` are both **byte-ident
 diff says nothing about what the host serves; this does.
 
 `pnpm test` 672 passed / 7 skipped, read out of the runner's log rather than locally.
+
+## Plan 041 — a token's two values, published where its role already was
+
+Merged as `a0be477` (#225). `/design` drew fifteen swatches and named no colour; all three markdown
+renderings declined to publish one, on a stated reason that turned out to be false. The values are
+read out of the two theme blocks now and printed on every surface, and the `colors` group is
+published in the DESIGN.md format's own schema. What follows is only what executing it established.
+
+### `?raw` ships dead CSS, and no gate in the plan's step 1 could see it
+
+The plan measured three ways to reach the layout source against `astro build` and `vitest run`,
+and chose the `?raw` import. Both measurements were right and the conclusion was wrong, because
+neither environment is where this form fails. UnoCSS's Vite plugin includes any module id matching
+
+    /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|marko|html)($|\?)/
+
+so `BasicLayout.astro?raw` matches, and the extractor is handed **the layout's entire 806-line
+text** — prose, comments, declarations. Measured: eight ordinary words in that file became utility
+rules nobody wears (`antialiased`, `b`, `block`, `ease-out`, `fixed`, `grow`, `hidden`, `table`),
+and the orphan gate in `tests/build-output.test.ts` went red on a correct page. No query escapes
+the pattern. The plan's own second form — `readFileSync` on a working-directory-relative path —
+has no module id for the extractor to see and was taken instead.
+
+**The general rule this is an instance of: a `?raw` import is not inert.** It is a module edge, and
+every tool that filters modules by extension sees it as a file of that type carrying its own source
+as content. A plan that measures "does it build" and "does it test" has not measured "what else
+reads this".
+
+### The plan's own mutation was dead, and dead for a structural reason
+
+Step 2 said to change a hex in `src/layouts/BasicLayout.astro` and expect the stylesheet-agreement
+assertion to redden. It does not, and it should not: **both sides of that comparison derive from
+the same source.** The module parses the layout; the built sheet is compiled from the layout. A
+source edit moves them together.
+
+The stimuli that reach the predicate are defects in the READER — `light[token]!.replace("A","B")`
+in the parser, and `const dark = blocks.light` so one block is parsed twice. Both go red, the
+second taking a second gate with it. A value gate whose only proposed mutation is a source edit is
+a gate nobody has shown can fail.
+
+### The per-row form was killed by a mutation the document-wide form survives
+
+This palette reuses values heavily: thirty declarations over fourteen distinct values, the
+most-worn of which is the value of eight different tokens. Rotating every row's value cells onto
+its neighbour leaves **every value still present document-wide** and no row holding its own. The
+per-row gate went red naming twenty-nine of the thirty — and `--shadow`'s light value was the
+thirtieth, absent from the list because the neighbouring row happened to supply the same string.
+That single survivor is the argument for the shape, observed rather than reasoned.
+
+### The rewritten don't narrowed a budget the next plan starts from
+
+`.design-sync/conventions.md` was 3,859 characters against 4,096 before this plan and is **3,935
+after** — 161 spare, not 237. The plan's step 6 predicted the direction; the size is the palette's
+first don't, rewritten because "there is no token here whose value is worth restating" had become
+false about its own page. **Plan 043's budget argument starts from 161.**
+
+### Three sentences the change falsified, found by reading rather than by any gate
+
+`OMISSIONS`' header still said every group was omitted; the renderer's header still called the
+colour omission the load-bearing half of an argument that no longer existed; and the new
+token-table comment quoted the pre-change budget figure as a live one. Each is a **stale fact
+stated as a reason**, which is the shape that survives every gate here, and all three sat inside
+the diff that introduced them. A fourth commit repaired them.
+
+One pre-existing instance was found and deliberately left: `src/content/design.ts` opens by saying
+the site describes its vocabulary in "two surfaces", which has been wrong since 037 added
+`DESIGN.md` and `/design.md`. Out of this plan's Scope; reported rather than fixed.
+
+### The format accepted the palette, and the toolchain it unlocked is real
+
+`@google/design.md` lints the published spec at **0 errors, 0 warnings** — the `primary` alias in
+the format's own `{colors.x}` reference syntax satisfies `missing-primary` without repeating a
+hex, and `orphaned-tokens` stays silent because the `components` group is empty. `export --format
+css-vars` emits **32** `--color-…` properties. The linter's rules were read rather than trusted:
+`section-order` does not order `## Colour`, because that is not one of its aliases for `Colors` —
+which is why 044 can still be a separate plan.
+
+### Where a theme name is allowed to live
+
+The page, the four-column table and the front matter all take their theme labels from
+`THEMING.themes`, the list already gated against the stylesheet's own selectors in both
+directions, rather than typing `light` and `dark` a third time. `valueIn` throws on a name it
+cannot read, so a third theme is a failed build rather than a surface quietly showing two of three
+values.
+
+Verified on the preview deploy rather than only locally: `/design.md` served from the immutable
+hash URL is **byte-identical** to the committed `DESIGN.md`, and `/design/` carries 31 `design-hex`
+occurrences against production's 0. `pnpm test` 680 passed / 7 skipped, read out of the runner's
+log.
