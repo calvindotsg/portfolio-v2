@@ -29,6 +29,7 @@
  * `src/data/races/index.ts`.
  */
 
+import {MARKDOWN_TWIN} from "../content/design"
 import {CAREER, NOW, WELCOME} from "../content/home"
 import {NEXT_RACE, PATCHES} from "../content/races"
 import {FOOTER, LINKS, NOT_FOUND} from "../content/site"
@@ -56,6 +57,8 @@ export const ICON_IDS: readonly string[] = [
     PATCHES.official_icon,
     NEXT_RACE.icon,
     NOT_FOUND.home_icon,
+    MARKDOWN_TWIN.icon,
+    MARKDOWN_TWIN.copied_icon,
     /*
      * THE THEME TOGGLE'S TWO MARKS, WHICH ARE THE ONLY ONES ON THIS SITE THAT DO NOT COME
      * FROM A CONTENT CONSTANT — and until `/design` existed, the only ones nothing had to
