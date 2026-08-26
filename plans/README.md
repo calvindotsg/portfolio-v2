@@ -1,7 +1,7 @@
 # Implementation Plans
 
-**Five plans are queued: 039, then the chain 040 → 041 → 042 → 043.** 039 was queued first and is
-in flight; the other four came from a rethink of `/design` on 2026-08-26 and run behind it.
+**Five plans are queued: the chain 040 → 041 → 042 → 043 → 044.** They came from a rethink of
+`/design` on 2026-08-26. **039 has landed** (`b1eea8a`, #217) and its archive is a separate change.
 
 **Why the new four are a chain and not a set.** They were written in the order a defect forced,
 not in the order the work was imagined. The rethink began as "redraw the page", and two mutations
@@ -24,11 +24,19 @@ that first**, and 041, 042 and 043 each add something — values, a drawing, two
 would otherwise be able to reach one surface and not the others with a green run. 043's first step
 is to re-prove 040's gate bites before relying on it.
 
-**The drawing in 042 was RECOMMENDED from three rendered alternatives**, not derived — and the
-recommendation is the advisor's, not a decision the maintainer has recorded. 042's step 0 is to
-find that confirmation or stop. The two alternatives that lost are in "Findings considered and
-rejected" below with the argument against each, so reversing the recommendation is a decision
-rather than a re-derivation.
+**The drawing in 042 was CONFIRMED by the maintainer on 2026-08-26**, from three whole-page
+alternatives drawn as live mockups in the site's own tokens. What was approved is the ledger sheet
+**carrying two elements from the tile-wall direction** — its nested neutral specimen and its chip row
+of section anchors — reviewed as a second mockup drawing the combination in full, both themes, every
+section. 042's Status records the scope; anything the mockup did not show is still open. The two
+alternatives that lost are in "Findings considered and rejected" below.
+
+**The maintainer also widened the chain twice on the same day**, and both are worth naming because
+they are decisions rather than discoveries: `/design` publishes **three** new sections rather than
+two — an access section was asked for over this directory's own recommendation to defer it, and that
+recommendation survives as the section's brief — and `DESIGN.md` and `/design.md` are to follow the
+`google-labs-code/design.md` standards, which is what 041's front-matter work and the whole of 044
+answer.
 
 038 is done — merged as `0e78e22` (#213) and live — so the dependency
 039's first STOP condition names is satisfied and it is executable now. Both were written on
@@ -263,7 +271,8 @@ recreated.
 | 040 | Hold all three renderings to their one source | P1 | M | 039 (sequencing) | **TODO** |
 | 041 | Publish a token's two values, not just its role | P2 | M | 040 | **TODO** |
 | 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **TODO** |
-| 043 | Publish the two sections the system never wrote down | P2 | M | 040, 042 | **TODO** |
+| 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **TODO** |
+| 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -495,11 +504,19 @@ later run re-derives it; it is not a record of anything the maintainer decided.
 - **Reading the values at runtime with `getComputedStyle`** — rejected. It costs a fifth inline
   script, gives nothing to the markdown twin or the repository spec, and prints nothing with
   JavaScript off.
-- **Publishing a `colors` map in `DESIGN.md`'s front matter** — rejected, and the omission stays.
-  That format maps one name to one value; every token here has two and several trade places, so a
-  single map would be false in whichever theme was not written down. 041 corrects the omission's
-  *reason* and publishes the pair in the body table instead, which satisfies the objection rather
-  than overruling it.
+- **Publishing a `colors` map in `DESIGN.md`'s front matter** — **this rejection was WRONG and is
+  recorded here as a correction rather than deleted.** It was refused on the grounds that the format
+  "maps one name to one value" and a two-theme palette therefore cannot be expressed. That premise
+  was never measured, and it is false: the group is a flat `<token-name>: <Color>` map whose names the
+  spec explicitly says "may follow any consistent naming convention", so `light-*` / `dark-*` is
+  expressible. Measured with the official linter `@google/design.md` v0.4.0 on 2026-08-26 —
+  30 tokens named that way lint at **0 errors**, one `missing-primary` warning, which a
+  `primary: "{colors.light-accent}"` alias clears to **0 errors, 0 warnings**; and
+  `export --format css-vars` over the result emits **33 CSS custom properties**. Omitting the group
+  costs the format's whole toolchain — Tailwind v3 and v4, W3C Design Tokens, CSS variables — for a
+  constraint the format does not impose. **041 now publishes the group and deletes the omission.**
+  The general lesson is the one this directory keeps relearning: a premise about somebody else's
+  format is a lead, and the tool is right there.
 - **A copy-to-clipboard control beside each value** — rejected. It needs script, and a literal
   drawn in the page's hairline box with `user-select: all` is already selectable in one gesture.
 - **Raising the design agent's character budget to fit more guidance** — rejected in advance, in

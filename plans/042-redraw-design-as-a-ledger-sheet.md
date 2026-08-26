@@ -30,15 +30,17 @@
   optional.
 - **Depends on**: **041** (hard — it supplies the values the colour ledger prints), which depends
   on **040** (hard — it supplies the gates that catch a section reaching one surface only), which
-  is sequenced behind **039**.
+  **039 has landed** (`b1eea8a`, #217), so nothing in the chain waits on it [reconciled].
 - **Category**: dx
 - **Planned at**: commit `71bc7e1`, 2026-08-26
-- **Direction RECOMMENDED by the advisor on 2026-08-26** from three alternatives drawn as live
-  mockups in the site's own tokens — a specimen-tile wall, a sticky reference rail, and this. The
-  argument is in "Why this drawing" and the two rejections are recorded in `plans/README.md`.
-  **This is a recommendation, not a decision.** The maintainer had not confirmed it when this plan
-  was written, and confirming it is this plan's first precondition — see STOP conditions. Do not
-  read "chosen" anywhere in this file as approval that was given.
+- **Direction CONFIRMED by the maintainer on 2026-08-26**, and this is the scope of what was
+  approved. Three whole-page alternatives were drawn as live mockups in the site's own tokens — a
+  specimen-tile wall, a sticky reference rail, and this — and the maintainer chose **this one,
+  explicitly carrying two elements from the tile-wall direction**: its nested neutral stack and its
+  chip row of section anchors. Both are in the steps below. A second mockup drawing the combination
+  in full, in both themes and with all sections, was reviewed and approved.
+  **What was NOT decided**: any detail below that the mockup did not show. Where a step leaves a
+  choice open it stays open, and where it names a measurement the measurement still rules.
 - **Baseline**: re-measure `pnpm test` on your own branch point. Do not quote a total from here.
 
 ## Why this matters
@@ -69,8 +71,11 @@ Measured on the built page at `71bc7e1`:
 - **Do and Don't are drawn identically.** Same heading treatment, same marker, same ink. Only the
   word differs, in the two columns whose whole subject is that they are opposites.
 - **The controls section destructures by arity**:
-  `const [PLATED, LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;`. Publishing a kind of control means
-  editing the module and the page, and plan 039 is currently paying that cost.
+  `const [LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;` [reconciled — it read `PLATED, LABELLED,
+  WORDS, CHIP, CHIP_ICON` before 039 landed]. Publishing a kind of control means editing the module
+  and the page, and **039 has just paid that cost**: `b1eea8a` deleted the plated icon control and
+  had to touch the destructure, the specimen list and the module to do it. The defect is unchanged
+  by the entry going away — the next kind added pays it again.
 
 ## Why this drawing
 
@@ -133,11 +138,11 @@ measured and argued in place. Read that before drawing a chip row here.
 `src/pages/design.astro`:
 
 ```astro
-const [PLATED, LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;
+const [LABELLED, WORDS, CHIP, CHIP_ICON] = CONTROLS;
 ```
 
-followed by five hand-written `<li class="design-row">` blocks, each pairing a specimen with one of
-those bindings. Plan 039 removes one of the five.
+followed by four hand-written `<li class="design-row">` blocks, each pairing a specimen with one of
+those bindings [reconciled — there were five until 039 removed the plated icon control].
 
 ### Repo conventions this plan must honour
 
@@ -212,18 +217,22 @@ those bindings. Plan 039 removes one of the five.
 
 ## Steps
 
-### Step 0: Confirm the direction before drawing anything
+### Step 0: Read what was approved, and what was not
 
-This plan spends L effort redrawing a page to a direction the advisor recommended and the
-maintainer had not confirmed at the time of writing. Every other step assumes that answer.
+The direction is confirmed — see Status. What it commits you to is narrow and worth reading before
+you start, because everything else in this plan is a means to it:
 
-Check for a recorded confirmation — in the pull request that landed this plan, in
-`plans/README.md`'s status row, or in an instruction you were given. **If there is none, STOP and
-ask.** A redraw executed against an unconfirmed direction is the most expensive kind of rework
-available here, and the two rejected alternatives are recorded well enough that reversing is a
-decision rather than a re-derivation.
+1. The palette is a **sheet with a Light column and a Dark column**, both always drawn, each cell
+   carrying the swatch and its value.
+2. The three neutrals are **one nested specimen**, not three rows.
+3. Navigation is a **chip row of section anchors**, with no scroll spy.
+4. Do and Don't are **drawn as opposites**, in more than one channel.
+5. Type is set as **real prose at each step**.
 
-**Verify**: you can point at where the confirmation is recorded.
+Anything this plan says beyond those five is the advisor's working, and a measurement that
+contradicts it wins.
+
+**Verify**: nothing to run. Read the five above and the Status block, then continue.
 
 ### Step 1: Measure what you are replacing
 
@@ -412,8 +421,6 @@ Machine-checkable. ALL must hold:
 
 Stop and report back (do not improvise) if:
 
-- **The direction has not been confirmed by the maintainer** (step 0). This plan's "Why this
-  drawing" is an argument, not a mandate.
 - `src/lib/palette.ts` does not exist. 041 has not landed and step 3 cannot be executed.
 - 040's rendering gates are not in `tests/design-system.test.ts`. Without them a section can leave
   the page in this very redraw and nothing will notice — which is the defect that motivated the

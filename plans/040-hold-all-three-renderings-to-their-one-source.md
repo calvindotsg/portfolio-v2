@@ -23,13 +23,10 @@
 - **Effort**: M
 - **Risk**: LOW — this plan adds assertions and makes one renderer iterate a list it currently
   hand-writes. No drawing changes, no values move, no stylesheet is touched.
-- **Depends on**: **039**, for sequencing rather than semantics. 039 is in flight and removes one
-  entry from `CONTROLS` in `src/content/design.ts` and one specimen from `src/pages/design.astro`.
-  This plan reads both but changes neither, and gate 5 stays green under that removal because 039
-  deletes the entry and its specimen together. Land 039 first for a clean apply.
-  **Do not execute these two in parallel**: both modify `tests/design-system.test.ts` and both
-  regenerate `DESIGN.md` and `.design-sync/conventions.md`, so whichever lands second must re-run
-  `pnpm test:update` and re-read the diff.
+- **Depends on**: nothing outstanding. **039 has landed** (`b1eea8a`, #217), which is what this
+  row used to wait for; the parallel-execution warning it carried is spent. `CONTROLS` now has four
+  entries and gate 5 is green over them — 039 deleted the entry and its specimen together
+  [reconciled].
 - **Category**: tests
 - **Planned at**: commit `71bc7e1`, 2026-08-26
 - **Baseline measured at `71bc7e1`**: `pnpm test` → 22 files passed, 1 skipped; 661 passed,

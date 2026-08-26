@@ -28,8 +28,8 @@
   layout engine — so step 3 carries a browser measurement rather than relying on the gates.
 - **Depends on**: **040**, which makes every rendering of `src/content/design.ts` provably reach
   every surface. Hard dependency in one direction only: without it, a document that stopped
-  carrying the new value columns would still match its own snapshot. Also **039**, for sequencing
-  rather than semantics — see "Why the dependency on 039 is only sequencing" below.
+  carrying the new value columns would still match its own snapshot. **039 has landed**
+  (`b1eea8a`, #217), so the sequencing dependency below is discharged [reconciled].
 - **Category**: dx
 - **Planned at**: commit `71bc7e1`, 2026-08-26
 - **Baseline measured at `71bc7e1`**: `pnpm test` → 22 files passed, 1 skipped; 661 tests passed,
@@ -52,13 +52,32 @@ page has published every one of them since the day it shipped. Printing the same
 the identical mechanism with a different output, and it is safe for exactly the same reason: it is
 **read from** the block that authors it rather than typed beside it, so it cannot drift.
 
-**The stated reason for withholding was never secrecy.** `OMISSIONS` in `src/content/design.ts`
-says the `colors` group is omitted because "One name to one value cannot say that" — that a token
-has two values, one per theme, several of which trade places. That objection is about the DESIGN.md
-front-matter format, and it is correct; it says nothing about a table in the body, which can carry
-a pair. This plan satisfies the objection rather than overruling it: **the front-matter group stays
-omitted, its reason is corrected to name the real limitation, and the body table publishes both
-values.**
+**The stated reason for withholding is FALSE, and that was measured rather than argued.**
+`OMISSIONS` in `src/content/design.ts` says the `colors` group is omitted because "One name to one
+value cannot say that" — that a token has two values, one per theme, several of which trade places.
+The premise sounds right and the format does not actually have it. Measured on 2026-08-26 with the
+official linter, `@google/design.md` v0.4.0:
+
+| Probe | Result |
+|---|---|
+| The shipped `DESIGN.md` as it stands | **0 errors, 0 warnings**, 5 infos (the declared omissions) |
+| A `colors` group of 30 tokens named `light-*` / `dark-*` | **0 errors**, 1 warning: `missing-primary` |
+| The same, plus `primary: "{colors.light-accent}"` and a `neutral` alias | **0 errors, 0 warnings** |
+| `export --format css-vars` over that file | **33 CSS custom properties** emitted |
+
+The spec's own words are why: the `colors` group is a flat `<token-name>: <Color>` map and "the exact
+mapping from color palettes to color tokens may follow any consistent naming convention". A theme
+suffix is such a convention. So a two-theme palette **is** expressible, the objection was about a
+shape the format does not impose, and omitting the group costs the format's whole toolchain —
+Tailwind v3 and v4 themes, W3C Design Tokens and CSS custom properties, all of which it can generate
+from the values and none of which it can generate from prose.
+
+**The spec also expects hex in the body prose**, which settles the other half: its own Colors example
+is written `**Primary (#1A1C1E):** A deep ink used for headlines…`. Publishing a value in the body is
+idiomatic in this format, not a transgression of it.
+
+So this plan **retires the `colors` omission** and publishes the group, rather than correcting the
+omission's wording as an earlier draft proposed.
 
 After this plan, a reader — human or agent — can take `--accent` away from the page in either
 theme, and no value has been typed in a second place.
@@ -72,9 +91,10 @@ regenerates `DESIGN.md` and `.design-sync/conventions.md`. This plan touches `TO
 does not read `CONTROLS` at all. The only interaction is a textual merge conflict if both branches
 are open on the same files, and the regeneration in step 6 is the same command 039 runs.
 
-**If 039 has already landed when you start, nothing in this plan changes.** If it has not, you may
-still execute — but say so in the pull request body, because the two branches will both regenerate
-`DESIGN.md` and whichever lands second must re-run `pnpm test:update`.
+**039 landed as `b1eea8a` (#217) before this plan was queued, so nothing here waits on it**
+[reconciled]. What it changed that this plan reads: `CONTROLS` has four entries rather than five,
+and `.design-sync/conventions.md` is shorter — see the budget figures in step 5, which are restated
+against the merged tree.
 
 ## Current state
 
@@ -231,7 +251,8 @@ The final clause — "the values stay in the stylesheet" — is the sentence thi
 - `src/pages/design.astro` (modify — the palette specimen only)
 - `src/lib/design-doc.ts` (modify — `tokenTable`, and the Overview paragraph in `renderFull()`
   whose "neither can tell you a colour" clause step 6 falsifies)
-- `src/content/design.ts` (modify — the `colors` omission's reason, one palette "Don't", **and
+- `src/content/design.ts` (modify — **delete** the `colors` entry from `OMISSIONS` and the passage
+  in its header that argues for it, one palette "Don't", **and
   `DESIGN_PAGE.lede`**, which says "Nothing here restates a value" under the h1 of a page that will
   print thirty hexes)
 - `DESIGN.md` (regenerate — never hand-edit)
@@ -440,15 +461,19 @@ In `src/lib/design-doc.ts`:
 1. `tokenTable()` grows two columns for the `full` audience: `| Token | Light | Dark | Role |`,
    values in backticks, derived from `PALETTE`.
 2. **`renderAgent()` keeps the roles-only table**, and this is a measured decision rather than an
-   omission. Measured at `71bc7e1`: `.design-sync/conventions.md` is **3,933 characters** against
-   the **4,096** budget asserted by `tests/design-system.test.ts`, leaving **163 spare**. Two value
+   omission. Measured against the merged tree at `b1eea8a` [reconciled]:
+   `.design-sync/conventions.md` is **3,859 characters** against
+   the **4,096** budget asserted by `tests/design-system.test.ts`, leaving **237 spare**. Two value
    columns over fifteen rows cost about **323** — twice the headroom. It does not fit, and it
    should not: that document's own "The stylesheet is a closed set" section already tells the agent
    the shipped stylesheet "restates both themes' tokens above its rules", so the agent is holding
    the values already. Spending a system prompt on a table the reader can read out of its own
    bound artifact is the most expensive duplication available.
-   **Re-measure both figures yourself** — every input to them can move, and 039 changes the length
-   of that document.
+   **Re-measured against the merged tree at `b1eea8a`** [reconciled]: the agent rendering is
+   **3,859 characters, so 237 spare** — 039 saved 74 characters, not the two hundred that was
+   estimated before it landed. The conclusion is unchanged, because 237 is still well under the
+   ~323 two value columns cost. **Re-measure again yourself**: every input to both figures can
+   move, and step 6 rewrites a "Don't" this audience carries.
 3. Because `tokenTable()` now has two callers wanting different shapes, give it an audience
    parameter rather than writing a second function. The header of that file states the rule in as
    many words: *add an audience here rather than a second renderer.*
@@ -460,15 +485,66 @@ In `src/lib/design-doc.ts`:
 `git diff .design-sync/conventions.md` shows the two-column one unchanged in shape. Then
 `SKIP_BUILD=1 pnpm test design-system` → all pass, including the budget assertion.
 
-### Step 6: Correct the omission's reason, and the palette's "Don't"
+### Step 5b: Publish the `colors` token group, per the format's own schema
+
+In `src/lib/design-doc.ts`'s `frontMatter()` — the **`full` audience only**; the agent rendering
+carries no front matter at all, by design.
+
+Emit a `colors` map derived from `PALETTE`, one entry per token per theme, named with a theme prefix
+or suffix consistently. Then two aliases so the linter's `missing-primary` rule is satisfied, written
+with the spec's own `{colors.x}` reference syntax rather than by repeating a hex:
+
+```yaml
+colors:
+  primary: "{colors.light-accent}"
+  neutral: "{colors.light-background}"
+  light-background: "#FAFAFA"
+  ...
+  dark-sport-run-on-ink: "#1F4E9C"
+```
+
+**Which theme the aliases point at is a decision, not an accident**: light is what the site serves
+with no stored preference, and `THEMING.themes` already states that in as many words. Say so in a
+comment, because a reader will otherwise read it as arbitrary.
+
+**Derive the names; do not write thirty of them.** The token names come from `PALETTE`, the prefix is
+one string, and the leading `--` is stripped because a YAML key beginning with a dash is not what the
+format's `<token-name>` means.
+
+**Verify** — this is the step's real gate and it is an external tool rather than the suite:
+
+```
+pnpm test:update
+npx --yes @google/design.md@latest lint DESIGN.md
+```
+
+Expected: `"errors": 0, "warnings": 0`. Measured at the time of writing, that command reports exactly
+that for a file shaped as above, and reports `missing-primary` as a warning without the aliases.
+Then, as evidence the publication is worth something:
+
+```
+npx --yes @google/design.md@latest export DESIGN.md --format css-vars
+```
+
+Expected: one `--color-…` custom property per token, twice the palette's length plus the aliases.
+Record the count in the pull request body.
+
+**Do not add `@google/design.md` as a dependency.** `pnpm-workspace.yaml` turns peer auto-install off
+and this repository is deliberate about its tree; `npx --yes` needs nothing installed. Adding this to
+CI is a separate decision — see Maintenance notes.
+
+### Step 6: Retire the `colors` omission, and correct the palette's "Don't"
 
 In `src/content/design.ts`:
 
-1. `OMISSIONS[0]` — the `colors` group **stays omitted**. Rewrite only its `reason` so it names the
-   real limitation and points at what now exists: the format's front matter maps one name to one
-   value, this palette's tokens each have two and several trade places, so the pair is published in
-   the table in the body rather than flattened into a map that would be false in whichever theme
-   was not written down. Keep the module's own voice; the surrounding entries are the register.
+1. `OMISSIONS[0]` — **delete the `colors` entry.** The group is no longer omitted; step 5b publishes
+   it. Leave the other four entries alone. The header comment above `OMISSIONS` argues at length that
+   the colour omission is "the load-bearing one" and that a single map "would be false in the
+   direction that makes a design fail in whichever theme was not written down" — **that whole passage
+   goes**, because a `light-*` / `dark-*` map is not a single map and is not false in either theme.
+   Replace it with what is now true: every group this system genuinely has no scale for is omitted,
+   and colours are published as a theme-suffixed pair with a `primary` alias so the format's own
+   exporters can read them.
 2. `SECTIONS.palette.donts` — the first entry currently reads "Hardcode a hex. There is no token
    here whose value is worth restating." That sentence is now false about its own page. Replace it
    with an instruction that is true and still says the same thing: the values are printed so a
@@ -576,6 +652,13 @@ Machine-checkable. ALL must hold:
 - [ ] `grep -rn '#A82334' src/pages src/content src/lib --include=*.ts --include=*.astro` returns
       no matches — no value has been typed into a second home
 - [ ] `grep -c 'A82334' DESIGN.md` returns a non-zero count — the spec now publishes values
+- [ ] `npx --yes @google/design.md@latest lint DESIGN.md` reports **0 errors and 0 warnings**. This is
+      the conformance gate and it is an external tool; record the JSON summary in the pull request
+- [ ] `npx --yes @google/design.md@latest export DESIGN.md --format css-vars` emits one
+      `--color-…` property per published token; record the count
+- [ ] `sed -n '/^---$/,/^---$/p' DESIGN.md | grep -c '^colors:'` returns **1**, and
+      `sed -n '/^---$/,/^---$/p' DESIGN.md | grep -c 'section: colors'` returns **0** — the group is
+      published and no longer declared omitted
 - [ ] `grep -c 'A82334' .design-sync/conventions.md` returns **0** — the agent brief does not
 - [ ] `pnpm build && grep -o 'design-hex' dist/design/index.html | wc -l` returns at least twice
       `PALETTE.length`. **`grep -o … | wc -l`, not `grep -c`** — `grep -c` counts matching *lines*,
@@ -614,6 +697,17 @@ Stop and report back (do not improvise) if:
 
 ## Maintenance notes
 
+- **Spec conformance is checked by an external tool, not by `pnpm test`.** That is deliberate and it
+  is the same division `tests/dns-config.test.ts` argues for: the linter needs the network and a
+  version that moves, so it runs when somebody touches the format. **A green `pnpm test` is therefore
+  not evidence that `DESIGN.md` still conforms.** Putting `npx @google/design.md lint` into CI is a
+  reasonable follow-up and was deliberately not taken here: `@latest` drifts, and a pinned version is
+  a dependency decision this plan should not make on its own.
+- **The body's structure is still not canonical, and that is plan 044's subject.** This plan
+  publishes the front-matter tokens; it does not rename `## Colour` to the spec's `## Colors`, does
+  not add a canonical `## Do's and Don'ts` section and does not reorder the body. All three are
+  tolerated — the spec's own table says an unknown section heading is preserved rather than an error,
+  and only a *duplicate* heading is fatal — so this plan leaves them and 044 decides.
 - **Plan 040's gates do not yet cover the value columns**, because they were written before this
   plan existed: they assert that every token's *name* and *role* reach every surface. Step 4 here
   adds the page-side value assertion and step 2's assertion 5 covers the module. If a future

@@ -1,4 +1,4 @@
-# Plan 043: Publish the two sections the system never wrote down
+# Plan 043: Publish the three sections the system never wrote down
 
 > **Executor instructions**: Follow this plan step by step. Run every verification command and
 > confirm the expected result before moving to the next step. If anything in the "STOP conditions"
@@ -13,7 +13,7 @@
 > If any file named in "Scope" changed, compare the "Current state" excerpts against the live code
 > before proceeding; on a mismatch, treat it as a STOP condition.
 >
-> **This plan does not stand alone.** It adds two entries to `SECTIONS`, and until plan 040 has
+> **This plan does not stand alone.** It adds three entries to `SECTIONS`, and until plan 040 has
 > landed a new section reaches `/design` and none of the three generated documents, with a green
 > suite — measured. If `tests/design-system.test.ts` has no gate asserting that every entry of
 > `SECTIONS` reaches `renderDesignDoc("full")`, **STOP**.
@@ -38,7 +38,8 @@
 ## Why this matters
 
 `src/content/design.ts` describes this design system in four sections: Colour, Type, Controls,
-Marks. **The two things this site has argued hardest about are in none of them.**
+Marks. **The two things this site has argued hardest about are in none of them, and a third
+subject it holds itself to is in none of them either.**
 
 **Interaction.** The repository's most emphatic rules are about hover and press, and every one of
 them exists because a defect shipped:
@@ -77,6 +78,18 @@ surface that describes the system:
 
 That last one is already an argument written inside `src/content/design.ts`, about itself, in a
 module that has no section for it.
+
+**Access.** The maintainer asked for a third section on 2026-08-26, overruling this plan's original
+recommendation to defer it. The recommendation was that most of what would go in it is already
+distributed through the other sections as the *reason* for a rule, so a section collecting those
+restatements would be the enumeration-in-two-places failure under a virtuous name. **That reasoning
+is not discarded — it becomes the section's brief**: it may carry only what the others cannot, which
+is reaching and reading rather than drawing. Target size on both axes, one landmark per skippable
+region, an accessible name on an icon-only control, text that can double without a pinned height;
+and on the other side, reading order drifting from visual order, depending on a colour a
+forced-colours mode will replace, and hiding from the accessibility tree something a sighted reader
+can act on. If a line you are about to write is already a `does` or `donts` entry under another
+heading, it does not belong here.
 
 **After this plan the system publishes the half a reader has to get right to build with it**, and —
 because of 040 — it publishes it to every surface at once or goes red.
@@ -129,16 +142,16 @@ cannot open this repository to look a reason up.
 ### The budget, which decides what the agent audience gets
 
 `tests/design-system.test.ts` asserts `renderDesignDoc("agent")` is at most **4,096** characters.
-Measured at `71bc7e1`: the rendering is **3,933** characters, so **163 spare**. Two whole sections
-in the agent audience do not fit, and step 4 is where that is decided rather than discovered.
+Measured against the merged tree at `b1eea8a` [reconciled]: the rendering is **3,859** characters,
+so **237 spare**. Two whole sections in the agent audience do not fit in that, and step 4 is where
+that is decided rather than discovered.
 
-**Re-measure, and expect a bigger number than 163.** Both plans ahead of this one move it: 039
-removes a control role from the one list this audience carries whole, which is worth roughly two
-hundred characters, and 041 rewrites the palette "Don't" that this audience also carries. Neither
-saving is asserted anywhere, so **measure it rather than taking a figure from here** — 041's step 6
-is required to report the post-rewrite count in its pull request body, which is the number to start
-from. The point of naming the direction is that an executor who measures 163 again should suspect
-the measurement, not the plan.
+**Re-measure anyway, and treat every figure here as a lead.** This number has already moved twice
+while these plans were being written — it was 163 spare at `71bc7e1`, and 039 bought 74 characters,
+which is far less than the two hundred that was estimated before it landed. That is exactly why the
+figure is measured rather than reasoned about. 041 also rewrites the palette "Don't" this audience
+carries and is required to report the resulting count in its pull request body; **that** is the
+number to start from, not this one.
 
 ### What already carries the argument, and must not be copied wholesale
 
@@ -279,12 +292,51 @@ honest shape, and after 042 the page's generic section renderer produces exactly
 edit at all. **Only touch `src/pages/design.astro` if you find a specimen that is a real element
 rather than an illustration** — and if you do, say what it is in the pull request.
 
+### Step 3b: Write the access section
+
+Key: `access`. Heading: one plain word — the mockup the maintainer approved drew it as **Access**,
+which is the site's register and fits the chip row; `Accessibility` is the other candidate and is
+longer than any other section name.
+
+**Its brief is a boundary before it is a topic.** Read every `does` and `donts` line already in the
+module first. If a line you want to write is one of those said again, it belongs where it already
+is. What survives is about *reaching and reading* rather than about drawing:
+
+`does`:
+
+- Give every control a target a fingertip can find, on both axes, and let it grow with the reader's
+  text.
+- Put one landmark around each region a reader might skip to, and make the page's own heading its
+  first heading.
+- Give an icon-only control an accessible name, since the mark is the whole control. **This one is
+  a re-add rather than a new line**: it was dropped from the agent audience for budget and is named
+  in `.design-sync/NOTES.md` as the first thing to restore when there is room. Putting it here gives
+  it a home in the full rendering as well.
+- Let a reader double their text size without touching a font-size: size boxes in rem, and never pin
+  a height.
+
+`donts`:
+
+- Do not let reading order drift from visual order. A keyboard meets the markup, not the layout.
+- Do not depend on a colour surviving. A forced-colours mode replaces every one of them, so anything
+  a colour alone carries is gone.
+- Do not hide from the accessibility tree something a sighted reader can act on.
+
+**The fourth `does` overlaps `type`'s "let the reader's own text size drive the layout" and the
+controls "Don't pin a control's height in pixels".** That overlap is real and is the exact risk the
+deferral argued. Resolve it by writing the line about the *reader's* limit (doubling the text size
+without the page seeing a font-size change) rather than about the *unit*, which the other two own.
+If you cannot make it distinct, drop it and say so in the pull request.
+
+**Verify**: for every line you wrote, `grep` the module for its key phrase and confirm you have not
+produced a second copy of an existing instruction.
+
 ### Step 4: Decide what the agent audience carries, by measuring
 
 Run `pnpm test:update`, then measure `.design-sync/conventions.md`.
 
-If both new sections are in the agent audience it will be over budget. Resolve it with this order
-of preference, and **record the measured numbers for whichever you take**:
+Three new sections cannot all be in the agent audience. Resolve it with this order of preference,
+and **record the measured numbers for whichever you take**:
 
 1. **Carry the `donts` of the interaction section only.** That audience already keeps don'ts and
    drops dos, for a reason written in `src/lib/design-doc.ts`: a don't names an output that looks
@@ -293,6 +345,10 @@ of preference, and **record the measured numbers for whichever you take**:
 2. **Drop the words section from the agent audience**, recording the reason: that agent is handed a
    bundle and writes screens, not this site's copy, and the vocabulary rules are about this site's
    own domain words.
+2b. **Carry the access `donts` if anything is left**, and prefer them over the interaction `donts` if
+   only one set fits — a forced-colours mode and a drifted reading order are failures that agent
+   cannot see in its own output at all, where a stuck hover state at least shows up on a phone.
+   Record which way round you went and why.
 3. **Only if 1 and 2 still do not fit**, drop something already carried — and name what, and why
    the claim survives elsewhere in the same document, which is the standard the existing drops in
    that file are held to.
