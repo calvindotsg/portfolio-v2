@@ -82,19 +82,19 @@ omission's wording as an earlier draft proposed.
 After this plan, a reader — human or agent — can take `--accent` away from the page in either
 theme, and no value has been typed in a second place.
 
-## Why the dependency on 039 is only sequencing
+## What plan 039 left behind, which this plan reads
 
-Plan 039 deletes the `control` shortcut, removes one entry from `CONTROLS` in
-`src/content/design.ts`, removes the icon-plate specimen from `src/pages/design.astro`, and
-regenerates `DESIGN.md` and `.design-sync/conventions.md`. This plan touches `TOKEN_ROLES` and
-`OMISSIONS` in the first file and the palette section in the second — **disjoint regions**, and it
-does not read `CONTROLS` at all. The only interaction is a textual merge conflict if both branches
-are open on the same files, and the regeneration in step 6 is the same command 039 runs.
+**039 is done** — merged as `b1eea8a` (#217) and archived — so nothing here waits on it
+[reconciled]. It is named because it moved two things this plan depends on:
 
-**039 landed as `b1eea8a` (#217) before this plan was queued, so nothing here waits on it**
-[reconciled]. What it changed that this plan reads: `CONTROLS` has four entries rather than five,
-and `.design-sync/conventions.md` is shorter — see the budget figures in step 5, which are restated
-against the merged tree.
+- **`CONTROLS` has four entries, not five.** 039 deleted the `control` shortcut and, with it, that
+  entry and its specimen in `src/pages/design.astro`. This plan does not read `CONTROLS` at all, so
+  the change is invisible to it — but an excerpt quoting five entries would be stale.
+- **`.design-sync/conventions.md` is shorter.** 039 regenerated both documents, which is why step 5's
+  budget figures are restated against the merged tree rather than against `71bc7e1`.
+
+Everything this plan touches in those two files is a disjoint region: `TOKEN_ROLES`, `OMISSIONS` and
+`DESIGN_PAGE.lede` in the module, and the palette section on the page.
 
 ## Current state
 
