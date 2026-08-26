@@ -199,6 +199,44 @@ function markInventory(): string {
     ].join("\n")
 }
 
+/**
+ * THE BLOCK A SECTION CARRIES BETWEEN ITS LEDE AND ITS GUIDANCE, KEYED BY SECTION.
+ *
+ * A LOOKUP RATHER THAN A CHAIN OF CONDITIONALS, so adding one is adding an entry — and a section
+ * with no entry renders its heading, its lede and its guidance and nothing else, which is the
+ * right default and is the shape `src/pages/design.astro` already has, where each of these is a
+ * per-key block beside a loop over the same list.
+ */
+const SECTION_BLOCKS: Partial<Record<keyof typeof SECTIONS, () => string>> = {
+    palette: tokenTable,
+    controls: controlList,
+    icons: markInventory,
+}
+
+/**
+ * WHICH SECTIONS THE AGENT RENDERING CARRIES, AND THE RECORDED REASON FOR EVERY ONE IT DROPS.
+ *
+ * The subset used to be whichever lines somebody happened to write, which was the last way a
+ * section could go missing from a document with nothing noticing: the full rendering iterates
+ * now and `/design` always did, so this is the only hand-decided list of sections left. Declaring
+ * it turns the drop into a decision a reader can find rather than an absence they have to infer,
+ * and `tests/design-system.test.ts` holds the rendering to this list in BOTH directions and
+ * refuses a section that appears in neither one.
+ *
+ * A DECLARED SUBSET IS NOT A COMPLETE ONE, and the difference is the whole point: the agent is
+ * meant to carry less than the repository's own spec. What is forbidden is carrying less than it
+ * says it does. The reasons below are this file's header said once, not re-authored — each entry
+ * points at the passage that argues it.
+ */
+export const AGENT_SECTIONS: readonly (keyof typeof SECTIONS)[] = ["palette", "controls", "icons"]
+
+export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
+    type: "The budget took it, and it was chosen on how much of the claim survives elsewhere in "
+        + "the same document: two of its don'ts restate the closed set declared above, and the "
+        + "third is twinned almost verbatim by the controls don't that remains. The arithmetic "
+        + "that forced the trade, and what it cost, are in this file's header.",
+}
+
 /** The complete spec, for a reader who can open this repository. */
 function renderFull(): string {
     const guidance = (section: typeof SECTIONS[keyof typeof SECTIONS]) => [
@@ -228,36 +266,26 @@ function renderFull(): string {
         "",
         themingBlock(),
         "",
-        `## ${SECTIONS.palette.heading}`,
-        "",
-        SECTIONS.palette.lede,
-        "",
-        tokenTable(),
-        "",
-        guidance(SECTIONS.palette),
-        "",
-        `## ${SECTIONS.type.heading}`,
-        "",
-        SECTIONS.type.lede,
-        "",
-        guidance(SECTIONS.type),
-        "",
-        `## ${SECTIONS.controls.heading}`,
-        "",
-        SECTIONS.controls.lede,
-        "",
-        controlList(),
-        "",
-        guidance(SECTIONS.controls),
-        "",
-        `## ${SECTIONS.icons.heading}`,
-        "",
-        SECTIONS.icons.lede,
-        "",
-        markInventory(),
-        "",
-        guidance(SECTIONS.icons),
-        "",
+        // EVERY SECTION THE MODULE HOLDS, IN THE ORDER IT HOLDS THEM, rather than four keys named
+        // by hand. Naming them let a section be added to `src/content/design.ts` and reach
+        // `/design` — which has always iterated — while this rendering and the agent's carried on
+        // without it, with both file snapshots green, because a snapshot only ever compares a
+        // document with itself. The module's key order IS the document's section order, which the
+        // format this rendering follows cares about, so a section's position is decided where the
+        // section is authored and nowhere else.
+        ...(Object.keys(SECTIONS) as (keyof typeof SECTIONS)[]).flatMap((key) => {
+            const section = SECTIONS[key]
+            const block = SECTION_BLOCKS[key]
+            return [
+                `## ${section.heading}`,
+                "",
+                section.lede,
+                "",
+                ...(block ? [block(), ""] : []),
+                guidance(section),
+                "",
+            ]
+        }),
     ].join("\n")
 }
 

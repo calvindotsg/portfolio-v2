@@ -2,8 +2,8 @@ import {readFileSync} from "node:fs";
 import {describe, expect, it} from "vitest";
 
 import unoConfig from "../uno.config";
-import {SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
-import {renderDesignDoc} from "../src/lib/design-doc";
+import {CONTROLS, SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
+import {AGENT_DROPS, AGENT_SECTIONS, renderDesignDoc} from "../src/lib/design-doc";
 import {ICON_IDS, iconClass} from "../src/lib/icons";
 import {pageCss} from "./helpers/css";
 import {classTokens} from "./helpers/pages";
@@ -68,6 +68,44 @@ const conventions = () => readFileSync(CONVENTIONS, "utf8");
 
 /** The `/design` page, as the build emits it. */
 const DESIGN_PAGE_FILE = "dist/design/index.html";
+
+/**
+ * THE PAGE AS TEXT, NORMALISED ONCE FOR EVERY GATE BELOW THAT READS IT.
+ *
+ * Two things stand between a string authored in `src/content/design.ts` and the same string in
+ * the built page, and neither is a reason to loosen a needle into a substring — a loosened needle
+ * is how a gate starts passing on content that is wrong:
+ *
+ *   - THE PAGE IS HTML, so an apostrophe ships as a numeric entity. That is not hypothetical and
+ *     it is not confined to the guidance lines: several roles in `TOKEN_ROLES` carry one, so the
+ *     control-and-token gate would fail on CORRECT content without this. The entities are decoded
+ *     here, which normalises the HAYSTACK — the needle is compared as the module authored it.
+ *   - ASTRO MAY SPLIT A TEXT NODE, so one authored sentence can arrive broken across an element
+ *     boundary. Tags are removed rather than replaced with a space, which rejoins a split word;
+ *     runs of whitespace then collapse, so a line the markup wrapped still matches the single-line
+ *     string it came from. Needles are collapsed the same way for the same reason.
+ *
+ * Attribute values go with the tags they sit in, which is the direction that matters: a needle
+ * found only in a `content=` or a `style=` would be a false pass rather than a rendered line.
+ */
+const decodeEntities = (text: string) => text
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+
+/** One authored line and its rendering differ by whitespace alone once the markup is gone. */
+const collapsed = (text: string) => text.replace(/\s+/g, " ").trim();
+
+const designPageText = () =>
+    collapsed(decodeEntities(readFileSync(DESIGN_PAGE_FILE, "utf8").replace(/<[^>]*>/g, "")));
+
+/** Every line of a section a reader is meant to be able to find, wherever it is rendered. */
+const sectionLines = (section: typeof SECTIONS[keyof typeof SECTIONS]) =>
+    [section.heading, section.lede, ...section.does, ...section.donts];
 
 /**
  * THE SPEC AT THE REPOSITORY ROOT, which is the same bytes as `/design.md` on the web.
@@ -381,6 +419,136 @@ describe("the design system this site publishes", () => {
         expect([...census].filter((c) => !shipped.has(c)).sort(),
             "ICON_IDS names these and the stylesheet has no rule for them — a presetIcons class with "
             + "no rule renders as a mask box at zero size")
+            .toEqual([]);
+    });
+
+    /**
+     * A SECTION MAY NOT REACH ONE SURFACE AND NOT THE OTHERS, and until these five gates that was
+     * the ordinary outcome rather than a corner case. Both directions were measured by mutation
+     * before they went in, and both were silent:
+     *
+     *   - A fifth entry added to `SECTIONS` shipped on `/design` and appeared in NONE of the three
+     *     documents. `pnpm test` stayed green and `pnpm test:update` had nothing to rewrite,
+     *     because `renderFull()` hand-listed four keys and never rendered it.
+     *   - The page's section loop filtered one key out, and the built page shipped with no Marks
+     *     section while every document went on carrying it. `pnpm test` stayed green again.
+     *
+     * The file snapshots above cannot see either one — a snapshot only ever compares a document
+     * with itself, which is the same reasoning this suite's header gives for a different failure.
+     * So each surface is asked, separately, for the strings the module authored.
+     *
+     * ASSERTED AS STRINGS RATHER THAN AS A COUNT, for the reason the token gate above gives: a
+     * count is satisfied by one heading swapped for another.
+     */
+    it("renders every section the module holds into the full spec", () => {
+        const sections = Object.entries(SECTIONS);
+        expect(sections.length, "SECTIONS is empty — this gate would assert nothing")
+            .toBeGreaterThan(0);
+        const rendered = renderDesignDoc("full");
+        for (const [key, section] of sections) {
+            expect(sectionLines(section).filter((line) => !rendered.includes(line)),
+                `the full rendering is missing these lines of SECTIONS.${key}, so DESIGN.md and `
+                + "/design.md describe a design system that is not the one /design shows")
+                .toEqual([]);
+        }
+    });
+
+    /**
+     * THE SAME QUESTION ASKED OF THE BUILT PAGE, which is the direction the renderer cannot fix:
+     * a section dropped from `src/pages/design.astro` leaves every document intact and the page
+     * silently smaller. See `designPageText` for why the haystack is normalised and the needle
+     * never is.
+     */
+    it("renders every section the module holds onto the page", () => {
+        const sections = Object.entries(SECTIONS);
+        expect(sections.length, "SECTIONS is empty — this gate would assert nothing")
+            .toBeGreaterThan(0);
+        const page = designPageText();
+        expect(page.length, `no text parsed out of ${DESIGN_PAGE_FILE} — this gate would be vacuous`)
+            .toBeGreaterThan(1000);
+        for (const [key, section] of sections) {
+            expect(sectionLines(section).map(collapsed).filter((line) => !page.includes(line)),
+                `${DESIGN_PAGE_FILE} does not carry these lines of SECTIONS.${key}, so the page `
+                + "and the documents rendered from the same module disagree about what this "
+                + "design system says")
+                .toEqual([]);
+        }
+    });
+
+    /**
+     * THE AGENT AUDIENCE CARRIES WHAT IT DECLARES AND NOTHING IT DOES NOT, both directions in one
+     * breath. Its subset is deliberate — that reader is paying for every character out of a system
+     * prompt — so the gate above cannot be asked of it. What can be asked is that the declaration
+     * in `src/lib/design-doc.ts` and the document it produces have not quietly stopped agreeing.
+     *
+     * THE HEADING AS THE DOCUMENT DRAWS IT, not as a bare word. The negative half of a two-way
+     * assertion is the half that reddens on correct content when the needle is loose: "Type" as a
+     * substring would fail the day any sentence in that document used the word.
+     */
+    it("carries exactly the sections the agent audience declares", () => {
+        expect(AGENT_SECTIONS.length, "AGENT_SECTIONS is empty — this gate would assert nothing")
+            .toBeGreaterThan(0);
+        const rendered = renderDesignDoc("agent");
+        const drawn = (key: keyof typeof SECTIONS) => `## ${SECTIONS[key].heading}`;
+        expect(AGENT_SECTIONS.filter((key) => !rendered.includes(drawn(key))),
+            "src/lib/design-doc.ts declares the agent rendering carries these sections and the "
+            + "document it renders has no heading for them")
+            .toEqual([]);
+        const keys = Object.keys(SECTIONS) as (keyof typeof SECTIONS)[];
+        expect(keys.filter((key) => !AGENT_SECTIONS.includes(key) && rendered.includes(drawn(key))),
+            "the agent rendering carries these sections and declares that it does not, so the "
+            + "recorded reason for dropping them is describing a document that no longer exists")
+            .toEqual([]);
+    });
+
+    /**
+     * EVERY SECTION IS SOMEBODY'S DECISION. A key that is neither carried by the agent audience nor
+     * recorded as dropped is a section nobody decided about, and that is the state the whole of
+     * this block exists to make impossible — it is also the one the fifth-section mutation now
+     * lands in, since the full rendering iterates and the page always did.
+     */
+    it("accounts for every section in the agent audience, carried or dropped for a reason", () => {
+        const keys = Object.keys(SECTIONS) as (keyof typeof SECTIONS)[];
+        expect(keys.length, "SECTIONS is empty — this gate would assert nothing").toBeGreaterThan(0);
+        expect(keys.filter((key) => !AGENT_SECTIONS.includes(key) && !(key in AGENT_DROPS)),
+            "nothing in src/lib/design-doc.ts says whether the agent rendering carries these "
+            + "sections. Add the key to AGENT_SECTIONS, or to AGENT_DROPS with the reason")
+            .toEqual([]);
+        expect(AGENT_SECTIONS.filter((key) => key in AGENT_DROPS),
+            "these sections are declared carried AND recorded as dropped, so one of the two lists "
+            + "is describing a document that does not exist")
+            .toEqual([]);
+        for (const [key, reason] of Object.entries(AGENT_DROPS)) {
+            expect(reason.trim().length,
+                `AGENT_DROPS.${key} records no reason, which is the implicit drop this list `
+                + "replaced rather than a recorded one")
+                .toBeGreaterThan(20);
+        }
+    });
+
+    /**
+     * THE PAGE SHOWS EVERY CONTROL AND EVERY TOKEN ROLE THE MODULE NAMES. The section gate above
+     * walks `SECTIONS`, and these two lists are the specimens beside them — hand-placed on
+     * `src/pages/design.astro`, one block per kind, rather than looped like the sections. A
+     * control published in the module and left off the page is a kind a designer reading the site's
+     * own styleguide will never meet; a token role is the same failure one level down.
+     */
+    it("shows every control and every token role the module names", () => {
+        expect(CONTROLS.length, "CONTROLS is empty — this gate would assert nothing")
+            .toBeGreaterThan(1);
+        expect(TOKEN_ROLES.length, "TOKEN_ROLES is empty — this gate would assert nothing")
+            .toBeGreaterThan(5);
+        const page = designPageText();
+        expect(page.length, `no text parsed out of ${DESIGN_PAGE_FILE} — this gate would be vacuous`)
+            .toBeGreaterThan(1000);
+        expect(CONTROLS.map(({name}) => name).filter((name) => !page.includes(name)),
+            `${DESIGN_PAGE_FILE} draws no specimen named for these kinds of control, so the site's `
+            + "own styleguide publishes fewer kinds than the module does")
+            .toEqual([]);
+        expect(TOKEN_ROLES.flatMap(({token, role}) => [token, collapsed(role)])
+            .filter((line) => !page.includes(line)),
+            `${DESIGN_PAGE_FILE} does not carry these token names or roles, so a designer reading `
+            + "the page cannot reach for what the documents tell them exists")
             .toEqual([]);
     });
 
