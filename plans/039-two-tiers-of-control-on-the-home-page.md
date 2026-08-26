@@ -9,7 +9,13 @@
 > body instead and leave the index untouched.
 >
 > **Drift check (run first)**:
-> `git diff --stat <038's merge commit>..HEAD -- src tests uno.config.ts CLAUDE.md`
+> `git diff --stat 03c8885..HEAD -- src tests uno.config.ts CLAUDE.md`
+>
+> **RECONCILED AT `03c8885`, 2026-08-26**, after 038 merged (`0e78e22`) and was archived
+> (`1f5d620`). What that pass changed is marked **[reconciled]** throughout; the measurements
+> table was re-taken on production and is unchanged. Read "What the reconcile found" below
+> before step 4 — one of this plan's own knock-ons is already done, one claim about 038 is
+> wrong, and one gate fails in a way step 5 does not describe.
 >
 > **This plan does not stand alone.** It consumes the chip that plan 038 publishes. If
 > `uno.config.ts` has no `chip-surface`, `chip` and `chip-icon` shortcuts, or `CONTROLS` in
@@ -40,7 +46,10 @@ lines**, and the copy column it sits in is 339 x 300 against a 275px portrait �
 the photograph, set the intro card's height**. On a 430px phone the same 112px block sits on top of
 the portrait.
 
-**The hierarchy is close to inverted.** Six social profiles — secondary by any reading — are drawn
+**The hierarchy is close to inverted.** Six secondary destinations — **five social profiles and the
+résumé PDF**, which is worth saying because "social profiles" is how the rest of this plan reads and
+`LINKS` is not that: its sixth entry is `View résumé (PDF)` at `/resume.pdf`, the one internal,
+non-social link in the set [reconciled] — are drawn
 exactly as loud as each goal card's one action, and louder than `My events`, the way into the site's
 signature content, which is a plain underlined link. `uno.config.ts` says in its own words that the
 plate is "this site's mark for a 48px styled control", withheld from smaller things so as not to
@@ -84,6 +93,46 @@ lines in a 339px column); keeping the plate and only moving the toggle (fixes th
 of the weighting); and a neutral-bordered plate (flattens a card's one action and a social link into
 one drawing, and leaves the 112px density untouched).
 
+## What the reconcile found (2026-08-26, at `03c8885`)
+
+038 touched 12 of this plan's 16 in-scope files. Four findings, each measured rather than read:
+
+1. **The intro-card excerpt below is still accurate.** 038 changed exactly one line in
+   `IntroCard.astro` and it was a comment. `.intro-type`, `.control-row`, `<ThemeSwitcher/>` and
+   `class="control"` are all as quoted.
+2. **The measurements table is still accurate**, re-taken on production after 038 shipped: `main`
+   829, intro card 728 x 357, control row 339 x 112 with 7 items on 2 lines, portrait 275 x 275,
+   document 1698 at 430x932. 038 did not move the home page, which is what it was scoped to avoid.
+   *(One instrument warning: `.control-row` has EIGHT element children, not seven — the eighth is
+   ThemeSwitcher's own inline `<script>`, which renders at top 0. Count `.control`, or filter the
+   script, or you will report a phantom third line.)*
+3. **Step 4.2's first knock-on is already done, and its quotation is stale.** It says the `donts`
+   list calls `control-surface` "a source-level shortcut the other two compose". 038 already
+   rewrote that line to name BOTH surfaces and to say "the boxes compose" — which carries no count,
+   so deleting `control` needs no further edit there. Do not go looking for the old sentence.
+4. **Step 5.3's claim about 038 is wrong.** It says `.chip-icon` is already on the link-signifier
+   allow-list. It is not: 038 put `.chip` there, matched as an exact class token, and the rule
+   probe uses `\.chip(?![\w-])` which deliberately excludes `.chip-icon`. The intro card's links
+   survive anyway — they take the earlier icon-only branch, having an `sr-only` name and no visible
+   text — so this is an imprecise reason for a correct outcome rather than a defect. Confirm it the
+   way that step already says to, and do not "fix" the allow-list without a wearer that needs it.
+
+**And one thing step 5 does not describe.** Deleting the `control` shortcut makes the plate route's
+own vacuity floor fail — `it("finds the control surface at all, so the assertions below are not
+vacuous")` — because `dist/index.html` then carries only `control-cta`, so `iconBoxes()` is EMPTY
+and five assertions that loop over it would otherwise pass by looping over nothing. That floor is
+038's, and it firing is the gate working exactly as intended. **Step 5 says every gate goes red;
+this one is the reason that is true rather than a nuisance** — treat the empty icon population as
+the thing to fix (retarget those assertions at the chip strip), never the floor.
+
+*Measured by simulating step 4.1 alone — deleting the shortcut and nothing else — which reddened 11
+assertions across five files. That is NOT a prediction of a correct execution: with the markup still
+saying `class="control"`, several of those are artifacts of an incoherent intermediate state that
+this plan never produces. Two of the five files are in no scope list here —
+`tests/design-system.test.ts` and `tests/icon-alignment.test.ts` — and both may well self-heal once
+steps 1–4 are done together. **Re-run the full suite after step 4 and add whatever is genuinely red
+to the scope list deliberately**, rather than trusting either that figure or this note.*
+
 ## Current state
 
 ### The intro card today
@@ -124,7 +173,8 @@ they are still needed, and say what you found; do not delete one on the argument
 
 ### Measurements to beat
 
-On the built site at `f767cf2`:
+On the built site at `f767cf2`, and **re-taken on production at `1f5d620` after 038 shipped —
+every row below is unchanged** [reconciled]:
 
 | | measured |
 |---|---|
@@ -178,6 +228,12 @@ this plan is that the portrait becomes the binding constraint again.
 - `tests/control-geometry.test.ts`, `tests/build-output.test.ts`, `tests/content.test.ts`,
   `tests/rendered-html.test.ts`, `tests/card-fill.test.ts`, `tests/page-header.test.ts` (modify as
   each goes red)
+- `tests/design-system.test.ts` and `tests/icon-alignment.test.ts` — **admitted to scope by the
+  reconcile, conditionally** [reconciled]. Simulating step 4.1 alone reddened both, and neither was
+  on this list; that simulation is not a correct execution, so both MAY self-heal once steps 1–4 are
+  done together (`design-system` regenerates from `CONTROLS`, and `icon-alignment` reasons about
+  which icons sit in a flex container, which the chip strip still provides). Change either only if
+  it is genuinely red after step 4, and say in the pull request which of the two you touched and why
 - `CLAUDE.md` (modify — the shortcut count and the control vocabulary)
 - `DESIGN.md` and `.design-sync/conventions.md` (regenerate — committed snapshots of `CONTROLS`,
   which step 4 changes)
@@ -278,10 +334,13 @@ the header's controls chips.
    `grep -rn 'class="[^"]*\bcontrol\b' src/` must return nothing before you delete it, and remember
    that `control-cta` and `control-surface` are different tokens that must survive.
 2. Delete its entry from `CONTROLS` in `src/content/design.ts` and its specimen from
-   `src/pages/design.astro`. **Two knock-ons in the same module**: the `donts` list says
-   `control-surface` is "a source-level shortcut the other two compose" — after this deletion only
-   `control-cta` composes it, so retarget that sentence; and re-read `SECTIONS.controls.lede`, which
-   038 rewrote, to check it is still true of the smaller set. Then run `pnpm test:update` and commit
+   `src/pages/design.astro`. **One knock-on left in the same module, not two** [reconciled]: the
+   `donts` sentence about `control-surface` was rewritten by 038 to name both surfaces and to say
+   "the boxes compose", which carries no count and needs no further edit — do not go hunting for
+   the old wording. What remains is to re-read `SECTIONS.controls.lede`, also 038's, and check it
+   is still true of the smaller set. **And mind the ORDER**: deleting the shortcut without deleting
+   this entry leaves the generated documents promising a class the sheet no longer has, which
+   reddens `tests/design-system.test.ts` in between. Do both, then run `pnpm test:update` and commit
    the two regenerated documents — `DESIGN.md` and `.design-sync/conventions.md` are committed
    snapshots of `CONTROLS`, and the "guaranteed present" line inside them is derived, so never
    hand-edit either.
@@ -311,8 +370,21 @@ Each of these is red after steps 1–4 and each needs a real fix rather than a l
    child of the strip is a control of one kind.
 2. **The "one icon control per social link, plus the theme toggle" count** is now "one chip per social
    link", with the toggle outside the strip. Change what it counts; keep it counting.
+2b. **The plate route's VACUITY FLOOR fails, and that is the load-bearing failure of this step**
+   [reconciled]. `it("finds the control surface at all, so the assertions below are not vacuous")`
+   goes red because `dist/index.html` then carries only `control-cta`, leaving `iconBoxes()` EMPTY —
+   and five assertions loop over that population, so without the floor they would all pass by
+   iterating over nothing. **The fix is to retarget those five at the chip strip, never to relax the
+   floor.** A green suite reached by deleting the only thing that noticed the emptiness is the exact
+   defect this repository names most often.
 3. **`tests/build-output.test.ts`**'s link-signifier gate: the intro card's anchors move from
-   `.control` to `.chip-icon`, which 038 already put on the allow-list. Confirm rather than assume.
+   `.control` to `.chip-icon`. **038 did NOT put `.chip-icon` on that allow-list** [reconciled] — it
+   put `.chip`, matched as an exact class token, and the rule probe's `\.chip(?![\w-])` excludes the
+   glyph box on purpose. The anchors pass anyway, via the icon-only branch, because each has an
+   `sr-only` name and no visible text. So the outcome is right and the stated reason was wrong;
+   confirm which branch is carrying them, and add `.chip-icon` to the allow-list only if you create
+   a wearer that needs it. Two more gates in this file also read `.control` — the plate-paint pair —
+   so check the whole file rather than this one assertion.
 4. **`tests/card-fill.test.ts`** exempts exactly one card and asserts it is the intro card. That
    should be unaffected; if it is not, you have changed the card's fill behaviour and must say how.
 5. **`tests/page-header.test.ts`**, the suite 038 creates. The home page still carries no `<header>`,
