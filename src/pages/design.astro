@@ -166,8 +166,8 @@ const sportLabel = NEXT_RACE.control.replace("{sport}", firstGoal.goal_name.toLo
 /*
  * ONE SPECIMEN PER KIND, LOOKED UP BY NAME, AND A MISSING ONE IS A FAILED BUILD.
  *
- * What this replaces is a destructure by arity — `const [LABELLED, WORDS, CHIP, CHIP_ICON] =
- * CONTROLS` — followed by that many hand-written rows. Publishing a kind of control meant
+ * What this replaces is an array destructure of `CONTROLS` into one binding per kind, in that
+ * list's order, followed by that many hand-written rows. Publishing a kind of control meant
  * editing the module AND two places in this file, and plan 039 had just paid that cost from
  * the other direction: retiring the plated icon control had to touch the destructure, the
  * specimen list and the module to remove one entry. The defect is unchanged by an entry going
@@ -699,9 +699,10 @@ const MARKDOWN = "/design.md";
      * head is not there to say it. The other register is `.design-guide-heading` below, which
      * is the chip's, and it dresses what labels a BLOCK.
      *
-     * There used to be a third, invented here: the chip's size at 0.08em of tracking, on the
+     * There used to be a third, invented here: the chip's size at a tracking of its own, on the
      * page whose subject is that the site has a fixed vocabulary. Two of the site's own, used
-     * for the two different jobs there are, is the whole rule now.
+     * for the two different jobs there are, is the whole rule now — and the value is not named
+     * anywhere in this file, because a retired number written down is a number somebody restores.
      */
     .design-eyebrow {
         font-size: 0.625rem;
