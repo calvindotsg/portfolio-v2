@@ -69,9 +69,9 @@ exists to protect.
 It authors no value. What each token is FOR is authored in `src/content/design.ts`; what
 each token IS lives in the theme block of `src/layouts/BasicLayout.astro`, and the classes
 come from `uno.config.ts`. This document and the page at `/design` are both rendered from
-those, so neither can disagree with them — and the table below can carry both of a token's
-values, in the front matter and in prose, because every one of them is READ out of that
-theme block by `src/lib/palette.ts` rather than written down a second time here.
+the first of those, so neither can disagree with it — and the table below can still carry
+both of a token's values, in the front matter and in prose, because every one of them is
+READ out of that theme block by `src/lib/palette.ts` rather than written down again here.
 
 ## Set data-theme, or nothing is styled
 

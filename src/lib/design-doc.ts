@@ -94,8 +94,8 @@ import {PALETTE, valueIn} from "./palette"
  * document and is what makes the file legible to tooling that globs for it by name. Two things
  * that format asks for are done deliberately here: an `Overview` before anything else, and a
  * front matter block that uses the format's own `omitted` key to say which typed token groups
- * this system leaves out and why. It leaves out all of them — see `OMISSIONS` for the argument,
- * of which the colour one is the load-bearing half. The agent rendering carries no front matter
+ * this system leaves out and why, beside the `colors` group it publishes — see `OMISSIONS` for
+ * why each remaining group is a decision. The agent rendering carries no front matter
  * at all: it is prepended to a README, where a second document's metadata block is noise.
  */
 
@@ -242,9 +242,11 @@ const themingBlock = () => [
  *
  * The full rendering carries each token's two values beside its role, read out of the theme
  * blocks by `src/lib/palette.ts`. The agent's carries the roles alone, and THAT IS A MEASURED
- * DECISION RATHER THAN AN OMISSION — measured twice, at `b1eea8a` and again here: that document
- * is 3,859 characters against the 4,096 budget asserted below this file, so 237 spare, and two
- * value columns over the current token list cost about 384. They do not fit.
+ * DECISION RATHER THAN AN OMISSION — measured before the change: that document stood at 3,859
+ * characters against the 4,096 budget `tests/design-system.test.ts` asserts, so 237 spare, and
+ * two value columns over the current token list cost about 384. They do not fit. Re-measure the
+ * spare rather than reading it here; it has already moved once, and `.design-sync/NOTES.md`
+ * records what moved it.
  *
  * THEY ALSO SHOULD NOT. That audience is handed the bundle's own stylesheet, and the closed-set
  * section a few lines down tells it so in as many words: the sheet "restates both themes' tokens
@@ -373,9 +375,9 @@ function renderFull(): string {
         "It authors no value. What each token is FOR is authored in `src/content/design.ts`; what",
         "each token IS lives in the theme block of `src/layouts/BasicLayout.astro`, and the classes",
         "come from `uno.config.ts`. This document and the page at `/design` are both rendered from",
-        "those, so neither can disagree with them — and the table below can carry both of a token's",
-        "values, in the front matter and in prose, because every one of them is READ out of that",
-        "theme block by `src/lib/palette.ts` rather than written down a second time here.",
+        "the first of those, so neither can disagree with it — and the table below can still carry",
+        "both of a token's values, in the front matter and in prose, because every one of them is",
+        "READ out of that theme block by `src/lib/palette.ts` rather than written down again here.",
         "",
         themingBlock(),
         "",

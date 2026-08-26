@@ -287,11 +287,11 @@ export const SECTIONS: Readonly<Record<"palette" | "type" | "controls" | "icons"
  *
  * The markdown rendering follows the DESIGN.md format, whose front matter carries typed token
  * groups — colours, typography, spacing, rounding, components — and whose `omitted` key exists
- * precisely so a system can say which of those it is leaving out and mean it. Every group is
- * omitted here, and the reasons below are the whole of the argument this module's header makes,
- * said once more in the format's own vocabulary for a reader who arrives through it.
+ * precisely so a system can say which of those it is leaving out and mean it. Every group below
+ * is one this site has no scale for, and the reasons are the whole of the argument this module's
+ * header makes, said once more in the format's own vocabulary for a reader who arrives through it.
  *
- * COLOURS ARE NOT AMONG THEM, AND THEY USED TO BE. This list once opened with the `colors` group
+ * COLOURS ARE NOT AMONG THEM ANY MORE, AND THEY USED TO BE. This list once opened with `colors`
  * and called that omission the load-bearing one: the format maps one name to one value, every
  * token here has two, and a single map would be false in whichever theme was not written down.
  * The premise was measured and does not hold — the format's own words are that the mapping from
