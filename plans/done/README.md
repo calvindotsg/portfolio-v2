@@ -2599,3 +2599,119 @@ prose would disagree in silence: a file snapshot only ever compares a document w
 both would stay green while saying different things. The budget gate has about 155 characters of
 headroom, so a couple of new token roles will redden it — that is the gate working, and the fix is
 to trim the agent audience, never the module.
+
+## Plan 038 — the chip published, one page header, and the wall's markdown twin
+
+Merged as `0e78e22` (#213). Three things that could not land separately: the wall had **no theme
+toggle at all** — a reader arriving there from a search result had to navigate away to change it —
+the site shipped four kinds of pressable thing and published three, and the wall had no markdown
+rendering. The gap existed *because* of the duplication: four pages each drew their own way back
+and only one of them also carried a toggle.
+
+### The tell was in the gate, not in the design
+
+The chip lived for a year as `.patch-filter a` — a descendant selector in one page's scoped
+`<style>`, in none of the places this vocabulary is written down, and invisible to
+`tests/control-geometry.test.ts`, which discovers controls by the PLATE's signature. What said so
+out loud was one file along: the build-wide "every link says it is one" gate had to name the chip
+as a **special case**. A gate that has to name a page's private selector knows about a kind the
+design system does not. That is the transferable shape — when a gate carries an exemption for
+something, the exemption is usually a missing abstraction rather than a quirk.
+
+### 44px is a decision the gate now asserts, not the specification's number
+
+The chip measured **29.59px** tall, which clears SC 2.5.8 (Minimum, AA, 24px) and misses SC 2.5.5
+(Enhanced, AAA, 44px) that every plated control already met. Flooring it at 44 made the wall's
+filter row visibly taller — measured before and after against a rebuilt pre-change tree, served
+side by side: chip 29.59 → 44, `.patch-wall` top 243.55 → 257.95, document height 1420.61 →
+1435.02 at 1000×800, and the identical **+14.41 on every one of those figures** at 430×932. The
+chip's growth and nothing else.
+
+The plan specified asserting the AA 24px minimum. The gate asserts **44**, deliberately: at 24 a
+silent return to 30px would pass and the maintainer's decision would be unguarded, which is the
+same shape as a gate certifying a rule nobody wears.
+
+### Two gates that could not have failed, both caught by mutation rather than by reading
+
+**A dead guard in the new renderer.** The obvious protection against `raceKm`'s
+advertised-distance fallback — test for metres before printing a distance — is *unreachable*: both
+call sites are already gated on there being recordings. A probe throwing whenever it ran with no
+recordings never fired; inverting it to always-true left the suite green. The protection is the
+BRANCHING, and the branch that carries it is what the test now mutates.
+
+**A vacuous assertion in the new discovery route.** The chip signature originally excluded plated
+rules. That reads as a tightening and is the opposite — a chip that grew a plate stopped matching
+and *vanished from the set* rather than failing, so "wears no plate" could never fire. Measured
+both ways: with the clause, plating the chip failed the vacuity floor; without it, the assertion
+written for that defect is the one that fires. **Discover on what a surface IS; assert what it
+must not have.**
+
+### The banner landmark is a position, and nothing else in the suite can see it
+
+`<header>` maps to `banner` only when it is not inside `main`, `article`, `aside`, `nav` or
+`section`. Nested inside `<main>` it is silently demoted: nothing renders differently, no class
+changes, no snapshot moves, and assistive technology loses a landmark. Measured — that mutation on
+the three wall routes left **650 of the 651 other tests green**, and only `tests/page-header.test.ts`
+red. That number is the argument for the file existing.
+
+### The budget went over before a word was written, again
+
+Two control roles took `renderDesignDoc("agent")` to **4537 against 4096**. 037's archive entry
+predicted this ("a couple of new token roles will redden it"). Dropped the whole `## Type` section
+(242 chars) and the `## Marks` guardrails (251), chosen on how much of each claim survives
+elsewhere in the same document — result **3933, with 163 spare, more headroom than the 155 it
+started with**. That is deliberate: a budget trimmed to exactly fit is a budget that must be
+trimmed again on the next edit. The one genuine loss is the emoji instruction, now second in the
+re-add queue behind the accessible-name one 037 named.
+
+A hand-written line warning that `control-surface` is absent went with them, and that one is a
+strict improvement: the module's own don't now names **both** surfaces, and the gate reads that
+don't and holds every surface it names against the shipped sheet — wider than the literal it
+replaced.
+
+### What the browser sweep found that no gate could
+
+At 320px with a 40px root the markdown chip measured **305.8px against 280px** of content width
+and scrolled the document sideways by 6px, on all four headed pages, where the pre-change build
+carried none. The cause is the one `EventsLink.astro` already records: a bare text node in a flex
+container is an anonymous flex item whose automatic minimum width is a whole word, and **no
+selector can reach it**. Each label is wrapped and carries `break-anywhere` — `overflow-wrap:
+anywhere`, which includes the intrinsic minimum where the familiar `break-word` does not. Re-swept:
+0 overflow in all 100 cells (four pages × five viewports × five root sizes).
+
+There is no layout engine in the suite, so this class of defect lives in the browser sweep or
+nowhere. The sweep is not a formality.
+
+### One measurement trap worth carrying forward
+
+`getComputedStyle` in the cmux browser surface returned **stale** values after `data-theme` was
+changed in the same tick — `--text` and `--background` flipped on `:root` while every element's
+resolved `color` and `background-color` kept the previous theme's values, including `body`. Loading
+the page with the preference already stored, so the pre-paint script applies it at parse time, gave
+the correct answer. A theme comparison made by toggling and reading is measuring the wrong thing;
+the header-vs-filter-chip comparison survived only because both sides were read the same way at the
+same moment.
+
+### A known duplication, named rather than closed
+
+`src/lib/patch-doc.ts` and `src/components/Patch.astro` both derive which of the two official
+clocks a row prints. Two lines, the same rule twice. The plan named lifting it into
+`src/lib/race.ts` as the right fix AND as a report-first condition, because it touches a component
+the plan scoped away from. Reported and left; it is recorded in `patch-doc.ts`'s own header.
+
+### `PATCHES` gained a field, and the reason is about drawing rather than data
+
+`finished_name: "Finisher Patch"`. The wall never needed a word for a finished race because the
+bib IS the word — a patch on it, a distance in the hero, a meta row carrying neither
+`booked_label` nor `dnf_result`. A markdown twin has no drawing, its two neighbours were already
+spelled, and a document printing a word for two of three states and silence for the most important
+one asks a reader to infer it. Named rather than sliced out of `lede`, which contains the phrase
+inside a sentence: a substring taken from prose is a second home that moves the day anybody
+rewords the first, and it breaks silently because a slice of the wrong words is still a string.
+
+### Verified on the host, not on the branch
+
+Measured on the immutable preview hash URL from the deploy job's own log rather than the moving
+`pr-N` alias: all four twins answer 200 with `content-type: text/markdown; charset=utf-8`, no
+`content-disposition`, and each is **SHA-256-identical to the artifact the suite gated**. The
+runner's own log reports `654 passed | 7 skipped (661)`, matching the local run.
