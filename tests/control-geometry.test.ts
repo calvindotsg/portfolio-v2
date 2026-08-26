@@ -1599,6 +1599,243 @@ describe("every styled control declares its box", () => {
 });
 
 /**
+ * THE SECOND KIND OF CONTROL, AND THE REASON IT NEEDS A ROUTE OF ITS OWN.
+ *
+ * Everything above discovers a control by the PLATE'S signature — an offset shadow on an
+ * `--accent` border. The chip has neither: it is a hairline at a fraction of the ink on the
+ * page's own ground, deliberately quiet, because the plate is this site's mark for a page's
+ * one action and a filter row is not one. So for as long as the chip existed it was invisible
+ * here, and the whole of its box was a descendant selector in one page's scoped `<style>`
+ * that no gate in this file could reach.
+ *
+ * THE TWO ROUTES ARE NOT COLLAPSED, and that is deliberate rather than duplication. The kinds
+ * have different contracts: a plate declares one shared height across every wearer and carries
+ * a resolvable shadow, and a chip declares neither and must not. Merging them would mean
+ * weakening whichever assertions the other kind cannot satisfy, which is how a gate stops
+ * being about anything.
+ *
+ * IT IS KEYED ON THE SURFACE'S SIGNATURE RATHER THAN ON A CLASS NAME, exactly as the plate
+ * route is. A hard-coded `.chip` would certify a renamed shortcut by finding nothing, which is
+ * the vacuity this file's header spends most of its length on. The signature is the three
+ * things that make this surface that surface: a border colour mixed from the ink, an opaque
+ * page ground, and NO plate. The bib's own outline shares the first of those and is excluded
+ * by the other two — checked, not assumed; see the calibration assertion below.
+ *
+ * IT READS THE WALL rather than the home page, because that is where chips are worn. The home
+ * page carries none and will not after this change either, so pointing the existing route's
+ * `dist/index.html` at this kind would have made every assertion below vacuous on day one.
+ */
+describe("every chip declares its box, and wears no plate", () => {
+    const read = (p: string) => readFileSync(p, "utf8");
+    const PAGE = "dist/patches/index.html";
+    const css = pageCss();
+    const {document} = parseHTML(read(PAGE));
+    const rules: Rule[] = parseRules(css);
+
+    /**
+     * The quiet surface: a hairline mixed from the ink, on an opaque page ground.
+     *
+     * BOTH CLAUSES EARN THEIR PLACE. `.bib--booked` and `.bib--dnf` carry the identical
+     * `border-color` — the outline of a race not yet earned is drawn in the same hairline on
+     * purpose — and declare no background, so the second clause is what keeps a bib out of a
+     * set of controls. The plate's own surface satisfies the second and not the first, since
+     * its border is `--accent` rather than a mix of the ink.
+     *
+     * THE ABSENCE OF A PLATE IS DELIBERATELY *NOT* IN THE SIGNATURE, and that is the one
+     * subtle thing here. Adding `!/--un-shadow/` reads as a tightening and is the opposite: it
+     * would make "wears no plate" below unfalsifiable, because a chip that grew a plate would
+     * stop matching and simply vanish from the set. Measured — with that clause in, plating
+     * the chip failed the vacuity floor instead of the assertion written for it. Discover on
+     * what the surface IS; assert what it must not have.
+     */
+    const isChipRule = (r: Rule) =>
+        !r.nested
+        && /border-color:\s*color-mix\([^)]*var\(--text\)/.test(r.body)
+        && /background-color:\s*var\(--background\)/.test(r.body);
+
+    const classOf = (selector: string) =>
+        selector.match(/^\.((?:\\.|[\w-])+)$/)?.[1]?.replace(/\\(.)/g, "$1");
+
+    const chipClasses = [...new Set(
+        rules.filter(isChipRule)
+            .flatMap((r) => r.selectors)
+            .map(classOf)
+            .filter((s): s is string => Boolean(s)),
+    )];
+
+    const canonicalRule = (cls: string) =>
+        rules.find((r) => !r.nested && r.selectors.includes(`.${cls}`))!;
+
+    const boxOf = (cls: string) => {
+        const r = canonicalRule(cls);
+        return {
+            cls,
+            width: decl(r.body, "width"),
+            height: decl(r.body, "height"),
+            minWidth: decl(r.body, "min-width"),
+            minHeight: decl(r.body, "min-height"),
+            maxWidth: decl(r.body, "max-width"),
+            maxHeight: decl(r.body, "max-height"),
+            shadow: decl(r.body, "box-shadow") ?? decl(r.body, "--un-shadow"),
+        };
+    };
+
+    const allBoxes = () => chipClasses.map(boxOf);
+    /** A glyph box PINS, because its content is one mark the design picked the size of. */
+    const pinned = () => allBoxes().filter((b) => b.width !== undefined || b.height !== undefined);
+    /** A labelled box FLOORS, because its label comes from data and has to be free to grow. */
+    const floored = () => allBoxes().filter((b) => b.width === undefined && b.height === undefined);
+
+    const chipElements = () =>
+        [...document.querySelectorAll(chipClasses.map((c) => `.${c}`).join(",") || "\\:none")];
+
+    it("finds the chip surface at all, and does not mistake a bib for one", () => {
+        expect(chipClasses.length, "no rule carries the quiet-surface signature").toBeGreaterThan(0);
+        // The calibration this whole route turns on. `.bib--booked` and `.bib--dnf` carry the
+        // same hairline; if the signature ever widened to catch them, every box assertion
+        // below would start failing on an element that is not a control at all — which reads
+        // as a real defect and is not one.
+        for (const cls of chipClasses) {
+            expect(cls, `${cls} is not a control — the chip signature has widened to catch a bib`)
+                .not.toMatch(/^bib/);
+        }
+        expect(chipElements().length, `${PAGE} wears no chip, so every assertion here would be vacuous`)
+            .toBeGreaterThan(0);
+        // Belt and braces, as the plate route does it: the two kinds must ACCOUNT for every
+        // chip class, or a third box could exist and be measured by neither group.
+        expect(pinned().length + floored().length, "every chip class must fall into exactly one kind")
+            .toBe(chipClasses.length);
+    });
+
+    it("wears no plate, which is the whole distinction from the other kind", () => {
+        for (const box of allBoxes()) {
+            expect(box.shadow, `.${box.cls} carries a plate. That mark is reserved for a page's `
+                + "one action; a chip is chrome and spending the mark on it dilutes it")
+                .toBeUndefined();
+        }
+    });
+
+    it("declares its own box on both axes, flooring a label and pinning a mark", () => {
+        expect(floored().length, "no labelled chip — this assertion would be vacuous").toBeGreaterThan(0);
+        for (const box of floored()) {
+            expect(box.minWidth, `.${box.cls} holds a label from data, so it must FLOOR its width`).toBeDefined();
+            expect(box.minHeight, `.${box.cls} holds a label from data, so it must FLOOR its height`).toBeDefined();
+        }
+        for (const box of pinned()) {
+            expect(box.width, `.${box.cls} holds one mark, so it must PIN its width`).toBeDefined();
+            expect(box.height, `.${box.cls} holds one mark, so it must PIN its height`).toBeDefined();
+            // A pin and a floor together are two declared boxes sized by whichever wins —
+            // the "declared twice" defect the plate route names one property along.
+            expect(box.minWidth, `.${box.cls} pins its width and must not also floor it`).toBeUndefined();
+            expect(box.minHeight, `.${box.cls} pins its height and must not also floor it`).toBeUndefined();
+        }
+        // A cap instead of a real size is the original defect this whole file exists for: it
+        // leaves the box content-sized, and it deforms the content when the cap bites.
+        for (const box of allBoxes()) {
+            expect(box.maxWidth, `.${box.cls} must not cap its width; declare it`).toBeUndefined();
+            expect(box.maxHeight, `.${box.cls} must not cap its height; declare it`).toBeUndefined();
+        }
+    });
+
+    it("sizes that box in the reader's text, not in device pixels", () => {
+        for (const box of allBoxes()) {
+            for (const [axis, value] of [
+                ["width", box.width ?? box.minWidth],
+                ["height", box.height ?? box.minHeight],
+            ] as const) {
+                expect(value, `.${box.cls} declares no ${axis}`).toBeDefined();
+                expect(
+                    value!.trim(),
+                    `.${box.cls} declares its ${axis} as "${value}". A box pinned in device pixels `
+                    + "stops growing when the reader enlarges the type, which is a target that "
+                    + "shrinks in the reader's own terms",
+                ).toMatch(/rem$/);
+            }
+        }
+    });
+
+    /**
+     * 44 AND NOT 24, AND THE DIFFERENCE IS A DECISION RATHER THAN A SPECIFICATION.
+     *
+     * SC 2.5.8 (Minimum, AA) asks 24x24 and the chip cleared it for as long as it existed at
+     * 29.59px tall. SC 2.5.5 (Enhanced, AAA) asks 44, which every plated control on this site
+     * already met and this kind never had. The maintainer chose to floor the chip at 44 so the
+     * whole vocabulary clears the enhanced criterion — which made the wall's filter row visibly
+     * taller, and is the one visible cost of publishing this kind.
+     *
+     * SO THE GATE ASSERTS THE DECISION, NOT THE SPECIFICATION. At 24 this would pass a silent
+     * return to 30px and the decision would be unguarded — which is the same shape as a gate
+     * that certifies a rule nobody wears. Both axes, for both boxes, because a row mixing a
+     * labelled chip with a glyph chip has to sit level and that is the other half of why 44
+     * was chosen over 30.
+     */
+    it("meets the enhanced target size on both axes", () => {
+        for (const box of allBoxes()) {
+            for (const [axis, value] of [
+                ["width", box.width ?? box.minWidth],
+                ["height", box.height ?? box.minHeight],
+            ] as const) {
+                expect(px(value)!, `.${box.cls} declares a ${axis} of ${value}`).toBeGreaterThanOrEqual(44);
+            }
+        }
+    });
+
+    /**
+     * THE INVARIANT THE CHIP HAS NEVER HAD, and the one the plate route calls central: exactly
+     * one rule in the whole stylesheet may declare a control's box. While the chip was
+     * `.patch-filter a`, its box was declared in a component `<style>` and any other rule in
+     * that same file could have resized it with nothing to notice.
+     */
+    it("lets no other rule anywhere in the sheet touch a chip's box", () => {
+        const BOX_PROPS = [
+            "width", "height", "min-width", "min-height", "max-width", "max-height",
+            "padding", "padding-left", "padding-right", "padding-top", "padding-bottom",
+            "padding-inline", "padding-inline-start", "padding-inline-end", "padding-block",
+            "border-width", "border-left-width", "border-right-width", "border-top-width", "border-bottom-width",
+            "display", "flex", "flex-shrink", "flex-basis", "flex-grow", "aspect-ratio", "font-size", "zoom",
+            "box-sizing", "justify-content", "align-items", "place-items", "place-content",
+            "flex-wrap", "flex-flow", "flex-direction", "scale",
+        ];
+        const canonical = new Set(chipClasses.map((c) => canonicalRule(c)));
+        const chips = new Set(chipElements());
+        const offenders: string[] = [];
+
+        for (const rule of rules) {
+            if (canonical.has(rule)) continue;
+            if (isKeyframeStep(rule)) continue;
+            const declared = BOX_PROPS.filter((p) => decl(rule.body, p) !== undefined);
+            if (!declared.length) continue;
+            for (const selector of rule.selectors) {
+                // Only specific selectors: the preflight's universal and element-only reset
+                // rules legitimately set padding and border-width on everything.
+                if (!/[.#[]/.test(selector)) continue;
+                const structural = structuralSelector(selector);
+                if (!structural) continue;
+                for (const el of document.querySelectorAll(structural)) {
+                    if (!chips.has(el as Element)) continue;
+                    offenders.push(`${rule.at ? rule.at + " " : ""}${selector} {${declared.join(", ")}}`);
+                }
+            }
+        }
+        // An inline style attribute outranks every rule above and no amount of stylesheet
+        // reading can see it.
+        for (const el of chips) {
+            expect(
+                (el as Element).getAttribute("style"),
+                `a chip carries an inline style attribute, which wins over the shortcut and is `
+                + "invisible to every stylesheet assertion in this file",
+            ).toBeNull();
+        }
+        expect(
+            [...new Set(offenders)],
+            "only the chip shortcut may declare a chip's box — a media-query variant, an extra "
+            + "utility on the element, or a page's scoped <style> all reintroduce the local "
+            + "override that publishing this kind was meant to remove",
+        ).toEqual([]);
+    });
+});
+
+/**
  * THE SHEET READER'S OWN CONTRACT, held here because this is the file `helpers/css.ts`
  * was extracted from and the invariant above is what pays for it: every assertion in this
  * suite is "no rule anywhere may do X", and a rule the parser cannot see reads as a rule
