@@ -22,8 +22,11 @@ that first**, and 041, 042 and 043 each add something — values, a drawing, two
 would otherwise be able to reach one surface and not the others with a green run. 043's first step
 is to re-prove 040's gate bites before relying on it.
 
-**The drawing in 042 was chosen from three rendered alternatives**, not derived. The two that lost
-are in "Findings considered and rejected" below with the argument that killed each.
+**The drawing in 042 was RECOMMENDED from three rendered alternatives**, not derived — and the
+recommendation is the advisor's, not a decision the maintainer has recorded. 042's step 0 is to
+find that confirmation or stop. The two alternatives that lost are in "Findings considered and
+rejected" below with the argument against each, so reversing the recommendation is a decision
+rather than a re-derivation.
 
 038 is done — merged as `0e78e22` (#213) and live — so the dependency
 039's first STOP condition names is satisfied and it is executable now. Both were written on
@@ -459,8 +462,10 @@ is cosmetic.
 ### The `/design` rethink (2026-08-26, mockups drawn at `71bc7e1`)
 
 Not an audit. Three whole-page directions were drawn as live mockups in the site's own tokens and
-the shipped control metrics, then one was chosen. What follows is what was **rejected**, so no
-later run re-derives it. The chosen direction and its argument are in 042.
+the shipped control metrics, and one was **recommended** — by the advisor, on the arguments below.
+The maintainer had not confirmed it when 042 was written, which is why that plan's step 0 is to
+find the confirmation or stop. What follows is what the recommendation argued **against**, so no
+later run re-derives it; it is not a record of anything the maintainer decided.
 
 - **A sticky reference rail** — a left column carrying the section index, specimens on the right,
   the shape Polaris, Carbon and Spectrum all take. Rejected on this repository's own argument: the

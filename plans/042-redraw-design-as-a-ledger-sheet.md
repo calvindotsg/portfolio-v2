@@ -32,9 +32,12 @@
   is sequenced behind **039**.
 - **Category**: dx
 - **Planned at**: commit `71bc7e1`, 2026-08-26
-- **Direction chosen by the maintainer on 2026-08-26** from three rendered alternatives — a
-  specimen-tile wall, a sticky reference rail, and this. The argument is summarised in "Why this
-  drawing" and **should not be reopened**; what is open is the execution.
+- **Direction RECOMMENDED by the advisor on 2026-08-26** from three alternatives drawn as live
+  mockups in the site's own tokens — a specimen-tile wall, a sticky reference rail, and this. The
+  argument is in "Why this drawing" and the two rejections are recorded in `plans/README.md`.
+  **This is a recommendation, not a decision.** The maintainer had not confirmed it when this plan
+  was written, and confirming it is this plan's first precondition — see STOP conditions. Do not
+  read "chosen" anywhere in this file as approval that was given.
 - **Baseline**: re-measure `pnpm test` on your own branch point. Do not quote a total from here.
 
 ## Why this matters
@@ -205,6 +208,19 @@ those bindings. Plan 039 removes one of the five.
 - Do NOT push or open a pull request unless the operator instructed it.
 
 ## Steps
+
+### Step 0: Confirm the direction before drawing anything
+
+This plan spends L effort redrawing a page to a direction the advisor recommended and the
+maintainer had not confirmed at the time of writing. Every other step assumes that answer.
+
+Check for a recorded confirmation — in the pull request that landed this plan, in
+`plans/README.md`'s status row, or in an instruction you were given. **If there is none, STOP and
+ask.** A redraw executed against an unconfirmed direction is the most expensive kind of rework
+available here, and the two rejected alternatives are recorded well enough that reversing is a
+decision rather than a re-derivation.
+
+**Verify**: you can point at where the confirmation is recorded.
 
 ### Step 1: Measure what you are replacing
 
@@ -390,6 +406,8 @@ Machine-checkable. ALL must hold:
 
 Stop and report back (do not improvise) if:
 
+- **The direction has not been confirmed by the maintainer** (step 0). This plan's "Why this
+  drawing" is an argument, not a mandate.
 - `src/lib/palette.ts` does not exist. 041 has not landed and step 3 cannot be executed.
 - 040's rendering gates are not in `tests/design-system.test.ts`. Without them a section can leave
   the page in this very redraw and nothing will notice — which is the defect that motivated the
