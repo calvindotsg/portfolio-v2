@@ -1,7 +1,7 @@
 # Implementation Plans
 
 **Five plans are queued: the chain 040 → 041 → 042 → 043 → 044.** They came from a rethink of
-`/design` on 2026-08-26. **039 has landed** (`b1eea8a`, #217) and its archive is a separate change.
+`/design` on 2026-08-26. **039 is done** — merged as `b1eea8a` (#217), live, and archived.
 
 **Why the new four are a chain and not a set.** They were written in the order a defect forced,
 not in the order the work was imagined. The rethink began as "redraw the page", and two mutations
@@ -38,8 +38,8 @@ recommendation survives as the section's brief — and `DESIGN.md` and `/design.
 `google-labs-code/design.md` standards, which is what 041's front-matter work and the whole of 044
 answer.
 
-038 is done — merged as `0e78e22` (#213) and live — so the dependency
-039's first STOP condition names is satisfied and it is executable now. Both were written on
+038 and 039 are both done — merged as `0e78e22` (#213) and `b1eea8a` (#217), live, and archived.
+Both were written on
 2026-08-26 after a measured review of the site's control vocabulary, and both were revised before
 merging by an adversarial panel — four review lenses, a refute-first skeptic per finding, then a
 judge. It raised twelve findings, eight survived, and three were BLOCK; every one of them was
@@ -267,8 +267,8 @@ recreated.
 | 036 | Serve the design system as a page, and generate the agent's copy from it | P2 | M | — | **DONE** (`f052f68`) |
 | 037 | Serve the design system as markdown, in the repo and on the web | P3 | M | 036 | **DONE** (`0f923c4`) |
 | 038 | Publish the chip, put one header on every page but the home page, and give the wall a markdown twin | P2 | L | 036, 037 | **DONE** (`0e78e22`) |
-| 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **TODO** |
-| 040 | Hold all three renderings to their one source | P1 | M | 039 (sequencing) | **TODO** |
+| 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **DONE** (`b1eea8a`) |
+| 040 | Hold all three renderings to their one source | P1 | M | — | **TODO** |
 | 041 | Publish a token's two values, not just its role | P2 | M | 040 | **TODO** |
 | 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **TODO** |
 | 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **TODO** |
@@ -306,10 +306,13 @@ somebody else's context window and its provenance is written beside it in
 real, gated kind of control; 039 spends it on the home page and deletes the icon plate the chip
 makes orphaned. The dependency was mechanical rather than editorial — 039's first STOP condition is
 the chip's absence — so they were **not** parallel-safe, and 039 executed first would have deleted
-a class its own replacement did not yet have. **That condition is now satisfied**: the chip ships
-as `chip-surface`, `chip` and `chip-icon`. They also share `uno.config.ts`,
-`src/content/design.ts`, `src/pages/design.astro` and four test files, so 039 should be re-read
-against the merged tree before it is dispatched — 038 rewrote parts of all four.
+a class its own replacement did not yet have. **Both have landed**, in that order. They also shared
+`uno.config.ts`, `src/content/design.ts`, `src/pages/design.astro` and four test files, and 039 was
+re-read against the merged tree before it was dispatched — a reconcile pass that is recorded in the
+plan itself and that found one of its own knock-ons already done. See
+[`done/README.md`](done/README.md) § "Plan 039" for what only executing it established, including a
+self-contradiction about the number of plates, a fingerprint gate that does not redden on the change
+it was supposed to catch, and a central measurement the plan had mis-modelled.
 
 **What made them necessary is one finding: the site shipped four kinds of pressable thing and
 published three.** The wall's filter chip was spelled only as a descendant selector, was in no

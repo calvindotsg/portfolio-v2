@@ -2715,3 +2715,96 @@ Measured on the immutable preview hash URL from the deploy job's own log rather 
 `pr-N` alias: all four twins answer 200 with `content-type: text/markdown; charset=utf-8`, no
 `content-disposition`, and each is **SHA-256-identical to the artifact the suite gated**. The
 runner's own log reports `654 passed | 7 skipped (661)`, matching the local run.
+
+## Plan 039 — two tiers of control on the home page, and the icon plate retired
+
+Merged as `b1eea8a` (#217). The home page drew the site's boldest mark **nine times**; after this it
+draws three, one per card, and every kind of control has one sentence. `control` — the plated
+4rem x 3rem glyph box — is deleted. What follows is only what executing it established.
+
+### The plan contradicted itself about the number of plates
+
+Step 5.1 and a done criterion both said the home page ends with **two** plated controls, the goal
+cards'. Step 3 creates a third, on the intro card, and the maintenance notes say "three cards, three
+plates". Implemented as three. A plan that states its own outcome twice can state it differently
+twice, and no gate reads a plan.
+
+### The gate that was supposed to go red is blind to this whole class of change
+
+Step 6 said the intro-card fingerprint in `tests/content.test.ts` would redden and the hero would
+have to be regenerated. **It did not redden, and its own note says why**: it watches the card's
+*content* — the h1 stack, the greeting mark, the words and mark of the way to the wall, the social
+glyphs in order, the portrait's bytes — and not its drawing. Not one of those values moved. So
+`public/preview.jpg` was owed **by hand**, and the gate that exists to stop that file going stale
+cannot see the commonest kind of change to the card it depicts. It has gone stale silently twice
+before; this is the mechanism by which it will happen again.
+
+### The central measurement was mis-modelled, and the STOP condition was answered rather than obeyed
+
+Step 7 asked whether the copy column drops below the portrait's 275px at 1024 "so the portrait sets
+the card's height again", and named the negative a STOP condition. It does not drop — **because the
+plan mis-modelled the card, not because the saving is missing.** At `md` and up the copy column is a
+*stretched* flex item under `md:max-h-[18.75rem]`, so it reports **300px in both builds** and would
+report 300 if it were empty. What actually moved is the content it holds: **300 → 228** (masthead 44
++ gap 16 + strip 44 + gap 16 + CTA 48, against a 172px type block plus a 112px row). The card
+measures 728 x 357 in both builds because at `lg` its height comes from its grid row.
+
+So the saving is real and it lands **only where the card is content-sized**, which is exactly what
+the zero-slack desktop budget required:
+
+| viewport | document before → after | intro card before → after |
+|---|---|---|
+| 1024x797 | 829 → 829 | 728 x 357 → 728 x 357 |
+| 430x932 | 1698 → **1678** | 414 x 294.77 → **414 x 274** |
+| 430x932 @ 24px root | 3174 → **3028** | 406 x 675.14 → **406 x 530** |
+| 320x700 | 1998 → **1902** | 304 x 450.77 → **304 x 354** |
+| 320x700 @ 40px root | 10269 → **9662** | 280 x 1858.89 → **280 x 1252** |
+
+Horizontal overflow at 320px: zero at roots 16, 24, 32 and 40, before and after. The executor
+proceeded and flagged it, which is the right reading — the condition guards against "the saving is
+not there", and it was falsified in the other direction.
+
+### A vacuity floor was the load-bearing failure, and it became the rule
+
+`iconBoxes()` in `tests/control-geometry.test.ts` returns nothing once the icon plate is deleted, and
+**five assertions loop over it**. Without the floor all five would have passed by iterating over an
+empty list — the plan's reconcile predicted exactly this. Four moved to the chip route; the floor
+became the *rule that emptied it*: a plated glyph box must not exist. One line, and it fails on a
+returning icon plate, on a plate that has stopped declaring a width, and on the `w-max` spelling that
+once gave eight anchors four widths.
+
+The row assertions moved with them, and the reason is worth keeping: they were always about a **row**
+— does it wrap, can it hold the copy column open past what the card can show — and lived in the plate
+route only because the row used to be made of plates. The strip is now discovered as the one parent
+holding *more than one* pinned chip, so the lone theme control is not mistaken for a row.
+
+### Two assertions the new shape needed and nothing had
+
+- **One chip per `LINKS` entry, and the theme control is not among them.** Both halves earn their
+  keep: seven boxes want 356px of a 339px column, and a wrapping row is correct at any length, so
+  nothing else would notice a seventh destination being added.
+- **The plate is spent once per card.** A total cannot tell three plates on three cards from three on
+  two cards and a card with none — and the second is the vocabulary drifting back, which is what nine
+  plated controls in one card was.
+
+Mutation proof: a seventh box in the strip → `pnpm test` **RED**, five failures including the new
+assertion by name. Removed → green at 667.
+
+### The hero's pipeline is now validated rather than assumed
+
+Regenerated by the recipe beside its gate, and checked two ways: the `origin/main` render against the
+**committed** file came out at RMSE 12.7 with no content delta (a ~1px resample offset), and this
+render against the `origin/main` render at RMSE 31.28 with a changed box of 555 x 433 at (45, 99).
+The second figure is the containment proof — the change is confined to the copy column and the
+portrait is untouched.
+
+### What it found and deliberately did not fix
+
+**Nothing gates that `/design` draws a specimen per `CONTROLS` entry.** The two markdown documents
+render from that array and are held by file snapshot; the HTML page hand-drew each specimen behind a
+positional destructure, so *adding* an entry would document a control the page never shows, and
+deleting one here needed a hand edit no gate would have demanded. Found independently, and it is the
+same hole plan **040** was written to close — which is the strongest evidence for that plan's
+ordering that exists, because two agents reached it from opposite ends on the same day.
+
+Suite: 661 → **667 passed | 7 skipped**, matching the runner's own log.
