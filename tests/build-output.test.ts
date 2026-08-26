@@ -1415,7 +1415,7 @@ describe("dist/", () => {
  * fixed one identically. Resolving the selector against the built DOM is the whole point.
  *
  * THE INVARIANT IS NOT "SUCH A RULE MAY NOT REACH TEXT", and getting that wrong would fail
- * correct code: `.patch-filter a[aria-current="page"]` legitimately paints `background-color:
+ * correct code: `.patch-filter .chip[aria-current="page"]` legitimately paints `background-color:
  * Highlight` on a chip that has words. It is safe because it also declares `color:
  * HighlightText` — the PAIRED system colour, which is the pairing forced-colours mode
  * guarantees a contrast for. So the rule is: opt out and paint a background, and you owe the

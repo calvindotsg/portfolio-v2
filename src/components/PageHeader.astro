@@ -61,13 +61,26 @@ const {markdown} = Astro.props;
 ---
 
 <header class="page-head w-full max-w-4xl px-2 pt-2 sm:px-4 sm:pt-4 md:px-6 md:pt-6">
+    {/* EVERY LABEL IS WRAPPED, AND EventsLink.astro RECORDS AT LENGTH WHY. A bare text node in
+         a flex container is an ANONYMOUS flex item: its automatic minimum width is a whole
+         word, and no selector can reach it to say otherwise. So the chip could not narrow past
+         its longest word, and at 320px with a 40px root the markdown chip measured 305.8px
+         against 280px of content width and scrolled the document sideways by 6px — on all four
+         pages, measured, where the build before this one carried none.
+
+         `break-anywhere` AND NOT THE FAMILIAR ONE. That class is `overflow-wrap: anywhere`,
+         which is the same break behaviour as `break-word` WITH the intrinsic minimum included —
+         and the intrinsic minimum is the whole of what is wrong here. The wall's heading
+         carries the same class for the same reason and its note records the measurement. */}
     <a href="/" class="chip">
-        <span class={`${iconClass(PAGE_HEADER.home_icon)} shrink-0`} aria-hidden="true"></span>{PAGE_HEADER.home_label}
+        <span class={`${iconClass(PAGE_HEADER.home_icon)} shrink-0`} aria-hidden="true"></span><span
+            class="break-anywhere">{PAGE_HEADER.home_label}</span>
     </a>
     <div class="page-head-actions">
         {markdown && (
                 <a href={markdown} class="chip">
-                    <span class={`${iconClass(MARKDOWN_TWIN.link_icon)} shrink-0`} aria-hidden="true"></span>{MARKDOWN_TWIN.link_label}
+                    <span class={`${iconClass(MARKDOWN_TWIN.link_icon)} shrink-0`} aria-hidden="true"></span><span
+                        class="break-anywhere">{MARKDOWN_TWIN.link_label}</span>
                 </a>
         )}
         {/* THE GLYPH BOX, NOT THE LABELLED ONE. The toggle holds one mark and its name is
