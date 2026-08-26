@@ -1,8 +1,9 @@
 # Implementation Plans
 
-**Three plans are queued: 042 → 043 → 044.** They came from a rethink of `/design` on
-2026-08-26, as the chain that opened with 040. **039, 040 and 041 are all done** — merged as
-`b1eea8a` (#217), `eb09d90` (#223) and `a0be477` (#225), live, and archived.
+**Two plans are queued: 043 → 044.** They came from a rethink of `/design` on
+2026-08-26, as the chain that opened with 040. **039, 040, 041 and 042 are all done** — merged as
+`b1eea8a` (#217), `eb09d90` (#223), `a0be477` (#225) and `b3e4837` (#227), live, and archived.
+**043 is executable now**: both of its dependencies have landed.
 
 **Why the five are a chain and not a set.** They were written in the order a defect forced,
 not in the order the work was imagined. The rethink began as "redraw the page", and two mutations
@@ -20,9 +21,9 @@ nothing was holding the renderings to the module: the snapshots compare each gen
 with its own committed copy, which proves it was regenerated rather than that anything was
 rendered, and the only assertion SPECIFIC to the built page was a type-step census — other gates do
 reach it, but every one is a build-wide universal about links, hover, presses and the page header,
-and none can see which sections the page carries. So **040 closed that first**, and 041, 042 and 043
-each add something — values, a drawing, two sections — that would otherwise be able to reach one
-surface and not the others with a green run. Both mutations above were re-run at `3eb4098` before
+and none can see which sections the page carries. So **040 closed that first**, and 041 and 042 each added
+something — values, then a drawing — that would otherwise have been able to reach one surface and
+not the others with a green run; 043 adds two sections under the same protection. Both mutations above were re-run at `3eb4098` before
 040 was executed and both were still silent; each of the five gates 040 shipped has since been shown
 to fail on a stimulus of its own. 043's first step is to re-prove 040's gate bites before relying on
 it, and that step is worth keeping rather than striking: it is cheap, and the whole point of the
@@ -32,8 +33,9 @@ chain is that no plan after this one trusts a gate it did not watch bite.
 alternatives drawn as live mockups in the site's own tokens. What was approved is the ledger sheet
 **carrying two elements from the tile-wall direction** — its nested neutral specimen and its chip row
 of section anchors — reviewed as a second mockup drawing the combination in full, both themes, every
-section. 042's Status records the scope; anything the mockup did not show is still open. The two
-alternatives that lost are in "Findings considered and rejected" below.
+section. `plans/done/042-redraw-design-as-a-ledger-sheet.md` records the scope in its Status block;
+anything the mockup did not show is still open. Every one of the five things that direction committed
+to is on the page. The two alternatives that lost are in "Findings considered and rejected" below.
 
 **The maintainer also widened the chain twice on the same day**, and both are worth naming because
 they are decisions rather than discoveries: `/design` publishes **three** new sections rather than
@@ -274,7 +276,7 @@ recreated.
 | 039 | Give the home page two tiers of control, and retire the icon plate | P2 | M | 038 | **DONE** (`b1eea8a`) |
 | 040 | Hold all three renderings to their one source | P1 | M | — | **DONE** (`eb09d90`) |
 | 041 | Publish a token's two values, not just its role | P2 | M | 040 | **DONE** (`a0be477`) |
-| 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **TODO** |
+| 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **DONE** (`b3e4837`) |
 | 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **TODO** |
 | 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **TODO** |
 
@@ -287,16 +289,21 @@ further on the preview, where the page and its markdown twin both came back byte
 production was already serving. 041 published every token's two values,
 derived at build time from the two theme blocks in `src/layouts/BasicLayout.astro` — which did not
 move, because Astro's `inlineStylesheets: "auto"` once pushed those very tokens from a chunk into
-the page and took sixteen tests red with nothing wrong with the page. 042 is the only one of the
-four that **redraws** a page — 041 changed one specimen on `/design` and was not invisible either, so
+the page and took sixteen tests red with nothing wrong with the page. 042 was the only one of the
+four that **redrew** a page — 041 changed one specimen on `/design` and was not invisible either, so
 both carried browser measurements in their done criteria, because there is no layout engine in the
-suite; 041's came back clean at twelve points, three widths by two themes by two root font sizes.
-043 is writing.
+suite; 041's came back clean at twelve points, three widths by two themes by two root font sizes,
+and 042's at eight, three widths in both themes plus 320px at a 40px root, with zero horizontal
+document overflow at every one. Two of 042's defects were reachable by nothing else — one of them a
+purely STRUCTURAL edit that cost 43px of overflow with no style and no content changed. 043 is
+writing.
 
 **Splitting 041 out of 042 was forced by an arithmetic result, not a preference.** A second colour
 column cannot resolve `var(--token)` — only the live theme's value is reachable from CSS — so the
-ledger in 042 has to be handed both values, and the only way to hand it both without a second home
-is the derivation 041 built. Three ways to reach the source were measured against a real build and
+ledger in 042 had to be handed both values, and the only way to hand it both without a second home
+was the derivation 041 built. What that bought is visible in the shipped sheet: every swatch in it is
+an inline literal read out of the two theme blocks, not `var(--token)`, which is the one place on
+that page where resolving the custom property would have been the wrong answer. Three ways to reach the source were measured against a real build and
 a real test run: a `?raw` import works in both, a working-directory-relative read works in both, and
 `import.meta.url` **fails in the build** with `ENOENT`, because Astro bundles the SSR modules into a
 temporary directory before running them. **041 specified the first and shipped the second**, because
@@ -493,8 +500,8 @@ is cosmetic.
 
 Not an audit. Three whole-page directions were drawn as live mockups in the site's own tokens and
 the shipped control metrics, and one was **recommended** — by the advisor, on the arguments below.
-The maintainer had not confirmed it when 042 was written, which is why that plan's step 0 is to
-find the confirmation or stop. What follows is what the recommendation argued **against**, so no
+The maintainer had not confirmed it when 042 was written, which is why that plan's step 0 was to
+find the confirmation or stop; the confirmation came, and the drawing shipped. What follows is what the recommendation argued **against**, so no
 later run re-derives it; it is not a record of anything the maintainer decided.
 
 - **A sticky reference rail** — a left column carrying the section index, specimens on the right,
@@ -505,12 +512,13 @@ later run re-derives it; it is not a record of anything the maintainer decided.
   screenshot of any other design system, which is the specific thing the maintainer rejects.
 - **A specimen-tile wall** — sections as dense grids of tiles borrowed from the patch wall's
   grammar. Rejected as a container, **kept as two specimens**: its two-theme swatch pair and its
-  nested ground/plate/edge stack are both in 042. The container lost because a tile grid is a
+  nested ground/plate/edge stack both shipped in 042. The container lost because a tile grid is a
   gallery and about half the roles in `src/content/design.ts` are full sentences a tile has no room
   for — and because a tile has room for one value where a token has two.
 - **A scroll-spy on the section index** — rejected outright. It is client state on a site that
   ships almost no script, and a static `aria-current` on a section link would be false in every
-  case but one. 042 says so as a STOP condition rather than leaving it to be re-proposed.
+  case but one. 042 said so as a STOP condition rather than leaving it to be re-proposed, and the
+  page shipped with neither a spy nor an `aria-current` on that row.
 - **De-anchoring `:root[data-theme=…]` so a subtree could wear the other theme.** This was the
   first answer to drawing two themes at once and it survived until the values question was asked.
   It is refused for a measured reason and a structural one: `tests/helpers/css.ts` records that a
