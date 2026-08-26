@@ -5,6 +5,7 @@ import unoConfig from "../uno.config";
 import {CONTROLS, SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
 import {AGENT_DROPS, AGENT_SECTIONS, renderDesignDoc} from "../src/lib/design-doc";
 import {ICON_IDS, iconClass} from "../src/lib/icons";
+import {PALETTE} from "../src/lib/palette";
 import {pageCss} from "./helpers/css";
 import {classTokens} from "./helpers/pages";
 
@@ -102,6 +103,23 @@ const collapsed = (text: string) => text.replace(/\s+/g, " ").trim();
 
 const designPageText = () =>
     collapsed(decodeEntities(readFileSync(DESIGN_PAGE_FILE, "utf8").replace(/<[^>]*>/g, "")));
+
+/**
+ * EACH `.design-row` ON THE BUILT PAGE, REDUCED TO THE LITERALS IT DRAWS IN A BOX.
+ *
+ * The page sets every string a reader is meant to copy — a token name, a class name, a mark's
+ * name, and now a value — in the hairline box `.design-name` draws. Reducing a row to that list
+ * is what lets a gate ask about ONE row rather than about the document, and comparing by
+ * EQUALITY rather than by substring is what keeps `--sport-ride` out of `--sport-ride-on-ink`'s
+ * row. Astro scopes with a `data-astro-cid-…` attribute rather than an extra class, so the class
+ * attribute is matched as authored.
+ */
+const designRowLiterals = () => {
+    const html = readFileSync(DESIGN_PAGE_FILE, "utf8");
+    return [...html.matchAll(/<li class="design-row"[^>]*>([\s\S]*?)<\/li>/g)].map((row) =>
+        [...row[1]!.matchAll(/<span class="[^"]*\bdesign-name\b[^"]*"[^>]*>([\s\S]*?)<\/span>/g)]
+            .map((box) => collapsed(decodeEntities(box[1]!.replace(/<[^>]*>/g, "")))));
+};
 
 /** Every line of a section a reader is meant to be able to find, wherever it is rendered. */
 const sectionLines = (section: typeof SECTIONS[keyof typeof SECTIONS]) =>
@@ -550,6 +568,46 @@ describe("the design system this site publishes", () => {
             `${DESIGN_PAGE_FILE} does not carry these token names or roles, so a designer reading `
             + "the page cannot reach for what the documents tell them exists")
             .toEqual([]);
+    });
+
+    /**
+     * EVERY TOKEN'S ROW CARRIES THAT TOKEN'S OWN TWO VALUES — asked PER ROW, and that is the
+     * load-bearing half of this gate rather than a nicety.
+     *
+     * A document-wide substring test is not the property. The two theme blocks declare thirty
+     * values over only FOURTEEN distinct hexes: `#A82334` is worn by eight tokens, `#F3A3AA` by
+     * five, `#F9CDD3` by three and three more by two each. So "both of this token's values appear
+     * somewhere in the page" stays green for most of them with BOTH of their own cells missing,
+     * because another token supplies the string. Do not simplify this back.
+     *
+     * VERBATIM, NOT NORMALISED, AND THE ASYMMETRY WITH `tests/palette.test.ts` IS DELIBERATE.
+     * That suite compares against the minified STYLESHEET, where the value is a declaration the
+     * minifier lower-cases and folds; these are page TEXT and ship exactly as the layout spells
+     * them. If that ever stops being true, assert the normalised form and say why here — do not
+     * loosen this to a substring of the token name, which would make it unfalsifiable.
+     *
+     * Plan 042 restacks exactly these rows under container queries, which is where a dropped
+     * cell is easiest to introduce and hardest to see.
+     */
+    it("prints each token's own two values in that token's own row", () => {
+        expect(PALETTE.length, "PALETTE is empty — this gate would assert nothing")
+            .toBeGreaterThan(10);
+        const rows = designRowLiterals();
+        expect(rows.length, `no .design-row parsed out of ${DESIGN_PAGE_FILE} — this gate would be vacuous`)
+            .toBeGreaterThan(PALETTE.length);
+        expect(PALETTE.flatMap(({token, light, dark}) => {
+            const row = rows.find((literals) => literals.includes(token));
+            if (!row) return [`${token}: the page draws no row naming it`];
+            return [light, dark].filter((v) => !row.includes(v)).map((v) => `${token}: ${v} missing`);
+        }),
+            `${DESIGN_PAGE_FILE} does not print these values in the row of the token they belong `
+            + "to, so a reader takes a colour off /design that the browser resolves for some "
+            + "other token — or takes nothing at all")
+            .toEqual([]);
+        expect(rows.flat().filter((t) => /^#[0-9A-Fa-f]{3,8}$/.test(t)).length,
+            `${DESIGN_PAGE_FILE} draws fewer value cells than the palette has values, so a whole `
+            + "column has been dropped from the row")
+            .toBeGreaterThanOrEqual(PALETTE.length * 2);
     });
 
     it("shows every type step the stylesheet ships", () => {
