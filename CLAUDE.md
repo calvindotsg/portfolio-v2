@@ -413,6 +413,13 @@ The entries below are the ones carrying non-obvious constraints:
 - `PATCHES`: the wall's own prose, now one lede rather than a scope sentence plus a key.
   Its heading is `My events`; "patch wall" survives in the URL and the metaphor, not as a
   visible title
+- `src/content/design.ts`: the one authored description of this design system, and every
+  surface that publishes it is a rendering of that module rather than a second copy of it.
+  `tests/design-system.test.ts` holds each of those renderings to the module in BOTH
+  directions, so a section that reaches one surface and not the rest is red rather than
+  silent — and the smaller subset the design agent's document carries is now DECLARED in
+  `src/lib/design-doc.ts`, with the reason for each drop beside it, rather than being
+  whichever lines somebody happened to write
 
 ## Plans
 
