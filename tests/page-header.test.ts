@@ -29,11 +29,14 @@ import {decl, isStateful, pageCss, parseRules} from "./helpers/css";
  * bare page fails here rather than passing as one more exemption — the same shape the two
  * 404 exemptions in `tests/build-output.test.ts` are written in.
  *
- * THE TOGGLE'S BOX IS READ FROM THE SHEET RATHER THAN NAMED. Phrasing it as "wears the chip,
- * not the plate" would hard-code a class this repository is already planning to retire, and a
- * gate that names a class with no rule certifies whatever it finds. So the glyph box is
- * discovered by its own signature — the quiet surface at a pinned square — and the toggle is
- * held to wearing whatever class that rule defines.
+ * THE TOGGLE'S BOX IS READ FROM THE SHEET RATHER THAN NAMED, and the reason has since been
+ * paid out rather than merely anticipated. Phrasing it as "wears the chip, not the plate" would
+ * have hard-coded a class this repository was planning to retire — and did retire, in the pass
+ * that made this toggle's box its only box — and a gate that names a class with no rule
+ * certifies whatever it finds. So the glyph box is discovered by its own signature — the quiet
+ * surface at a pinned square — and the toggle is held to wearing whatever class that rule
+ * defines. That retirement was a rewording here and nothing more, which is what this phrasing
+ * bought.
  */
 
 const read = (p: string) => readFileSync(p, "utf8");
@@ -121,9 +124,10 @@ describe("the page header is one component, on every page but two", () => {
 
     /**
      * The glyph box, discovered by the quiet surface's own signature at a pinned square rather
-     * than by naming a class. Phrased this way deliberately: the plated icon box is on its way
-     * out, and an assertion reading "wears the plate, not the chip" would name a class with no
-     * rule the day that lands — which is a gate that certifies whatever it finds.
+     * than by naming a class. Phrased this way deliberately, and the plated icon box it was
+     * guarding against has since gone: an assertion reading "wears the plate, not the chip"
+     * would now name a class with no rule at all, which is a gate that certifies whatever it
+     * finds.
      */
     it("puts the toggle in the header's own icon box, whatever that box is called", () => {
         const rules = parseRules(pageCss("dist/patches/index.html"));

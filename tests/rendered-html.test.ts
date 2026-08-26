@@ -413,8 +413,13 @@ describe("page content", () => {
             // built pages can be read — see tests/build-output.test.ts. Here there is only
             // the home page.
         }
-        expect([...doc.querySelectorAll(".events-link")].length, "one control per goal, no more")
-            .toBe(GOALS.length);
+        // ONE PER GOAL, PLUS THE INTRO CARD'S WAY IN, WHICH IS THE SAME COMPONENT. The `+ 1`
+        // is named rather than folded into a bound: that control reaches the WHOLE wall, so
+        // no `GOALS` entry accounts for it and a second one appearing per goal would still
+        // fail here. What the loop above asserts about a goal's control it asserts by href,
+        // so the third wearer neither satisfies nor disturbs it.
+        expect([...doc.querySelectorAll(".events-link")].length, "one control per goal, plus the intro card's way in")
+            .toBe(GOALS.length + 1);
     });
 
     /**
@@ -502,7 +507,7 @@ describe("page content", () => {
      */
     it("identifies the control by a shape, not by colour alone", () => {
         const controls = [...doc.querySelectorAll(".events-link")];
-        expect(controls.length, "no controls found — this assertion would be vacuous").toBe(GOALS.length);
+        expect(controls.length, "no controls found — this assertion would be vacuous").toBe(GOALS.length + 1);
 
         for (const control of controls) {
             const glyph = control.querySelector(`span[class~="${iconClass(NEXT_RACE.icon)}"]`);
@@ -1072,18 +1077,23 @@ describe("control semantics", () => {
         // unguarded. Those CTAs have since gone and LINKS holds no duplicate URL,
         // so every count below is currently 1 — the per-href form is kept because
         // it is what stays correct the next time two entries agree.
+        //
+        // THE BOX THESE SIX WEAR IS THE QUIET GLYPH ONE NOW, not the plate. The plate is a
+        // card's ONE action and these are six members of a set, so the change is the
+        // vocabulary rather than this gate; what it asks is unchanged — the anchor that
+        // navigates is itself the drawn control, and it does not wrap a second one.
         const hrefs = LINKS.map(({link}) => link);
         for (const href of new Set(hrefs)) {
             const anchors = [...doc.querySelectorAll(`a[href="${href}"]`)];
             expect(anchors.length, `${href} needs one anchor per source entry`)
                 .toBe(hrefs.filter((h) => h === href).length);
 
-            const controls = anchors.filter((a) => (a.getAttribute("class") ?? "").split(/\s+/).includes("control"));
+            const controls = anchors.filter((a) => (a.getAttribute("class") ?? "").split(/\s+/).includes("chip-icon"));
             expect(controls.length, `every ${href} anchor must be a styled control, not a wrapper around one`)
                 .toBe(anchors.length);
 
             for (const control of controls) {
-                expect(control.querySelector(".control"), `${href} must not wrap a second styled control`).toBeNull();
+                expect(control.querySelector(".chip-icon"), `${href} must not wrap a second styled control`).toBeNull();
             }
         }
     });
@@ -1097,7 +1107,7 @@ describe("control semantics", () => {
      * name with the suite still green.
      */
     it("names every control from its sr-only text, matching the content modules", () => {
-        const named = [...doc.querySelectorAll("a.control")].map((a) => ({
+        const named = [...doc.querySelectorAll("a.chip-icon")].map((a) => ({
             href: a.getAttribute("href"),
             name: a.querySelector(".sr-only")?.textContent?.trim(),
             label: a.getAttribute("aria-label"),
@@ -1228,11 +1238,18 @@ describe("control semantics", () => {
         expect(buttons.map((b) => b.getAttribute("id")), "only the theme toggle performs an in-page action").toEqual(["theme-toggle"]);
         expect(buttons[0].getAttribute("type"), "a bare button would submit a form if one is ever added").toBe("button");
         expect(buttons[0].hasAttribute("href")).toBe(false);
-        // The toggle wears the SAME styled-control class as the six anchors.
-        // It used to wear a narrower variant of its own, which is what made it
-        // the one control that was a different size; this assertion is what stops
-        // a second variant being reintroduced for it.
-        expect((buttons[0].getAttribute("class") ?? "").split(/\s+/)).toContain("control");
+        // The toggle wears the SAME icon box as the six destinations beside it — the quiet
+        // glyph chip, on both this page and every page header. It used to wear a narrower
+        // variant of its own, which is what made it the one control that was a different
+        // size, and then a prop chose between two boxes for it; there is one box now and
+        // this assertion is what stops a second variant being reintroduced for it.
+        //
+        // WHERE IT SITS IS A SEPARATE FACT AND IS ASSERTED SEPARATELY. It is no longer a
+        // member of the strip — it is a preference, not a destination — and
+        // tests/control-geometry.test.ts holds it out of that row by count. The drawing and
+        // the placement failed together while both were "the row of controls", which is
+        // exactly why they are two assertions now.
+        expect((buttons[0].getAttribute("class") ?? "").split(/\s+/)).toContain("chip-icon");
     });
 
     it("names the theme toggle from `THEME_TOGGLE`, with one name for both states", () => {
