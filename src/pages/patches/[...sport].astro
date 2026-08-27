@@ -171,7 +171,8 @@ const markdown = sport === undefined ? "/patches.md" : `/patches/${sport}.md`;
             <nav class="patch-filter" aria-label={PATCHES.filter_label}>
                 {filters.map((f) => (
                         <a href={f.href} class="chip" aria-current={f.active ? "page" : undefined}>
-                            {f.label}<span class="patch-filter-count">{f.count}</span>
+                            <span class="break-anywhere">{f.label}</span><span
+                                class="patch-filter-count">{f.count}</span>
                         </a>
                 ))}
             </nav>

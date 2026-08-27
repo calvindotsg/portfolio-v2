@@ -3318,3 +3318,62 @@ describe("the JSON-LD block cannot be closed by its own contents", () => {
             + "after it is markup").toMatch(/\.replace\(/);
     });
 });
+
+describe("a control whose label comes from data can narrow to fit the reader", () => {
+    /**
+     * A CHIP'S LABEL MUST BE ABLE TO BREAK, AND ONLY THE MARKUP CAN SAY SO.
+     *
+     * `chip` is `inline-flex`, so a bare text child is an ANONYMOUS FLEX ITEM: its automatic
+     * minimum width is a whole word, and **no selector can reach it** — not the shortcut, not a
+     * descendant rule, not a utility on the anchor. The only fix is an element around the label
+     * carrying `break-anywhere`, which is `overflow-wrap: anywhere`: the same break behaviour as
+     * the familiar `break-word` but with the INTRINSIC minimum lowered too, and the intrinsic
+     * minimum is the whole of the problem.
+     *
+     * THIS CLASS HAS BITTEN THREE TIMES, WHICH IS WHY IT IS A GATE RATHER THAN A NOTE. The goal
+     * cards' call to action lost 42.2px of ink at a 40px root; the page header's markdown chip
+     * measured 305.8px against 280px of content width and scrolled every page sideways by 6px;
+     * and `/design`'s section index pushed its column to 317px against the same 280px, for 17px
+     * of overflow, on the day those headings took longer words. Each was found by measuring a
+     * browser, each time after `pnpm test` had gone green.
+     *
+     * WHY A MARKUP GATE AND NOT A MEASUREMENT. There is no layout engine in this suite, so the
+     * property this can hold is not "nothing overflows" but "every label is allowed to break" —
+     * which is the precondition, is decidable from the built HTML, and is exactly the edit that
+     * was missing all three times. A real overflow is still only caught by a browser; this stops
+     * the specific omission that caused all three.
+     *
+     * EVERY CHIP, EVERY PAGE, NO EXEMPTIONS. `chip-icon` holds a mark rather than a label and is
+     * a different class, so it is not in this population at all — the selector asks for `chip` as
+     * a whole class token, which `chip-icon` is not.
+     */
+    it("lets every chip's label break, on every page", () => {
+        const pages = builtPages();
+        expect(pages.length, "no built pages — this gate would be vacuous").toBeGreaterThan(3);
+
+        const offenders: string[] = [];
+        let seen = 0;
+        for (const page of pages) {
+            const html = read(page);
+            for (const m of html.matchAll(/<a\b[^>]*\bclass="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)) {
+                if (!m[1]!.split(/\s+/).includes("chip")) continue;
+                seen++;
+                // Text that is a DIRECT child of the anchor: drop every nested element whole,
+                // then any stray tag, and see whether anything is left.
+                const bare = m[2]!.replace(/<([a-z]+)\b[^>]*>[\s\S]*?<\/\1>/g, "")
+                    .replace(/<[^>]+>/g, "")
+                    .replace(/&[a-z]+;|&#\d+;/gi, "")
+                    .trim();
+                if (bare) offenders.push(`${page}: "${bare.slice(0, 40)}"`);
+            }
+        }
+        expect(seen, "no chips found in the build — this gate would be vacuous").toBeGreaterThan(5);
+        expect(offenders,
+            "these chips carry their label as bare text. A chip is inline-flex, so bare text is an "
+            + "anonymous flex item whose minimum width is a whole word and which no selector can "
+            + "reach — at a large root font size the label cannot narrow and pushes the document "
+            + "sideways. Wrap the label in <span class=\"break-anywhere\">, as PageHeader.astro and "
+            + "the /design section index do")
+            .toEqual([]);
+    });
+});

@@ -307,8 +307,21 @@ already in the module under other headings, worded differently enough that the g
 prescribed missed both. 044 touched no value and no page at all — it renamed and resequenced what
 the full markdown rendering emits, so its own verification was that `/design` came back
 byte-identical from the preview to what production was already serving, which is 040's shape one
-chain later and is the whole reason the format's names live in the renderer rather than in the
-module.
+chain later.
+
+**044's central trade was reversed within the day, and the reversal is the more useful record.**
+That plan put the format's canonical section names in the RENDERER and left the site's own words in
+the content module, on the argument that a canonical name is a wire format and the page keeps its
+voice. Held up against the whole set of surfaces, that produced a design system nobody can quote:
+`/design` saying `Colour` where `DESIGN.md` said `Colors`, with neither wrong. The maintainer called
+it — *"use consistent jargon"* — and the mapping is gone: the content module authors the format's
+names, every rendering carries them unchanged, and the sections the format does NOT name took the
+industry's term rather than this site's (`Marks` → `Iconography`, `Access` → `Accessibility`). The
+gate changed shape with it, from one that could only catch a renderer ignoring a table to one that
+catches the content module walking away from the format — which is the edit a person actually makes.
+**The general lesson is not about spelling.** A rule that reads as principled at one surface can be
+incoherent across all of them, and only laying the surfaces side by side shows it; 044 reviewed
+clean, executed clean, and was still wrong about the thing it was most confident about.
 
 **The external check a plan names is not evidence for the plan's own subject, and 044 is the clean
 case.** Its done criteria include `@google/design.md lint DESIGN.md` at zero errors and zero
