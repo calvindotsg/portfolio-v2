@@ -102,12 +102,15 @@ import {PALETTE, valueIn} from "./palette"
  * count cannot be committed.
  *
  * THE FULL RENDERING FOLLOWS THE DESIGN.md FORMAT, which is an open convention for exactly this
- * document and is what makes the file legible to tooling that globs for it by name. Two things
- * that format asks for are done deliberately here: an `Overview` before anything else, and a
- * front matter block that uses the format's own `omitted` key to say which typed token groups
- * this system leaves out and why, beside the `colors` group it publishes — see `OMISSIONS` for
- * why each remaining group is a decision. The agent rendering carries no front matter
- * at all: it is prepended to a README, where a second document's metadata block is noise.
+ * document and is what makes the file legible to tooling that globs for it by name. What that
+ * format asks for is done deliberately here rather than incidentally: an `Overview` before
+ * anything else; a front matter block that uses the format's own `omitted` key to say which typed
+ * token groups this system leaves out and why, beside the `colors` group it publishes — see
+ * `OMISSIONS` for why each remaining group is a decision; the format's own name and position for
+ * every section that has one, and its guardrail section at the end — see `CANONICAL_SECTIONS` and
+ * `guardrailSection` for both arguments. The agent rendering carries none of it: it is prepended
+ * to a README, where a second document's metadata block is noise, and its reader is a design agent
+ * rather than a consumer of this format.
  */
 
 /** `full` may point into this tree; `agent` may not, because its reader has no copy of it. */
@@ -381,6 +384,110 @@ export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
         + "output, where a stuck hover state at least shows up the first time somebody taps it.",
 }
 
+/**
+ * THE FORMAT'S OWN NAME FOR A SECTION, AND THE ORDER IT WANTS THEM IN — ONE TABLE, BECAUSE THEY
+ * ARE ONE FACT. A canonical name and a canonical position are the DESIGN.md format's two claims
+ * about the same section, and writing them as two lists is writing one enumeration twice.
+ *
+ * ONLY THE `full` RENDERING READS THIS, because that is the rendering claiming to BE a DESIGN.md.
+ * The heading on `/design` is the site's own word — `Colour`, in British English, in the voice
+ * every other sentence on that page is written in — and it does not become American to satisfy a
+ * linter. The canonical name is a WIRE FORMAT: it is what a consumer globbing for this file looks
+ * for, the same kind of value as a media type, and the rule this repository runs on puts a wire
+ * format in the renderer and the site's own words in the content module. So the page goes on
+ * saying Calvin's word while the document says the format's, and they are still one section,
+ * because `SECTIONS` is keyed — the key is the identity and the heading is prose.
+ *
+ * A SECTION THAT IS NOT HERE KEEPS ITS AUTHORED HEADING and follows the mapped ones in the
+ * module's own key order. That is the format working rather than a gap in this table: its
+ * "Consumer Behavior for Unknown Content" says an unknown section heading is preserved rather
+ * than rejected, so `Controls`, `Marks`, `States`, `Words` and `Access` travel intact — and a
+ * section added to `src/content/design.ts` needs no edit here to reach this document correctly.
+ *
+ * WHY `Controls` IS NOT MAPPED ONTO THE FORMAT'S `Components`, which is the mapping a reader will
+ * reach for first. Those are mountable things carrying property tokens; this site's component
+ * namespace is empty by construction — the source is Astro and nothing mounts — and the front
+ * matter above declares that group omitted for exactly that reason. Claiming the name would assert
+ * something this same document denies two screens earlier.
+ *
+ * IT IS A CLAIM ABOUT SOMEBODY ELSE'S FORMAT AND IT WILL GO STALE. Stamped against
+ * `@google/design.md` v0.4.0, whose `spec` subcommand prints the canonical list on demand. Re-read
+ * it from the tool rather than trusting this table, and do not paraphrase that spec into this
+ * repository — a copied convention is one that goes stale in silence.
+ */
+export const CANONICAL_SECTIONS: readonly (readonly [keyof typeof SECTIONS, string])[] = [
+    ["palette", "Colors"],
+    ["type", "Typography"],
+]
+
+/**
+ * The name the full rendering gives a section: the format's where it has one, the module's
+ * otherwise. Exported because `tests/design-system.test.ts` asks the document for every line the
+ * module authored, and after this mapping the heading is the one line of a section that is NOT
+ * the module's own word — so the gate has to ask the renderer what it emitted rather than assume.
+ * The gate that holds the mapping itself reads `CANONICAL_SECTIONS` instead, deliberately: asking
+ * this function both times would move both halves together and see nothing.
+ */
+export const headingFor = (key: keyof typeof SECTIONS): string =>
+    CANONICAL_SECTIONS.find(([mapped]) => mapped === key)?.[1] ?? SECTIONS[key].heading
+
+/**
+ * THE SEQUENCE THE FULL RENDERING EMITS. A canonically named section takes the format's own
+ * position; every other one follows in the module's key order, which is where a section's place
+ * is decided whenever the format has no opinion about it.
+ */
+const sectionOrder = (): (keyof typeof SECTIONS)[] => {
+    const canonical = CANONICAL_SECTIONS.map(([key]) => key)
+    return [
+        ...canonical,
+        ...(Object.keys(SECTIONS) as (keyof typeof SECTIONS)[]).filter((key) => !canonical.includes(key)),
+    ]
+}
+
+/** The heading the format reserves for the guardrails, and the last section this document emits. */
+export const GUARDRAILS_HEADING = "Do's and Don'ts"
+
+/**
+ * THE FORMAT'S CANONICAL GUARDRAIL SECTION, AGGREGATED OUT OF EVERY SECTION'S OWN TWO LISTS.
+ *
+ * THIS SAYS EVERY GUIDANCE LINE A SECOND TIME, AND THAT IS THE DECISION RATHER THAN AN OVERSIGHT.
+ * The format makes this the section a consumer reads for guardrails, and for a consumer that reads
+ * only the canonical sections it is the ONLY one: every line this system has was sitting under a
+ * heading that format has never heard of, so that reader got none of it. A person reading `/design`
+ * needs the opposite arrangement — each instruction beside the thing it is about, where its reason
+ * is — and both readers are real.
+ *
+ * THE OTHER OPTION WAS TO MOVE THE GUIDANCE HERE AND LEAVE THE SECTIONS WITHOUT IT. Refused: it
+ * strips every reason out of the section that holds it and leaves the body a list of rules with no
+ * subject, which is the opposite of what the per-section register was written for.
+ *
+ * THE DUPLICATION CANNOT DISAGREE WITH ITSELF, which is what makes it payable. Both renderings of
+ * a line come out of the same `SECTIONS` entry in one pass, so there is nothing to keep in step —
+ * the same shape the token table already has, drawn for both audiences without either being a
+ * second home. Nothing here is authored: a line that needs changing is changed where it was
+ * written.
+ *
+ * EACH LINE NAMES THE SECTION IT CAME FROM, under the name THIS document gives that section rather
+ * than the module's. A pointer inside a document whose section is headed `Colors` may not say
+ * `Colour`.
+ */
+const guardrailSection = () => [
+    `## ${GUARDRAILS_HEADING}`,
+    "",
+    "Every line below is repeated from the section it names, which is where its reason is. This",
+    "section exists because the format this document follows makes it the one place a consumer",
+    "reads for guardrails, and guidance that sits only under a heading that format does not know",
+    "reaches that reader not at all.",
+    "",
+    sectionOrder().flatMap((key) => {
+        const bullet = (label: string) => (line: string) => `- **${headingFor(key)}** — ${label}: ${line}`
+        return [
+            ...SECTIONS[key].does.map(bullet(DESIGN_PAGE.does_label)),
+            ...SECTIONS[key].donts.map(bullet(DESIGN_PAGE.donts_label)),
+        ]
+    }).join("\n"),
+].join("\n")
+
 /** The complete spec, for a reader who can open this repository. */
 function renderFull(): string {
     const guidance = (section: typeof SECTIONS[keyof typeof SECTIONS]) => [
@@ -411,18 +518,20 @@ function renderFull(): string {
         "",
         themingBlock(),
         "",
-        // EVERY SECTION THE MODULE HOLDS, IN THE ORDER IT HOLDS THEM, rather than four keys named
-        // by hand. Naming them let a section be added to `src/content/design.ts` and reach
-        // `/design` — which has always iterated — while this rendering and the agent's carried on
-        // without it, with both file snapshots green, because a snapshot only ever compares a
-        // document with itself. The module's key order IS the document's section order, which the
-        // format this rendering follows cares about, so a section's position is decided where the
-        // section is authored and nowhere else.
-        ...(Object.keys(SECTIONS) as (keyof typeof SECTIONS)[]).flatMap((key) => {
+        // EVERY SECTION THE MODULE HOLDS, rather than four keys named by hand. Naming them let a
+        // section be added to `src/content/design.ts` and reach `/design` — which has always
+        // iterated — while this rendering and the agent's carried on without it, with both file
+        // snapshots green, because a snapshot only ever compares a document with itself.
+        //
+        // THE ORDER IS THE FORMAT'S WHERE THE FORMAT HAS ONE and the module's everywhere else; see
+        // `sectionOrder`. So a section's position is decided where the section is authored, EXCEPT
+        // for the two the DESIGN.md format names and sequences itself — which is the same division
+        // the heading follows one line down, for the same reason.
+        ...sectionOrder().flatMap((key) => {
             const section = SECTIONS[key]
             const block = SECTION_BLOCKS[key]
             return [
-                `## ${section.heading}`,
+                `## ${headingFor(key)}`,
                 "",
                 section.lede,
                 "",
@@ -431,6 +540,10 @@ function renderFull(): string {
                 "",
             ]
         }),
+        // LAST, because the format sequences it last, and because a guardrail aggregated from
+        // sections a reader has not met yet is a list of rules about nothing.
+        guardrailSection(),
+        "",
     ].join("\n")
 }
 

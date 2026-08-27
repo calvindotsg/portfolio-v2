@@ -3,7 +3,9 @@ import {describe, expect, it} from "vitest";
 
 import unoConfig from "../uno.config";
 import {CONTROLS, SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
-import {AGENT_DROPS, AGENT_SECTIONS, renderDesignDoc} from "../src/lib/design-doc";
+import {
+    AGENT_DROPS, AGENT_SECTIONS, CANONICAL_SECTIONS, GUARDRAILS_HEADING, headingFor, renderDesignDoc,
+} from "../src/lib/design-doc";
 import {ICON_IDS, iconClass} from "../src/lib/icons";
 import {PALETTE} from "../src/lib/palette";
 import {pageCss} from "./helpers/css";
@@ -475,11 +477,186 @@ describe("the design system this site publishes", () => {
             .toBeGreaterThan(0);
         const rendered = renderDesignDoc("full");
         for (const [key, section] of sections) {
-            expect(sectionLines(section).filter((line) => !rendered.includes(line)),
+            // THE HEADING IS THE ONE LINE OF A SECTION THIS DOCUMENT MAY NOT SAY IN THE MODULE'S
+            // OWN WORDS: the DESIGN.md format names two of these sections itself and the renderer
+            // emits the format's name. So the heading is asked of the renderer and everything else
+            // is asked of the module — and the mapping that makes them differ has its own gate
+            // below, anchored on the table rather than on this function.
+            const lines = sectionLines({...section, heading: headingFor(key as keyof typeof SECTIONS)});
+            expect(lines.filter((line) => !rendered.includes(line)),
                 `the full rendering is missing these lines of SECTIONS.${key}, so DESIGN.md and `
                 + "/design.md describe a design system that is not the one /design shows")
                 .toEqual([]);
         }
+    });
+
+    /**
+     * THE FORMAT'S ONE HARD ERROR, AND THE CHEAPEST GATE IN THIS FILE.
+     *
+     * Everything else the DESIGN.md format asks for is tolerated when it is missing — its own
+     * "Consumer Behavior for Unknown Content" preserves an unknown heading rather than rejecting
+     * it, which is exactly why this document drifted for as long as it did with nothing
+     * complaining. A DUPLICATE `##` heading is the exception: the format says reject the file.
+     *
+     * IT IS HERE BECAUSE THE LINTER IS NOT. Nothing in `pnpm test` runs `@google/design.md`, and
+     * wiring it in would pin a dependency on somebody else's release cadence for one assertion.
+     * This is that assertion, written against the rendering rather than the file, so it fails on
+     * the change rather than on the regeneration.
+     *
+     * THE MAPPING IS WHAT MAKES IT REACHABLE. Before the canonical headings, every heading came
+     * straight off a distinct `SECTIONS` key and a collision took two authored strings being
+     * typed the same. Now a mapping target can collide with another target, or with an authored
+     * heading it does not replace, and neither is visible at the site the edit is made.
+     */
+    it("gives the full rendering no heading twice, which the format rejects a file for", () => {
+        const headings = [...renderDesignDoc("full").matchAll(/^## (.+)$/gm)].map((m) => m[1]!);
+        expect(headings.length, "no ## headings parsed out of the full rendering — this gate would "
+            + "be vacuous, and the parse is what it rests on").toBeGreaterThan(3);
+        const seen = new Set<string>();
+        expect(headings.filter((h) => seen.size === seen.add(h).size),
+            "the full rendering emits these headings more than once. A duplicate section heading "
+            + "is the DESIGN.md format's only hard error — a consumer rejects the whole file — so "
+            + "DESIGN.md and /design.md would be unreadable to everything that reads them by "
+            + "format rather than as prose").toEqual([]);
+    });
+
+    /**
+     * THE MAPPING APPLIES, AND IT APPLIES IN BOTH DIRECTIONS.
+     *
+     * The canonical heading is a WIRE FORMAT and the authored one is the site's own word, which is
+     * the whole argument in `src/lib/design-doc.ts` for why the page says `Colour` and the document
+     * says `Colors`. Two ways that stops being true and neither shows up anywhere else: the
+     * renderer stops consulting the table, in which case the document silently reverts to the
+     * module's headings; or it starts emitting both, in which case a consumer meets an unknown
+     * heading it was supposed to have been given the canonical name for.
+     *
+     * ANCHORED ON THE TABLE RATHER THAN ON `headingFor`, and that is the point of the split. Asking
+     * the renderer's own resolver here would make both halves of every assertion move together, so
+     * a reverted renderer would read as green — the shape a derived-against-derived gate always
+     * has. The gate above asks the resolver because there the heading is incidental; here it is
+     * the subject.
+     *
+     * AND IT REFUSES A VACUOUS TABLE. An entry mapping a section to the heading it already has
+     * would satisfy the positive half and make the negative half assert nothing at all, so the
+     * difference is required rather than assumed.
+     */
+    it("emits the format's own name for every section that has one, and the site's for the rest", () => {
+        expect(CANONICAL_SECTIONS.length,
+            "CANONICAL_SECTIONS is empty — this gate would assert nothing").toBeGreaterThan(0);
+        const rendered = renderDesignDoc("full");
+        for (const [key, canonical] of CANONICAL_SECTIONS) {
+            const authored = SECTIONS[key].heading;
+            expect(canonical, `CANONICAL_SECTIONS maps ${key} onto the heading it already has, so `
+                + "this gate's negative half would assert nothing").not.toBe(authored);
+            expect(rendered.split("\n").filter((line) => line === `## ${canonical}`).length,
+                `the full rendering does not head SECTIONS.${key} "${canonical}" exactly once. That `
+                + "is the DESIGN.md format's own name for the section, and a consumer looking for "
+                + "it finds arbitrary prose instead").toBe(1);
+            expect(rendered.includes(`## ${authored}`),
+                `the full rendering still heads a section "${authored}" — the word ${key} is `
+                + `authored with. The mapping onto "${canonical}" replaces it in this document, and `
+                + "leaving both means a consumer meets an unknown heading where it was given a "
+                + "canonical one").toBe(false);
+        }
+    });
+
+    /**
+     * THE AGGREGATED GUARDRAILS CARRY EVERY LINE, KEYED BY THE SECTION THEY CAME FROM.
+     *
+     * That section is the format's canonical place for guidance, and for a consumer reading only
+     * the canonical sections it is the only place: every line this system has is authored under a
+     * heading the format has never heard of. So the aggregation dropping one is a line that
+     * reaches a human reading `/design` and reaches that consumer not at all — and it would be
+     * invisible, because a document with a shorter list still matches its own committed copy.
+     *
+     * THE KEYING IS ASSERTED WITH THE LINE RATHER THAN BESIDE IT. A bullet that carried the
+     * guidance without naming its section would be ambiguous in exactly the way the aggregation
+     * exists to avoid, so the needle is the section's name and the line on ONE line of output. The
+     * name is the document's own — `headingFor`, not the module's word — because a pointer inside
+     * a document headed `Colors` may not say `Colour`.
+     */
+    it("aggregates every section's guidance into the format's guardrail section", () => {
+        const rendered = renderDesignDoc("full");
+        const body = rendered.split(`## ${GUARDRAILS_HEADING}\n`)[1];
+        expect(body, `the full rendering has no "${GUARDRAILS_HEADING}" section — the DESIGN.md `
+            + "format's canonical guardrails, and the one section a consumer reads for them")
+            .toBeTruthy();
+        const lines = body!.split("\n");
+        const sections = Object.entries(SECTIONS);
+        expect(sections.length, "SECTIONS is empty — this gate would assert nothing")
+            .toBeGreaterThan(0);
+        for (const [key, section] of sections) {
+            const named = headingFor(key as keyof typeof SECTIONS);
+            expect([...section.does, ...section.donts]
+                    .filter((line) => !lines.some((l) => l.includes(named) && l.includes(line))),
+                `these lines of SECTIONS.${key} reach the per-section register and not the `
+                + `aggregated "${GUARDRAILS_HEADING}" section under the name "${named}", so a `
+                + "consumer that reads the format's canonical guardrails and nothing else never "
+                + "sees them").toEqual([]);
+        }
+    });
+
+    /**
+     * THE SECTIONS THE FORMAT NAMES APPEAR IN THE ORDER THE FORMAT SEQUENCES THEM.
+     *
+     * The spec's words are that sections which are present "should appear in the sequence listed",
+     * and nothing in this repository held that — the document was in the module's key order, which
+     * happened to agree and had no reason to keep agreeing. Reordering `SECTIONS` is an ordinary
+     * edit to `/design`; it must not be able to silently un-sequence a document claiming a format.
+     *
+     * RELATIVE POSITIONS RATHER THAN FIXED INDICES, so a section added anywhere — mapped or not —
+     * does not redden this. What is asserted is the only thing the format actually asks for.
+     *
+     * WHAT THIS CAN AND CANNOT KNOW, said plainly because the difference is easy to misread. The
+     * table's own order is the renderer's input, so the first assertion holds the RENDERER to the
+     * declaration — measured: a renderer that stops calling `sectionOrder` reddens it. It does NOT
+     * hold the declaration to the spec, and nothing offline can: whether `Colors` really precedes
+     * `Typography` in v0.4.0 is a fact about somebody else's document, which the linter and the
+     * `spec` subcommand answer and this suite deliberately does not depend on. Re-deriving it here
+     * would be paraphrasing that spec into this repository, which is the copy that goes stale in
+     * silence.
+     *
+     * THE OTHER TWO ASSERTIONS OWE THE TABLE NOTHING, which is why they are here. That every
+     * canonically named section precedes every unknown one, and that the guardrails come last, are
+     * the format's own shape rather than this table's contents — so a `sectionOrder` that
+     * interleaved them, or a document that ended on something else, is red however the table is
+     * written.
+     */
+    it("sequences the format's own sections the way the format sequences them", () => {
+        expect(CANONICAL_SECTIONS.length,
+            "CANONICAL_SECTIONS is empty — this gate would assert nothing").toBeGreaterThan(0);
+        const headings = [...renderDesignDoc("full").matchAll(/^## (.+)$/gm)].map((m) => m[1]!);
+        const canonical = CANONICAL_SECTIONS.map(([, name]) => name);
+        const positions = canonical.map((name) => headings.indexOf(name));
+        expect(positions.filter((p) => p < 0),
+            "a canonical heading is not in the full rendering at all — the gate above says which")
+            .toEqual([]);
+        expect(positions, "the DESIGN.md format's own sections are out of its sequence in the full "
+            + `rendering. The order it wants is ${canonical.join(", ")}, and this document emits `
+            + headings.join(", "))
+            .toEqual([...positions].sort((a, b) => a - b));
+
+        // The format sequences its own sections first and its guardrails last, and both of those
+        // are true of the format rather than of the table above — an unknown heading is preserved
+        // wherever it sits, so the only place it may NOT sit is in front of a section the format
+        // named and sequenced itself.
+        //
+        // ASKED OF THE MODULE'S SECTIONS RATHER THAN OF EVERY HEADING, which is the difference
+        // between a semantic predicate and a carve-out. Two headings in this document are not
+        // `SECTIONS` entries at all — the Overview, and the theming block that travels with it
+        // because it is the precondition every sentence after it depends on — and naming either
+        // one here as an exception would be a list that the next such block is quietly missing
+        // from. Deriving the population from `SECTIONS` excludes both for the reason they are
+        // excluded.
+        const unnamed = (Object.keys(SECTIONS) as (keyof typeof SECTIONS)[])
+            .map(headingFor)
+            .filter((h) => !canonical.includes(h));
+        expect(unnamed.filter((h) => headings.indexOf(h) < Math.max(...positions)),
+            "these sections the DESIGN.md format has no name for are emitted in among the ones it "
+            + "names and sequences. The format preserves an unknown heading anywhere, so they "
+            + "belong after the sequence rather than inside it").toEqual([]);
+        expect(headings.at(-1), `"${GUARDRAILS_HEADING}" is the last section the format sequences, `
+            + "and this document ends on another one").toBe(GUARDRAILS_HEADING);
     });
 
     /**
