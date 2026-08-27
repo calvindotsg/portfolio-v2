@@ -38,16 +38,23 @@ existing `CLOUDFLARE_API_TOKEN` cannot touch DNS. If either secret goes missing 
 naming it, rather than surfacing a Cloudflare authentication error.
 
 **The separation is measured, not assumed.** Both tokens were exercised against the live API
-before being stored: each lists only `calvin.sg` and reads all 15 records, and on an attempted
-write the read token returns **403 Authentication error** while the write token returns 400 for an
-invalid record type — permission present, body rejected, zone unchanged at 15 records throughout.
-Re-run that check after any rotation; a token pasted from the wrong place passes every test except
-using it.
+before being stored, on 2026-07-31: each listed only `calvin.sg` and read all 15 records the zone
+held that day, and on an attempted write the read token returned **403 Authentication error**
+while the write token returned 400 for an invalid record type — permission present, body rejected,
+zone unchanged throughout. Those counts are what was measured then, not a claim about the zone
+now. Re-run the check after any rotation; a token pasted from the wrong place passes every test
+except using it.
 
 ## What is managed, and what is deliberately not
 
-Ten of the zone's fifteen records are in `zones/calvin.sg.yaml`. The other five are excluded, and
+`zones/calvin.sg.yaml` holds every record octoDNS manages. Three groups are excluded, and
 `config.yaml` gives the reason beside each exclusion:
+
+**Counting them here would be a second home for a figure the zone file already carries**, and it
+went stale in exactly that way: this line read "ten of the zone's fifteen records" from the day it
+was written until the day `hermes` and `ssh-hermes` were added, which made it twelve of seventeen
+without reddening anything. No gate can see prose counting a set. Read `zones/calvin.sg.yaml` for
+what is managed and the list below for what is not.
 
 - **The three `MX` records** belong to Cloudflare Email Routing, which marks them as its own and
   rewrites them from its own UI.

@@ -31,20 +31,35 @@ ZONE = "calvin.sg."
 ZONE_ID = "bbc51eedf64c3f4780c0c5dbf46d6569"
 ROOT = Path(__file__).resolve().parent.parent
 
-# The live zone as the Cloudflare API returns it, captured 2026-07-31 with
-# `cf dns records list --zone calvin.sg`. Two values are redacted, and redacting them costs
+# The live zone as the Cloudflare API returns it, re-captured 2026-08-27 with
+# `cf dns records list -z calvin.sg`. Two values are redacted, and redacting them costs
 # nothing: this fixture exists to exercise NAME and TYPE matching, and neither filter reads
 # content. The DKIM key is truncated to its first field, and the DMARC `rua` mailbox is
 # replaced — that address is precisely what `config.yaml` declines to commit, so committing it
 # in a fixture instead would defeat the exclusion rather than test it.
+#
+# THIS LIST MUST STAY EQUAL TO `zones/calvin.sg.yaml` PLUS THE EXCLUDED RECORDS, and the reason
+# is not that it documents the zone. Every test below plans this fixture against the REAL zone
+# file and asserts the plan's DELETE SET exactly, so a record present here and absent there is
+# not merely stale — it becomes a spurious `Delete` inside every one of those expectations, and
+# nine assertions that have nothing to do with it fail at once, naming the filters rather than
+# the fixture.
+#
+# THE DRIFT IS SILENT IN ONE DIRECTION ONLY, WHICH IS HOW IT SURVIVED. `719d3d6` added `hermes`
+# and `ssh-hermes` to the zone file and not to this list. That is the opposite error, and it
+# shows up as a `Create` — which these delete-set assertions cannot see. All thirteen stayed
+# green for as long as nothing was deleted. So: adding a record and forgetting this file is
+# invisible, and removing one is loudly, confusingly red. If several unrelated assertions here
+# fail together, re-capture this list before reading a single one of them.
 LIVE_RECORDS = [
     {"name": "calvin.sg", "type": "CNAME", "content": "calvindotsg.pages.dev", "ttl": 1, "proxied": True},
     {"name": "www.calvin.sg", "type": "CNAME", "content": "calvindotsg.pages.dev", "ttl": 1, "proxied": True},
-    {"name": "battleship.calvin.sg", "type": "CNAME", "content": "calvindotsg.github.io", "ttl": 1, "proxied": True},
-    {"name": "diving.calvin.sg", "type": "CNAME", "content": "calvindotsg.github.io", "ttl": 1, "proxied": True},
-    {"name": "garden.calvin.sg", "type": "CNAME", "content": "calvindotsg.github.io", "ttl": 1, "proxied": True},
     {"name": "model.calvin.sg", "type": "CNAME", "content": "calvindotsg.github.io", "ttl": 1, "proxied": True},
     {"name": "slickshots.calvin.sg", "type": "CNAME", "content": "calvin.sg", "ttl": 1, "proxied": True},
+    # Both point at the same Cloudflare Tunnel; `proxied` is load-bearing rather than cosmetic
+    # for these two, because a `cfargotunnel.com` target has no public address at all.
+    {"name": "hermes.calvin.sg", "type": "CNAME", "content": "7016c4ba-d138-48e7-a7f1-2ec672540ce8.cfargotunnel.com", "ttl": 1, "proxied": True},
+    {"name": "ssh-hermes.calvin.sg", "type": "CNAME", "content": "7016c4ba-d138-48e7-a7f1-2ec672540ce8.cfargotunnel.com", "ttl": 1, "proxied": True},
     # meta.email_routing — Cloudflare's, not ours.
     {"name": "calvin.sg", "type": "MX", "content": "route1.mx.cloudflare.net", "priority": 28, "ttl": 1, "proxied": False},
     {"name": "calvin.sg", "type": "MX", "content": "route2.mx.cloudflare.net", "priority": 54, "ttl": 1, "proxied": False},
