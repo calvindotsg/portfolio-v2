@@ -1,6 +1,60 @@
 # Implementation Plans
 
-**Nothing is queued.** The rethink of `/design` that opened with 040 on 2026-08-26 has landed
+**Three are queued: 045, 046 and 047 — the training series.** They were approved as a shape on
+2026-08-27 after four rendered directions were reviewed, and they answer one question the repository
+had never asked: **can the race wall and a training log be one surface?** They can, because they are
+already one dataset — a race stores `recordings: [{id, metres, elapsed_time}]`, one entry per Strava
+activity, which is a session record. The only things a race has that an ordinary Tuesday does not
+are a name, a country, a results sheet and a bib.
+
+**Reviewed adversarially before anyone executes.** A ten-agent panel (four lenses, one skeptic per
+lens, two independent judges) ran over the three plans at `719d3d6` and **both judges independently
+returned the same four BLOCKs**, each verified by hand afterwards. All four were text defects in the
+plans, not problems with the shape; all four are fixed in place:
+
+1. **The nightly commit step is pathspec-scoped.** `.github/workflows/strava-progress.yml:272` is
+   `git diff --quiet -- src/data/strava-progress.json` and `:289` is
+   `git add src/data/strava-progress.json`, with no `-a` on the commit — so week modules would have
+   been written into the runner and thrown away, **silently, on a green workflow**. And widening the
+   pathspec alone would not have been enough: `git diff` cannot see an untracked file, so a brand-new
+   week module reads as "no change". 045 now stages first and tests the index.
+2. **The proposed no-leak gate was red on correct content.** "No session id from the new week
+   modules appears in `dist/`" is false the day it is written: a race IS a Strava activity, and its `recordings[].id` is
+   already published as a `strava.com/activities/<id>` href on the wall and in the twins. The gate is
+   now a **set difference** — session ids minus race recording ids.
+3. **The ISO week-year rule contradicted itself.** "A week belongs to the calendar year of its
+   Monday" cannot also be a filename rule: `2026-W01`'s Monday is **29 December 2025**, and the same
+   holds for `2025-W01` and `2030-W01` — while 2026 has **53** ISO weeks. Split into two rules: the
+   file's key is an ISO week key and makes no calendar claim; the page's year filter uses the Monday.
+   The nightly delete sweep is now scoped by fetched week keys rather than a `<year>-W*` glob, which
+   would have deleted a real boundary week every night.
+4. **`NEXT_RACE.control` is the wall's name, not the card's label.** Five consumers read it —
+   `patches/[...sport].astro:99` (and `:106` for the `<title>`), `patch-doc.ts:136`,
+   `llms.txt.ts:204`, `design.astro:164`, `EventsLink.astro:139` — so renaming it would have
+   re-headed both sport walls and made two of 047's own done criteria mutually unsatisfiable. 047 now
+   adds a new `TRAINING.control` key and leaves `NEXT_RACE.control` alone.
+
+**Why the chain is three and not one.** 045 ships data and renders nothing; 046 renders it and
+touches no home-page pixel; 047 moves the goal card and reverses a rule this file's own baseline
+states. Each is separately shippable and separately revertible, and the boundaries are where the
+risk changes rather than where the work divides evenly.
+
+**The decision that shapes all three: the repository stores SESSIONS, not weekly totals.** A total
+is a derived value, and each of the three rules it derives from has moved in this project or its
+sibling — the metres-to-kilometres conversion (reversed twice, per `CLAUDE.md`), the week boundary,
+and the sport-type mapping. Storing the source and deriving at the edge is what keeps a rule change
+from leaving a stale figure behind, and it is what the provenance model already demands:
+`SourceOfRecord` has four values and every one of them is a *source*, so a derived total has no
+legal origin to declare.
+
+**And nothing queries Strava at page load.** The site is a static build with no adapter; the only
+Strava caller is a deterministic script in GitHub Actions that commits typed files, which is what
+`scripts/fetch-strava-progress.mjs` already is. That boundary is not an implementation detail — it
+is what keeps an agent on the repository side of Strava's API Policy §5.3.
+
+---
+
+**The `/design` rethink that opened with 040 on 2026-08-26 has landed
 whole: **039, 040, 041, 042, 043 and 044 are all done** — merged as `b1eea8a` (#217), `eb09d90`
 (#223), `a0be477` (#225), `b3e4837` (#227), `71142d7` (#230) and `ed35e5f` (#232), live, and
 archived.
@@ -284,6 +338,9 @@ recreated.
 | 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **DONE** (`b3e4837`) |
 | 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **DONE** (`71142d7`) |
 | 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **DONE** (`ed35e5f`) |
+| 045 | Fetch the weekly training series, and store the sessions rather than the totals | P1 | L | — | **TODO** |
+| 046 | Draw the year as one spine, with the races on it | P1 | L | 045 | **TODO** |
+| 047 | Let the goal card lead with the build, and point its one plate at the spine | P2 | M | 045, 046 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -531,6 +588,52 @@ smaller* wins than the first one found, and should say so plainly when a finding
 is cosmetic.
 
 ## Findings considered and rejected
+
+### The training series (2026-08-27, directions drawn at `719d3d6`)
+
+Not an audit. Four ways to relate the race wall and a training log were drawn as live artboards in
+the site's own tokens, using the shipped bib unchanged, and one was chosen by the maintainer. What
+follows is what the other three argued, so no later run re-derives them.
+
+- **Two densities in one grid** — keep `/patches` exactly as it is and give its chip row a second
+  axis, `Races` / `Every week`, so a week becomes a bib. By far the cheapest: no new page, no new
+  vocabulary, everything already gated stays gated. Rejected because **a grid cannot show a
+  series**. `.patch-wall` is `repeat(auto-fill, minmax(min(13rem, 100%), 1fr))`, which is right for
+  fourteen items you scan and useless at fourteen races plus fifty weeks a year, where a ramp, a
+  taper and a gap all stop being visible — and the shape of the build is the whole thing the page
+  exists to show. The week-bib also breaks under load: it has no sport, so it can wear no sport
+  token and join no sport filter, and its ledger would carry two sports in the slot a race's carries
+  two sources.
+- **The race is the chapter** — the wall untouched, each bib gaining one stub line opening that
+  race's build in phases. The sharpest possible answer to *what got him here*, and it adds a real
+  destination for a marathon result to link to. Rejected because training that leads to no race is
+  homeless, and this athlete's training outlives the December marathon by design; no year view falls
+  out of it either.
+- **Keep them apart** — two pages, cross-linked. Rejected on the home page rather than on the pages:
+  a card gets one plate, so a second destination has to arrive as a chip beneath it, on both goal
+  cards, on a page measured at **797px against an 800px viewport**. And no figure could span both
+  datasets without one page reading the other's, which is the second-home failure this directory has
+  spent forty-four plans removing.
+- **A countdown hero for the goal card** (`31 days to Kiprun`) — drawn and dropped before the
+  artboards. It decays worse than the progress rule it would replace: after the last booked race of
+  the year the hero is empty, which is the exact failure the redesign was asked to remove.
+
+Also considered and rejected, on the data side:
+
+- **Astro content collections** for the weekly modules. Rejected because a collection needs a
+  content-collection config at the project root, and `CLAUDE.md` records that this repository uses
+  the reserved `src/content/` name precisely because the reserved meaning is switched off — adding
+  that config moves every module in there. The `import.meta.glob` over typed modules is already proven by
+  `EVENTS`, and the content layer's `deferRender` guidance is about large Markdown collections, not
+  one-kilobyte data files.
+- **A watermark-based incremental fetch.** Rejected because it cannot see a retro-edited activity or
+  a late upload. A full-year rewrite is two requests at `per_page=200` against a limit of 100 per
+  fifteen minutes, and byte-stable output keeps it free.
+- **Re-deriving the year totals by summing sessions.** Rejected: `cycling_km` and `running_km` come
+  from `/athletes/{id}/stats` and three suites are built on them. The sessions **cross-check** that
+  figure instead, within a measured tolerance — which is a gate the repository did not have, and is
+  the class that once cost 5 km/wk.
+
 
 ### The `/design` rethink (2026-08-26, mockups drawn at `71bc7e1`)
 
