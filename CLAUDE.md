@@ -425,7 +425,12 @@ The entries below are the ones carrying non-obvious constraints:
   directions, so a section that reaches one surface and not the rest is red rather than
   silent — and the smaller subset the design agent's document carries is now DECLARED in
   `src/lib/design-doc.ts`, with the reason for each drop beside it, rather than being
-  whichever lines somebody happened to write
+  whichever lines somebody happened to write. **The system publishes what it DOES and what it
+  CALLS things alongside what it looks like** — its states, its vocabulary and what it takes to
+  reach and read any of it, sitting beside colour, type, controls and marks as ordinary sections
+  rather than an appendix. No section may restate another, wherever it sits: the sections are
+  subjects and not owners, so a line belongs where it was first written down and a later section
+  that wants it has to find the thing only it can say
 
 ## Plans
 

@@ -180,6 +180,52 @@ Rewriting the palette's first don't — it said "there is no token here whose va
 restating", which had become false about its own page — moved the figure to **3,935 characters,
 161 spare**. That is a real narrowing and the next thing added to the module will feel it.
 
+#### The fourth decision: three whole subjects the budget refused
+
+The prediction above came true immediately. The design system published three new sections —
+**States**, **Words** and **Access** — and **this document carries none of them**. That is a
+refusal recorded with its arithmetic, not an omission: each is declared in `AGENT_DROPS` with
+what its reader is losing, and `tests/design-system.test.ts` reddens on a section that is in
+neither list.
+
+Measured in the exact shape a carried section is drawn in — a heading, the don'ts label, its
+don'ts and the blank line after them, which is all this audience ever gets — against the 161
+spare that existed when they were written:
+
+| Section | Its don'ts alone | Document would stand at | Over budget by |
+|---|---|---|---|
+| States | 636 | 4,571 | 475 |
+| Words | 565 | 4,500 | 404 |
+| Access | 436 | 4,371 | 275 |
+
+**The cheapest of the three overruns the spare by more than the spare itself**, so there was no
+trade to weigh: carrying any one of them means dropping something already here. Every carried
+block was then read against the standard the drops above were held to — does the claim survive
+elsewhere in THIS document — and none of them passes it. The token table and the control list are
+what this audience is promised complete. The theming block is the precondition that decides
+whether anything is styled at all. The closed-set section, the palette don'ts and the controls
+don'ts each carry a claim nothing else here says twice, and the whole `## Marks` section is far
+too small to pay for anything even if it did. The only true duplication in the document is the
+four control class names, which appear in the guaranteed-present line and again as the headings
+of the control list — measured at 49 characters, against a bill of 275.
+
+**The re-add queue is therefore rewritten rather than appended to.** A whole subject the document
+never mentions outranks a single instruction missing from a section it does carry, so:
+
+1. **The States don'ts.** For an agent building screens out of an exported bundle these are the
+   most valuable lines this system has — a hover style a touch device gets stuck in, and a press
+   that finishes after the finger has gone, are precisely what a table of tokens cannot warn
+   anybody about.
+2. **The Access don'ts**, cheapest of the three and the one to try first if a little room appears.
+   A forced-colours mode and a drifted reading order are failures that agent cannot see anywhere
+   in its own output, where a stuck hover state at least shows up the first time somebody taps.
+3. The accessible-name instruction, and then the emoji instruction — the two that used to head
+   this queue.
+
+**Words is not in the queue at any budget**, and that is on merit rather than arithmetic: that
+agent is handed a bundle and writes screens, not this site's copy, and every line in that section
+is about this site's own domain words.
+
 ### What was retired, and why it was not repaired
 
 A generator script in this directory wrote four reference HTML cards — palette, type and

@@ -206,15 +206,34 @@ export const CONTROLS: readonly {name: string, role: string}[] = [
 ]
 
 /**
- * THE FOUR THINGS THERE ARE TO SAY, and the guidance that goes with each.
+ * EVERYTHING THERE IS TO SAY ABOUT THIS SYSTEM, and the guidance that goes with each of them.
  *
  * `does` and `donts` are the half a design agent actually acts on, and each entry is a
  * complete instruction rather than a slogan: the reason is in the sentence, because the
  * agent reading `.design-sync/conventions.md` cannot open this repository to look one up.
  * `tests/design-system.test.ts` refuses a section with an empty list on either side, so a
  * heading cannot ship with nothing under it.
+ *
+ * THE HALF THAT IS NOT A DRAWING IS PUBLISHED HERE TOO, and it was the last of it to arrive.
+ * What a control DOES when it is touched, what the interface CALLS things, and what it takes
+ * to reach and read any of it are decided in this system as deliberately as its colours are —
+ * and every one of them was argued somewhere in this repository and published nowhere, which
+ * left a reader handed the vocabulary holding the drawing and none of the behaviour. They are
+ * ordinary sections rather than an appendix for that reason.
+ *
+ * NO ENTRY MAY BE ANOTHER ENTRY SAID AGAIN, WHEREVER IT SITS. The sections are subjects, not
+ * owners: a line about a control's height belongs where it was first written down, and a later
+ * section that wants it has to find the thing only it can say instead. That rule is why the
+ * states section never tells anybody to draw a press — the controls section already does — and
+ * why the access section says nothing about giving an icon-only control an accessible name,
+ * which is a mark's instruction and has been under Marks all along.
+ *
+ * A SECTION'S KEY IS A PUBLIC ADDRESS. `/design` derives one anchor per key, so a key is a URL
+ * somebody may have bookmarked, where the heading above it is prose anybody may reword. Keep
+ * the two saying the same word, and rename neither casually.
  */
-export const SECTIONS: Readonly<Record<"palette" | "type" | "controls" | "icons", {
+export const SECTIONS: Readonly<Record<
+    "palette" | "type" | "controls" | "icons" | "states" | "words" | "access", {
     heading: string
     lede: string
     does: readonly string[]
@@ -290,6 +309,61 @@ export const SECTIONS: Readonly<Record<"palette" | "type" | "controls" | "icons"
             "Substitute an emoji for a mark that is not in the set.",
             "Mix another icon family in. The ones that ship do different jobs and were chosen against each other.",
             "Recolour a brand mark away from what the surface it sits on needs for contrast.",
+        ],
+    },
+    states: {
+        heading: "States",
+        lede: "Every control here has states, and the states are what tell a reader that "
+            + "something can be pressed and that a press landed. This is the half of the system "
+            + "that is invisible on a desktop with a mouse and obvious on a phone: hover is not "
+            + "a state a finger can enter and leave, and a tap is over long before an easing "
+            + "curve has finished, so a design carrying its whole affordance in hover and its "
+            + "whole feedback in a transition arrives with neither.",
+        does: [
+            "Hold a press on anything that navigates until the page actually changes. The press ends when the finger lifts and the reader then waits, with nothing on screen saying the tap landed.",
+            "Draw keyboard focus on every device, and draw it apart from hover. Hover is a pointer's affordance and some readers have no pointer; focus is how anyone driving the page from a keyboard knows where they are.",
+            "Honour a reduced-motion preference. A reader who set it is saying that movement costs them something, so the design has to still work with every transition taken out.",
+        ],
+        donts: [
+            "Write a hover style a touch device will apply. A touch browser puts hover on whatever was tapped and leaves it there until something else is tapped, so an affordance carried by hover arrives as a state stuck on the last thing the reader touched.",
+            "Put a hover rule and a focus rule in one selector list. One is a pointer's affordance and the other is a keyboard indicator every device needs, so suppressing the first takes the second with it.",
+            "Carry information in motion alone. A still frame — a reduced-motion preference, a screenshot, a device that dropped the animation — has to say what the moving one said.",
+        ],
+    },
+    words: {
+        heading: "Words",
+        lede: "The words in this interface are design material, and this vocabulary is decided "
+            + "rather than inherited. A control's label is the name of the thing it opens; two "
+            + "states that share a treatment are told apart by the word each one prints; and the "
+            + "word for a thing somebody finished is not the word for the set it belongs to. "
+            + "Every one of those was learned by shipping the other version first.",
+        does: [
+            "Name a destination with the same words at both ends. A control that says one thing and opens a page headed with another breaks the vocabulary at the click, which is the moment a reader is least able to absorb it.",
+            "Where two states share a treatment, let the word carry the difference, and print it where the reader is already looking rather than somewhere they have to go and find it.",
+            "Say what a thing is in the reader's terms rather than the system's. A name that only makes sense once you know how the data is stored is a name every reader has to be taught.",
+        ],
+        donts: [
+            "Use the word for the earned thing as the heading for the whole set. A page listing everything that was entered cannot be headed with the word for the ones that were finished.",
+            "Leave two states that share a treatment with no word between them. The treatment can say that neither of them is the finished thing, and nothing but a word can say which of them this one is.",
+            "Let a label change between the control and its destination. Two strings that have to agree are one string, and a label that does not fit is shortened in both places at once.",
+        ],
+    },
+    access: {
+        heading: "Access",
+        lede: "Reaching and reading, which is the one subject here that is not about drawing. A "
+            + "design is finished when somebody can get to every part of it with a finger, with "
+            + "a keyboard, at the text size they chose, and with the colours replaced — and "
+            + "every one of those is a different reader rather than the same one described "
+            + "again.",
+        does: [
+            "Give every control a target a fingertip can find, on both axes. Something comfortable under a mouse can still be a target a thumb misses, and the two dimensions fail separately: a wide, thin row is the usual one.",
+            "Put one landmark around each region a reader might skip to, and make the page's own name its first heading. Skipping is how a page is read without being seen, and it only works on regions that were declared.",
+            "Let a reader double the text without the page seeing a font-size change. That size is the reader's own setting rather than an input the design gets to read, so every box has to survive the result already.",
+        ],
+        donts: [
+            "Let reading order drift from visual order. A keyboard meets the markup, so a column moved by the layout is still read where it was written.",
+            "Depend on a colour surviving. A forced-colours mode replaces every one of them, so whatever a colour alone was carrying arrives blank.",
+            "Hide from the accessibility tree something a sighted reader can act on. A control nobody can name is a control only some readers have.",
         ],
     },
 }
