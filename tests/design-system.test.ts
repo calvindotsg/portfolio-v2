@@ -606,19 +606,55 @@ describe("the design system this site publishes", () => {
      *
      * RELATIVE POSITIONS RATHER THAN FIXED INDICES, so a section added anywhere — mapped or not —
      * does not redden this. What is asserted is the only thing the format actually asks for.
+     *
+     * WHAT THIS CAN AND CANNOT KNOW, said plainly because the difference is easy to misread. The
+     * table's own order is the renderer's input, so the first assertion holds the RENDERER to the
+     * declaration — measured: a renderer that stops calling `sectionOrder` reddens it. It does NOT
+     * hold the declaration to the spec, and nothing offline can: whether `Colors` really precedes
+     * `Typography` in v0.4.0 is a fact about somebody else's document, which the linter and the
+     * `spec` subcommand answer and this suite deliberately does not depend on. Re-deriving it here
+     * would be paraphrasing that spec into this repository, which is the copy that goes stale in
+     * silence.
+     *
+     * THE OTHER TWO ASSERTIONS OWE THE TABLE NOTHING, which is why they are here. That every
+     * canonically named section precedes every unknown one, and that the guardrails come last, are
+     * the format's own shape rather than this table's contents — so a `sectionOrder` that
+     * interleaved them, or a document that ended on something else, is red however the table is
+     * written.
      */
     it("sequences the format's own sections the way the format sequences them", () => {
         expect(CANONICAL_SECTIONS.length,
             "CANONICAL_SECTIONS is empty — this gate would assert nothing").toBeGreaterThan(0);
         const headings = [...renderDesignDoc("full").matchAll(/^## (.+)$/gm)].map((m) => m[1]!);
-        const positions = CANONICAL_SECTIONS.map(([, canonical]) => headings.indexOf(canonical));
+        const canonical = CANONICAL_SECTIONS.map(([, name]) => name);
+        const positions = canonical.map((name) => headings.indexOf(name));
         expect(positions.filter((p) => p < 0),
             "a canonical heading is not in the full rendering at all — the gate above says which")
             .toEqual([]);
         expect(positions, "the DESIGN.md format's own sections are out of its sequence in the full "
-            + `rendering. The order it wants is ${CANONICAL_SECTIONS.map(([, c]) => c).join(", ")}, `
-            + `and this document emits ${headings.join(", ")}`)
+            + `rendering. The order it wants is ${canonical.join(", ")}, and this document emits `
+            + headings.join(", "))
             .toEqual([...positions].sort((a, b) => a - b));
+
+        // The format sequences its own sections first and its guardrails last, and both of those
+        // are true of the format rather than of the table above — an unknown heading is preserved
+        // wherever it sits, so the only place it may NOT sit is in front of a section the format
+        // named and sequenced itself.
+        //
+        // ASKED OF THE MODULE'S SECTIONS RATHER THAN OF EVERY HEADING, which is the difference
+        // between a semantic predicate and a carve-out. Two headings in this document are not
+        // `SECTIONS` entries at all — the Overview, and the theming block that travels with it
+        // because it is the precondition every sentence after it depends on — and naming either
+        // one here as an exception would be a list that the next such block is quietly missing
+        // from. Deriving the population from `SECTIONS` excludes both for the reason they are
+        // excluded.
+        const unnamed = (Object.keys(SECTIONS) as (keyof typeof SECTIONS)[])
+            .map(headingFor)
+            .filter((h) => !canonical.includes(h));
+        expect(unnamed.filter((h) => headings.indexOf(h) < Math.max(...positions)),
+            "these sections the DESIGN.md format has no name for are emitted in among the ones it "
+            + "names and sequences. The format preserves an unknown heading anywhere, so they "
+            + "belong after the sequence rather than inside it").toEqual([]);
         expect(headings.at(-1), `"${GUARDRAILS_HEADING}" is the last section the format sequences, `
             + "and this document ends on another one").toBe(GUARDRAILS_HEADING);
     });
