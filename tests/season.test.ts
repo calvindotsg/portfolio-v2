@@ -52,7 +52,8 @@ vi.mock("../src/lib/today", async (importOriginal) => ({
 }));
 
 const {
-    groupSpine, hoursMinutes, seasonSpine, seasonTotals, seasonUnit, seasonWeekKeys, seasonYear, shortDate,
+    groupSpine, hoursMinutes, recentWeeks, seasonSpine, seasonTotals, seasonUnit, seasonWeekKeys,
+    seasonYear, shortDate,
 } = await import("../src/lib/season");
 const {patchState, patchWall} = await import("../src/lib/projection");
 
@@ -260,6 +261,77 @@ describe("the year as one spine", () => {
         expect(hoursMinutes(3599), "rounded to the nearest minute, not truncated to the hour").toBe("1:00");
         expect(hoursMinutes(3 * 3600 + 7 * 60)).toBe("3:07");
         expect(hoursMinutes(187 * 3600 + 24 * 60), "hours are not capped at two digits").toBe("187:24");
+    });
+
+    /**
+     * THE GOAL CARD'S TWELVE WEEKS, AND THE ONE DAY A YEAR THEY CAN BE DRAWN WRONG.
+     *
+     * `recentWeeks` walks MONDAYS rather than week keys, and this is the assertion that says why
+     * that is not a stylistic preference. A key carries a week-YEAR, and week-years do not
+     * decrement past `W01`: stepping back from `2027-W01` by arithmetic on the number lands on
+     * `2027-W00`, which is not a week, and on `2027-W02` it lands on a `2027-W00` and a
+     * `2027-W01` — a run that is short, malformed, or silently repeats. Seven days before a
+     * Monday is the previous week's Monday in every year, including the 53-week ones.
+     *
+     * SO THE CASE IS THE FIRST WEEK OF A YEAR, which is the only place the two rules can be told
+     * apart. It is asserted against the real calendar rather than a fixture, and as three separate
+     * properties rather than one list of keys: a hard-coded run would encode today's answer and
+     * would not say which rule produced it.
+     */
+    it("draws twelve weeks back from the build, across a year boundary", () => {
+        // 2027-W01 begins Monday 4 January 2027. Its twelve-week run therefore has to reach back
+        // into 2026 for eleven of its members.
+        const run = recentWeeks("running", 12, "2027-01-06", new Map());
+        expect(run.length, "twelve asked for, twelve drawn").toBe(12);
+
+        expect(run[run.length - 1].key, "the run must END on the week the build falls in").toBe("2027-W01");
+        expect(run[run.length - 1].monday).toBe("2027-01-04");
+        expect(run[run.length - 1].current, "exactly the last week is the current one").toBe(true);
+        expect(run.filter((w) => w.current).length, "a run has exactly one current week").toBe(1);
+
+        // THE BOUNDARY ITSELF. Eleven of the twelve are 2026 weeks, and the one before `2027-W01`
+        // is `2026-W53` — a week that only exists because 2026 has 53 of them, which is precisely
+        // the case an arithmetic walk gets wrong.
+        expect(run[run.length - 2].key).toBe("2026-W53");
+        expect(run.filter((w) => w.key.startsWith("2026-")).length,
+            "eleven of the twelve weeks before 2027-W01 belong to 2026").toBe(11);
+
+        // ORDERED OLDEST FIRST AND CONTIGUOUS. Both are properties of the SEQUENCE and neither is
+        // implied by the endpoints: a run that skipped a week, repeated one, or came back reversed
+        // would still start and end in the right place.
+        for (let i = 1; i < run.length; i++) {
+            expect(run[i].monday, `${run[i - 1].key} is not followed by ${run[i].key}`)
+                .toBe(day(run[i - 1].monday, 7));
+            expect(run[i].sunday, "a week is seven days, so its Sunday is derived").toBe(day(run[i].monday, 6));
+        }
+        expect(new Set(run.map((w) => w.key)).size, "no week may appear twice in one run").toBe(12);
+    });
+
+    /**
+     * IT IS THE TAIL OF THE SPINE, WHICH IS THE CONTRACT THE CARD'S CONTROL RESTS ON.
+     *
+     * The goal card draws these weeks and its one plate opens the page that draws the whole year,
+     * so a reader pressing it has to find the card's own bars at the foot of what arrives. That
+     * only holds while both scope a week the same way, and the two are separate functions — so
+     * this asserts the relation rather than trusting that they were written to agree. Against the
+     * REAL weeks, so a scoping change in either one is what reddens it.
+     */
+    it("returns the same figures the spine's own last rows carry", () => {
+        const spine = weekRows(seasonSpine(YEAR, "running"));
+        const run = recentWeeks("running", 12);
+        const byKey = new Map(spine.map((w) => [w.key, w]));
+
+        let compared = 0;
+        for (const week of run) {
+            const row = byKey.get(week.key);
+            if (!row) continue;   // early in a year the run reaches back before this spine begins
+            expect(week.monday, `${week.key}: the two disagree about which day the week begins`)
+                .toBe(row.monday);
+            expect(week.totals, `${week.key}: the card and the spine must scope a week identically`)
+                .toEqual(row.totals);
+            compared++;
+        }
+        expect(compared, "no week was compared — this assertion would be vacuous").toBeGreaterThan(6);
     });
 
     it("refuses an all-sports total when the goals do not agree on a unit", () => {

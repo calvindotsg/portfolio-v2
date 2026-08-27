@@ -1,5 +1,12 @@
 /**
- * THE TRAINING SPINE'S OWN PROSE: every string `/training` prints, and nothing else.
+ * THE TRAINING'S OWN PROSE: every string `/training` prints, and the four the goal card spends on
+ * the week it leads with.
+ *
+ * THE HOME PAGE IS THE SECOND READER AND IT ARRIVED WITH PLAN 047, which is why the heading above
+ * no longer says "the spine's". A goal card leads with the week and its one control opens
+ * `/training/<sport>`, so the card is quoting this page rather than describing itself — and a
+ * sentence about weeks belongs where the weeks are described. The four are grouped at the foot of
+ * the type below, each saying what it costs and why it is worded as it is.
  *
  * WHAT IS DELIBERATELY NOT HERE is the same half `PATCHES` leaves out next door. There is no
  * list of weeks — that is `src/data/weeks/`, written by a script — and no figure, no count and
@@ -111,6 +118,57 @@ export const TRAINING: {
      * bar is a week; a machine quoting one line out of the document has neither, so the line
      * has to carry both ends and carry them unambiguously.
      */
+    /**
+     * THE HALF OF THE GOAL CARD'S HERO THAT IS NOT THE FIGURE — `{unit}` is the goals' own.
+     *
+     * THE CARD'S HERO IS A WEEK NOW, WHICH IS WHY THESE FOUR STRINGS LIVE HERE RATHER THAN BESIDE
+     * THE GOAL. They are the training's account of itself and this module is where the training's
+     * prose is; a card that leads with the week and points at the spine is reading from the spine's
+     * own vocabulary, and putting them next to `NEXT_RACE` would have made the wall's module the
+     * home of a sentence about weeks.
+     *
+     * `this week` IS PRINTED RATHER THAN IMPLIED, and the reason is that the card carries two
+     * figures a reader could swap. The hero is one week and {@link card_year} is the whole year;
+     * neither is legible from its own digits, so each names its own span in the same breath.
+     * Measured at the `lg` breakpoint itself, which is the tightest the card ever is: the hero
+     * costs 169.25px of a 182px column at the widest figure this account can produce, so the words
+     * fit and a spark cannot also sit beside them — that is why the drawing sits on the row below.
+     */
+    card_week: string
+    /**
+     * THE YEAR, AS THE FIGURE THE HERO USED TO BE. `{done}` and `{target}` are the goal's own
+     * kilometres and `{unit}` its own unit.
+     *
+     * IT IS A LINE AND NOT THE HERO, AND THAT IS THE POINT OF THE WHOLE REARRANGEMENT rather than
+     * a demotion. `src/lib/projection.ts` returns `Goal met` from the day the kilometres pass the
+     * target until 31 December and `0 / 600` on 1 January, so for roughly six weeks a year, twice
+     * over, this was the loudest thing on the card and it was saying nothing. It says the same
+     * thing here and stops being the first thing read.
+     *
+     * NO `this year` SUFFIX, because the card's own heading already carries it — `My cycling goal
+     * this year` sits four lines above. Two statements of one span is the duplication the hero's
+     * old pill was deleted for, and it costs 14.34px of a column with 31px to spare.
+     */
+    card_year: string
+    /**
+     * WHAT THE TWELVE BARS ARE ANNOUNCED AS — ONE SENTENCE, NOT TWELVE READINGS.
+     *
+     * `{km}` is this week's distance, `{unit}` the goals' own, `{direction}` one of the three words
+     * below and `{mean}` the twelve weeks' average. The card's hero is `aria-hidden`, so this is
+     * the ONLY place a listener meets that figure and it has to carry it verbatim —
+     * `tests/rendered-html.test.ts` fails if the two disagree by a digit.
+     *
+     * IT NAMES A TREND AND NOT A SHAPE, which is the honest translation. What a sighted reader
+     * takes off a sparkline is where the last bar sits against the rest; a description of twelve
+     * heights is a list nobody can hold. The average is over all twelve including this one, which
+     * is the ordinary reading of "against its own recent run" and is stated rather than left to be
+     * inferred from a bare direction word.
+     */
+    card_spark: string
+    /** `{direction}` when this week beats the average, when it trails it, and when it ties. */
+    card_spark_above: string
+    card_spark_below: string
+    card_spark_level: string
     week_span: string
 } = {
     heading: "My training",
@@ -129,5 +187,11 @@ export const TRAINING: {
     sessions_head: "Sessions",
     time_head: "Moving",
     ahead_label: "Ahead",
+    card_week: "{unit} this week",
+    card_year: "{done} / {target} {unit}",
+    card_spark: "{km} {unit} this week, {direction} a twelve-week average of {mean} {unit}.",
+    card_spark_above: "above",
+    card_spark_below: "below",
+    card_spark_level: "level with",
     week_span: "{from} to {to}",
 }

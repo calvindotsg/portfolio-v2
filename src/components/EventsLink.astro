@@ -1,15 +1,25 @@
 ---
 import {NEXT_RACE} from "../content/races";
+import {TRAINING} from "../content/training";
 import type {Goal} from "../lib/goal";
 import {iconClass} from "../lib/icons";
 
 /*
  * TWO CALLERS, TWO WAYS TO SAY THE SAME THING, AND THE UNION IS WHAT KEEPS THEM APART.
  *
- * A goal card hands over its goal and this derives both halves from it — that is the
- * original caller and nothing about what it renders changes. The intro card's way in
- * points at the whole wall rather than at one sport, so it has no goal to derive from
- * and states the pair outright.
+ * A goal card hands over its goal and this derives both halves from it. The intro card's way in
+ * points at the whole wall rather than at one sport, so it has no goal to derive from and states
+ * the pair outright.
+ *
+ * IT IS STILL CALLED `EventsLink` AND ONE OF ITS TWO CALLERS NO LONGER OPENS THE EVENTS, which is
+ * a name kept on purpose rather than an edit nobody got to. The goal card's arm points at
+ * `/training/<sport>` now; the intro card's still opens the wall. Renaming the FILE is two import
+ * lines, but the class token this element wears is `events-link`, and that token is read by NAME
+ * by eleven assertions across three suites and by a forced-colours rule in BasicLayout.astro — so
+ * a rename here is a rename of the surface every one of those gates is written against, in a
+ * change that has no other reason to touch them. What the name records is the first caller, and
+ * what this component actually IS has not moved: it is the site's one call to action, the plate,
+ * and the union below is what lets two cards spend it on two different destinations.
  *
  * IT IS A UNION AND NOT TWO OPTIONAL FIELDS, deliberately. With three independent
  * optionals a caller can pass a goal AND a label, and the two would disagree about what
@@ -134,9 +144,30 @@ const props = Astro.props;
  * tests/build-output.test.ts fails the build by name when they do. All four were caught here
  * on the first run.)
  */
-const href = props.goal ? `/patches/${props.goal.sport}` : props.href;
+/*
+ * THE GOAL CARD'S ARM OPENS THE SPINE, AND `NEXT_RACE.control` IS DELIBERATELY UNTOUCHED.
+ *
+ * That string is not this control's private label — it is the NAME OF THE EVENTS WALL, read by
+ * five consumers: the two sport walls' `<h1>` and the `<title>` derived from it, the heading of
+ * their two markdown twins, the link label for each sport wall in `llms.txt`, and the control
+ * specimen on `/design`. Editing it here would silently re-head two shipped pages. So this takes a
+ * SECOND string instead — `TRAINING.control`, which plan 046 authored as the heading of
+ * `/training/<sport>` precisely so that this could wear it.
+ *
+ * ONE STRING AT BOTH ENDS IS WHAT MAKES THE PAIRING UNBREAKABLE rather than merely correct today.
+ * `tests/build-output.test.ts` reads the rendered pair — a control's printed label against its
+ * destination's rendered heading — and the defect it was written for is a reader pressing one name
+ * and landing on another. There is no mapping to keep in step because there is nothing to map.
+ *
+ * THE MARK IS STILL `NEXT_RACE.icon`, and that is a constraint rather than an oversight. Both arms
+ * leave with the same arrow, so it is the component's own and not either destination's; and
+ * `src/content/training.ts` says at its head that it must stay out of the `uno.config.ts` graph,
+ * which `src/lib/icons.ts` drags a content module into the moment it DECLARES AN ICON. Giving that
+ * module an icon id to satisfy a symmetry would join it to that graph for nothing.
+ */
+const href = props.goal ? `/training/${props.goal.sport}` : props.href;
 const label = props.goal
-    ? NEXT_RACE.control.replace("{sport}", props.goal.goal_name.toLowerCase())
+    ? TRAINING.control.replace("{sport}", props.goal.goal_name.toLowerCase())
     : props.label;
 ---
 

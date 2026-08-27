@@ -5,9 +5,11 @@ import {beforeAll, describe, expect, it} from "vitest";
 import Index from "../src/pages/index.astro";
 import {ABOUT_ME, CAREER, NOW, WELCOME} from "../src/content/home";
 import {NEXT_RACE} from "../src/content/races";
+import {TRAINING} from "../src/content/training";
 import {FOOTER, LINKS, METADATA, NEW_TAB_NOTICE, THEME_TOGGLE} from "../src/content/site";
 import {GOALS} from "../src/lib/goal";
 import {nextRace, nextRaceLine, patchesEarned} from "../src/lib/projection";
+import {recentWeeks} from "../src/lib/season";
 import {decl, isStateful, pageCss, parseRules, structuralSelector} from "./helpers/css";
 import {iconClass} from "../src/lib/icons";
 
@@ -329,8 +331,14 @@ describe("page content", () => {
             // same lowercase form is what makes them unable to drift.
             const sport = goal.goal_name.toLowerCase();
             expect(text).toContain(`My ${sport} goal this year`);
+            // THE CONTROL NAMES THE SPINE NOW, NOT THE WALL, and the string it wears moved with
+            // it: `TRAINING.control` rather than `NEXT_RACE.control`. The property being asserted
+            // has not changed at all — the card's heading and its own control must write the sport
+            // the same way — and it is the reason this reads the content module rather than a
+            // literal. `NEXT_RACE.control` still names the wall and is still the heading of the
+            // two sport walls; it is simply no longer on this page.
             expect(text, `the card's heading and its control must write "${sport}" identically`)
-                .toContain(NEXT_RACE.control.replace("{sport}", sport));
+                .toContain(TRAINING.control.replace("{sport}", sport));
             // Composed phrases, not bare numbers: "1000" alone also appears in
             // ABOUT_ME prose, so a bare containment cannot fail for the card.
             //
@@ -343,46 +351,74 @@ describe("page content", () => {
     });
 
     /**
-     * THE HERO IS aria-hidden AND THE METER SAYS IT INSTEAD, which is only safe while the
-     * meter is actually there saying it. "2279.7 / 5000 km" announces a slash and repeats
-     * what the progress bar beside it already carries in words, so the visual figure is
-     * taken out of the accessibility tree — but that is a pairing, not a property of the
-     * paragraph, and nothing else in this suite would notice if the other half left.
+     * THE HERO IS aria-hidden AND THE DRAWING SAYS IT INSTEAD, which is only safe while the
+     * drawing is actually there saying it. "24.40 km this week" beside twelve bars whose last one
+     * IS that week repeats what the drawing already carries, so the visual figure is taken out of
+     * the accessibility tree — but that is a pairing, not a property of the paragraph, and nothing
+     * else in this suite would notice if the other half left.
      *
-     * So: hide the figure only while an element in the same card carries the same two
-     * numbers in an accessible name. Delete the bar, drop its `aria-valuetext`, or reword
-     * it out of agreement with the visible copy, and this goes red.
+     * THE OTHER HALF USED TO BE A PROGRESS BAR AND IS NOW THE SPARK, which is a change of subject
+     * and deliberately NOT a loosening. The bar carried `aria-valuetext` holding the year's two
+     * figures; the hero was that fraction. The hero is one week now and the spark's accessible
+     * name is where that figure is spoken, so the gate follows the pairing rather than the element
+     * — and it got STRICTER in the move: it reads the name that is actually computed for the
+     * element rather than one attribute, so an `aria-labelledby` pointing at nothing, or an
+     * `aria-hidden` ancestor, fails here too.
+     *
+     * So: hide the figure only while an element in the same card carries every figure the hero
+     * prints, in an accessible name. Delete the spark, drop its label, or reword it out of
+     * agreement with the visible copy, and this goes red.
      */
     it("never hides the card's figure without an accessible equivalent beside it", () => {
         const heroes = [...doc.querySelectorAll(".goal-figure")];
         expect(heroes.length, "every goal card must print its figure").toBe(GOALS.length);
 
+        let hidden = 0;
         for (const hero of heroes) {
             if (hero.getAttribute("aria-hidden") !== "true") continue;
+            hidden++;
             const card = hero.closest("[data-card]");
-            const meter = card?.querySelector('[role="progressbar"]');
-            expect(meter, "the hero is hidden, so the card must carry a meter to announce it").toBeTruthy();
+            const spark = card?.querySelector(".volume-spark");
+            expect(spark, "the hero is hidden, so the card must carry a drawing to announce it").toBeTruthy();
 
-            // AND THE METER MUST BE IN THE ACCESSIBILITY TREE. Asserting only that a
-            // `[role=progressbar]` element EXISTS lets both halves be hidden at once — put
-            // `aria-hidden` on the bar and the card announces neither its figure nor its meter,
-            // with this gate still green. The whole point of the pairing is that exactly one of
-            // them is hidden.
-            for (let el: Element | null = meter!; el && el !== card; el = el.parentElement) {
+            // IT MUST BE AN IMAGE WITH A NAME, not a bare box. `role="img"` is what makes the
+            // twelve tracks inside it presentational, so a listener meets one object rather than
+            // twelve; without the role the name may not be exposed at all, which is the failure
+            // that reads exactly like a pass from the outside.
+            expect(spark!.getAttribute("role"), "the drawing must be announced as one image").toBe("img");
+
+            // AND IT MUST BE IN THE ACCESSIBILITY TREE. Asserting only that the element EXISTS
+            // lets both halves be hidden at once — put `aria-hidden` on the spark and the card
+            // announces neither its figure nor its drawing, with this gate still green. The whole
+            // point of the pairing is that exactly one of them is hidden.
+            for (let el: Element | null = spark!; el && el !== card; el = el.parentElement) {
                 expect(
                     el.getAttribute("aria-hidden"),
-                    "the meter (or an ancestor inside the card) is aria-hidden while the hero is too, "
+                    "the drawing (or an ancestor inside the card) is aria-hidden while the hero is too, "
                     + "so the card's central figure is announced by nothing at all",
                 ).not.toBe("true");
             }
 
-            const spoken = meter!.getAttribute("aria-valuetext") ?? "";
+            const spoken = spark!.getAttribute("aria-label") ?? "";
             const digits = (hero.textContent ?? "").match(/[\d.]+/g) ?? [];
-            expect(digits.length, "the hero must print two figures").toBe(2);
+            expect(digits.length, "the hero must print exactly one figure").toBe(1);
             for (const d of digits) {
-                expect(spoken, `the hero shows ${d} but the meter announces "${spoken}"`).toContain(d);
+                expect(spoken, `the hero shows ${d} but the drawing announces "${spoken}"`).toContain(d);
             }
+
+            // ONE SENTENCE, NOT TWELVE READINGS. The name has to say what the drawing is OF, and
+            // a bare figure does not: a listener told "24.40 km" has been told a number with no
+            // span. Both halves of the sentence the content module authors are checked, so a
+            // label trimmed back to the figure alone is red.
+            expect(spoken, "the drawing's name must say which span the figure covers")
+                .toContain(TRAINING.card_week.replace("{unit}", ""). trim());
+            expect(
+                [TRAINING.card_spark_above, TRAINING.card_spark_below, TRAINING.card_spark_level]
+                    .some((word) => spoken.includes(word)),
+                `the drawing's name must place this week against its own run — got "${spoken}"`,
+            ).toBe(true);
         }
+        expect(hidden, "no goal card hides its hero, so this assertion never ran").toBe(GOALS.length);
     });
 
     /**
@@ -390,22 +426,35 @@ describe("page content", () => {
      * bordered chip that reported the countdown AND navigated; the countdown is an
      * ordinary line of the card's figures column, and this is the control.
      *
-     * The visible label IS the accessible name — there is no sr-only completion left to
-     * check — so what this asserts is that the words name the sport whose wall they open,
+     * IT OPENS THE SPINE RATHER THAN THE WALL, which is the one thing here that moved. The card
+     * leads with the week and the twelve bars on it are the last twelve rows of
+     * `/training/<sport>`, so that is where its single plate points; the wall keeps its own way in
+     * from the intro card's plate, which `tests/build-output.test.ts` walks the link graph to
+     * prove rather than assume.
+     *
+     * The printed label IS the accessible name — there is no sr-only completion left to
+     * check — so what this asserts is that the words name the sport whose page they open,
      * and that they are the same words that page is headed with. That agreement is the
      * defect being guarded: the previous pairing said "events" on the control and
      * "Cycling patches" at the destination, so the vocabulary broke at the click.
      */
-    it("gives every goal card a control leading to its own sport's events", () => {
+    it("gives every goal card a control leading to its own sport's training", () => {
         for (const goal of GOALS) {
             const control = [...doc.querySelectorAll(".events-link")]
-                .find((a) => a.getAttribute("href") === `/patches/${goal.sport}`);
-            expect(control, `${goal.goal_name} must offer a way to its events`).toBeTruthy();
+                .find((a) => a.getAttribute("href") === `/training/${goal.sport}`);
+            expect(control, `${goal.goal_name} must offer a way to its training`).toBeTruthy();
 
             const name = (control!.textContent ?? "").replace(/\s+/g, " ").trim();
             expect(name, "the control must name where it goes").toContain(goal.goal_name.toLowerCase());
-            expect(name, "no aria-label: the announced name is the visible label")
-                .toBe(NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase()));
+            expect(name, "no aria-label: the announced name is the printed label")
+                .toBe(TRAINING.control.replace("{sport}", goal.goal_name.toLowerCase()));
+
+            // AND IT MUST NOT BE THE WALL'S NAME. `NEXT_RACE.control` still exists and still heads
+            // the two sport walls; a control wearing it here would be pointing at the spine under
+            // the events wall's name, which is the exact break the pairing above exists to catch
+            // and which no `toBe` on the new string would notice if both happened to be edited.
+            expect(name, "this control names the spine; the wall's own name belongs to the wall")
+                .not.toBe(NEXT_RACE.control.replace("{sport}", goal.goal_name.toLowerCase()));
             expect(control!.getAttribute("aria-label"), "an aria-label would REPLACE the visible words, not extend them")
                 .toBeNull();
 
@@ -902,23 +951,56 @@ describe("page content", () => {
         ).toBe(true);
     });
 
-    it("renders an accessible progress bar per goal", () => {
-        const bars = [...doc.querySelectorAll('[role="progressbar"]')];
-        expect(bars.length, "one progressbar element per goal").toBe(GOALS.length);
+    /**
+     * THIS USED TO ASSERT A PROGRESS BAR PER GOAL AND NOW ASSERTS THE SERIES THAT REPLACED IT.
+     *
+     * The bar is gone from this page with the fraction it drew — `goalStatus` returns `met` the
+     * day the target is passed and the rule then stood full until 31 December, so for roughly six
+     * weeks a year, twice over, the loudest mark on the card carried nothing. What is drawn
+     * instead is twelve weeks of volume, and the two are not the same KIND of object: a fraction
+     * has a value, a minimum and a maximum, and a series has none of the three. So there is no
+     * `aria-valuenow` to check here and inventing one would be a lie about what is on screen —
+     * `role="progressbar"` on a series is the mistake `WeekRow.astro` argues against next door.
+     *
+     * WHAT IS KEPT IS THE PROPERTY, not the attributes: every figure the drawing shows is derived
+     * from the same weeks the module returns, so no bar can be drawn from a number nobody can
+     * reach. That is asserted against `recentWeeks` rather than against literals, because the
+     * figures are bot-driven and a literal would be a failed deploy the morning after any ride.
+     */
+    it("renders a twelve-week series per goal, drawn from the weeks the module returns", () => {
+        const sparks = [...doc.querySelectorAll(".volume-spark")];
+        expect(sparks.length, "one series per goal").toBe(GOALS.length);
         GOALS.forEach((goal, i) => {
-            // Positional, not a lookup by aria-valuenow: the figures are
-            // bot-driven and can tie — Strava's YTD totals reset both goals to 0
-            // every 1 January — and a value-based find() then returns the first
-            // bar for both goals, failing the assertions below on the second.
-            const bar = bars[i];
-            expect(bar?.getAttribute("aria-valuenow"), `a progressbar must carry aria-valuenow ${goal.current_progress}`).toBe(String(goal.current_progress));
-            expect(bar?.getAttribute("aria-valuemin")).toBe("0");
-            expect(bar?.getAttribute("aria-valuemax"), "max is in km, not 100, so it must be the goal target").toBe(String(goal.total_goal));
-            expect(bar?.getAttribute("aria-valuetext")).toBe(`${goal.current_progress} of ${goal.total_goal} ${goal.measurable_unit}`);
-            expect(bar?.getAttribute("aria-label"), "progressbar needs an accessible name").toBeTruthy();
-            const percent = Math.max(0, Math.min(100, (goal.current_progress / goal.total_goal) * 100));
-            expect(bar?.querySelector(".progress-fill")?.getAttribute("style"), "the fill width must derive from the goal's own figures")
-                .toBe(`--progress: ${percent}%`);
+            // Positional, not a lookup by label: the figures are bot-driven and can tie — Strava's
+            // YTD totals reset both goals to 0 every 1 January, and both cards then carry the same
+            // sentence — so a value-based find() would return the first spark for both goals and
+            // pass every assertion below vacuously.
+            const spark = sparks[i];
+            const weeks = recentWeeks(goal.sport, 12);
+            expect(weeks.length, "the module must return twelve weeks").toBe(12);
+
+            const bars = [...spark.querySelectorAll(".spark-week")];
+            expect(bars.length, `${goal.goal_name} must draw one bar per week the module returns`)
+                .toBe(weeks.length);
+
+            const busiest = Math.max(0, ...weeks.map((w) => w.totals.metres));
+            bars.forEach((bar, w) => {
+                const pct = busiest ? (weeks[w].totals.metres / busiest) * 100 : 0;
+                expect(
+                    bar.querySelector(".spark-fill")?.getAttribute("style"),
+                    `${goal.goal_name} week ${weeks[w].key}: the fill must derive from that week's own metres`,
+                ).toBe(`--fill: ${pct.toFixed(3)}%`);
+            });
+
+            // THE SCALE MUST ACTUALLY BE REACHED, or twelve bars at 0% would satisfy the loop
+            // above on a build where the fetcher had written nothing. A run with any distance in
+            // it has exactly one busiest week and that week is drawn full.
+            if (busiest > 0) {
+                expect(
+                    bars.some((b) => b.querySelector(".spark-fill")?.getAttribute("style") === "--fill: 100.000%"),
+                    `${goal.goal_name} has ridden weeks but no bar is drawn at the run's own scale`,
+                ).toBe(true);
+            }
         });
     });
 
