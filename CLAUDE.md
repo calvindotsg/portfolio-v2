@@ -426,15 +426,20 @@ The entries below are the ones carrying non-obvious constraints:
   silent — and the smaller subset the design agent's document carries is now DECLARED in
   `src/lib/design-doc.ts`, with the reason for each drop beside it, rather than being
   whichever lines somebody happened to write. **The system publishes what it DOES and what it
-  CALLS things alongside what it looks like** — its states, its vocabulary and what it takes to
-  reach and read any of it, sitting beside colour, type, controls and marks as ordinary sections
-  rather than an appendix. No section may restate another, wherever it sits: the sections are
-  subjects and not owners, so a line belongs where it was first written down and a later section
-  that wants it has to find the thing only it can say. **The full markdown rendering heads a
-  section with the DESIGN.md format's own name for it wherever that format has one, so the page
-  and the document deliberately say different words above the same section** — a canonical name is
-  a wire format, in the sense the Configuration rule means, and the site's own word stays on the
-  page. `src/lib/design-doc.ts` holds the mapping and the argument
+  CALLS things alongside what it looks like** — its interaction states, its vocabulary and what it
+  takes to reach and read any of it, sitting beside colour, type, controls and iconography as
+  ordinary sections rather than an appendix. No section may restate another, wherever it sits: the
+  sections are subjects and not owners, so a line belongs where it was first written down and a
+  later section that wants it has to find the thing only it can say.
+  **EVERY SURFACE CALLS A SECTION THE SAME THING, AND THAT THING IS THE INDUSTRY'S WORD RATHER THAN
+  THIS SITE'S.** The DESIGN.md format names two of these sections itself; the rest take the term a
+  reader arriving from another design system would search for. A heading is a lookup key, so it is
+  not the place to be distinctive — the prose under it still says `a mark`, `a press`, `a word`.
+  There was briefly a mapping in the renderer that let the page and the document disagree; it is
+  gone, the content module authors the names, and `tests/design-system.test.ts` asserts the module
+  and the format agree rather than translating between them. **A SECTION'S KEY IS NOT ITS HEADING
+  and does not follow it** — the key is a public `#design-<key>` URL, so `palette` still addresses
+  the section headed `Colors`. The argument for all of it is in `src/content/design.ts`
 
 ## Plans
 

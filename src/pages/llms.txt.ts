@@ -206,8 +206,8 @@ export const GET: APIRoute = ({site}) => {
             `- [${goal.goal_name} events as markdown](${abs(`/patches/${goal.sport}.md`)}): `
             + `the ${goal.goal_name.toLowerCase()} wall as markdown`,
         ]),
-        `- [${DESIGN_PAGE.heading}](${abs("/design/")}): the site's own design system — every colour token, `
-        + "type step, control and mark it is built from, drawn live",
+        `- [${DESIGN_PAGE.heading}](${abs("/design/")}): the site's own design system — every color token, `
+        + "type step, control and icon it is built from, drawn live",
         // THE SAME PAGE IN THE FORMAT THIS FILE IS ITSELF WRITTEN IN, and it is listed here for
         // the reader this whole endpoint is for: an agent that has just been handed a plain-text
         // summary of the site is exactly the reader who would rather have the design system as

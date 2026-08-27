@@ -78,13 +78,13 @@ export const DESIGN_PAGE: {
     title: `${NAME} — ${METADATA.name}`,
     heading: NAME,
     link_label: NAME,
-    lede: "Everything below is the real thing. The colour sheet prints both themes at once, the "
+    lede: "Everything below is the real thing. The color sheet prints both themes at once, the "
         + "ramp wears the real classes, and the controls are the controls. Nothing here is "
         + "authored twice — every value on this page is read out of the block that declares it, "
-        + "which is why the page can tell you what each colour is and still not be able to go out "
+        + "which is why the page can tell you what each color is and still not be able to go out "
         + "of date. Change the theme and the page re-tones around a record that does not, which is "
         + "what keeps both columns readable in either one.",
-    description: "The colours, the type ramp, the controls and the marks this site is built from, "
+    description: "The colors, the type ramp, the controls and the marks this site is built from, "
         + "drawn live from the stylesheet it ships.",
     index_label: "Jump to a section",
     does_label: "Do",
@@ -126,7 +126,7 @@ export const THEMING: {
 } = {
     heading: "Set data-theme, or nothing is styled",
     lede: "Every token is defined only under the two theme blocks — there is no bare :root "
-        + "fallback — so a page without the attribute resolves every colour to an invalid value "
+        + "fallback — so a page without the attribute resolves every color to an invalid value "
         + "and renders unstyled text on unstyled ground. Both themes are equal citizens and "
         + "every design has to work in each; light is what the site serves by default. Put it "
         + "on the root element:",
@@ -160,9 +160,9 @@ export const TOKEN_ROLES: readonly {token: string, role: string}[] = [
     {token: "--progress-track", role: "the unmarked remainder of that bar"},
     {token: "--status-live", role: "the Now card's live indicator dot"},
     {token: "--status-halo", role: "that dot's decorative pulsing halo"},
-    {token: "--brand-ink", role: "a brand-coloured glyph standing in for a word in prose"},
+    {token: "--brand-ink", role: "a brand-colored glyph standing in for a word in prose"},
     {token: "--sport-ride", role: "the cycling mark where it sits on a card"},
-    {token: "--sport-ride-on-ink", role: "the same mark on an ink-coloured surface"},
+    {token: "--sport-ride-on-ink", role: "the same mark on an ink-colored surface"},
     {token: "--sport-run", role: "the running mark on a card"},
     {token: "--sport-run-on-ink", role: "the same mark on ink"},
 ]
@@ -179,7 +179,7 @@ export const CONTROLS: readonly {name: string, role: string}[] = [
     {
         name: "control-cta",
         role: "The plated surface at the width of whatever contains it, holding a label and its "
-            + "mark centred together as one legend. It is the mark for a card's ONE action and "
+            + "mark centered together as one legend. It is the mark for a card's ONE action and "
             + "is spent nowhere else. Its label comes from data and must be allowed to wrap, so "
             + "its height is floored rather than pinned. The intro card's way in, and each goal "
             + "card's way out.",
@@ -228,9 +228,42 @@ export const CONTROLS: readonly {name: string, role: string}[] = [
  * why the access section says nothing about giving an icon-only control an accessible name,
  * which is a mark's instruction and has been under Marks all along.
  *
- * A SECTION'S KEY IS A PUBLIC ADDRESS. `/design` derives one anchor per key, so a key is a URL
- * somebody may have bookmarked, where the heading above it is prose anybody may reword. Keep
- * the two saying the same word, and rename neither casually.
+ * A SECTION'S KEY IS A PUBLIC ADDRESS AND ITS HEADING IS NOT, WHICH IS WHY THEY MAY DIFFER.
+ * `/design` derives one anchor per key, so `palette` is a URL somebody may have bookmarked and
+ * renaming it breaks that link for nothing. The heading above it is prose, and where the DESIGN.md
+ * format names the section, the heading is the FORMAT'S name — see below. So `palette` is headed
+ * `Colors`, `type` is headed `Typography`, and `icons` has been headed `Marks` since before either.
+ * Rename a key only for a reason worth a dead bookmark.
+ *
+ * WHERE THE FORMAT NAMES A SECTION, THIS MODULE USES THE FORMAT'S NAME AND ITS REGISTER — which is
+ * a reversal, and the reversal is the point. These headings were `Colour` and `Type`: the site's own
+ * words, in British English, in the voice every other page is written in. The document rendered from
+ * them claimed the DESIGN.md format, and for a while it satisfied the format by MAPPING those names
+ * in the renderer, so the page said one word and the document said another about the same section.
+ * That is not two registers serving two readers; it is one design system that cannot be quoted
+ * consistently — a reader who reads the page and then the spec finds them disagreeing on what the
+ * thing is called, and neither is wrong, which is worse than either being wrong.
+ *
+ * So the whole published design system speaks the format's register: `Colors`, `Typography`, and
+ * American spelling in every string below that a reader or an agent is shown. **The COMMENTS in this
+ * repository do not**, this one included — they are the repository talking to whoever maintains it,
+ * in the voice the rest of the tree is written in. The line is between what is PUBLISHED as the
+ * design system and what is written ABOUT it, and `tests/design-system.test.ts` holds the published
+ * side, over the renderings and the built page rather than over this file, because the population
+ * that matters is what ships.
+ *
+ * A SECTION THE FORMAT DOES NOT NAME TAKES THE INDUSTRY'S WORD, NOT THIS SITE'S. `Iconography`,
+ * `Interaction States`, `Voice & Tone` and `Accessibility` were `Marks`, `States`, `Words` and
+ * `Access` — terser, better prose, and each one a word a reader arriving from another design system
+ * has to be taught before they can look anything up. The format's own philosophy leaves these
+ * categories open precisely so a system can define them, and defining them in private vocabulary is
+ * how a document stops being quotable. `Controls` is unchanged because it already IS the common
+ * term for what it holds, and `Components` is the one name it may not take — see
+ * `CANONICAL_SECTIONS` in `src/lib/design-doc.ts` for why that would assert something false.
+ *
+ * THE PAGE STILL TEACHES THE SHORT WORDS. A heading is a lookup key; the prose under it is where
+ * this system says `a mark`, `a word`, `a press`. Nothing about renaming the headings costs the
+ * vocabulary — it costs only the assumption that a reader already knows it.
  */
 export const SECTIONS: Readonly<Record<
     "palette" | "type" | "controls" | "icons" | "states" | "words" | "access", {
@@ -240,25 +273,29 @@ export const SECTIONS: Readonly<Record<
     donts: readonly string[]
 }>> = {
     palette: {
-        heading: "Colour",
+        heading: "Colors",
         lede: "The tokens below carry the whole design. Each is defined twice — once per theme — "
             + "and nowhere else, so a design is on-brand exactly to the degree it reaches for "
             + "these and nothing else. A mark meant for an ink-flooded surface is drawn on one "
             + "here, because showing it against the page ground renders the pale half of every "
-            + "pair as a mistake.",
+            + "pair as a mistake. Each token has two keys in this document, {colors.light-accent} "
+            + "and {colors.dark-accent} for one token; in CSS it is var(--accent), and the live "
+            + "theme decides which of the two you get. Guidance below cites the light key, because "
+            + "a reference has to name one and light is what this site serves by default — the "
+            + "instruction is about the token, never about that theme.",
         does: [
-            "Reach for the token whose role matches what you are drawing, not the one whose colour you like.",
+            "Reach for the token whose role matches what you are drawing, not the one whose color you like.",
             "Design in both themes. Every token is defined in each, and several swap polarity rather than merely darkening.",
-            "Use an -on-ink variant on a surface flooded with --text, which is the only place it is right.",
+            "Use an -on-ink variant on a surface flooded with {colors.light-text}, which is the only place it is right.",
         ],
         donts: [
             "Hardcode a hex, even one printed here. Only the token name carries BOTH values, so a literal is right in at most one theme and wrong in the other.",
-            "Reach for --brand-ink to draw something interactive. That is --accent's job, and the two only coincide in light mode.",
-            "Assume dark is light with the lightness inverted. --progress-fill and --progress-track deliberately trade places.",
+            "Reach for {colors.light-brand-ink} to draw something interactive. That is {colors.light-accent}'s job, and the two only coincide in the light theme.",
+            "Assume dark is light with the lightness inverted. {colors.light-progress-fill} and {colors.light-progress-track} deliberately trade places.",
         ],
     },
     type: {
-        heading: "Type",
+        heading: "Typography",
         lede: "A deliberately short ramp. There is no webfont and no display face — the system "
             + "sans stack is the typeface, and restraint in the ramp is what carries hierarchy "
             + "instead. Each step below is set in the size it names.",
@@ -285,8 +322,8 @@ export const SECTIONS: Readonly<Record<
             + "a working link to the page it names.",
         does: [
             "Give every link a signifier a reader can perceive: an underline, a mark, or a border.",
-            "Let a labelled control wrap. Its width belongs to its container; its height belongs to its text.",
-            "Draw the press, and snap it. A tap is over long before a 300ms colour ramp finishes, so a pressed state must not ease.",
+            "Let a labeled control wrap. Its width belongs to its container; its height belongs to its text.",
+            "Draw the press, and snap it. A tap is over long before a 300ms color ramp finishes, so a pressed state must not ease.",
         ],
         donts: [
             "Reach for a surface class. control-surface and chip-surface are source-level shortcuts the boxes compose, nothing wears either directly, and neither is in the shipped stylesheet.",
@@ -295,7 +332,7 @@ export const SECTIONS: Readonly<Record<
         ],
     },
     icons: {
-        heading: "Marks",
+        heading: "Iconography",
         lede: "Every mark here is in the stylesheet because some page uses it, so the set grows "
             + "with the site rather than ahead of it. Nothing outside this set is available: a "
             + "class with no rule renders as a mask box at zero size, which is an absent icon "
@@ -308,11 +345,11 @@ export const SECTIONS: Readonly<Record<
         donts: [
             "Substitute an emoji for a mark that is not in the set.",
             "Mix another icon family in. The ones that ship do different jobs and were chosen against each other.",
-            "Recolour a brand mark away from what the surface it sits on needs for contrast.",
+            "Recolor a brand mark away from what the surface it sits on needs for contrast.",
         ],
     },
     states: {
-        heading: "States",
+        heading: "Interaction States",
         lede: "Every control here has states, and the states are what tell a reader that "
             + "something can be pressed and that a press landed. This is the half of the system "
             + "that is invisible on a desktop with a mouse and obvious on a phone: hover is not "
@@ -322,7 +359,7 @@ export const SECTIONS: Readonly<Record<
         does: [
             "Hold a press on anything that navigates until the page actually changes. The press ends when the finger lifts and the reader then waits, with nothing on screen saying the tap landed.",
             "Draw keyboard focus on every device, and draw it apart from hover. Hover is a pointer's affordance and some readers have no pointer; focus is how anyone driving the page from a keyboard knows where they are.",
-            "Honour a reduced-motion preference. A reader who set it is saying that movement costs them something, so the design has to still work with every transition taken out.",
+            "Honor a reduced-motion preference. A reader who set it is saying that movement costs them something, so the design has to still work with every transition taken out.",
         ],
         donts: [
             "Write a hover style a touch device will apply. A touch browser puts hover on whatever was tapped and leaves it there until something else is tapped, so an affordance carried by hover arrives as a state stuck on the last thing the reader touched.",
@@ -331,7 +368,7 @@ export const SECTIONS: Readonly<Record<
         ],
     },
     words: {
-        heading: "Words",
+        heading: "Voice & Tone",
         lede: "The words in this interface are design material, and this vocabulary is decided "
             + "rather than inherited. A control's label is the name of the thing it opens; two "
             + "states that share a treatment are told apart by the word each one prints; and the "
@@ -349,10 +386,10 @@ export const SECTIONS: Readonly<Record<
         ],
     },
     access: {
-        heading: "Access",
+        heading: "Accessibility",
         lede: "Reaching and reading, which is the one subject here that is not about drawing. A "
             + "design is finished when somebody can get to every part of it with a finger, with "
-            + "a keyboard, at the text size they chose, and with the colours replaced — and "
+            + "a keyboard, at the text size they chose, and with the colors replaced — and "
             + "every one of those is a different reader rather than the same one described "
             + "again.",
         does: [
@@ -362,7 +399,7 @@ export const SECTIONS: Readonly<Record<
         ],
         donts: [
             "Let reading order drift from visual order. A keyboard meets the markup, so a column moved by the layout is still read where it was written.",
-            "Depend on a colour surviving. A forced-colours mode replaces every one of them, so whatever a colour alone was carrying arrives blank.",
+            "Depend on a color surviving. A forced-colors mode replaces every one of them, so whatever a color alone was carrying arrives blank.",
             "Hide from the accessibility tree something a sighted reader can act on. A control nobody can name is a control only some readers have.",
         ],
     },

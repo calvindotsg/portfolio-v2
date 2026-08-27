@@ -2,9 +2,9 @@ import {readFileSync} from "node:fs";
 import {describe, expect, it} from "vitest";
 
 import unoConfig from "../uno.config";
-import {CONTROLS, SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
+import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
 import {
-    AGENT_DROPS, AGENT_SECTIONS, CANONICAL_SECTIONS, GUARDRAILS_HEADING, headingFor, renderDesignDoc,
+    AGENT_DROPS, AGENT_SECTIONS, CANONICAL_SECTIONS, GUARDRAILS_HEADING, renderDesignDoc,
 } from "../src/lib/design-doc";
 import {ICON_IDS, iconClass} from "../src/lib/icons";
 import {PALETTE} from "../src/lib/palette";
@@ -477,13 +477,7 @@ describe("the design system this site publishes", () => {
             .toBeGreaterThan(0);
         const rendered = renderDesignDoc("full");
         for (const [key, section] of sections) {
-            // THE HEADING IS THE ONE LINE OF A SECTION THIS DOCUMENT MAY NOT SAY IN THE MODULE'S
-            // OWN WORDS: the DESIGN.md format names two of these sections itself and the renderer
-            // emits the format's name. So the heading is asked of the renderer and everything else
-            // is asked of the module — and the mapping that makes them differ has its own gate
-            // below, anchored on the table rather than on this function.
-            const lines = sectionLines({...section, heading: headingFor(key as keyof typeof SECTIONS)});
-            expect(lines.filter((line) => !rendered.includes(line)),
+            expect(sectionLines(section).filter((line) => !rendered.includes(line)),
                 `the full rendering is missing these lines of SECTIONS.${key}, so DESIGN.md and `
                 + "/design.md describe a design system that is not the one /design shows")
                 .toEqual([]);
@@ -521,42 +515,40 @@ describe("the design system this site publishes", () => {
     });
 
     /**
-     * THE MAPPING APPLIES, AND IT APPLIES IN BOTH DIRECTIONS.
+     * THE CONTENT MODULE CALLS A SECTION WHAT THE FORMAT CALLS IT, AND SO DOES EVERY SURFACE.
      *
-     * The canonical heading is a WIRE FORMAT and the authored one is the site's own word, which is
-     * the whole argument in `src/lib/design-doc.ts` for why the page says `Colour` and the document
-     * says `Colors`. Two ways that stops being true and neither shows up anywhere else: the
-     * renderer stops consulting the table, in which case the document silently reverts to the
-     * module's headings; or it starts emitting both, in which case a consumer meets an unknown
-     * heading it was supposed to have been given the canonical name for.
+     * These two headings were the site's own British words, and the full rendering swapped in the
+     * format's names on its way out — so `/design` said `Colour` where `DESIGN.md` said `Colors`.
+     * That is a design system nobody can quote consistently, and it is what this gate replaced the
+     * mapping with: the module authors `Colors`, every rendering carries it unchanged, and the
+     * agreement is asserted rather than performed.
      *
-     * ANCHORED ON THE TABLE RATHER THAN ON `headingFor`, and that is the point of the split. Asking
-     * the renderer's own resolver here would make both halves of every assertion move together, so
-     * a reverted renderer would read as green — the shape a derived-against-derived gate always
-     * has. The gate above asks the resolver because there the heading is incidental; here it is
-     * the subject.
+     * IT IS NOT A TAUTOLOGY, WHICH THE MAPPING'S ORDER GATE WAS. `CANONICAL_SECTIONS` and
+     * `SECTIONS` are two different homes, so the mutation that matters — renaming a heading back in
+     * `src/content/design.ts`, which is an ordinary-looking edit to page copy — moves ONE of them
+     * and reddens this. The old gate could only ever catch a renderer that stopped consulting a
+     * table; nothing could catch the content module walking away from the format.
      *
-     * AND IT REFUSES A VACUOUS TABLE. An entry mapping a section to the heading it already has
-     * would satisfy the positive half and make the negative half assert nothing at all, so the
-     * difference is required rather than assumed.
+     * BOTH DIRECTIONS, AND OVER THE RENDERING AS WELL AS THE MODULE. The module agreeing is what
+     * makes the surfaces agree, but the document is what a consumer reads, so the heading is
+     * asserted where it is DRAWN (`## Colors`) and exactly once — the format's one hard error is a
+     * duplicate section heading, and a second gate above owns that in general.
      */
-    it("emits the format's own name for every section that has one, and the site's for the rest", () => {
+    it("calls every section the format names by the format's own name, in the module and the document", () => {
         expect(CANONICAL_SECTIONS.length,
             "CANONICAL_SECTIONS is empty — this gate would assert nothing").toBeGreaterThan(0);
         const rendered = renderDesignDoc("full");
         for (const [key, canonical] of CANONICAL_SECTIONS) {
-            const authored = SECTIONS[key].heading;
-            expect(canonical, `CANONICAL_SECTIONS maps ${key} onto the heading it already has, so `
-                + "this gate's negative half would assert nothing").not.toBe(authored);
+            expect(SECTIONS[key].heading,
+                `src/content/design.ts heads SECTIONS.${key} "${SECTIONS[key].heading}" where the `
+                + `DESIGN.md format calls that section "${canonical}". The page, the spec and the `
+                + "agent's brief all render this string, so they would disagree about what one "
+                + "section is called — which is the drift the canonical names exist to end")
+                .toBe(canonical);
             expect(rendered.split("\n").filter((line) => line === `## ${canonical}`).length,
-                `the full rendering does not head SECTIONS.${key} "${canonical}" exactly once. That `
-                + "is the DESIGN.md format's own name for the section, and a consumer looking for "
-                + "it finds arbitrary prose instead").toBe(1);
-            expect(rendered.includes(`## ${authored}`),
-                `the full rendering still heads a section "${authored}" — the word ${key} is `
-                + `authored with. The mapping onto "${canonical}" replaces it in this document, and `
-                + "leaving both means a consumer meets an unknown heading where it was given a "
-                + "canonical one").toBe(false);
+                `the full rendering does not head SECTIONS.${key} "${canonical}" exactly once, so a `
+                + "consumer looking for the format's own section finds arbitrary prose instead")
+                .toBe(1);
         }
     });
 
@@ -570,10 +562,16 @@ describe("the design system this site publishes", () => {
      * invisible, because a document with a shorter list still matches its own committed copy.
      *
      * THE KEYING IS ASSERTED WITH THE LINE RATHER THAN BESIDE IT. A bullet that carried the
-     * guidance without naming its section would be ambiguous in exactly the way the aggregation
-     * exists to avoid, so the needle is the section's name and the line on ONE line of output. The
-     * name is the document's own — `headingFor`, not the module's word — because a pointer inside
-     * a document headed `Colors` may not say `Colour`.
+     * guidance without naming its section would be ambiguous in exactly the way an aggregation
+     * needs not to be — a reader meeting "let a labeled control wrap" here has no way back to the
+     * paragraph that says why — so the needle is the section's heading and the line on ONE line of
+     * output.
+     *
+     * AND EACH LIST MUST LAND UNDER ITS OWN SUBHEADING. The section is drawn the way the format's
+     * own examples draw it: `### Do` and `### Don't` under `## Do's and Don'ts`. A do rendered
+     * beneath the don'ts is the one corruption that reads as correct — same words, same bullet,
+     * inverted meaning — so the two groups are located and asserted separately rather than the
+     * whole section being searched for each line.
      */
     it("aggregates every section's guidance into the format's guardrail section", () => {
         const rendered = renderDesignDoc("full");
@@ -581,19 +579,124 @@ describe("the design system this site publishes", () => {
         expect(body, `the full rendering has no "${GUARDRAILS_HEADING}" section — the DESIGN.md `
             + "format's canonical guardrails, and the one section a consumer reads for them")
             .toBeTruthy();
-        const lines = body!.split("\n");
+
+        // Each subheading's own block: from its `###` to the next one, or to the end.
+        const block = (label: string) => {
+            const at = body!.indexOf(`### ${label}\n`);
+            expect(at, `the guardrail section has no "### ${label}" subheading — the shape the `
+                + "DESIGN.md format's own examples draw this section in").toBeGreaterThan(-1);
+            const rest = body!.slice(at + `### ${label}\n`.length);
+            const next = rest.indexOf("\n### ");
+            return (next < 0 ? rest : rest.slice(0, next)).split("\n");
+        };
+        const groups: [string, string[], (s: typeof SECTIONS[keyof typeof SECTIONS]) => readonly string[]][] = [
+            [DESIGN_PAGE.does_label, block(DESIGN_PAGE.does_label), (s) => s.does],
+            [DESIGN_PAGE.donts_label, block(DESIGN_PAGE.donts_label), (s) => s.donts],
+        ];
+
         const sections = Object.entries(SECTIONS);
         expect(sections.length, "SECTIONS is empty — this gate would assert nothing")
             .toBeGreaterThan(0);
-        for (const [key, section] of sections) {
-            const named = headingFor(key as keyof typeof SECTIONS);
-            expect([...section.does, ...section.donts]
-                    .filter((line) => !lines.some((l) => l.includes(named) && l.includes(line))),
-                `these lines of SECTIONS.${key} reach the per-section register and not the `
-                + `aggregated "${GUARDRAILS_HEADING}" section under the name "${named}", so a `
-                + "consumer that reads the format's canonical guardrails and nothing else never "
-                + "sees them").toEqual([]);
+        for (const [label, lines, pick] of groups) {
+            expect(lines.filter((l) => l.startsWith("- ")).length,
+                `no bullets parsed under "### ${label}" — this half of the gate would be vacuous`)
+                .toBeGreaterThan(0);
+            for (const [key, section] of sections) {
+                const named = section.heading;
+                expect(pick(section).filter((line) => !lines.some((l) => l.includes(named) && l.includes(line))),
+                    `these ${label} lines of SECTIONS.${key} do not reach the "### ${label}" half of `
+                    + `the aggregated "${GUARDRAILS_HEADING}" section under the name "${named}", so a `
+                    + "consumer that reads the format's canonical guardrails and nothing else either "
+                    + "never sees them or reads them as the opposite instruction").toEqual([]);
+            }
         }
+    });
+
+    /**
+     * THE DOCUMENT SPELLS THE FORMAT'S OWN NOUNS THE FORMAT'S WAY.
+     *
+     * THIS IS NOT A RULE ABOUT BRITISH VERSUS AMERICAN ENGLISH, and framing it that way was the
+     * first mistake here — it produced a forty-word spelling list that had nothing to do with the
+     * format and would have reddened one day on a correct sentence. The rule is narrower and it
+     * follows from compliance: the DESIGN.md format OWNS a handful of nouns. `colors` is a
+     * front-matter token group and `Colors` is a canonical section name. `Typography` is both.
+     * Where the format has named a thing, this document has to call it that, because a reader who
+     * greps `## Colors` or resolves `{colors.light-accent}` is using the format's spelling and
+     * gets nothing back for a near-miss.
+     *
+     * SO THE POPULATION IS THE FORMAT'S NOUNS, NOT THE ENGLISH LANGUAGE. Everything else in this
+     * repository — every comment, `CLAUDE.md`, every other page of the site — is the site's own
+     * voice and nothing here looks at it. A word is in this list only because the format itself
+     * uses it.
+     *
+     * ASKED OF WHAT SHIPS. Both renderings and the built page, so it cannot be satisfied by
+     * editing the content module while a string authored in the renderer still says the other
+     * thing — which is exactly the split that let the page and the document disagree before.
+     */
+    it("spells the format's own nouns the format's way, on every surface", () => {
+        // Each entry: a noun the DESIGN.md format names, and the variants that are not it. Both
+        // halves are the format's business — `colors` is its token group and `Colors` its section.
+        const FORMAT_NOUNS: [string, string[]][] = [
+            ["colors", ["colour", "colours", "coloured", "colouring", "recolour", "recoloured"]],
+            ["behavior", ["behaviour", "behavioural"]],
+        ];
+        const surfaces: [string, string][] = [
+            ["the full rendering (DESIGN.md and /design.md)", renderDesignDoc("full")],
+            ["the agent's brief (.design-sync/conventions.md)", renderDesignDoc("agent")],
+            [DESIGN_PAGE_FILE, designPageText()],
+        ];
+        for (const [where, text] of surfaces) {
+            expect(text.length, `nothing read out of ${where} — this gate would be vacuous`)
+                .toBeGreaterThan(1000);
+            for (const [noun, variants] of FORMAT_NOUNS) {
+                expect(variants.filter((w) => new RegExp(`\\b${w}\\b`, "i").test(text)),
+                    `${where} spells "${noun}" another way. The DESIGN.md format names that noun `
+                    + "itself — as a token group, a section, or both — and this document claims "
+                    + "that format, so a consumer greping the format's own word finds nothing. Fix "
+                    + "it where the string is AUTHORED: src/content/design.ts for anything a "
+                    + "section carries, src/lib/design-doc.ts for a rendering's own framing")
+                    .toEqual([]);
+            }
+        }
+    });
+
+    /**
+     * EVERY TOKEN REFERENCE IN THE PROSE RESOLVES, WHICH IS A HARD ERROR IN THE FORMAT.
+     *
+     * The format's reference syntax is `{group.token}` and its own words are that a reference
+     * pointing at a key that is not there is a broken-ref error. The front matter's two aliases
+     * already throw at render time if their target leaves the stylesheet; the PROSE had no such
+     * protection, and prose is where a reference is most likely to rot — a token renamed in
+     * `src/layouts/BasicLayout.astro` moves the front matter with it automatically, because that
+     * is derived, and leaves every sentence citing the old name behind.
+     *
+     * PARSED OUT OF THE RENDERED DOCUMENT AND RESOLVED AGAINST ITS OWN FRONT MATTER, so this asks
+     * the shipped artifact rather than the module. A reference the document defines nowhere is
+     * exactly what a consumer would reject the file for.
+     */
+    it("resolves every token reference its own prose makes", () => {
+        const rendered = renderDesignDoc("full");
+        const matter = rendered.split("---")[1];
+        expect(matter, "the full rendering has no front matter to resolve references against")
+            .toBeTruthy();
+        const defined = new Set([...matter!.matchAll(/^ {2}([a-z0-9-]+):/gim)].map((m) => m[1]!));
+        expect(defined.size, "no token keys parsed out of the front matter — this gate would be "
+            + "vacuous").toBeGreaterThan(5);
+
+        const body = rendered.slice(rendered.indexOf("\n# "));
+        const refs = [...body.matchAll(/\{([a-z]+)\.([a-z0-9-]+)\}/gi)];
+        expect(refs.length, "the prose makes no token references at all — the format's own examples "
+            + "cite tokens inline, and this gate would be vacuous").toBeGreaterThan(0);
+        expect(refs.filter((m) => !defined.has(m[2]!)).map((m) => m[0]),
+            "these token references in the prose point at keys the front matter does not define. "
+            + "A reference to a missing key is a broken-ref error in the DESIGN.md format, so the "
+            + "whole file is rejected — cite a token that exists, or stop citing one")
+            .toEqual([]);
+        expect(refs.filter((m) => m[1]!.toLowerCase() !== "colors").map((m) => m[0]),
+            "these token references name a group this document does not publish. Only `colors` is "
+            + "in the front matter; every other group is declared omitted with a reason, so a "
+            + "reference into one resolves to nothing")
+            .toEqual([]);
     });
 
     /**
@@ -647,9 +750,10 @@ describe("the design system this site publishes", () => {
         // because it is the precondition every sentence after it depends on — and naming either
         // one here as an exception would be a list that the next such block is quietly missing
         // from. Deriving the population from `SECTIONS` excludes both for the reason they are
-        // excluded.
+        // excluded, and reads the heading straight off the module now that the module authors the
+        // format's own names.
         const unnamed = (Object.keys(SECTIONS) as (keyof typeof SECTIONS)[])
-            .map(headingFor)
+            .map((key) => SECTIONS[key].heading)
             .filter((h) => !canonical.includes(h));
         expect(unnamed.filter((h) => headings.indexOf(h) < Math.max(...positions)),
             "these sections the DESIGN.md format has no name for are emitted in among the ones it "

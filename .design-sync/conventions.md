@@ -1,16 +1,16 @@
 # calvin.sg — building with this system
 
-**Colour, controls and marks; no components** — the source is Astro, so nothing mounts.
+**Colors, controls and marks; no components** — the source is Astro, so nothing mounts.
 The token table and the class list are complete; every other list is a guardrail.
 
 ## Set data-theme, or nothing is styled
 
-Every token is defined only under the two theme blocks — there is no bare :root fallback — so a page without the attribute resolves every colour to an invalid value and renders unstyled text on unstyled ground. Both themes are equal citizens and every design has to work in each; light is what the site serves by default. Put it on the root element:
+Every token is defined only under the two theme blocks — there is no bare :root fallback — so a page without the attribute resolves every color to an invalid value and renders unstyled text on unstyled ground. Both themes are equal citizens and every design has to work in each; light is what the site serves by default. Put it on the root element:
 
     <html data-theme="light">
     <html data-theme="dark">
 
-## Colour
+## Colors
 
 | Token | Role |
 |---|---|
@@ -24,16 +24,16 @@ Every token is defined only under the two theme blocks — there is no bare :roo
 | `--progress-track` | the unmarked remainder of that bar |
 | `--status-live` | the Now card's live indicator dot |
 | `--status-halo` | that dot's decorative pulsing halo |
-| `--brand-ink` | a brand-coloured glyph standing in for a word in prose |
+| `--brand-ink` | a brand-colored glyph standing in for a word in prose |
 | `--sport-ride` | the cycling mark where it sits on a card |
-| `--sport-ride-on-ink` | the same mark on an ink-coloured surface |
+| `--sport-ride-on-ink` | the same mark on an ink-colored surface |
 | `--sport-run` | the running mark on a card |
 | `--sport-run-on-ink` | the same mark on ink |
 
 Don't:
 
 - Hardcode a hex, even one printed here. Only the token name carries BOTH values, so a literal is right in at most one theme and wrong in the other.
-- Reach for --brand-ink to draw something interactive. That is --accent's job, and the two only coincide in light mode.
+- Reach for --brand-ink to draw something interactive. That is --accent's job, and the two only coincide in the light theme.
 - Assume dark is light with the lightness inverted. --progress-fill and --progress-track deliberately trade places.
 
 ## The stylesheet is a closed set
@@ -47,7 +47,7 @@ Guaranteed present: `control-cta`, `text-link`, `chip`, `chip-icon`, `sr-only`,
 
 ## Controls
 
-- **`control-cta`** — The plated surface at the width of whatever contains it, holding a label and its mark centred together as one legend. It is the mark for a card's ONE action and is spent nowhere else. Its label comes from data and must be allowed to wrap, so its height is floored rather than pinned. The intro card's way in, and each goal card's way out.
+- **`control-cta`** — The plated surface at the width of whatever contains it, holding a label and its mark centered together as one legend. It is the mark for a card's ONE action and is spent nowhere else. Its label comes from data and must be allowed to wrap, so its height is floored rather than pinned. The intro card's way in, and each goal card's way out.
 - **`text-link`** — A link that is a run of words inside a sentence or a column of figures. Each role card's company name.
 - **`chip`** — The quiet surface, holding a label that names it in a word. For getting somewhere and for setting a preference — chrome rather than a page's one action, so it wears no plate. Its label comes from data, so its box is floored rather than pinned. The patch wall's filter row, and every item in a page header.
 - **`chip-icon`** — That same quiet surface holding one mark, for a member of a set where the marks are the vocabulary, and for a preference. Its content is a glyph the design picked the size of, so its box is pinned. The intro card's row of destinations, and the theme toggle wherever it appears.
@@ -58,6 +58,6 @@ Don't:
 - Draw a link exactly like the prose beside it.
 - Pin a control's height in pixels. The box is sized in rem so that it grows with the reader's text.
 
-## Marks
+## Iconography
 
 20 marks ship and no others, each a `.i-` class sized with `font-size`.

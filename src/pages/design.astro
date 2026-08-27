@@ -256,9 +256,20 @@ const MARKDOWN = "/design.md";
                  page you are already reading, so a static one would be wrong in every case but
                  the one it named. Keeping it honest would take a scroll spy — client state on a
                  site that ships almost none, for a row short enough to read whole. */}
+            {/* THE LABEL IS WRAPPED, AND `break-anywhere` IS WHY. Bare text inside a flex
+                 container is an ANONYMOUS flex item whose automatic minimum width is a whole
+                 word, and no selector can reach it to say otherwise — `PageHeader.astro` carries
+                 the same span for the same reason and records the same measurement. These labels
+                 are section headings, so the longest word grew the day they took the industry's
+                 terms: at 320px with a 40px root the column was pushed to 317px against 280px of
+                 content width and the document scrolled sideways by 17px, where the build before
+                 it measured zero. `overflow-wrap: anywhere` rather than the familiar one, because
+                 only that form lowers the INTRINSIC minimum, which is the whole of what is
+                 wrong. */}
             <nav class="design-index" aria-label={DESIGN_PAGE.index_label}>
                 {SECTION_KEYS.map((key) => (
-                        <a href={`#${anchor(key)}`} class="chip">{SECTIONS[key].heading}</a>
+                        <a href={`#${anchor(key)}`} class="chip"><span
+                                class="break-anywhere">{SECTIONS[key].heading}</span></a>
                 ))}
             </nav>
         </div>
@@ -471,7 +482,7 @@ const MARKDOWN = "/design.md";
                                                              that it names itself in ONE word, so there is nothing
                                                              for a wrapper to let break. The call to action above
                                                              needs one because its label is a phrase from data. */
-                                                        <a href={specimen.href} class="chip">{specimen.label}</a>
+                                                        <a href={specimen.href} class="chip"><span class="break-anywhere">{specimen.label}</span></a>
                                                 )}
                                                 {specimen.form === "mark" && (
                                                         /* Icon-only, so the mark IS the control and the name has
