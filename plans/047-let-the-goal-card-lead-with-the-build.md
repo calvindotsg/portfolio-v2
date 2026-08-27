@@ -17,7 +17,8 @@
 - **Priority**: P2
 - **Effort**: M
 - **Risk**: MED — it reverses a rule `CLAUDE.md` states, and it edits the one page with no height to spare
-- **Depends on**: `plans/045-fetch-the-weekly-training-series.md`, `plans/046-draw-the-year-as-one-spine.md`
+- **Depends on**: 045, **DONE** and merged as `30e38d9` (archived at
+  `plans/done/045-fetch-the-weekly-training-series.md`), and `plans/046-draw-the-year-as-one-spine.md`
 - **Category**: direction
 - **Planned at**: commit `719d3d6`, 2026-08-27
 

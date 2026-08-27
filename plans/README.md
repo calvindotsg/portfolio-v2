@@ -1,23 +1,39 @@
 # Implementation Plans
 
-**Three are queued: 045, 046 and 047 — the training series.** They were approved as a shape on
+**045 is done and archived; 046 and 047 are queued.** The three were approved as a shape on
 2026-08-27 after four rendered directions were reviewed, and they answer one question the repository
 had never asked: **can the race wall and a training log be one surface?** They can, because they are
 already one dataset — a race stores `recordings: [{id, metres, elapsed_time}]`, one entry per Strava
 activity, which is a session record. The only things a race has that an ordinary Tuesday does not
 are a name, a country, a results sheet and a bib.
 
-**Reviewed adversarially before anyone executes.** A ten-agent panel (four lenses, one skeptic per
-lens, two independent judges) ran over the three plans at `719d3d6` and **both judges independently
-returned the same four BLOCKs**, each verified by hand afterwards. All four were text defects in the
-plans, not problems with the shape; all four are fixed in place:
+**045 landed the same day it was written**, merged as `30e38d9` (#238) and live. The series exists:
+`src/data/weeks/` holds one module per ISO week, `src/lib/training.ts` says what a session is and
+derives every total from one, and the nightly writes both halves in one job. It renders nothing, by
+design — so `dist/` is **byte-identical** across the merge, 24 files and every hash unchanged, which
+is the proof of that claim rather than an argument for it.
+
+**The review's four BLOCKs below were all confirmed by executing it, and one defect the review could
+not see was not.** A calendar-year fetch rule drops three days of sessions every New Year, silently,
+because ISO week `2026-W53` runs into 3 January 2027 — found by running the boundary rather than by
+reading the plan. Review hardens the reasoning; only execution measures it, again. What executing it
+established is in `done/README.md` under "Plan 045".
+
+**Reviewed adversarially before anyone executed them.** A ten-agent panel (four lenses, one skeptic
+per lens, two independent judges) ran over the three plans at `719d3d6` and **both judges
+independently returned the same four BLOCKs**, each verified by hand afterwards. All four were text
+defects in the plans, not problems with the shape; all four were fixed in place:
 
 1. **The nightly commit step is pathspec-scoped.** `.github/workflows/strava-progress.yml:272` is
    `git diff --quiet -- src/data/strava-progress.json` and `:289` is
    `git add src/data/strava-progress.json`, with no `-a` on the commit — so week modules would have
    been written into the runner and thrown away, **silently, on a green workflow**. And widening the
    pathspec alone would not have been enough: `git diff` cannot see an untracked file, so a brand-new
-   week module reads as "no change". 045 now stages first and tests the index.
+   week module reads as "no change". 045 stages first and tests the index — and executing it turned
+   the second half of that from an argument into a measurement: against a brand-new untracked week
+   module in a scratch clone, the old guard AND the widened-pathspec guard that looks like the fix
+   both answer "nothing moved". Only `git add -A` then `git diff --cached --quiet` answers
+   otherwise, which is why the shipped step changed idiom rather than pathspec.
 2. **The proposed no-leak gate was red on correct content.** "No session id from the new week
    modules appears in `dist/`" is false the day it is written: a race IS a Strava activity, and its `recordings[].id` is
    already published as a `strava.com/activities/<id>` href on the wall and in the twins. The gate is
@@ -338,7 +354,7 @@ recreated.
 | 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **DONE** (`b3e4837`) |
 | 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **DONE** (`71142d7`) |
 | 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **DONE** (`ed35e5f`) |
-| 045 | Fetch the weekly training series, and store the sessions rather than the totals | P1 | L | — | **TODO** |
+| 045 | Fetch the weekly training series, and store the sessions rather than the totals | P1 | L | — | **DONE** (`30e38d9`) |
 | 046 | Draw the year as one spine, with the races on it | P1 | L | 045 | **TODO** |
 | 047 | Let the goal card lead with the build, and point its one plate at the spine | P2 | M | 045, 046 | **TODO** |
 
