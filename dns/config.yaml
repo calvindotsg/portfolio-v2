@@ -48,12 +48,17 @@ providers:
     # `pagerules` defaults to TRUE. With it on, the provider adds URLFWD to SUPPORTS, reads
     # the zone's legacy Page Rules as if they were records, and deletes any it cannot find in
     # `zones/`. This zone file declares no URLFWD records and never will — so on the default
-    # the very first plan plausibly proposes deleting the redirect rules, including the one
-    # that makes www 301 to the apex and the one that forwards slickshots to Instagram.
+    # the very first plan plausibly proposes deleting the redirect rule that makes www 301 to
+    # the apex, which is the last one left and the one the `www` record exists to feed.
     #
-    # Those rules were created by hand in the dashboard one day before this file existed.
-    # Redirects are not DNS and are not managed here; false makes the provider blind to them
-    # rather than merely quiet about them.
+    # THE STAKES ROSE WHEN THE SECOND RULE WENT. There used to be two, and a reader could tell
+    # themselves that losing one of a pair was survivable. There is one, `www` has no other way
+    # to answer, and nothing here or anywhere else in git holds a copy of it — `EDGE.md` records
+    # what it does, not what it is.
+    #
+    # That rule was created by hand in the dashboard one day before this file existed. Redirects
+    # are not DNS and are not managed here; false makes the provider blind to it rather than
+    # merely quiet about it.
     pagerules: false
 
 processors:

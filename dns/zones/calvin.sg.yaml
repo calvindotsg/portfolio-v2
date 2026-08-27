@@ -65,27 +65,6 @@ hermes:
   type: CNAME
   value: 7016c4ba-d138-48e7-a7f1-2ec672540ce8.cfargotunnel.com.
 
-# A project site on GitHub Pages, routed apart from the Pages project by Host header.
-model:
-  octodns:
-    cloudflare:
-      auto-ttl: true
-      proxied: true
-  ttl: 300
-  type: CNAME
-  value: calvindotsg.github.io.
-
-# Points at the apex, and a redirect rule forwards it to Instagram — so it answers 302, not
-# 200, and `.scratchpad/verify-canonical.sh` check 9 asserts exactly that.
-slickshots:
-  octodns:
-    cloudflare:
-      auto-ttl: true
-      proxied: true
-  ttl: 300
-  type: CNAME
-  value: calvin.sg.
-
 # SSH to the same box and the same tunnel, on its own hostname because `cloudflared access ssh`
 # needs one it does not share with an HTTP application. Same tunnel UUID as `hermes` above; the
 # tunnel's own ingress rules decide which local port each hostname reaches.

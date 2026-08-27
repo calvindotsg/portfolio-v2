@@ -54,8 +54,6 @@ ROOT = Path(__file__).resolve().parent.parent
 LIVE_RECORDS = [
     {"name": "calvin.sg", "type": "CNAME", "content": "calvindotsg.pages.dev", "ttl": 1, "proxied": True},
     {"name": "www.calvin.sg", "type": "CNAME", "content": "calvindotsg.pages.dev", "ttl": 1, "proxied": True},
-    {"name": "model.calvin.sg", "type": "CNAME", "content": "calvindotsg.github.io", "ttl": 1, "proxied": True},
-    {"name": "slickshots.calvin.sg", "type": "CNAME", "content": "calvin.sg", "ttl": 1, "proxied": True},
     # Both point at the same Cloudflare Tunnel; `proxied` is load-bearing rather than cosmetic
     # for these two, because a `cfargotunnel.com` target has no public address at all.
     {"name": "hermes.calvin.sg", "type": "CNAME", "content": "7016c4ba-d138-48e7-a7f1-2ec672540ce8.cfargotunnel.com", "ttl": 1, "proxied": True},
