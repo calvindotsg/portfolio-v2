@@ -617,16 +617,20 @@ describe("a card sizes to its content, not to its grid area", () => {
                 why: "the 1px box is the clip technique itself, not a box any reader sees ink in",
                 matches: (el) => el.classList.contains("sr-only"),
             },
-            {
-                what: "the goal card's progress rule",
-                why: "it holds no ink, so there is nothing in it for a text size to clip. 2px is a"
-                    + " stroke weight, not a container: a hairline that grew with the reader's type"
-                    + " would stop being a hairline and start being a bar, which is the object this"
-                    + " design deliberately stopped being. Its WIDTH is what carries the data and"
-                    + " that is a percentage",
-                matches: (el) => el.classList.contains("measure"),
-            },
         ];
+
+        /*
+         * THE GOAL CARD'S PROGRESS RULE USED TO BE THE THIRD ENTRY AND HAS GONE WITH THE RULE.
+         *
+         * Its reason was that 2px is a stroke weight rather than a box — no ink inside it, so
+         * nothing for a text size to clip, and a hairline that grew with the reader's type would
+         * stop being a hairline. Every clause was true and none of it reaches the drawing that
+         * replaced it: twelve bars are a BOX, their height is what carries the data, and so the
+         * height is in `em` and needs no excuse. The entry is deleted rather than re-pointed at
+         * `.volume-spark`, because an exemption that survives the thing it was written for is
+         * exactly the rot the loop at the foot of this test exists to catch — and it caught this
+         * one, on the build where the rule left.
+         */
 
         const hasAbsoluteLength = (value: string) =>
             [...value.matchAll(/(?:^|[\s(,])(-?[\d.]+)(px|pt|pc|in|cm|mm|q)\b/gi)]

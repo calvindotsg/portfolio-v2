@@ -188,6 +188,68 @@ export function seasonSpine(
     return rows
 }
 
+/** One week of the recent run, already scoped to one sport. Figures only — see {@link recentWeeks}. */
+export type RecentWeek = {
+    /** The ISO week key, which is the module filename in `src/data/weeks/`. */
+    key: string
+    /** That week's Monday, `YYYY-MM-DD`. */
+    monday: string
+    /** That week's Sunday. Derived, never stored — a week is seven days by definition. */
+    sunday: string
+    /** True for the week the build falls in. Exactly one week in the run has it. */
+    current: boolean
+    totals: WeekTotals
+}
+
+/**
+ * THE LAST `count` WEEKS UP TO AND INCLUDING THE ONE THE BUILD IS IN, OLDEST FIRST.
+ *
+ * IT IS THE TAIL OF {@link seasonSpine}, AND THAT IS A CONTRACT RATHER THAN A COINCIDENCE. The
+ * goal card draws these twelve as a series and its one control opens the page that draws the
+ * whole year the same way, so a reader pressing it must find the card's own bars at the bottom
+ * of what arrives. That only holds while both take their figures from the same place, so this
+ * scopes a week exactly as the spine does — `scopeWeek` then {@link weekTotals}, never a second
+ * filter that happens to agree. Change the week window or the sport scope on either side and the
+ * other must move with it, or the card stops being a preview and becomes a second figure.
+ *
+ * IT WALKS MONDAYS RATHER THAN WEEK KEYS, which is what makes a year boundary a non-event. A key
+ * is a week-YEAR and does not decrement past `W01` — stepping `2027-W02` back twice by arithmetic
+ * on the number lands on `2027-W00`, which is not a week. Seven days before a Monday is always
+ * the previous week's Monday, in every year, including the 53-week ones; {@link isoWeekKey} then
+ * names whatever that Monday belongs to. So the twelve weeks before `2027-W01` include weeks from
+ * 2026 without this function knowing anything about years at all.
+ *
+ * `BUILD_DATE`, NEVER `UPDATED_AT` — "which week is now" is a calendar question, and this module's
+ * header assigns those to `./today.ts`. The bot's stamp freezes when the kilometres do, so a rest
+ * week would have held the series still and the card would have redrawn the same twelve bars for
+ * as long as the owner rested.
+ *
+ * A WEEK WITH NO MODULE IS AN EMPTY WEEK, never an error, for {@link seasonSpine}'s reason: the
+ * fetcher reaches what it has reached, and a card asking for twelve weeks in January is asking
+ * for weeks that predate the data. An empty week draws an empty bar, which is the honest picture.
+ */
+export function recentWeeks(
+    sport: Sport,
+    count: number,
+    iso: string = BUILD_DATE,
+    weeks: ReadonlyMap<string, TrainingWeek> = WEEKS,
+): RecentWeek[] {
+    const thisMonday = isoWeekMonday(isoWeekKey(iso))
+    const run: RecentWeek[] = []
+    for (let back = count - 1; back >= 0; back--) {
+        const monday = addDays(thisMonday, -7 * back)
+        const key = isoWeekKey(monday)
+        run.push({
+            key,
+            monday,
+            sunday: addDays(monday, 6),
+            current: back === 0,
+            totals: weekTotals(scopeWeek(weeks.get(key) ?? NO_WEEK, sport)),
+        })
+    }
+    return run
+}
+
 /**
  * THE SAME SEQUENCE, WITH EACH WEEK HOLDING ITS OWN RACES — a pure regrouping of what
  * {@link seasonSpine} returns, in one place because two consumers need it and a second

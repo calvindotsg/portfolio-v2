@@ -297,12 +297,37 @@ block above it before giving either consumer the other's list.
   track — back on `<main>`. The right-hand stack no longer has a fixed height to
   exhaust, so the old "remove something before adding a line" rule is retired;
   `components/Goal.astro` records what it used to cost
-- A goal card's body is a hero figure, a 2px progress rule spanning the body, the
-  required rate, the countdown, and a full-width CTA (`components/EventsLink.astro`)
-  reading `My <sport> events →`. That control is the only path from the home page to
-  `/patches/<sport>`, and `tests/build-output.test.ts` walks the link graph from `/`
-  to keep it that way — and asserts the destination is headed with the control's own
-  words, which is a pairing no single-page test can see
+- **A goal card leads with the WEEK and its one plate opens the SPINE, and BOTH halves of
+  that REVERSE what this file used to say.** The body is a hero figure holding this week's
+  volume, a row carrying the year's fraction with a twelve-week series
+  (`components/VolumeSpark.astro`) at its trailing edge, the required rate, the countdown,
+  and a full-width CTA (`components/EventsLink.astro`) reading `My <sport> training →` to
+  `/training/<sport>`. **The reason the old rule is gone rather than merely restated**: the
+  hero was the year's fraction against a 2px progress rule, and `goalStatus` returns
+  `{kind: "met"}` from the day the kilometres pass the target until 31 December and `0 / 600`
+  on 1 January — so for roughly six weeks a year, twice over, the loudest mark on the card
+  carried nothing. What the training is doing is interesting on every one of those days.
+  `Goal met` is still printed and is now a LINE, which is the fix and not a regression.
+  **`components/ProgressBar.astro` has no consumer as a result** and is owed a deletion that
+  plan 047 left out of scope — four comments outside that scope name it
+- **THE INTRO CARD'S PLATE IS THE ONLY DIRECT LINK FROM `/` TO THE WALL — AND IT IS NOT WHAT
+  KEEPS THE WALL REACHABLE.** That distinction is measured rather than reasoned: pointing that
+  plate somewhere else leaves `tests/build-output.test.ts`'s reachability walk GREEN, because
+  the walk goes `/` → `/design` (the footer's way in) → `/patches`, where the four control
+  specimens in `design.astro` are drawn as real links to the wall and its two sport pages.
+  Orphaning the wall takes cutting BOTH routes, and doing that names all three wall pages.
+  So treat `IntroCard.astro`'s plate as the wall's front door and `/design` as the thing that
+  would hide the loss of it — a reader can still get there, but only through a page about the
+  design system. That same gate asserts each destination is headed with its control's own
+  words, which is a pairing no single-page test can see, and it is why `NEXT_RACE.control` was
+  NOT edited when the goal cards moved: that string names the events wall and is read by five
+  consumers, so the card took a second string — `TRAINING.control` — instead
+- **The card is height-neutral and that was measured rather than assumed.** `<main>` asks
+  for 809px at 1280x800 and up and 829px at 1024, on this revision and on the one before it,
+  at the default text size. The budget is 14px of card growth at 1280+ and 24px at 1024
+  before `<main>` grows at all; the arrangement above spends 10. Read
+  `components/Goal.astro` before adding a row here — a whole text line costs 16px and does
+  not fit
 - `src/pages/404.astro` — the answer to a URL the site does not have, and the only
   user of `BasicLayout`'s `noindex` prop, which flips the robots directive to
   `noindex, follow` **and** drops the canonical and `og:url` together. It exists because Cloudflare Pages serves

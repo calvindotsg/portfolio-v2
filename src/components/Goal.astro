@@ -1,30 +1,63 @@
 ---
 import Card from "./Card/index.astro";
+import {TRAINING} from "../content/training";
 import type {Goal} from "../lib/goal";
 import {goalStatusLine, nextRace, nextRaceLine, patchesEarned} from "../lib/projection";
+import {kmFromMetres} from "../lib/race";
+import {recentWeeks} from "../lib/season";
 import EventsLink from './EventsLink.astro';
-import ProgressBar from './ProgressBar.astro';
+import VolumeSpark from './VolumeSpark.astro';
 
 interface Props {
     goal: Goal;
 }
 
-// THE CARD IS ONE NUMBER, A RULE UNDER IT, TWO SENTENCES AND A WAY OUT — in that order,
-// and the order is the argument. A visitor came for the figure, so the figure is the
-// first and loudest thing; the rule shows the same fact as a shape; the two lines say
-// what the figure implies about the rest of the year; the control says where to see the
-// races themselves. Every element does exactly one job, which is what the body did not
-// do before: a 24px pill carried the fraction AND the sport's icon while a line beneath
-// restated the fraction in prose, and a bordered chip both reported the countdown and
-// navigated. Deleting the pill's icon, its capsule and the restated line is what paid
-// for the extra row, and the card came out SHORTER than the version it replaced.
+// THE CARD IS ONE NUMBER, A SERIES BESIDE THE YEAR IT SITS IN, THREE SENTENCES AND A WAY
+// OUT — in that order, and the order is the argument. A visitor came for the figure, so
+// the figure is the first and loudest thing; the drawing shows the twelve weeks it is the
+// last of; the lines say where the year stands and what it still demands; the control says
+// where to see the whole year drawn the same way. Every element does exactly one job, which
+// is what the body did not do before: a 24px pill carried the fraction AND the sport's icon
+// while a line beneath restated the fraction in prose, and a bordered chip both reported the
+// countdown and navigated.
 //
-// THE FIGURE IS ANNOUNCED BY THE MEASURE, NOT BY ITSELF. The hero is aria-hidden and
-// the progress bar directly under it carries `aria-valuetext` with the same two numbers
-// in words a screen reader can say — "2279.7 of 5000 km" rather than a slash. Hiding it
-// removes a duplicate announcement rather than information, and the pairing is gated:
-// tests/rendered-html.test.ts fails if the hero is taken out of the tree without an equivalent
-// `aria-valuetext` beside it, so the meter cannot quietly become decorative later.
+// THE HERO IS A WEEK NOW AND IT USED TO BE THE YEAR, AND THAT REVERSAL IS THE POINT OF THIS
+// REVISION rather than a rearrangement of it. `goalStatus` in ../lib/projection.ts returns
+// `met` the moment the kilometres pass the target, so from that day the fraction stood full
+// against a full rule until 31 December, and on 1 January it reset to `0 / 600` against an
+// empty one. Roughly six weeks a year, twice over, the loudest thing on the card was saying
+// nothing. What the training is DOING is interesting on every one of those days, so the card
+// leads with it and states the year as a line. `Goal met` is still printed, still true, and
+// is no longer the hero — which is the fix and not a regression.
+//
+// AND IT POINTS AT ONE PLACE NOW. The control used to open /patches/<sport> and opens
+// /training/<sport> instead, because the twelve bars above it ARE the last twelve rows of
+// that page. That is the strongest relationship a card and its control can have, and it only
+// became available once the races and the weeks were one dataset — see the head of
+// ../lib/season.ts. The wall did not lose its way in: the intro card's plate still opens
+// /patches, and the page this control opens DRAWS the races itself, on the weeks they were
+// ridden in — so a reader who came for the races is not sent anywhere to find them.
+// tests/build-output.test.ts walks the link graph from / to hold the first half of that.
+// Note what it does NOT hold, measured by breaking it: pointing the intro plate elsewhere
+// leaves that walk green, because /design links to the wall too. Read the note in CLAUDE.md
+// before treating the plate as the only thing keeping /patches reachable.
+//
+// THE FIGURE IS ANNOUNCED BY THE DRAWING, NOT BY ITSELF. The hero is aria-hidden and the
+// spark beside it carries a name holding the same figure in a sentence a screen reader can
+// say — "71.24 km this week, above a twelve-week average of 63.10 km" rather than a bare
+// number nobody has been told the span of. Hiding it removes a duplicate announcement rather
+// than information, and the pairing is gated: tests/rendered-html.test.ts fails if the hero
+// is taken out of the tree without an equivalent beside it, so the drawing cannot quietly
+// become decorative later. The year's own fraction is ordinary text on the line below, which
+// is where a listener gets it for free — it used to ride the progress rule's `aria-valuetext`,
+// and that rule has gone with the component that drew it.
+//
+// EVERY VISIBLE FIGURE NAMES ITS OWN SPAN, and the card carries two a reader could swap. The
+// hero says `this week` in words; the heading says `this year` over the fraction. Measured at
+// the lg breakpoint itself, which is the tightest this column ever is: the hero costs 169.25px
+// of 182 at the widest figure this account can produce, so the words fit and the drawing
+// cannot also share that row — which is why it sits on the line below, at the trailing edge,
+// with the year fraction at the leading one.
 //
 // NOTHING HAS TO BE REMOVED TO ADD A LINE HERE ANY MORE, and that rule really did hold:
 // while `main` had a height CAP and eight equal fraction rows, the right-hand stack got a
@@ -35,10 +68,18 @@ interface Props {
 // one extra `text-xs` line at 1024x600 took Now from 154 to 150.7px and the OTHER goal card
 // from 232.8 to 227px before; after, only the edited card moves.
 //
-// SO WEIGH A DESIGN CHANGE HERE AGAINST THE PAGE, NOT AGAINST A BUDGET. What is still true
-// is that the page gets taller: at a 797px-tall viewport and above it does not scroll today,
-// and enough new rows will change that. The card-level figures are the cheapest way to price
-// one — 232.8px per goal card, the Now card at 154px, and 20px for a `text-xs` row.
+// SO WEIGH A DESIGN CHANGE HERE AGAINST THE PAGE, NOT AGAINST A BUDGET — AND THERE IS LESS
+// ROOM THAN THE PARAGRAPH ABOVE IMPLIES. Re-measured on the built page at the default text
+// size, against a build of `main`: `<main>` asks for 809px from 1280x800 up and 829px at
+// 1024, and each goal card is 266.8px. What is free is 14px of growth PER GOAL CARD at 1280+
+// and 24px at 1024 — beyond that `<main>` itself gets taller, so a reader at an 800px-tall
+// viewport scrolls further than they already do.
+//
+// PRICE A ROW BEFORE DRAWING IT, because a whole one does not fit: a new `text-xs` line in
+// `.goal-lines` costs 20px (16px of line plus the column's 4px gap), and 16px where the gap
+// is taken back. That is why this revision's extra line came in at 16 and the drawing pays
+// nothing at all — it shares a row rather than taking one. The Now card is 154px if you need
+// the third figure.
 //
 // `progress_last_year` is still configured and nothing renders it — deliberately, so it
 // is one edit from returning, and the January checklist in `src/data/goals.ts` still asks
@@ -55,6 +96,37 @@ interface Props {
 const {goal} = Astro.props;
 const statusLine = goalStatusLine(goal);
 const countdown = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
+
+/*
+ * TWELVE, AND THE SAME TWELVE THE SPINE ENDS ON. `recentWeeks` is the tail of `seasonSpine` by
+ * construction rather than by agreement — read the note above it before changing this number or
+ * this scope, because the two have to move together or the card stops being a preview of the page
+ * its control opens and becomes a second account of the same weeks.
+ */
+const WEEKS_DRAWN = 12;
+const weeks = recentWeeks(goal.sport, WEEKS_DRAWN);
+
+// THE WEEK'S FIGURE AND THE RUN'S AVERAGE, EACH CONVERTED ONCE BY `kmFromMetres` — never summed
+// from converted parts, which is the rule `raceKm` and `weekTotals` both follow: each conversion
+// drops whatever is under a hundredth, so converting first and adding afterwards loses a little on
+// every term.
+const weekKm = kmFromMetres(weeks[weeks.length - 1].totals.metres);
+const meanKm = kmFromMetres(weeks.reduce((sum, w) => sum + w.totals.metres, 0) / weeks.length);
+
+const direction = weekKm > meanKm ? TRAINING.card_spark_above
+        : weekKm < meanKm ? TRAINING.card_spark_below
+                : TRAINING.card_spark_level;
+
+const sparkLabel = TRAINING.card_spark
+        .replace("{km}", weekKm.toFixed(2))
+        .replace("{direction}", direction)
+        .replace("{mean}", meanKm.toFixed(2))
+        .replaceAll("{unit}", goal.measurable_unit);
+
+const yearLine = TRAINING.card_year
+        .replace("{done}", String(goal.current_progress))
+        .replace("{target}", String(goal.total_goal))
+        .replace("{unit}", goal.measurable_unit);
 ---
 
 {/* SENTENCE CASE, because the control at the foot of this same card already writes it
@@ -64,16 +136,20 @@ const countdown = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
      is a DISPLAY name and is capitalised for the places that need it; the casing
      belongs to the sentence, not to the field. */}
 <Card colSpan="md:col-span-1" rowSpan="md:row-span-3" title=`My ${goal.goal_name.toLowerCase()} goal this year`>
-    <p class="goal-figure" aria-hidden="true">{goal.current_progress}<span
-            class="goal-figure-target"> / {goal.total_goal} {goal.measurable_unit}</span></p>
-    <ProgressBar
-            currentProgress={goal.current_progress}
-            totalGoal={goal.total_goal}
-            label=`${goal.goal_name} progress`
-            unit={goal.measurable_unit}
-    />
+    <p class="goal-figure" aria-hidden="true">{weekKm.toFixed(2)}<span
+            class="goal-figure-target"> {TRAINING.card_week.replace("{unit}", goal.measurable_unit)}</span></p>
     <div class="goal-lines text-xs font-light">
-        {statusLine && <span>{statusLine}</span>}
+        {/* THE YEAR AND THE DRAWING SHARE ONE ROW, which is the whole of how this revision stayed
+             inside the page's height. A row of its own for the drawing and a row of its own for
+             the fraction is 32px on each of two cards; the page has 14px of card growth before
+             <main> gets taller (measured at 1280x800 and up; 24px at 1024), and this arrangement
+             spends 10 of them. The fraction takes the leading rail with the two lines below it,
+             and the drawing takes whatever is left at the trailing one. */}
+        <span class="goal-year">
+            <span class="goal-year-figure">{yearLine}</span>
+            <VolumeSpark weeks={weeks} label={sparkLabel}/>
+        </span>
+        {statusLine && <span class="goal-demand">{statusLine}</span>}
         <span>{countdown}</span>
         <EventsLink goal={goal}/>
     </div>
@@ -128,26 +204,17 @@ const countdown = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
     }
 
     /*
-     * Every length here is font-relative for the reason the whole page is: the card
-     * clips, so a gap pinned in device pixels deletes text the moment the reader
-     * enlarges theirs. The rule's own 2px stroke is the deliberate exception — see
-     * ProgressBar.astro.
+     * Every length here is font-relative for the reason the whole page is: the card clips, so a
+     * gap pinned in device pixels deletes text the moment the reader enlarges theirs.
      *
-     * THIS GAP IS THE TIGHTEST ON THE CARD, and both reasons it is 0.25rem are worth
-     * keeping. The rule measures the number directly above it, so pulling it close is
-     * what makes the pair read as one object rather than as a figure and a separate
-     * graphic; and it is where the redesign's extra row was paid for. At 0.5rem the
-     * card is 236.8px, which is 2.8px more than the pill revision it replaced; at 0.25rem
-     * the card is 232.8px. Measured on the built page.
-     *
-     * WHAT 0.5rem COSTS IS 4px OF PAGE, not a neighbouring card: there is no set stack
-     * height to exhaust any more (see the note at the top of this file). So the value stays
-     * for the optical reason in the first sentence, and not for an arithmetic one.
+     * THE 0.25rem THAT USED TO SIT HERE HELD THE PROGRESS RULE UP AGAINST THE HERO and has gone
+     * with it. Recording what it bought, because the pairing it made is the one this revision
+     * replaced rather than abandoned: the rule measured the number directly above it, so pulling
+     * it close was what made the two read as one object instead of a figure and a separate
+     * graphic. The drawing does the same job one line lower now and gets its closeness from
+     * `.goal-year` below, which puts it on the same row as the figure it is not about — the
+     * separation is the point there, where here it was the proximity.
      */
-    .goal-figure + :global([role="progressbar"]) {
-        margin-top: 0.25rem;
-    }
-
     .goal-lines {
         display: flex;
         flex-direction: column;
@@ -156,8 +223,71 @@ const countdown = nextRaceLine(nextRace(goal.sport), patchesEarned(goal.sport));
     }
 
     /*
+     * THE YEAR'S FIGURE AND THE TWELVE WEEKS, ON ONE ROW, AT OPPOSITE RAILS.
+     *
+     * THE GAP BETWEEN THEM IS THE WHOLE OF WHAT SAYS THEY ARE NOT ONE STATEMENT, and it has to
+     * be, because the nearest wrong reading is cheap: twelve bars beside a year total invite a
+     * reader to take them for twelve MONTHS. What rules that out is the arrangement rather than a
+     * caption there is no room for — the figure sits with the two lines under it, on their rail
+     * and in their register, and the drawing is pushed to the far edge with everything left over
+     * between them. The hero directly above says `this week` in words, and the drawing's own
+     * accessible name says twelve weeks, so the two readers who can be told are told.
+     *
+     * IT WRAPS, and that is the arm that makes the row safe at a text size rather than at a
+     * width. The figure is the elastic half: at a large enough root it takes the whole row and
+     * the drawing drops beneath it, which costs the card a line and loses nothing — where a
+     * pinned row would have squeezed twelve bars to nothing and kept them.
+     *
+     * BUT IT MUST NOT WRAP AT THE DEFAULT TEXT SIZE, and the first draft did, on ONE of the two
+     * cards. The gap was 0.75rem and the drawing asked for 4.5rem, which the running card's
+     * `284.6 / 600 km` left room for and the cycling card's `2602.2 / 5000 km` did not: 99.64 +
+     * 12 + 72 against a 182px column at exactly 1024px wide, the lg breakpoint itself. The
+     * cycling card came out 285.8px against the running card's 266.8 — and the two sit one
+     * directly above the other, so they visibly stopped matching. `src/lib/projection.ts` records
+     * the same 19px failure ruling out a longer status line, from the same column at the same
+     * width; this is that measurement arriving from the other side. At 0.5rem and 4rem the widest
+     * figure the account can produce asks 171.64 of 182 and both cards are 266.8.
+     */
+    .goal-year {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.25rem 0.5rem;
+    }
+
+    /*
+     * `min-width: 0` so the figure may narrow rather than force the row wider than the card —
+     * EventsLink.astro records at length why a bare text node cannot be told this, which is the
+     * only reason this half is wrapped in an element at all. The drawing takes what is left and
+     * has a floor, because a sparkline narrower than its own bar count is a smudge: below it the
+     * two halves are on separate lines instead, which the wrap above already allows.
+     */
+    .goal-year-figure {
+        min-width: 0;
+        overflow-wrap: break-word;
+    }
+
+    .goal-year :global(.volume-spark) {
+        flex: 1 1 4rem;
+        min-width: 4rem;
+        max-width: 9rem;
+    }
+
+    /*
+     * THE YEAR'S TWO LINES ARE ONE STATEMENT AND THE COUNTDOWN IS ANOTHER, so the gap the flex
+     * column gives every child is taken back between the first two. Where the year stands and
+     * what it still demands are halves of one sentence about the same twelve months; when the
+     * next race is, is not. This is also where a 4px row of the page was found — the card had 14px
+     * of growth before <main> gets taller and the new line costs 16.
+     */
+    .goal-demand {
+        margin-top: -0.25rem;
+    }
+
+    /*
      * The control gets more air above it than the lines give each other, because it is
-     * not one of them: the two sentences are figures the card is stating and this is a
+     * not one of them: the lines above are figures the card is stating and this is a
      * way out of the card. The gap is the whole of what says so — there is no divider,
      * and adding one would be a third structural device on a card that has one.
      */

@@ -1,0 +1,186 @@
+---
+import type {RecentWeek} from "../lib/season";
+
+interface Props {
+    weeks: readonly RecentWeek[];
+    /** The one readable sentence this drawing is announced as. See the note below. */
+    label: string;
+}
+
+/*
+ * TWELVE WEEKS OF VOLUME AS ONE SERIES, WHICH IS THE LAST TWELVE ROWS OF THE PAGE THIS CARD'S
+ * CONTROL OPENS.
+ *
+ * IT REPLACES THE GOAL CARD'S PROGRESS RULE RATHER THAN JOINING IT, and the swap is the whole
+ * argument rather than a layout convenience. A fraction carries the most it will ever carry in
+ * the middle of a year and almost nothing at either end: `goalStatus` returns `met` the day the
+ * kilometres pass the target and the rule stands full until 31 December, then empties on 1
+ * January. What the training is DOING is interesting on every one of those days, so the card
+ * shows a direction where it used to show a position.
+ *
+ * IT TAKES THE SPINE'S OWN TWO TOKENS AND NOT THE SPORT'S, WHICH IS A DEPARTURE FROM THE PLAN
+ * THIS COMPONENT WAS WRITTEN FROM. That plan asked for `--progress-track` under the sport's own
+ * hue. Two reasons, and the first is the stronger: these bars ARE the spine's rows — the same
+ * weeks, the same figures, drawn one page apart — so drawing them in a different palette makes
+ * one object into two. `WeekRow.astro` records the second, measured next door: `--sport-run` and
+ * `--sport-ride` sit within two points of lightness, so a sport carried by hue alone fails SC
+ * 1.4.1, and putting a sport hue here would re-open a contrast obligation against the card that
+ * the shared pair already discharges. There is exactly one sport per card and its heading says
+ * which, so the hue would have been carrying nothing anyway.
+ *
+ * THE TWO COLOURS STAY IN UTILITY CLASSES rather than moving in beside the geometry below, and
+ * that is the testability decision `ProgressBar.astro` made and this inherits along with its job.
+ * `tests/build-output.test.ts` resolves each element's painted background out of the SHIPPED
+ * stylesheet by class token, which is what lets it assert the polarity rule — that the FILL is
+ * the region standing further from the card — and that neither colour has been quietly re-coupled
+ * to a token belonging to something else. Move these into `<style>` and those assertions stop
+ * seeing anything.
+ *
+ * THE CURRENT WEEK IS NOT MARKED OUT, AND THE PLAN ASKED FOR IT TO BE. Every device available
+ * costs more than it pays here. A second colour is what `WeekRow.astro` refused, and it would owe
+ * its own 3:1 against both the track and the card in both themes; a heavier or wider bar encodes
+ * on the one channel a bar chart has already spent, so it reads as a larger week; and a rule under
+ * one column is a 1px mark inside a box the height of one line of type. What actually marks it is
+ * the arrangement: the series runs oldest to newest, so the current week is the bar at the
+ * trailing edge, and the card's hero prints its figure a few pixels away. Both halves of that
+ * pairing are gated — see `tests/rendered-html.test.ts`.
+ *
+ * THE SCALE IS THE RUN'S OWN BUSIEST WEEK, never a target, which is the property that separates
+ * this from the rule it replaced and from anything on the card around it. A bar's length is
+ * comparable to the other eleven and to nothing else on the page. `WeekRow.astro` argues the same
+ * point at length for the spine and this is deliberately the same choice, so the two drawings
+ * cannot disagree about what a full bar means.
+ *
+ * ONE READABLE SENTENCE, NOT TWELVE ANNOUNCED BARS. `role="img"` with a name makes every
+ * descendant presentational, so a listener meets this as a single object saying what a sighted
+ * reader takes off the shape — this week's figure and how it sits against the run. Twelve
+ * progressbars would be twelve announcements of a percentage nobody printed, and the card's hero
+ * is `aria-hidden` precisely so that its figure is said ONCE, here. That pairing is what
+ * `tests/rendered-html.test.ts` refuses to let either half of leave alone.
+ *
+ * ITS HEIGHT IS IN `em` AND SO IS THE READER'S OWN TEXT, which is the standing rule for anything
+ * inside a card: the card clips, so a box pinned in device pixels turns a larger text size into
+ * deleted ink, and `tests/card-fill.test.ts` bans exactly that. `em` here is the row's inherited
+ * type, so the drawing grows with the figure it sits beside instead of drifting away from it.
+ *
+ * IT IS DECLARED RATHER THAN STRETCHED, and the first draft stretched. A row of items takes its
+ * cross size from the tallest of them, and this has no content with a height of its own — so on
+ * the row it measured the text line, and on the wrapped arm below, where it is alone on its line,
+ * it measured NOTHING and shipped twelve bars 0px tall. A drawing whose height depends on what it
+ * happens to be sitting next to is a drawing that disappears the first time it sits alone.
+ */
+
+const {weeks, label} = Astro.props;
+
+// THE DIVISOR IS THE BUSIEST WEEK DRAWN, computed here rather than in the module because it is a
+// property of the DRAWING and not of any week — the same split `WeekRow.astro` makes. Zero only
+// where every week is, which is a run the fetcher has not reached, and twelve empty tracks are
+// then the honest picture rather than a division to guard against.
+const busiest = Math.max(0, ...weeks.map((w) => w.totals.metres));
+---
+
+<span class="volume-spark" role="img" aria-label={label}>
+    {weeks.map((week) => (
+            <span class="spark-week overflow-hidden bg-[var(--progress-track)]">
+                <span
+                        class="spark-fill bg-[var(--progress-fill)]"
+                        style={`--fill: ${(busiest ? (week.totals.metres / busiest) * 100 : 0).toFixed(3)}%`}
+                ></span>
+            </span>
+    ))}
+</span>
+
+<style>
+    /*
+     * THE BARS SHARE THE ROW'S SPACE EQUALLY AND THE ROW DECIDES HOW MUCH THERE IS. Every track
+     * is `1fr` of whatever is left beside the figure it sits with, so the drawing narrows with the
+     * card instead of demanding a width the card has to find — measured at 74px of spark at a
+     * 1024px viewport and 106px at 1440, for the same twelve bars.
+     *
+     * `min-width: 0` on the tracks is what makes that true rather than nearly true: an item's
+     * automatic minimum size is its content's, and `1fr` is a maximum, so without it twelve tracks
+     * refuse to go below their own minimum and the row grows instead of the bars shrinking.
+     *
+     * THE GAP IS FONT-RELATIVE like everything else that holds ink off ink here, so the twelve
+     * bars keep their proportions when the reader enlarges their text rather than fusing into one
+     * solid mass at the size the page is required to survive.
+     */
+    .volume-spark {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        align-items: stretch;
+        gap: 0.15em;
+        min-width: 0;
+        height: 1.25em;
+    }
+
+    /*
+     * ONE WEEK'S TRACK, AND ITS FILL IS PINNED TO THE FOOT OF IT RATHER THAN LAID OUT AT THE END.
+     * A series read as heights has to rise from one baseline; hanging the same bars from
+     * the top would draw the complement of the data.
+     *
+     * PINNED BECAUSE A PERCENTAGE HEIGHT NEEDS A DEFINITE ONE TO RESOLVE AGAINST, which the first
+     * draft did not give it and which is the kind of mistake only a render finds. That draft laid
+     * the fill out at the end of an auto-sized track: the percentage had nothing definite to
+     * measure, resolved as `auto`, and every fill came out at its content height — zero. The page
+     * shipped twenty-four full-height tracks with no data on them at all, and the build, the
+     * typecheck and every assertion in the suite were green, because none of them can see a
+     * computed height. Against the track's own box the percentage is definite, and the track has a
+     * height because the row above gives it one.
+     *
+     * The track carries `overflow-hidden` as a utility rather than a declaration here, which is
+     * the structural guarantee that a fill can never paint outside its own bar whatever the
+     * percentage resolves to — `tests/build-output.test.ts` reads that class off the shipped sheet
+     * for exactly this reason, so it must stay where the extractor can see it.
+     */
+    .spark-week {
+        position: relative;
+        min-width: 0;
+    }
+
+    .spark-fill {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: var(--fill);
+    }
+
+    /*
+     * FORCED COLOURS TAKES A BACKGROUND AWAY, WHICH IS THE WHOLE DRAWING — the mode would flatten
+     * twelve bars to nothing, and the series is why this element exists. So the fill opts out and
+     * takes the pair a UA reserves for a marked region, and the track is left to the mode: what
+     * remains is a Highlight bar of the right height on the mode's own ground, which is the data.
+     * `WeekRow.astro` settles the identical question the identical way one page over. Nothing here
+     * carries ink, so there is no foreground to pair — the gate in tests/build-output.test.ts
+     * skips an opted-out element with no text for exactly that reason.
+     */
+    @media (forced-colors: active) {
+        .spark-fill {
+            forced-color-adjust: none;
+            background-color: Highlight;
+        }
+    }
+
+    /*
+     * PRINT TAKES THE SPINE'S ANSWER RATHER THAN THE BIB'S. A bib prints as an outline because its
+     * face sits behind ink that has to stay legible; a bar carries nothing, so there is no
+     * legibility to trade and the honest thing is to print the drawing. Without
+     * `print-color-adjust: exact` Chrome's default discards both regions and the card prints a
+     * blank strip. Literal black on white rather than tokens, for the bib's reason: paper is white
+     * whichever theme the reader had on screen.
+     */
+    @media print {
+        .spark-week {
+            print-color-adjust: exact;
+            background-color: #FFF;
+            border-bottom: 1px solid #000;
+        }
+
+        .spark-fill {
+            print-color-adjust: exact;
+            background-color: #000;
+        }
+    }
+</style>

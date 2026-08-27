@@ -739,28 +739,25 @@ describe("dist/", () => {
         /*
          * A SECOND KIND OF EXEMPTION, AND IT EXPIRES BY BEING ASSERTED FROM BOTH SIDES.
          *
-         * The 404 above is exempt FOREVER — being unreachable is what that page is. This one is
-         * exempt UNTIL SOMETHING LINKS TO IT, which is a different claim and needs a different
+         * The 404 above is exempt FOREVER — being unreachable is what that page is. A second kind
+         * is exempt UNTIL SOMETHING LINKS TO IT, which is a different claim and needs a different
          * shape: the entry names the plan that will link it, and the loop below refuses to keep
          * the entry once the walk from `/` reaches the page anyway. So landing that plan turns
          * this list red rather than leaving a permanent hole behind, which is the whole
          * difference between an expiring exemption and a widened one.
          *
-         * ONLY THE ENTRANCE IS LISTED, NOT THE FAMILY. `/training/` is seeded as a second root
-         * and its own sport chips carry the walk to `/training/running/` and
-         * `/training/cycling/`, which are therefore NOT exempt — they are reachable, and if the
-         * chip row ever stopped drawing them this gate would still say so. A list of three
-         * would have excused two pages nothing was wrong with.
+         * THE LIST IS EMPTY, AND IT EMPTIED BY WORKING. `/training/` sat here from plan 046,
+         * which shipped the spine, until plan 047 pointed both goal cards' plates at it — at
+         * which point the walk below reached the page and the second assertion in the loop went
+         * red with the instruction to delete the entry rather than leave the hole behind. That is
+         * the mechanism doing exactly what it was built for, and it is recorded here because an
+         * empty list looks like a list nobody ever needed.
+         *
+         * KEEP IT EMPTY UNLESS THE SAME SITUATION RECURS: a page that must ship one plan before
+         * the control that reaches it. Everything else is either reachable or a defect, and the
+         * assertion at the foot of this test is what says so.
          */
-        const AWAITING_A_CONTROL = [{
-            path: "/training/",
-            plan: "plan 047",
-            why: "the spine ships before anything on the home page points at it: plan 046 builds "
-                + "the route and plan 047 moves the goal card that opens it. The two are separate "
-                + "plans because they are separately revertible, and the cost of that boundary is "
-                + "one page that is in the sitemap and reachable only from a search result until "
-                + "the second one lands",
-        }];
+        const AWAITING_A_CONTROL: {path: string, plan: string, why: string}[] = [];
 
         const walk = (roots: string[]) => {
             const seen = new Set<string>(roots);
@@ -1214,22 +1211,25 @@ describe("dist/", () => {
      * over an element it can no longer find. A conditional test that skips when the glyph
      * is absent would have looked like coverage and been none.
      */
-    it("keeps the bar a pure graphic, so no ink has to read on the fill", () => {
-        const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
-        expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
+    it("keeps the bars a pure graphic, so no ink has to read on a fill", () => {
+        const sparks = [...parseHTML(read("dist/index.html")).document.querySelectorAll(".volume-spark")];
+        expect(sparks.length, "every goal must render its series").toBe(GOALS.length);
 
-        for (const bar of bars) {
-            const fill = bar.querySelector(".progress-fill");
-            expect(fill, "each progress bar must render a fill").toBeTruthy();
+        for (const spark of sparks) {
+            const bars = [...spark.querySelectorAll(".spark-week")];
+            expect(bars.length, "a series with no bars in it").toBeGreaterThan(1);
             expect(
-                (bar.textContent ?? "").trim(),
-                "the bar must carry no text — if it does, it needs the ink-on-fill ratio check this test replaced",
+                (spark.textContent ?? "").trim(),
+                "the series must carry no text — if it does, it needs the ink-on-fill ratio check this test replaced",
             ).toBe("");
-            expect(
-                bar.querySelectorAll("*").length,
-                "the bar is the track and the fill and nothing else; a third element means ink is back on it "
-                + "and SC 1.4.11 needs measuring against whatever ink it carries (it was 1.89:1 in dark mode once)",
-            ).toBe(1);
+            for (const bar of bars) {
+                expect(bar.querySelector(".spark-fill"), "each bar must render a fill").toBeTruthy();
+                expect(
+                    bar.querySelectorAll("*").length,
+                    "a bar is the track and the fill and nothing else; a third element means ink is back on it "
+                    + "and SC 1.4.11 needs measuring against whatever ink it carries (it was 1.89:1 in dark mode once)",
+                ).toBe(1);
+            }
         }
     });
 
@@ -1247,14 +1247,19 @@ describe("dist/", () => {
      * marked region must dominate, the two regions must be distinguishable from
      * each other, and the track must stay quiet against its card.
      */
-    it("keeps the bar's polarity: the filled region reads as the mark", () => {
+    it("keeps the bars' polarity: the filled region reads as the mark", () => {
         const css = sheet();
         const doc = parseHTML(read("dist/index.html")).document;
-        const bars = [...doc.querySelectorAll('[role="progressbar"]')];
-        expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
+        // ONE BAR PER SERIES IS ENOUGH AND ALL OF THEM WOULD BE WORSE. Every bar wears the same
+        // two class tokens, so the ratios below resolve identically for all twelve — asserting
+        // each one twelve times over would say nothing new and would hide, behind a wall of
+        // repetition, the one thing this needs to check: that a series exists per goal at all.
+        const bars = [...doc.querySelectorAll(".volume-spark")].map((s) => s.querySelector(".spark-week")!);
+        expect(bars.length, "every goal must render its series").toBe(GOALS.length);
+        expect(bars.every(Boolean), "a series with no bar in it").toBe(true);
 
         for (const bar of bars) {
-            const fill = bar.querySelector(".progress-fill")!;
+            const fill = bar.querySelector(".spark-fill")!;
             // The surface the bar is judged against is the card it sits on, found
             // by walking up rather than named, so a layout change cannot leave
             // this comparing the bar to a card it is no longer inside.
@@ -1352,27 +1357,32 @@ describe("dist/", () => {
         }
     });
 
-    it("keeps the fill inside the bar, whatever width it resolves to", () => {
-        // The fill's width comes from an inline custom property computed from bot data.
-        // The track's clip is what makes that safe structurally rather than arithmetically:
-        // it holds however the percentage is derived, including if the clamp in
-        // ProgressBar.astro is ever removed or gets a sign wrong.
+    it("keeps every fill inside its own bar, whatever height it resolves to", () => {
+        // A fill's height comes from an inline custom property computed from bot data. The
+        // track's clip is what makes that safe structurally rather than arithmetically: it holds
+        // however the percentage is derived, including if the divisor in VolumeSpark.astro ever
+        // gets a sign wrong or a week arrives with more metres than the run's own busiest.
         //
-        // Resolved out of the built stylesheet, not from the class token: a utility
-        // UnoCSS fails to emit must go red here. An earlier version of this test asserted
-        // a layout token instead, which made the guard depend on a second token it never
-        // checked — and removing that one left the suite green while putting 8px of the
-        // then-glyph on bare track at 1.76:1 (light) and 1.61:1 (dark).
+        // Resolved out of the built stylesheet, not from the class token: a utility UnoCSS fails
+        // to emit must go red here. An earlier version of this test asserted a layout token
+        // instead, which made the guard depend on a second token it never checked — and removing
+        // that one left the suite green while putting 8px of the then-glyph on bare track at
+        // 1.76:1 (light) and 1.61:1 (dark).
         const css = sheet();
-        const bars = [...parseHTML(read("dist/index.html")).document.querySelectorAll('[role="progressbar"]')];
-        expect(bars.length, "every goal must render a progress bar").toBe(GOALS.length);
-        for (const track of bars) {
-            expect(track.querySelector(".progress-fill"), "each progress bar must render a fill").toBeTruthy();
-            expect(
-                decl(css, track.getAttribute("class"), "overflow"),
-                "the track must clip, so a fill wider than its box cannot paint outside the bar",
-            ).toBe("hidden");
+        const sparks = [...parseHTML(read("dist/index.html")).document.querySelectorAll(".volume-spark")];
+        expect(sparks.length, "every goal must render its series").toBe(GOALS.length);
+        let checked = 0;
+        for (const spark of sparks) {
+            for (const track of spark.querySelectorAll(".spark-week")) {
+                expect(track.querySelector(".spark-fill"), "each bar must render a fill").toBeTruthy();
+                expect(
+                    decl(css, track.getAttribute("class"), "overflow"),
+                    "the track must clip, so a fill taller than its box cannot paint outside the bar",
+                ).toBe("hidden");
+                checked++;
+            }
         }
+        expect(checked, "no bars were reached — this assertion would be vacuous").toBeGreaterThan(GOALS.length);
     });
 });
 
