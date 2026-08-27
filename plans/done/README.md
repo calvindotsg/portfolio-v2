@@ -3521,3 +3521,100 @@ computed rather than quoted.
 
 Backfilling 2022–2025, deliberately: 046 renders one year at a time, and a back catalogue is a data
 edit that can land whenever it is wanted (`gh workflow run strava-progress.yml -f year=2025`).
+
+## Plan 046 — the year as one spine, with the races on it
+
+Merged as `35a47ca` (#243). `/training`, `/training/running` and `/training/cycling` draw one bar a
+week for a whole calendar year with the bibs hanging off the weeks they were ridden in, each with a
+markdown twin. The wall is unchanged. What follows is only what executing it established.
+
+### Three of the plan's own design instructions were falsified by drawing them
+
+Each was written by a review panel that could not see the page, and each was measured before being
+replaced.
+
+- **"Ordering is future-first, matching the wall."** The wall sorts the next race first because its
+  forward-pointing run is four races and burying the next one is the defect. A spine is *every* week
+  of the year, so its forward run is **eighteen empty weeks**: future-first opens the page on
+  eighteen rows of nothing before the first fact, and reverses the series in the bargain — a ramp, a
+  taper and a gap are only legible in one direction, which is the plan's own founding argument for
+  building the page at all. Shipped forwards, January at the top. **Same principle, different
+  population, opposite answer** is the general shape, and it is why an order inherited from a
+  sibling surface is worth re-deriving rather than copying.
+- **"A stacked run/ride volume bar."** `--sport-run` (#1F4E9C) and `--sport-ride` (#A82334) are
+  within two points of lightness, so a stacked bar carries the split by **hue alone** — SC 1.4.1,
+  and this is the hardest pair on the site for it. The bib survives the same pair because it spends
+  four channels on the sport (mark, word, pin-hole count, hue); a 2px bar has one. Shipped as one
+  fill, with the split as a URL — the shape the wall already uses for the identical question.
+- **"A year chip row."** `src/data/weeks/` holds one year, so the row would have had exactly one
+  member pointing at the page you are already on. The plan also names a URL (`/training/2026`) that
+  its own scope and done criteria forbid: the route emits three pages and no year segment. The year
+  is the spine card's heading instead, and a second year of weeks is what makes a year segment real.
+
+### The "byte-identical wall" criterion is unsatisfiable, and the substance is provable instead
+
+The plan asked that the three wall pages be byte-identical to `main`. They cannot be: Astro
+partitions stylesheets by route family, so a second `[...sport]` route re-packages the wall's CSS
+(its chunk becomes an inline block plus a `Patch` chunk) and every page's `<link>` changes. What
+*is* provable, measured against a `git archive` build of `e5b6b47`:
+
+```
+<body> of /patches, /patches/running, /patches/cycling, / and /404   BYTE-IDENTICAL
+/patches.md, /patches/running.md, /patches/cycling.md               BYTE-IDENTICAL
+every existing page's CSS rule set                                  +1 selector, 1 changed
+only /design's <body> differs                                       the new section
+```
+
+The two CSS declarations are the whole of the collateral: a ninth entrance rung and the bib delay
+cap `min(--i, 7)` → `min(--i, 8)`. **Compare bodies, not files** is the reusable half — a criterion
+written as "byte-identical" over a bundler's output is a criterion about packaging.
+
+### Publishing a design section costs a layout rung, and only a gate knew
+
+`/design` renders one grid item per section, so an eighth section makes a **ninth child of `main`**
+and the entrance ladder stopped at eight. `src/layouts/BasicLayout.astro` is in neither the plan's
+in-scope nor its out-of-scope list, and nothing about "add a section to `src/content/design.ts`"
+suggests the layout. The ladder gate caught it; the bib-entrance gate then forced the cap, because
+it asserts the **product** (`cap × step == ceiling`) rather than the literal. The agent brief also
+had **134 characters of headroom against a 4096 budget**, so the section had to be declared dropped
+in `AGENT_DROPS`. A step that says "publish this into the design system" implies three files, not
+one.
+
+### The orphan-rule gate is the oracle for prose, and prose is where a new page spends its words
+
+Writing two new `.astro` files emitted four dead utility rules — `block`, `filter`, `hidden` and
+`shrink` — from ordinary sentences and from `display: block` in a `<style>` block. Two of the four
+were CSS declarations rather than prose, which is the half a reword cannot fix: `.spine-bar` is a
+grid item and so already blockified, and giving it `display: grid` blockifies its fill, so both
+declarations went away rather than being blocklisted. **Run the orphan gate after writing comments
+in a new `.astro` file**; it names the token and the fix is one word.
+
+### Measurements the page is drawn to
+
+- **The year, from the shipped data**: 3181.02 km, **621.92 of it in races**, 228 sessions, 250:33
+  moving, over 52 weeks and 9 races. The busiest week is 328.59 km, which is the scale every bar is
+  drawn against.
+- **52 weeks, not 53.** The Mondays of 2026 run `2026-W02` to `2026-W53`; `2026-W01` begins 29
+  December 2025 and belongs to the 2025 spine.
+- **The ahead hairline is 1px where an elapsed week's stroke is 2.** At equal weight the outline is
+  the *louder* of the two — 32% of the ink against a track token deliberately kept quiet against its
+  card — so eighteen weeks nobody has ridden were the strongest thing in the column. The bib settles
+  the same question the same way: a booked outline is 1px where a finished bib's forced-colours
+  border is 3.
+- **At a 40px root in a 320px viewport**: document overflow **0**. One measured overflow into
+  padding and not past a clip edge — the `SESSIONS` unit ends at x=251.4 against a spine content box
+  ending at 240 and a card clip at 300. `white-space: nowrap` on the unit is what stopped it
+  breaking mid-word; without it the page shipped `SESSIO` above `NS`, which is the exact failure
+  `.bib-ledger` records for the ledger's own names.
+- **Eleven mutations, eleven reds**, each applied alone, rebuilt and run against the full suite. The
+  two reachability mutations name one test and fail for opposite reasons — "its exemption has
+  expired" when something links the spine, "cannot be reached from /" when the entry is deleted —
+  which is what makes the exemption expiring rather than permanent.
+
+### What is deferred
+
+Plan 047 puts the control on the home page that reaches this page; until it lands, `/training` is in
+the sitemap and reachable only from a search result, which is the cost of the plans being separately
+revertible. The wall's filter row and this one are the same object drawn twice — `stateWord` in
+`patch-doc.ts` and `training-doc.ts` likewise — because the wall is out of scope here; both carry
+their pointer and both are owed a single home the first time it is in scope.

@@ -1,6 +1,6 @@
 # Implementation Plans
 
-**045 is done and archived; 046 and 047 are queued.** The three were approved as a shape on
+**045 and 046 are done and archived; 047 is queued.** The three were approved as a shape on
 2026-08-27 after four rendered directions were reviewed, and they answer one question the repository
 had never asked: **can the race wall and a training log be one surface?** They can, because they are
 already one dataset — a race stores `recordings: [{id, metres, elapsed_time}]`, one entry per Strava
@@ -12,6 +12,21 @@ are a name, a country, a results sheet and a bib.
 derives every total from one, and the nightly writes both halves in one job. It renders nothing, by
 design — so `dist/` is **byte-identical** across the merge, 24 files and every hash unchanged, which
 is the proof of that claim rather than an argument for it.
+
+**046 landed the next day**, merged as `35a47ca` (#243) and live. `/training`,
+`/training/running` and `/training/cycling` draw one bar a week for a whole calendar year, with the
+bibs hanging off the weeks they were ridden in, each with a markdown twin. The wall is unchanged and
+that is measured rather than asserted: the `<body>` of all three wall pages, the home page and the
+404 are byte-identical to a build of `e5b6b47`, all three wall twins are byte-identical, and every
+existing page's CSS differs by exactly two declarations.
+
+**Three of 046's own design instructions were falsified by drawing them**, each replaced with a
+measurement rather than a preference: future-first ordering opens the page on eighteen empty weeks
+and reverses the series; a stacked run/ride bar carries the split by hue alone between two tokens
+within two points of lightness; and a year chip row would have had one member pointing at the page
+you are already on. **A review panel hardens reasoning and only a render measures a drawing** — the
+same lesson 045 taught about a calendar, in the half a suite cannot see. What executing it
+established is in `done/README.md` under "Plan 046".
 
 **The review's four BLOCKs below were all confirmed by executing it, and one defect the review could
 not see was not.** A calendar-year fetch rule drops three days of sessions every New Year, silently,
@@ -355,7 +370,7 @@ recreated.
 | 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **DONE** (`71142d7`) |
 | 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **DONE** (`ed35e5f`) |
 | 045 | Fetch the weekly training series, and store the sessions rather than the totals | P1 | L | — | **DONE** (`30e38d9`) |
-| 046 | Draw the year as one spine, with the races on it | P1 | L | 045 | **TODO** |
+| 046 | Draw the year as one spine, with the races on it | P1 | L | 045 | **DONE** (`35a47ca`) |
 | 047 | Let the goal card lead with the build, and point its one plate at the spine | P2 | M | 045, 046 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
