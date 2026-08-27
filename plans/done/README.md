@@ -3618,3 +3618,122 @@ the sitemap and reachable only from a search result, which is the cost of the pl
 revertible. The wall's filter row and this one are the same object drawn twice — `stateWord` in
 `patch-doc.ts` and `training-doc.ts` likewise — because the wall is out of scope here; both carry
 their pointer and both are owed a single home the first time it is in scope.
+
+## Plan 047 — the goal card leads with the build, and its one plate points at the spine
+
+Merged as `b47b120` (#245). The goal card's hero is this week's volume; the year's fraction is a
+line sharing its row with a twelve-week series; the single plate reads `My <sport> training →` and
+opens `/training/<sport>`. What follows is only what executing it established.
+
+### The height premise the plan was written on was already stale
+
+The plan opens with "`<main>` asks for **797px** at the default text size" and makes a STOP
+condition of exceeding 800. Re-measured on a build of `main` before anything was edited:
+
+```
+                        1024x600  1024x768  1280x800  1440x900  1920x1080
+<main> on main             829       829       809       809        809
+```
+
+797 is the *clamp floor* at a 797px-tall viewport, not what the content asks for. So the STOP
+condition was **tripped by `main` itself** and is falsified as written; what it reaches for — no
+measured configuration worse than `main` — is what was held to, and met. **Read a height premise as
+a floor or as content before building on it**, because the two coincide only when the page fits.
+
+### The budget is 14px per card, and it decided the whole design
+
+Measured by injecting `padding-bottom` on both goal cards and rebinding `<main>`, at 2px granularity:
+a goal card may grow **14px at 1280 and up, 24px at 1024**, before `<main>` grows at all. That is
+less than one text line (a `text-xs` row costs 20px, or 16 where its gap is taken back), so the
+plan's shape — a new hero, a drawing, *and* the fraction moved to its own line — does not fit as
+written. What shipped spends 10px: the drawing takes **no** row of its own, sharing the fraction's.
+
+The arrangement was chosen by measuring copy rather than by taste. At the `lg` breakpoint the card's
+text column is 182px, and the hero is 24px type:
+
+```
+312.45 km this week   169.25px   fits, but leaves 12.75px — no room for a drawing beside it
+312.45 km             103.95px   leaves 78px, enough for twelve bars
+2602.2 / 5000 km, 74 km/wk to go, 1064 booked   271.41px   wraps at every viewport
+```
+
+So the hero keeps its words and the drawing sits on the line below. **Both figures on this card name
+their own span** — the hero says `this week`, the card's heading says `this year` — because a reader
+who swaps them reads the year's total as a week's.
+
+### Three of the plan's own design instructions were falsified by drawing them
+
+- **"`--progress-track` for the ground and the sport's own token for the fill."** These bars *are*
+  the spine's rows, so a second palette makes one object into two — and `WeekRow.astro` had already
+  measured `--sport-run` and `--sport-ride` at within two points of lightness, which is why the
+  spine refused a sport hue under SC 1.4.1. Shipped on the spine's own pair, which also keeps four
+  polarity and contrast assertions pointed at a real element instead of at a deleted one.
+- **"the current week emphasised."** Every device costs more than it pays inside a 15px box: a
+  second colour owes its own 3:1 against both the track and the card in both themes; a heavier or
+  wider bar encodes on the one channel a bar chart has already spent, so it reads as a bigger week;
+  a rule under one column is a 1px mark. The arrangement marks it — oldest to newest, so the current
+  week is the trailing bar, with the hero printing its figure beside it.
+- **"Line 1 carries the fraction and `goalStatusLine`'s output together."** 271.41px against 182.
+  They are two lines, and the gap between them is taken back so they read as one statement about the
+  year while the countdown keeps its own air.
+
+### Two of the six step-7 mutations did not behave as the plan predicted, and both taught something
+
+- **"Change `training.ts`'s heading so it no longer matches" left the suite GREEN.** Not a hole: the
+  string is *one string at both ends* — the control's label and the spine's heading are the same
+  `TRAINING.control` — so editing it moves both in lockstep and the defect cannot be expressed. The
+  stimulus that reaches the predicate makes the two **disagree** (mutating the route's heading
+  derivation alone), and it reddens. **A pairing built so the break is impossible needs a mutation
+  that breaks the pairing, not one that edits its source.**
+- **"Point the intro card's plate at `/training`" left REACHABILITY green.** The walk goes `/` →
+  `/design` (the footer's "How this site is drawn") → `/patches`, because the four control specimens
+  in `design.astro` are drawn as real links to the wall and both sport pages. Cutting *both* routes
+  reddens the gate and names all three wall pages, so it is live — it simply was not reached. This
+  **falsified a claim the implementation had already written into `CLAUDE.md`** ("the intro card's
+  plate is the only thing keeping the wall reachable"); a second commit corrected it. The plate is
+  the wall's only *direct* link from `/`; `/design` is what would hide the loss of it.
+
+The other four behaved: a second `.control-cta` reddens `control-geometry`; dropping the drawing's
+accessible name while the hero stays `aria-hidden` reddens `rendered-html`; `height: 120px` on the
+drawing reddens `card-fill`; a `max-height` back on `<main>` reddens `page-fit`.
+
+### Two defects only a render could find
+
+- **Every bar shipped 0px tall.** The first draft laid each fill out at the end of an auto-sized
+  track, so its percentage height had nothing definite to resolve against, resolved as `auto`, and
+  took its content height — zero. Twenty-four full-height tracks with no data on them, with the
+  build, `astro check` and all 779 assertions green. **No gate in this repository can see a computed
+  height.** The fill is pinned to the foot of its track now, where the percentage has a definite box.
+- **The two goal cards stopped matching at 1024.** The cycling card came out 285.8px against the
+  running card's 266.8, because `2602.2 / 5000 km` plus the drawing's minimum asked 183.6px of a
+  182px column and pushed the drawing onto its own line. The two sit one directly above the other —
+  the same 19px failure `projection.ts` records ruling out a longer status line, arriving from the
+  other side. At a 0.5rem gap and a 4rem minimum the widest figure the account can produce asks
+  171.64 of 182 and both cards are 266.8.
+
+### What was measured, and what it cost
+
+```
+<main> at the default text size, every viewport            IDENTICAL to main
+goal card                                                  256.8 -> 266.8px, both cards equal
+dist/                                                      30 of 31 files byte-identical; only index.html
+ink below the intro card's bottom edge @ root 40           main 51.67px lost -> 0.00px
+ink past the cycling card's right edge @ root 40, 1024     main 126.48px -> 91.48px
+control box past any card's right edge, 10 configurations  0.00px on both builds
+<main> at root 40                                          +163 to +551px
+```
+
+The last row is the page absorbing text growth instead of deleting it, which is what the two rows
+above it show it buying — and what `index.astro` records SC 1.4.12 as requiring.
+
+### What is owed
+
+- **`ProgressBar.astro` has no consumer.** Deleting it needs four comments outside this plan's scope
+  to move with it — `src/lib/goal.ts`, `src/layouts/BasicLayout.astro`, `src/pages/index.astro` and
+  one in `tests/build-output.test.ts` — so it was left in place rather than widening the change to
+  reach them. Nothing gates an orphaned component, so this will not announce itself.
+- **`EventsLink.astro` keeps a name that now describes one of its two callers.** The file rename is
+  two import lines; the class token `events-link` is read by name by eleven assertions across three
+  suites and by a forced-colours rule in `BasicLayout.astro`, so the rename is of the surface every
+  one of those gates is written against. The reason is recorded in the component.
+- **The `MONTHS_SHORT` and filter-row duplications 046 recorded are still owed**, unchanged by this.
