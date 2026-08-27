@@ -1,0 +1,332 @@
+---
+import Layout from "../../layouts/BasicLayout.astro";
+import Card from "../../components/Card/index.astro";
+import Patch from "../../components/Patch.astro";
+import WeekRow from "../../components/WeekRow.astro";
+import {TRAINING} from "../../content/training";
+import {METADATA} from "../../content/site";
+import {GOALS, goalForSport, type Sport} from "../../lib/goal";
+import {kmFromMetres} from "../../lib/race";
+import {groupSpine, hoursMinutes, seasonSpine, seasonTotals, seasonUnit, seasonYear} from "../../lib/season";
+
+/*
+ * THREE PRERENDERED PAGES, NOT ONE PAGE WITH A FILTER: `/training`, `/training/cycling` and
+ * `/training/running` — the wall's own shape next door, and it is the same shape for the same
+ * reasons. The sport chips have to survive with no client JavaScript, since this site ships none, and
+ * it has to be linkable, because a control on the home page has to be able to open one sport's
+ * year. `src/pages/patches/[...sport].astro` records the two alternatives that were rejected and
+ * what each of them loses; nothing here restates that argument.
+ *
+ * THE REST PARAMETER MATCHES ZERO SEGMENTS, which is what makes `/training` itself one of the
+ * three rather than a fourth file repeating this one.
+ *
+ * THE YEAR IS NOT IN THE URL, AND THAT IS A LIMIT RATHER THAN A DESIGN. A spine is one calendar
+ * year — a wall of fourteen bibs is scannable and five years of weeks is not — so the page has
+ * to choose one, and it chooses the year the build is in. `src/data/weeks/` holds exactly one
+ * year today, so there is no second year to offer and a row of chips holding one member would be
+ * furniture rather than a control: it names the page you are already on and goes nowhere. The
+ * moment the fetcher has a second year, the year becomes a real path segment and this route
+ * grows one — which is a plan, not an edit, because it moves every URL below `/training`.
+ */
+export function getStaticPaths() {
+    return [
+        {params: {sport: undefined}, props: {sport: undefined}},
+        ...GOALS.map((goal) => ({params: {sport: goal.sport}, props: {sport: goal.sport}})),
+    ];
+}
+
+interface Props {
+    sport?: Sport;
+}
+
+const {sport} = Astro.props;
+
+const year = seasonYear();
+const rows = seasonSpine(year, sport);
+const groups = groupSpine(rows);
+const totals = seasonTotals(rows, sport);
+const goal = sport === undefined ? undefined : goalForSport(sport);
+const unit = seasonUnit(sport);
+
+/*
+ * THE CENSUS IS EACH CHIP'S OWN LABEL, exactly as it is on the wall: a reader choosing between
+ * "all", "running" and "cycling" wants to know what each one costs them, and the count beside
+ * the word answers that where the question is asked. It counts SESSIONS rather than weeks,
+ * because the number of weeks is fifty-two on every one of the three and would say nothing.
+ *
+ * EACH COUNT IS THE PAGE IT OPENS, derived by asking `seasonTotals` for that scope rather than
+ * by narrowing the rows here — so a chip cannot promise a page a different number from the one it
+ * prints about itself.
+ */
+const filters = [
+    {
+        href: "/training",
+        label: TRAINING.all_label,
+        count: seasonTotals(seasonSpine(year)).sessions,
+        active: sport === undefined,
+    },
+    ...GOALS.map((g) => ({
+        href: `/training/${g.sport}`,
+        label: g.goal_name,
+        count: seasonTotals(seasonSpine(year, g.sport), g.sport).sessions,
+        active: g.sport === sport,
+    })),
+];
+
+/*
+ * A SPORT PAGE IS HEADED WITH THE VERY STRING PLAN 047'S CONTROL WILL WEAR, which is the pairing
+ * `tests/build-output.test.ts` asserts and the break it was written for: a reader pressing one
+ * name and landing on another. There is no control yet, so the pairing is half-built by
+ * construction — `TRAINING.control` is the heading here and becomes the label there, one string
+ * at both ends. (The all-sports page cannot use it: there is no sport to substitute, so
+ * `TRAINING.heading` carries that one, exactly as `PATCHES.heading` does on the wall.)
+ */
+const sportWord = goal?.goal_name.toLowerCase() ?? "";
+
+const heading = goal === undefined
+    ? TRAINING.heading
+    : TRAINING.control.replace("{sport}", sportWord);
+
+const title = `${heading} — ${METADATA.name}`;
+
+const lede = TRAINING.lede;
+
+// THE META DESCRIPTION NARROWS WHERE THE VISIBLE LEDE DOES NOT, for the wall's reason: a crawler
+// reads it alone, with no heading and no filter row beside it, so it is the one place the claim
+// has nothing to lean on.
+const description = goal === undefined
+    ? TRAINING.description_all
+    : TRAINING.description_sport.replace("{sport}", sportWord);
+
+// THE TWIN'S ADDRESS IS THIS ROUTE'S OWN NAME, derived from the same param that decides which of
+// the three spines this is. It restates the two endpoint filenames beside this one and nothing
+// else; a build in which the two disagreed would ship a link to a URL the site does not serve.
+const markdown = sport === undefined ? "/training.md" : `/training/${sport}.md`;
+
+const summary = [
+    TRAINING.summary_distance
+        .replace("{km}", kmFromMetres(totals.metres).toFixed(2))
+        .replace("{unit}", unit)
+        .replace("{races}", kmFromMetres(totals.race_metres).toFixed(2)),
+    (totals.sessions === 1 ? TRAINING.summary_effort_one : TRAINING.summary_effort)
+        .replace("{count}", String(totals.sessions))
+        .replace("{time}", hoursMinutes(totals.moving_seconds)),
+].join(" ");
+
+// THE BIB'S ENTRANCE INDEX IS ITS POSITION AMONG THE RACES ON THIS PAGE, counted in render
+// order. It feeds `--i`, which the cascade in BasicLayout.astro turns into a delay; an unset one
+// is not a small defect, because `calc()` over an unresolved custom property is invalid at
+// computed-value time and every bib then arrives on the same frame. See the gate that measured
+// exactly that in tests/build-output.test.ts.
+let bibIndex = 0;
+---
+
+<Layout title={title} description={description} markdown={markdown} header>
+    <main class="text-[var(--text)] m-auto p-2 grid gap-2 max-w-4xl w-full sm:p-4 md:gap-3 md:p-6 lg:gap-4">
+        <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-2">
+                {/* `break-anywhere` FOR THE WALL'S REASON, WHICH IS ABOUT THE DOCUMENT AND NOT
+                     ABOUT THIS HEADING. Every text column on the home page sits inside a card
+                     that clips; a page heading is un-clipped, so its minimum intrinsic width
+                     sets the document's. The familiar utility does not work here — `break-word`
+                     is defined NOT to affect intrinsic minimum sizing, so the heading still
+                     demands its longest word and the horizontal scroll is unchanged. This class
+                     is `overflow-wrap: anywhere`, which is the same break behaviour with the
+                     intrinsic minimum included. The measurement is on the wall's own heading. */}
+                <h1 class="text-3xl font-bold m-0 break-anywhere">{heading}</h1>
+                <p class="text-sm max-w-[60ch] m-0">{lede}</p>
+            </div>
+            <nav class="training-filter" aria-label={TRAINING.filter_label}>
+                {filters.map((f) => (
+                        <a href={f.href} class="chip" aria-current={f.active ? "page" : undefined}>
+                            <span class="break-anywhere">{f.label}</span><span
+                                class="training-filter-count">{f.count}</span>
+                        </a>
+                ))}
+            </nav>
+        </div>
+        <Card title={TRAINING.spine_heading.replace("{year}", String(year))}>
+            <p class="text-sm max-w-[60ch] mt-0 mb-4">{summary}</p>
+            <div class="spine">
+                <WeekRow head unit={unit}/>
+                <ul class="spine-weeks">
+                    {groups.map(({week, races}) => (
+                            <Fragment>
+                                <WeekRow week={week} busiest={totals.busiest_metres} unit={unit}/>
+                                {races.length > 0 && (
+                                        <li class="spine-race">
+                                            {/* A BIB IS A `<li>`, SO THE BIBS OF ONE WEEK NEED A
+                                                 LIST OF THEIR OWN — and a week really can hold
+                                                 more than one race: the two DCR legs are two
+                                                 days apart in the same ISO week. Grouping them
+                                                 puts them side by side at the wall's own density
+                                                 instead of stacking two full-width rows. */}
+                                            <ul class="spine-races">
+                                                {races.map(({event, state}) => (
+                                                        <Patch event={event} state={state} index={bibIndex++}/>
+                                                ))}
+                                            </ul>
+                                        </li>
+                                )}
+                            </Fragment>
+                    ))}
+                </ul>
+            </div>
+        </Card>
+    </main>
+</Layout>
+
+<style>
+    /*
+     * THE ROW ITSELF IS DRAWN IN WeekRow.astro, INCLUDING THE HEADING ROW ABOVE THE WEEKS, and
+     * that file's header says why the two cannot be split: Astro scopes styles to the template
+     * that declares them, so a heading laid out here and weeks laid out there would be two grids
+     * drifting apart on the first edit. What is left in this file is the spine's own furniture —
+     * the container the arms query, the list, and where a week's races hang off it.
+     */
+
+    .spine {
+        /*
+         * THE CONTAINER THE ARMS IN WeekRow.astro QUERY. It has to be the spine rather than the
+         * card: a row cannot query its own width, and the card carries padding the rows do not,
+         * so querying the card would answer a question about a box the rows are not in.
+         * `inline-size` alone — nothing here asks about height.
+         */
+        container-type: inline-size;
+    }
+
+    .spine-weeks {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        row-gap: 0.35rem;
+    }
+
+    /*
+     * A ROW THAT HAS WRAPPED NEEDS MORE AIR BETWEEN ROWS THAN INSIDE ONE. From the first arm in
+     * WeekRow.astro a week is two lines — figures, then its bar — and at the one-line gap those
+     * two lines are as far from each other as one row is from the next, so the bar reads as
+     * belonging to whichever week the eye starts from. Proximity is the only thing grouping them;
+     * this is what keeps the inner gap the smaller of the two. The arm is the same width as the
+     * one that wraps the row, because it is the same event.
+     */
+    @container (max-width: 34em) {
+        .spine-weeks {
+            row-gap: 0.7rem;
+        }
+    }
+
+    /*
+     * THE RACES OF ONE WEEK, AT THE WALL'S OWN DENSITY. `auto-fill` with a 13rem floor is the
+     * wall's rule and its argument holds unchanged here: a hand-maintained column count has to be
+     * re-tuned every time either the box or the reader's text size moves. `min(13rem, 100%)` is
+     * what stops the floor exceeding the container on a narrow phone.
+     *
+     * IT IS INSET FROM THE SPINE, and the inset is doing real work rather than decorating. A bib
+     * is not a week and must not read as one more entry in the series — the indent is what says
+     * these hang OFF the week above rather than sitting in the column with it, which is the one
+     * thing about this page a reader could get wrong in the expensive direction: a race is a
+     * Strava activity, so its kilometres are already inside that week's bar. `em`, so it grows
+     * with the reader's text, and small, because at 200% it is spending a container the bibs need.
+     */
+    /*
+     * THE SPACE ABOVE AND BELOW IS ASYMMETRIC ON PURPOSE. A bib belongs to the week ABOVE it, and
+     * proximity is what says so — set the two gaps equal and the bib reads as sitting between two
+     * weeks, which is the one reading this page cannot afford: it invites a reader to add the
+     * race to the week below rather than to find it already inside the week above.
+     */
+    .spine-race {
+        margin: 0.15rem 0 0.9rem;
+    }
+
+    .spine-races {
+        list-style: none;
+        margin: 0;
+        padding: 0 0 0 1.5em;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr));
+        gap: 0.5rem;
+    }
+
+    /*
+     * THE ROW OF SPORT CHIPS IS THE WALL'S, DRAWN TWICE, AND THAT IS A DEBT RATHER THAN A DECISION.
+     * `src/pages/patches/[...sport].astro` holds the identical four state rules and the whole
+     * argument for their ORDER — which is measured, is about contrast under a held press, and is
+     * not restated here. The wall is out of scope for the plan this page was built from, so
+     * extracting the pair into one component is owed the moment it is not; until then, an edit to
+     * one of these rows is an edit to both.
+     *
+     * WHAT IS ALREADY SHARED IS THE BOX AND EVERY ORDINARY STATE: `chip` in uno.config.ts brings
+     * the surface, the 44px floor on both axes, the guarded hover, the press and the held press.
+     * Below is only what a row of these does that one chip does not — the page you are on drawn like a
+     * bib you have earned, and the three rules that have to answer to it.
+     */
+    .training-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* Guarded because a touch browser applies `:hover` on tap and keeps it until the reader taps
+       elsewhere, which would leave whichever chip was last pressed wearing the accent beside the
+       one that is genuinely current — faking the very distinction this row exists to draw. */
+    @media (hover: hover) {
+        .training-filter .chip:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+    }
+
+    /* ABOVE the current-page rule, where its `:active` twin sits below. The asymmetry is the
+       wall's measurement rather than a style: a held press lasts a whole navigation, and accent
+       ink on the current chip's inverted fill is unreadable for that long where it is affordable
+       for a ~100ms tap. */
+    .training-filter .chip[data-leaving] {
+        border-color: var(--accent);
+        color: var(--accent);
+        transition: none;
+    }
+
+    .training-filter .chip[aria-current="page"] {
+        background-color: var(--text);
+        border-color: var(--text);
+        color: var(--background);
+    }
+
+    /* A press shows something on every chip including the current one: the preflight turns the
+       platform's own tap flash off site-wide, so once hover is gated a chip would acknowledge a
+       tap with nothing at all. */
+    .training-filter .chip:active {
+        border-color: var(--accent);
+        color: var(--accent);
+        transition: none;
+    }
+
+    /* And the chip you are already on keeps its readable label — the accent border still says the
+       tap landed, which is what a press is for. */
+    .training-filter .chip[aria-current="page"]:active {
+        color: var(--background);
+        transition: none;
+    }
+
+    /* The count is quiet against its own label, whichever ground it lands on. */
+    .training-filter-count {
+        opacity: 0.7;
+    }
+
+    /*
+     * As on the bib and on the wall: the selected state is carried by `background-color`, which a
+     * forced-colours mode overrides. `Highlight`/`HighlightText` is the system pair those modes
+     * reserve for the one item in a set that is current, and `border-color` is pinned to a system
+     * colour so the base rule's author token cannot leak into the mode.
+     */
+    @media (forced-colors: active) {
+        .training-filter .chip[aria-current="page"] {
+            forced-color-adjust: none;
+            background-color: Highlight;
+            border-color: CanvasText;
+            color: HighlightText;
+        }
+    }
+</style>
