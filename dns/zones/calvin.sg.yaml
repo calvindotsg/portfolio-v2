@@ -78,6 +78,22 @@ garden:
   type: CNAME
   value: calvindotsg.github.io.
 
+# The Hermes agent's dashboard, on a Hetzner box in nbg1. `proxied: true` IS LOAD-BEARING HERE,
+# unlike on the records around it: a `cfargotunnel.com` target has no public address and resolves
+# only through Cloudflare's edge, so an unproxied version of this record is simply broken rather
+# than merely direct.
+#
+# There is no origin to reach without Cloudflare Access in front of it either — the box publishes
+# no inbound port for this, and the dashboard binds to 127.0.0.1 on the host.
+hermes:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: 7016c4ba-d138-48e7-a7f1-2ec672540ce8.cfargotunnel.com.
+
 model:
   octodns:
     cloudflare:
@@ -97,6 +113,18 @@ slickshots:
   ttl: 300
   type: CNAME
   value: calvin.sg.
+
+# SSH to the same box and the same tunnel, on its own hostname because `cloudflared access ssh`
+# needs one it does not share with an HTTP application. Same tunnel UUID as `hermes` above; the
+# tunnel's own ingress rules decide which local port each hostname reaches.
+ssh-hermes:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: 7016c4ba-d138-48e7-a7f1-2ec672540ce8.cfargotunnel.com.
 
 # www DOES NOT SERVE THE SITE, and this record is not left over from when it did. It is proxied
 # so that requests reach Cloudflare's edge at all; a redirect rule then answers them with a 301
