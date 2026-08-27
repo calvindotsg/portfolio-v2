@@ -39,6 +39,19 @@
   # Two Google Search Console verifications and SPF. SPF is managed here while the MX records
   # beside it are not, and the asymmetry is Cloudflare's own: it marks the MX records
   # `meta.email_routing` and leaves this record's `meta` empty.
+  #
+  # ONLY ONE OF THE TWO VERIFICATION TOKENS IS ACCOUNTED FOR, AND BOTH STAY. Checked in Search
+  # Console on 2026-08-28: across both signed-in Google accounts there is exactly ONE property,
+  # the domain property `sc-domain:calvin.sg`, verified by "Domain name provider" — which needs
+  # one token. Every URL-prefix property that could have justified a second (apex and www, both
+  # schemes) answers "you don't have access to this property". The two records were created six
+  # weeks apart in 2022, which fits a property that has since been deleted.
+  #
+  # A token is not self-describing, so nothing from outside Google can say WHICH of the two the
+  # live property uses. The trade is one-sided: an unused verification TXT is inert and costs
+  # nothing, while deleting the wrong one un-verifies the property — and Search Console re-checks
+  # on its own schedule, so the failure surfaces days later with the gap already in the data.
+  # Do not tidy one away on the reasoning that only one is needed. That is true and insufficient.
   - octodns:
       cloudflare:
         auto-ttl: true
