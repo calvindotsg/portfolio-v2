@@ -62,9 +62,15 @@ what is managed and the list below for what is not.
   the API refuses to write it at all. Matched by suffix rather than by name on purpose: the
   selector carries a year, and an exclusion pinned to `cf2024-1._domainkey` stops covering the
   key the moment Cloudflare rotates it.
-- **`_dmarc`** is excluded for a reason that is not about DNS: its `rua=` is a personal mailbox,
-  and no email address appears anywhere else in this public repository. That is a choice about
-  publishing an address, not about correctness.
+- **`_dmarc`** is live and correct and simply is not managed from git. Bringing it under octoDNS
+  is a decision nobody has taken, which is not the same as one taken against. **The privacy
+  argument that used to sit here was false, and so was the correction** — this line claimed no
+  email address appears anywhere else in the repository, which is untrue, and `config.yaml`
+  then claimed the *same* address already appears in a tracked file, which is also untrue.
+  Re-measured 2026-08-28 over every tracked file, `public/resume.pdf` decompressed, and the
+  whole of git history: this record's reporting address appears nowhere here, and the record has
+  not changed since 2022, so neither sentence was ever true. Read `config.yaml` for the standing
+  position and the method; do not restore either argument.
 
 To adopt `_dmarc` later, **add the record to `zones/calvin.sg.yaml` first, then remove it from the
 reject list** — in that order. Removing the line on its own does not adopt the record, it plans a

@@ -97,16 +97,33 @@ processors:
       # not managed from git. Bringing it under octoDNS is a decision nobody has taken, which is
       # not the same as one taken against.
       #
-      # THE PRIVACY ARGUMENT THAT USED TO SIT HERE WAS FALSE, and it is named rather than
-      # quietly dropped because it is exactly the kind of reason a future reader would act on.
-      # It said that this record's reporting address is a personal mailbox, that no email
+      # THE PRIVACY ARGUMENT HAS NOW BEEN WRONG TWICE, IN OPPOSITE DIRECTIONS, and both versions
+      # are named rather than quietly dropped because each is exactly the kind of reason a future
+      # reader would act on.
+      #
+      # The FIRST said this record's reporting address is a personal mailbox, that no email
       # address appears anywhere else in this public repository, and that adding one here would
-      # be the first. The second clause was untrue when it was written: a tracked file this site
-      # serves at its own root, and links to from the home page, already carries that same
-      # address. Verified by hashing both values rather than printing either — the SHA-256
-      # digests match. So this exclusion never bought the privacy it claimed to, and restoring
-      # the argument would only re-import the mistake. Publishing the address is a settled
-      # matter elsewhere in the repository; it is not what this line is deciding.
+      # be the first. Its middle clause is false: a tracked module carries an address that this
+      # site serves at its own root and links to from the home page.
+      #
+      # The SECOND — written here to correct the first — said that tracked file carries THE SAME
+      # address, "verified by hashing both values rather than printing either — the SHA-256
+      # digests match". That is false too, and it is the worse error because it was stated as a
+      # measurement. Re-measured 2026-08-28 by the same method, over every tracked file, over
+      # `public/resume.pdf` WITH ITS STREAMS DECOMPRESSED — a plain text scan of a PDF cannot see
+      # the text, so a scan that skips this reports a false absence — and over every blob in the
+      # whole of git history including commit author addresses: this record's `rua=` appears
+      # NOWHERE in the repository, and the address that does appear is a different one. The
+      # digests do not match.
+      #
+      # AND IT WAS NOT MERELY STALE. The record's `modified_on` is 2022-05-13, so the address has
+      # not moved since years before either sentence was written. The second one was wrong on the
+      # day it was written, by a method that would have caught it.
+      #
+      # SO THE STANDING FACT IS THE NARROW ONE. Adopting this record would publish an address the
+      # repository does not currently carry. That is a real consideration and it is a decision,
+      # not a correctness matter — which is what the paragraph above already says. Do not restore
+      # either argument; re-run the measurement instead.
       #
       # TO ADOPT IT: add the record to `zones/calvin.sg.yaml` FIRST, then delete this line — in
       # that order. This comment used to read "delete this line to adopt it", which is backwards

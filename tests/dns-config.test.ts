@@ -574,12 +574,21 @@ describe("the zone file holds what it claims and nothing it excluded", () => {
     });
 
     /**
-     * The DMARC record's `rua=` is a personal mailbox and no email address appears anywhere else
-     * in this public repository. Excluding it from the zone file is only half the decision — it
-     * must not arrive by the back door in a comment or a fixture either. Scoped to an
-     * `@`-bearing address so it cannot be satisfied by the absence of the word "mailto".
+     * WHAT THIS GUARDS IS THE FILE, NOT THE REASON `_dmarc` IS EXCLUDED — and the distinction is
+     * the whole point, because the reason has now been stated wrongly twice in opposite
+     * directions and this docstring carried one of them. It said no email address appears
+     * anywhere else in this public repository, which is false: a tracked module carries one and
+     * the site serves it at its own root. `dns/config.yaml` then said the DMARC address is that
+     * same one, which is false too. Measured 2026-08-28 across tracked files, `public/resume.pdf`
+     * decompressed and all of git history, that address appears nowhere here.
+     *
+     * The assertion survives both corrections intact, because it never depended on either: this
+     * file is public, adopting `_dmarc` would publish an address, and that must be a deliberate
+     * edit to `zones/calvin.sg.yaml` rather than something that arrives by the back door in a
+     * comment or a fixture. Scoped to an `@`-bearing address so it cannot be satisfied by the
+     * absence of the word "mailto".
      */
-    it("publishes no email address, which is why _dmarc is excluded at all", () => {
+    it("publishes no email address, so adopting _dmarc cannot happen by accident", () => {
         expect(ZONE_TEXT).not.toMatch(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/);
     });
 });
