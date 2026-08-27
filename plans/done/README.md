@@ -3309,3 +3309,90 @@ at 1280. Checked because this plan adds grid items and 042 established that a st
 alone can cost 43px there. `@google/design.md lint` on the regenerated `DESIGN.md`:
 **0 errors, 0 warnings** — the format preserves an unknown `##` heading and errors only on a
 duplicate, so three new section names cost the toolchain nothing.
+
+## Plan 044 — the spec headed with the format's own names, and the guardrails it never had
+
+Merged as `ed35e5f` (#232). `DESIGN.md` and `/design.md` claimed the `google-labs-code/design.md`
+format and the claim held only in the weak sense that nothing rejected the file: the body emitted
+`## Colour` and `## Type`, both *unknown* headings the format preserves rather than errors on, and
+there was no `## Do's and Don'ts` at all — so a consumer reading the canonical guardrail section
+read **none** of this system's guidance. The fix is a mapping in the renderer, never a rename in
+`src/content/design.ts`: the page still says Calvin's word. What follows is only what executing it
+established.
+
+### The linter cannot see any of this, which makes the plan's own conformance criterion blind
+
+Before and after, on the same tool the plan names: **`errors: 0, warnings: 0, infos: 5`** at
+v0.4.0, and `export --format css-vars` emits **32** properties both times. Unchanged, because the
+linter reads the FRONT MATTER and every divergence this plan fixes is in the BODY. The done
+criterion "lint → 0 errors, 0 warnings" was satisfied by the unfixed document and is satisfied by
+the fixed one; it proves nothing was broken and cannot prove anything was mended. **An external
+check named in a plan is worth running and worth not trusting as the evidence for the plan's own
+subject** — the four gates in `tests/design-system.test.ts` are what actually hold this.
+
+The format itself had not moved: `npx @google/design.md@latest spec` at v0.4.0 prints the same
+eight canonical names the plan lists, and it is byte-identical to `docs/spec.md` on that
+repository's `main` bar one trailing newline.
+
+### The mapping made an existing gate red on correct code, and the plan did not see it coming
+
+`renders every section the module holds into the full spec` asks the document for every line the
+module authored, and `sectionLines` includes `section.heading`. The moment the full rendering heads
+that section `Colors`, the module's own word is absent:
+
+```
+× renders every section the module holds into the full spec
+  → expected [ 'Colour' ] to deeply equal []
+```
+
+**The heading is now the one line of a section this document may not say in the module's words**,
+so that gate asks the renderer for the heading and the module for everything else. The general
+shape is 043's finding from the other side: 043 found a plan naming a gate that no longer bites;
+this found a gate that starts biting on correct content the moment a rendering stops being a
+verbatim copy of its source.
+
+### The order gate as first written was half tautology, and only a mutation said so
+
+The gate reads `CANONICAL_SECTIONS` for the order it expects and the renderer reads the same table
+for the order it emits. **Reversing the two entries — exactly how a document goes out of the
+format's sequence — took only the file snapshot red.** Both halves moved together, which is what a
+derived-against-derived assertion always does.
+
+What the suite CAN know is that the renderer follows the declaration, and it does: a `headingFor`
+that stops consulting the table reddens it. What it cannot know is whether `Colors` really precedes
+`Typography` at v0.4.0 — that is a fact about somebody else's document, and re-deriving it here
+would paraphrase that spec into this repository. So the limit is written beside the assertion, and
+two assertions were added that owe the table nothing because they are the format's shape rather
+than its contents: every section the format names precedes every section it does not, and the
+guardrails come last. A `sectionOrder` emitting the unnamed sections first reddens both.
+
+### The shape-based version of that predicate reddened on correct content
+
+"Every heading that is not canonical must come after the canonical ones" fails on
+`## Set data-theme, or nothing is styled` — the theming block, which travels with the Overview
+because it is the precondition every sentence after it depends on. Naming it as an exception would
+be a carve-out and a list the next such block is quietly missing from. **Deriving the population
+from `SECTIONS` excludes it for the reason it is excluded**: it is not a section entry at all, and
+neither is the Overview. Semantic, not shape.
+
+### The prescribed mutation reddens three gates, not one
+
+Step 4 asks for two sections sharing a canonical target and expects the duplicate-heading gate red.
+It is, and so are the mapping gate and the file snapshot — `expected [ 'Colors' ] to deeply equal
+[]`. Each of the four new gates was mutated separately and each named itself; the aggregation gate
+was proved by filtering one section out of the guardrail list, which nothing else notices because a
+shorter document still matches its own committed copy.
+
+### The page is byte-identical in production, which is the whole argument for the mapping
+
+`/design/` fetched from the preview deployment and from `calvin.sg`:
+`88642df95bfa…` both times, **and the same hash again from production after the merge deployed** —
+so not one character of the page moved, closed on the origin rather than on a preview. `/design.md`
+differs by 59 lines and every structural one is a heading swap or the new section; the bytes the
+preview served, the bytes production serves now and the committed `DESIGN.md` are one file
+(`e657bcc…`), and the SERVED document lints at 0 errors and 0 warnings — which is the conformance
+claim made about what ships rather than about a local file.
+
+`.design-sync/conventions.md` is not in the diff and needed no regeneration. That audience carries
+no front matter and none of these sections; the format's names are not its problem, as the plan's
+scope says and as its budget would have refused anyway. Suite 683 → **687**.

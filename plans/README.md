@@ -1,12 +1,11 @@
 # Implementation Plans
 
-**One plan is queued: 044.** It came from a rethink of `/design` on
-2026-08-26, as the chain that opened with 040. **039, 040, 041, 042 and 043 are all done** — merged
-as `b1eea8a` (#217), `eb09d90` (#223), `a0be477` (#225), `b3e4837` (#227) and `71142d7` (#230),
-live, and archived. **044 is executable now**: both of its dependencies have landed, and the
-seven sections its own STOP condition counts are on the page.
+**Nothing is queued.** The rethink of `/design` that opened with 040 on 2026-08-26 has landed
+whole: **039, 040, 041, 042, 043 and 044 are all done** — merged as `b1eea8a` (#217), `eb09d90`
+(#223), `a0be477` (#225), `b3e4837` (#227), `71142d7` (#230) and `ed35e5f` (#232), live, and
+archived.
 
-**Why the five are a chain and not a set.** They were written in the order a defect forced,
+**Why the chain is a chain and not a set.** They were written in the order a defect forced,
 not in the order the work was imagined. The rethink began as "redraw the page", and two mutations
 run against `71bc7e1` turned it into four:
 
@@ -24,7 +23,8 @@ rendered, and the only assertion SPECIFIC to the built page was a type-step cens
 reach it, but every one is a build-wide universal about links, hover, presses and the page header,
 and none can see which sections the page carries. So **040 closed that first**, and 041 and 042 each added
 something — values, then a drawing — that would otherwise have been able to reach one surface and
-not the others with a green run; 043 added three sections under the same protection. Both mutations above were re-run at `3eb4098` before
+not the others with a green run; 043 added three sections under the same protection, and 044
+re-headed the whole of it for the format the document claims. Both mutations above were re-run at `3eb4098` before
 040 was executed and both were still silent; each of the five gates 040 shipped has since been shown
 to fail on a stimulus of its own. 043's first step was to re-prove 040's gate bites before relying
 on it, and keeping that step rather than striking it paid: **the gate that catches the founding
@@ -45,9 +45,9 @@ to is on the page. The two alternatives that lost are in "Findings considered an
 **The maintainer also widened the chain twice on the same day**, and both are worth naming because
 they are decisions rather than discoveries: `/design` publishes **three** new sections rather than
 two — an access section was asked for over this directory's own recommendation to defer it, and that
-recommendation survives as the section's brief — and `DESIGN.md` and `/design.md` are to follow the
-`google-labs-code/design.md` standards, which is what 041's front-matter work and the whole of 044
-answer.
+recommendation survives as the section's brief — and `DESIGN.md` and `/design.md` were to follow the
+`google-labs-code/design.md` standards, which 041's front-matter work and the whole of 044
+answered. Both have landed.
 
 038 and 039 are both done — merged as `0e78e22` (#213) and `b1eea8a` (#217), live, and archived.
 Both were written on
@@ -283,11 +283,11 @@ recreated.
 | 041 | Publish a token's two values, not just its role | P2 | M | 040 | **DONE** (`a0be477`) |
 | 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **DONE** (`b3e4837`) |
 | 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **DONE** (`71142d7`) |
-| 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **TODO** |
+| 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **DONE** (`ed35e5f`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
-**How the 040–043 chain divides, and why each boundary is real.** 040 was a gate and nothing else:
+**How the 040–044 chain divides, and why each boundary is real.** 040 was a gate and nothing else:
 it added assertions and made one renderer iterate a list it had hand-written, and its own
 verification was that `DESIGN.md` did not change by a byte — which held, first time, and was carried
 further on the preview, where the page and its markdown twin both came back byte-identical to what
@@ -304,7 +304,18 @@ purely STRUCTURAL edit that cost 43px of overflow with no style and no content c
 writing, and its own measurement was of the prose rather than the page: word overlap across every
 pair of guidance lines in different sections, which found two of the lines the plan prescribed
 already in the module under other headings, worded differently enough that the grep the plan
-prescribed missed both.
+prescribed missed both. 044 touched no value and no page at all — it renamed and resequenced what
+the full markdown rendering emits, so its own verification was that `/design` came back
+byte-identical from the preview to what production was already serving, which is 040's shape one
+chain later and is the whole reason the format's names live in the renderer rather than in the
+module.
+
+**The external check a plan names is not evidence for the plan's own subject, and 044 is the clean
+case.** Its done criteria include `@google/design.md lint DESIGN.md` at zero errors and zero
+warnings. The unfixed document satisfied that, and so did the fixed one — identically, down to the
+five `declared-omission` infos — because the linter reads the FRONT MATTER and every divergence 044
+closes is in the BODY. It was worth running and worth not counting: what holds this is four gates in
+`tests/design-system.test.ts`, each proved by its own mutation.
 
 **Splitting 041 out of 042 was forced by an arithmetic result, not a preference.** A second colour
 column cannot resolve `var(--token)` — only the live theme's value is reachable from CSS — so the
