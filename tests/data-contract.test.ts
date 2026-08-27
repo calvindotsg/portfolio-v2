@@ -7,11 +7,12 @@ import {EVENTS} from "../src/data/races";
 import stravaProgress from "../src/data/strava-progress.json";
 import {GOALS} from "../src/lib/goal";
 import {parseIsoDate, patchState, stampLagDays} from "../src/lib/projection";
-import {PROGRESS_SOURCE_OF_RECORD, SOURCE_OF_RECORD, STRAVA_SOURCED} from "../src/lib/provenance";
+import {PROGRESS_SOURCE_OF_RECORD, SOURCE_OF_RECORD, STRAVA_SOURCED, WEEK_SOURCE_OF_RECORD} from "../src/lib/provenance";
 import type {SourceOfRecord} from "../src/lib/provenance";
 import {raceKm, recordingKm, recordingsOf} from "../src/lib/race";
 import type {RaceEvent} from "../src/lib/race";
 import {BUILD_DATE} from "../src/lib/today";
+import {SESSION_KEYS} from "../src/lib/training";
 
 /**
  * WHAT A DIRECTORY OF FILES CANNOT SAY ABOUT ITSELF.
@@ -63,8 +64,7 @@ const README = `${DIR}/README.md`;
  * way a third record added beside these two is documented on the day it is declared, instead of
  * on the day somebody remembers to add its name here.
  */
-function declaredFieldPaths(): Set<string> {
-    const file = "src/lib/race.ts";
+function declaredFieldPaths(file = "src/lib/race.ts", typeName = "RaceEvent"): Set<string> {
     const program = ts.createProgram([file], {
         strict: true,
         target: ts.ScriptTarget.ESNext,
@@ -97,8 +97,8 @@ function declaredFieldPaths(): Set<string> {
 
     const root = source!.statements
         .find((statement): statement is ts.TypeAliasDeclaration =>
-            ts.isTypeAliasDeclaration(statement) && statement.name.text === "RaceEvent");
-    expect(root, "src/lib/race.ts no longer declares `RaceEvent` — this gate cannot answer")
+            ts.isTypeAliasDeclaration(statement) && statement.name.text === typeName);
+    expect(root, `${file} no longer declares \`${typeName}\` — this gate cannot answer`)
         .toBeDefined();
     return new Set(paths(checker.getTypeAtLocation(root!.name), "", 0));
 }
@@ -775,6 +775,41 @@ describe("where every published figure comes from", () => {
             + "nothing").toEqual([]);
     });
 
+    it("declares an origin for every field a week module has, and none it does not", () => {
+        /*
+         * THE SAME GATE AS THE ROW ABOVE, ASKED OF `TrainingWeek` — the compiler rather than the
+         * data, for the reason `declaredFieldPaths` gives: deriving the expected set from the
+         * stored weeks would let an optional field no week happens to carry drop silently out of
+         * the map. A week module is written by a script nobody watches, so the type is the only
+         * thing a reviewer can be held to.
+         *
+         * EVERY ONE OF THEM IS `strava`, AND THAT UNIFORMITY IS THE CHECK RATHER THAN A
+         * COINCIDENCE. It is what says the store-the-source decision held. A field here needing
+         * any other origin is a derived value that has leaked into storage — a weekly TOTAL is
+         * the one to expect — and it has no legal answer, because every member of
+         * `SourceOfRecord` names a source and a sum this repository computed originates in the
+         * computation. So the right response to that going red is to stop storing the field, not
+         * to invent a fifth source.
+         */
+        const declared = declaredFieldPaths("src/lib/training.ts", "TrainingWeek");
+        expect(declared.size, "no fields were derived from src/lib/training.ts — this gate is vacuous")
+            .toBeGreaterThan(5);
+
+        const mapped = Object.keys(WEEK_SOURCE_OF_RECORD);
+        expect([...declared].filter((path) => !mapped.includes(path)).sort(),
+            "src/lib/provenance.ts does not say where these week fields come from").toEqual([]);
+        expect(mapped.filter((path) => !declared.has(path)).sort(),
+            "src/lib/provenance.ts names these as week fields and src/lib/training.ts does not "
+            + "declare them").toEqual([]);
+
+        // The six session keys are the same list the writer projects onto and the suite walks.
+        expect(SESSION_KEYS.map((key) => `sessions.${key}`).filter((path) => !mapped.includes(path)),
+            "a key SESSION_KEYS declares has no declared origin").toEqual([]);
+        expect([...new Set(Object.values(WEEK_SOURCE_OF_RECORD))],
+            "a week field claims an origin that is not Strava. Read the note on the map before "
+            + "widening this — a derived value has no legal origin here").toEqual(["strava"]);
+    });
+
     it("names a source of record, never a store a fact passed through", () => {
         /*
          * THE RULE THE MAP RESTS ON, ASSERTED RATHER THAN LEFT TO THE TYPE. `SourceOfRecord` is
@@ -789,6 +824,7 @@ describe("where every published figure comes from", () => {
         const used = [...new Set([
             ...Object.values(SOURCE_OF_RECORD),
             ...Object.values(PROGRESS_SOURCE_OF_RECORD),
+            ...Object.values(WEEK_SOURCE_OF_RECORD),
         ])].sort();
         expect(used.filter((source) => !allowed.includes(source)),
             "a source that is not one of the four. If it names a file, a cache or a downstream "

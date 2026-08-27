@@ -161,6 +161,44 @@ export const PROGRESS_SOURCE_OF_RECORD: Readonly<Record<string, SourceOfRecord>>
 };
 
 /**
+ * THE WEEKLY TRAINING SERIES, WHICH IS NOT PART OF `RaceEvent` EITHER AND SO NEEDS ITS OWN ENTRY.
+ *
+ * `src/data/weeks/` holds one module per ISO week, each a list of sessions written by
+ * `scripts/fetch-strava-weeks.mjs`. Every field of a session is `strava`, and that uniformity is
+ * the CHECK rather than a coincidence: it is what says the store-the-source decision held.
+ * `tests/data-contract.test.ts` holds this map to `SESSION_KEYS` in both directions.
+ *
+ * A FIELD HERE THAT NEEDS ANY OTHER ORIGIN IS A DERIVED VALUE THAT HAS LEAKED INTO STORAGE.
+ * A weekly total would be the obvious one, and it has no legal answer: every member of
+ * {@link SourceOfRecord} names a source, and a sum this repository computed originates nowhere
+ * but in the computation. That is the argument for storing sessions rather than totals, stated
+ * from the provenance side — see `weekTotals` in `src/lib/training.ts` for the other half.
+ *
+ * THE RULE AT THE TOP OF THIS FILE STILL APPLIES: an origin names the original source of record
+ * and never a store the fact passed through, so `src/data/weeks/` is not a legal value here any
+ * more than `src/data/strava-progress.json` is.
+ *
+ * THE KEYS ARE PATHS INTO `TrainingWeek`, so a session's field is `sessions.<field>` for the same
+ * reason `recordings.metres` is nested above: the parent's answer does not cover it.
+ */
+export const WEEK_SOURCE_OF_RECORD: Readonly<Record<string, SourceOfRecord>> = {
+    /** The list itself: which activities a week was recorded as. */
+    sessions: "strava",
+    /** Strava's activity id. It addresses a page on Strava and means nothing anywhere else. */
+    "sessions.id": "strava",
+    /** Strava's own classification of the activity. `sportOf` maps it; it does not restate it. */
+    "sessions.sport_type": "strava",
+    /** `start_date_local`, verbatim — the wall clock Strava recorded the activity against. */
+    "sessions.start_local": "strava",
+    /** The API's `distance`, verbatim. `kmFromMetres` owns the conversion; this is the source figure. */
+    "sessions.metres": "strava",
+    /** The API's `moving_time`, in seconds. */
+    "sessions.moving_seconds": "strava",
+    /** The API's `elapsed_time`, in seconds. */
+    "sessions.elapsed_seconds": "strava",
+};
+
+/**
  * THE FIELD PATHS A REVERSAL WOULD HAVE TO STOP PUBLISHING, derived rather than listed so the
  * two can never disagree. Exported because the gate asserts against it and because it is the
  * answer to the only question this file exists to make answerable.

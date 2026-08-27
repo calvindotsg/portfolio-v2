@@ -45,6 +45,25 @@ day the kilometres last moved*, not the day they were last checked, which is wha
 unchanged run produce a byte-identical file. To bump a figure by hand, edit that JSON rather
 than the goal; the target stays in `src/data/goals.ts` and caps the displayed figure.
 
+**`scripts/fetch-strava-weeks.mjs`** — the bot's other half. Fetches one ISO week-year of the
+athlete's activities and writes one module per week into `src/data/weeks/`, each holding that
+week's sessions. Like the fetch above it has no `pnpm` script of its own and is invoked by the
+workflow as `node scripts/fetch-strava-weeks.mjs`; `STRAVA_WEEKS_YEAR` names a year for a
+backfill and is empty on every scheduled run.
+
+It calls a **different endpoint** — `GET /athlete/activities`, not `GET /athletes/{id}/stats` —
+because the totals endpoint returns totals and nothing else. Two consequences worth knowing
+before editing it. First, it reads no athlete id: that endpoint is scoped to whoever the token
+belongs to. Second, **a summary activity already carries the private fields** — an
+athlete-authored title, a route polyline, start and end coordinates, a heart rate — so the
+writer projects onto six named keys one at a time and never spreads. `src/data/weeks/README.md`
+lists the six; `tests/training.test.ts` asserts the projection rather than the fixture.
+
+It rewrites the **whole** week-year every run rather than tracking a watermark, which is two
+requests and is the only shape that sees a retro-edited distance or a late upload. What pays
+for that is byte-stability, exactly as it is for the totals: an unchanged year writes
+byte-identical files and the commit step finds nothing staged.
+
 **`scripts/scaffold-race.mjs`** — `pnpm race:add <activity-id> [<activity-id> …]`. Writes a
 module under `src/data/races/` from the Strava activities a race was recorded as. One race,
 however many activities it was recorded as; which ones belong together is the rider's call and
@@ -64,10 +83,23 @@ model described below.
 
 ## The nightly run
 
-`.github/workflows/strava-progress.yml` runs the fetch on a cron at 21:13 UTC — 05:13 in
+`.github/workflows/strava-progress.yml` runs **both** fetches on a cron at 21:13 UTC — 05:13 in
 Singapore, after a full Singapore day, and off the top of the hour to avoid GitHub's peak
-scheduling delays. It writes `src/data/strava-progress.json`, commits it, and asks
-`.github/workflows/ci.yml` to build and deploy.
+scheduling delays. It writes `src/data/strava-progress.json` and `src/data/weeks/`, commits
+whatever moved, and asks `.github/workflows/ci.yml` to build and deploy.
+
+**One job, not two, and that is the decision.** The two scripts read one account at one moment,
+seconds apart, so a new upload lands in both files or in neither — which is what lets a gate
+hold the weekly sessions against the year total they are published beside. Two workflows would
+be two pull requests a night racing the same protected branch, and a night where one merged and
+the other did not would leave `main` carrying weeks that do not sum to their own year.
+
+**The commit guard stages first and then tests the index**, rather than diffing one path. Both
+halves of that matter: the staging has to reach a directory rather than a file, and `git diff`
+cannot see an untracked file at all — so the older `git diff --quiet -- <path>` spelling would
+have reported "no change" on the very night a brand-new week module appeared. `git add -A` also
+stages a *deletion*, which is what carries a week whose Strava activities were all deleted out
+of the repository.
 
 **The commit reaches `main` through a pull request the run opens and merges itself**, on a
 branch called `bot/strava-progress` that is reused every night and force-pushed each time. That
@@ -111,12 +143,15 @@ repositories; nothing notices one being left behind.
 
 Outcomes in its log that read like failures and are not:
 
-**A run that commits nothing is the ordinary outcome.** The script re-reads the year-to-date
-totals in full every time rather than tracking what it last saw, so when the kilometres have
-not moved it writes byte-identical JSON, the commit step's `git diff --quiet` gate passes, and
-there is nothing to push. That gate is the only thing standing between this repository and a
-commit-merge-deploy every night, which is why `updated_at` has to survive an unchanged run: a
-freshly stamped date would make the file differ by construction and the gate could never fire.
+**A run that commits nothing is the ordinary outcome.** Both scripts re-read their whole
+subject every time rather than tracking what they last saw — the year-to-date totals in full,
+and the whole week-year — so when nothing has moved they write byte-identical files, the commit
+step finds an empty index, and there is nothing to push. That gate is the only thing standing
+between this repository and a commit-merge-deploy every night, which is why `updated_at` has to
+survive an unchanged run: a freshly stamped date would make the file differ by construction and
+the gate could never fire. **A rest day still moves nothing and a gym session still moves
+something** — the year totals count only rides and runs, but every session reaches its week
+module, so a night can commit a week and no kilometre at all. The commit subject names which.
 
 **The deploy is dispatched either way.** The last step carries `if: '!cancelled()'`, so it runs
 on success and on failure and stops only on a cancel. It exists because nothing done with
