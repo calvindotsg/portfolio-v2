@@ -3196,3 +3196,116 @@ every chip 44×44 or better at a 16px root and 110px at a 40px one. The sheet's 
 49.88em / 20.25em / 15.88em / 3.95em of its own inline size, with no token name broken mid-word at
 any of them. Clipped ink at 320 / 40px root is 2.1px over 12 elements — **the same 12 elements and
 the same 2.1px production reports today**, so the redraw changes it by nothing.
+
+## Plan 043 — the states, the words and the access the system never wrote down
+
+Merged as `71142d7` (#230). The design system described itself in colour, type, controls and
+marks, and every rule this repository has argued hardest about — what a control does when it is
+touched, what the interface calls things — was published nowhere. Three sections now: **States**,
+**Words**, **Access**, reaching `/design`, `DESIGN.md` and `/design.md` because 040 makes reaching
+one surface and not the rest a red suite. What follows is only what executing it established.
+
+### 040 changed which gate catches the founding mutation, and the plan's step 1 named the wrong one
+
+Step 1 adds a throwaway fifth section and expects red "naming the section as absent from
+`renderDesignDoc("full")`". **That cannot happen any more.** After 040 the full rendering
+*iterates* `SECTIONS`, so a new section is rendered into it automatically and that gate passes.
+Three tests went red instead:
+
+```
+× dist/ > serves the design spec as the same bytes the repository commits
+× is the module, rendered in full — the repository's spec has no second author
+× accounts for every section in the agent audience, carried or dropped for a reason
+  → expected [ 'throwaway' ] to deeply equal []
+```
+
+The protection is real and the accounting gate is the one that names the key. **The general
+shape: a plan written against the defect a gate was built for goes stale the moment the fix
+changes the mechanism rather than the outcome.** Step 1 was still worth running — it proved which
+gate bites, which is not what the plan said and is what the next plan needs.
+
+### The agent budget refused all three, and refusing is a measurement rather than a judgement
+
+The agent rendering stood at **3,935 characters against 4,096 — 161 spare.** Each section was
+measured in the shape a carried section is actually drawn in (heading, don'ts label, its don'ts,
+trailing blank), since that audience keeps don'ts and drops dos:
+
+| Section | Its don'ts alone | Document would stand at | Over by |
+|---|---|---|---|
+| States | 636 | 4,571 | 475 |
+| Words | 565 | 4,500 | 404 |
+| Access | 436 | 4,371 | 275 |
+
+**The cheapest overruns the spare by more than the spare itself.** The plan's preferences 1 and 2b
+both therefore require its option 3 — drop something already carried whose claim survives
+elsewhere in the same document — and reading every carried block against that standard, **nothing
+passes**. The token table and the control list are what this audience is promised complete; the
+theming block decides whether anything is styled at all; the closed-set section, the palette
+don'ts and the controls don'ts each carry a claim nothing else says twice. The only true
+duplication in the document is the four control class names, in the guaranteed-present line and
+again as the control list's headings — **49 characters, against a bill of 275**.
+
+**This is not the plan's STOP condition, and the difference is worth stating.** That one fires
+when the budget cannot be met. It is met, at 3,935, by carrying none of them. A budget that
+refuses everything is still a budget being honoured. `AGENT_BUDGET` untouched,
+`.design-sync/conventions.md` byte-identical — it is not in the diff.
+
+### The re-add queue is a ranking of subjects, not a queue of lines
+
+`.design-sync/NOTES.md` held two queued single instructions (accessible-name, then emoji). Three
+whole subjects the document never mentions now sit ahead of both, which is a rewrite rather than
+an append: **a subject absent outranks a line missing from a section that is present.** States
+first — a stuck hover state and a press that finishes after the finger has gone are exactly what a
+token table cannot imply — then Access, cheapest of the three. Words is in the queue at no budget:
+that agent writes screens, not this site's copy.
+
+### Two prescribed guidance lines were already in the module, and word overlap found it
+
+The plan's step 2 opens its dos with "a press must be drawn and must not ease" — that is
+`controls.does[2]`. Step 3b asks for "give an icon-only control an accessible name" as a re-add —
+that is `icons.does[2]`, and has been all along; what was dropped for budget was the *agent
+rendering's* copy of it, not the module's. Both would have shipped a literal second copy inside
+one document.
+
+Grep by key phrase, which is what the plan's verify prescribes, finds neither: the wording differs.
+What finds them is **word overlap across every pair of guidance lines in different sections** —
+Jaccard over content words, 42 lines, 756 cross-section pairs:
+
+```
+0.385  type.donts[2]  vs  controls.donts[2]     ← pre-existing
+0.263  type.does[1]   vs  controls.donts[2]     ← pre-existing
+0.207  type.does[1]   vs  access.does[2]        ← worst pair involving a new line
+```
+
+**The two most duplicative pairs in the module both predate this branch**, which is the result
+that makes the measurement worth keeping: it gives a *floor* — a new line is acceptable when it is
+less duplicative than lines the module already ships — instead of a verdict nobody can calibrate.
+
+### A section's key is a public URL, so the key and the heading have to say the same word
+
+The plan fixed the key as `motion` and left the heading open. `/design` derives `#design-<key>`
+and this site has no redirect layer, so a key is a bookmark. A heading saying "States" over an
+anchor saying `motion` is a mismatch a reader meets directly. Key and heading are both `states`.
+Nothing gates the pairing — `tests/design-system.test.ts` asserts one anchor per key and a chip
+pointing at it, and knows nothing about the heading above it.
+
+### Two findings this plan could not fix, and the reason is its own Out of scope
+
+- **`palette.donts[0]` is false of the document it is rendered into.** "Hardcode a hex, **even one
+  printed here**" — the agent audience's table has been roles-only since 041 and prints no hex.
+  True on `/design` and in `DESIGN.md`, false in `.design-sync/conventions.md`. **A guidance line
+  can be true of the module and false of one rendering**, and nothing in the suite can see it: the
+  renderings are gated for reaching the module, never for the module still describing them.
+- **`type.donts[2]` and `controls.donts[2]` overlap at 0.385**, the highest in the module.
+
+Both are the existing sections' wording, which this plan is forbidden to touch.
+
+### What the browser measured
+
+`/design` at 320×780 (root 40px, the 200% WCAG asks for), 320×780/16px, 375×812, 768×1024 and
+1280×900, alternating themes: **zero horizontal document overflow at every one**, no element
+outside the viewport, seven sections and seven index chips drawn, the chip row still on one line
+at 1280. Checked because this plan adds grid items and 042 established that a structural edit
+alone can cost 43px there. `@google/design.md lint` on the regenerated `DESIGN.md`:
+**0 errors, 0 warnings** — the format preserves an unknown `##` heading and errors only on a
+duplicate, so three new section names cost the toolchain nothing.

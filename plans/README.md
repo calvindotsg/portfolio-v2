@@ -1,9 +1,10 @@
 # Implementation Plans
 
-**Two plans are queued: 043 → 044.** They came from a rethink of `/design` on
-2026-08-26, as the chain that opened with 040. **039, 040, 041 and 042 are all done** — merged as
-`b1eea8a` (#217), `eb09d90` (#223), `a0be477` (#225) and `b3e4837` (#227), live, and archived.
-**043 is executable now**: both of its dependencies have landed.
+**One plan is queued: 044.** It came from a rethink of `/design` on
+2026-08-26, as the chain that opened with 040. **039, 040, 041, 042 and 043 are all done** — merged
+as `b1eea8a` (#217), `eb09d90` (#223), `a0be477` (#225), `b3e4837` (#227) and `71142d7` (#230),
+live, and archived. **044 is executable now**: both of its dependencies have landed, and the
+seven sections its own STOP condition counts are on the page.
 
 **Why the five are a chain and not a set.** They were written in the order a defect forced,
 not in the order the work was imagined. The rethink began as "redraw the page", and two mutations
@@ -23,11 +24,15 @@ rendered, and the only assertion SPECIFIC to the built page was a type-step cens
 reach it, but every one is a build-wide universal about links, hover, presses and the page header,
 and none can see which sections the page carries. So **040 closed that first**, and 041 and 042 each added
 something — values, then a drawing — that would otherwise have been able to reach one surface and
-not the others with a green run; 043 adds two sections under the same protection. Both mutations above were re-run at `3eb4098` before
+not the others with a green run; 043 added three sections under the same protection. Both mutations above were re-run at `3eb4098` before
 040 was executed and both were still silent; each of the five gates 040 shipped has since been shown
-to fail on a stimulus of its own. 043's first step is to re-prove 040's gate bites before relying on
-it, and that step is worth keeping rather than striking: it is cheap, and the whole point of the
-chain is that no plan after this one trusts a gate it did not watch bite.
+to fail on a stimulus of its own. 043's first step was to re-prove 040's gate bites before relying
+on it, and keeping that step rather than striking it paid: **the gate that catches the founding
+mutation is no longer the one the plan named.** After 040 the full rendering iterates, so the
+throwaway section is rendered into it and that assertion passes; what reddens is the accounting
+gate — the key is in neither the carried list nor the dropped one — plus both document snapshots.
+A plan written against the defect a gate was built for goes stale when the fix changes the
+mechanism rather than the outcome, and only running the step can tell.
 
 **The drawing in 042 was CONFIRMED by the maintainer on 2026-08-26**, from three whole-page
 alternatives drawn as live mockups in the site's own tokens. What was approved is the ledger sheet
@@ -277,7 +282,7 @@ recreated.
 | 040 | Hold all three renderings to their one source | P1 | M | — | **DONE** (`eb09d90`) |
 | 041 | Publish a token's two values, not just its role | P2 | M | 040 | **DONE** (`a0be477`) |
 | 042 | Redraw `/design` as a ledger sheet | P2 | L | 041 | **DONE** (`b3e4837`) |
-| 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **TODO** |
+| 043 | Publish the three sections the system never wrote down | P2 | M | 040, 042 | **DONE** (`71142d7`) |
 | 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **TODO** |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
@@ -295,8 +300,11 @@ both carried browser measurements in their done criteria, because there is no la
 suite; 041's came back clean at twelve points, three widths by two themes by two root font sizes,
 and 042's at eight, three widths in both themes plus 320px at a 40px root, with zero horizontal
 document overflow at every one. Two of 042's defects were reachable by nothing else — one of them a
-purely STRUCTURAL edit that cost 43px of overflow with no style and no content changed. 043 is
-writing.
+purely STRUCTURAL edit that cost 43px of overflow with no style and no content changed. 043 was
+writing, and its own measurement was of the prose rather than the page: word overlap across every
+pair of guidance lines in different sections, which found two of the lines the plan prescribed
+already in the module under other headings, worded differently enough that the grep the plan
+prescribed missed both.
 
 **Splitting 041 out of 042 was forced by an arithmetic result, not a preference.** A second colour
 column cannot resolve `var(--token)` — only the live theme's value is reachable from CSS — so the
@@ -318,10 +326,14 @@ test" has not measured "what else reads this".
 spare — and stood at 3,859 on the merged tree 041 executed against. Two value columns over the token
 table were measured at about 384 there, so 041 kept the agent audience roles-only and recorded the
 trade in `.design-sync/NOTES.md`; rewriting the palette's first don't then took the document to
-**3,935 — 161 spare**, which is the figure **043 starts from**, not 163 and not 237. Two new sections
-cost more than that, so 043 names its refusal in its own Out of scope and STOP conditions. Neither
-may raise the budget: the number is somebody else's context window and its provenance is written
-beside it in `tests/design-system.test.ts`.
+**3,935 — 161 spare**, which is the figure **043 started from**, not 163 and not 237. **It refused
+all three of 043's sections and the document did not move a byte.** Measured in the shape a carried
+section is drawn in — heading, don'ts label, its don'ts — they cost 636, 565 and 436, so the
+cheapest overruns the spare by more than the spare itself; carrying any one means dropping
+something already there, and nothing already there has a claim that survives elsewhere in that
+document. All three are declared dropped with what their reader loses. The budget was not raised:
+the number is somebody else's context window and its provenance is written beside it in
+`tests/design-system.test.ts`.
 
 **Why 038 and 039 are two files, and why 039 could not go first.** 038 published the chip as a
 real, gated kind of control; 039 spends it on the home page and deletes the icon plate the chip
@@ -548,7 +560,10 @@ later run re-derives it; it is not a record of anything the maintainer decided.
   drawn in the page's hairline box with `user-select: all` is already selectable in one gesture.
 - **Raising the design agent's character budget to fit more guidance** — rejected in advance, in
   both 041 and 043, and named as a STOP condition rather than a judgement call. The number is
-  somebody else's context window.
+  somebody else's context window. **043 then tested the refusal properly and it held**: it published
+  three sections the budget could not take, kept the budget, and recorded all three as dropped with
+  what each one's reader loses. A budget that refuses everything on offer is still a budget being
+  honoured — the STOP fires when the budget cannot be MET, not when it declines to grow.
 
 ### The control-vocabulary design review (2026-08-26, specimens drawn at `f767cf2`)
 
