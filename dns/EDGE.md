@@ -1,7 +1,7 @@
 # The edge, as configured
 
 This directory holds the zone's DNS records in git. This page holds the part of the zone that is
-**not** DNS and is **not** in git: the feature toggles, and the two Redirect Rules.
+**not** DNS and is **not** in git: the feature toggles, and the one Redirect Rule.
 
 **This is a snapshot, and it says so about itself because it cannot say anything else.** Nothing
 here is checked by any test, on any schedule. Reading these values back needs a
@@ -12,7 +12,8 @@ this. The honest half is writing down what is set and why, dated, with the place
 The fix for an entry that has gone stale is to re-read the dashboard and correct it here. It is
 never to delete the entry.
 
-**Read on 2026-08-21.** Everything below came from the zone's own API, and every row can be
+**Settings read on 2026-08-21; the rules re-read on 2026-08-27.** Everything below came from
+the zone's own API, and every row can be
 re-read the same way: the settings from the zone `settings` collection, the redirects from the
 zone ruleset in the `http_request_dynamic_redirect` phase. `cf zones settings get <setting-id>`
 reaches the first of those with a token carrying the right scope.
@@ -49,18 +50,25 @@ The canary asserts the *consequences* of all four — no injected loader, no rew
 and the card readable from a foreign referrer — so re-enabling any of them turns the weekly run
 red without anybody having to remember this table.
 
-## The two Redirect Rules
+## The one Redirect Rule
 
-Both live in the zone's single `http_request_dynamic_redirect` ruleset, both are enabled, and
-neither is under version control. **There is no legacy Page Rule left** — the second rule below
-was one, and its description still records that.
+It lives in the zone's single `http_request_dynamic_redirect` ruleset, it is enabled, and it is
+not under version control. **There is no legacy Page Rule left**, and there is now no second
+redirect either.
 
 | Matches | Sends | Code | Query string |
 |---|---|---|---|
 | host is `www.calvin.sg` | the same path on the apex | 301 | preserved |
-| host is `slickshots.calvin.sg` | a fixed Instagram profile URL | 302 | dropped |
 
-**Why the `www` rule is worth knowing about even though nothing here touches it.** It is invisible
+**There were two until 2026-08-27.** The other matched `slickshots.calvin.sg` and sent a 302 to a
+fixed Instagram profile; it was a legacy Page Rule before it was a Single Redirect, and its
+description recorded that. It went when the `slickshots` DNS record did, in that order — deleting
+the record first left the rule unreachable, which is the safe way round. It is named here rather
+than silently dropped because this page is the only record either rule ever had, and a reader
+finding one rule where the text says two would otherwise have no way to tell which is true.
+
+**Why the `www` rule is worth knowing about even though nothing here touches it, and why that
+matters more now that it is alone.** It is invisible
 in normal use — the redirect just works — and it is deletable by accident from this repository:
 `octodns-cloudflare` defaults `pagerules` to **true**, which makes the provider treat redirects as
 records it owns and plan a delete for every one absent from the zone file. `config.yaml` sets it
@@ -92,8 +100,9 @@ changing it is outside what the plan that wrote this page was scoped to do.
 Stated plainly so that this page is not mistaken for more than it is:
 
 - **No automated drift check on any of the above.** It needs a credential that does not exist.
-- **The two Redirect Rules are not in version control**, so there is no backup and no diff. They
-  are recorded here and nowhere else.
+- **The Redirect Rule is not in version control**, so there is no backup and no diff. It is
+  recorded here and nowhere else — and it is now the only one, so this page is the whole of what
+  is known about how `www` answers.
 - **The Pages project's own settings** — build configuration, environment variables, custom
   domains — are likewise outside git. `.github/workflows/pages-retention.yml` governs the one part
   of it that was actively accumulating, which is its deployments.
