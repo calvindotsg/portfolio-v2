@@ -174,3 +174,51 @@ Don't:
 - Substitute an emoji for a mark that is not in the set.
 - Mix another icon family in. The ones that ship do different jobs and were chosen against each other.
 - Recolour a brand mark away from what the surface it sits on needs for contrast.
+
+## States
+
+Every control here has states, and the states are what tell a reader that something can be pressed and that a press landed. This is the half of the system that is invisible on a desktop with a mouse and obvious on a phone: hover is not a state a finger can enter and leave, and a tap is over long before an easing curve has finished, so a design carrying its whole affordance in hover and its whole feedback in a transition arrives with neither.
+
+Do:
+
+- Hold a press on anything that navigates until the page actually changes. The press ends when the finger lifts and the reader then waits, with nothing on screen saying the tap landed.
+- Draw keyboard focus on every device, and draw it apart from hover. Hover is a pointer's affordance and some readers have no pointer; focus is how anyone driving the page from a keyboard knows where they are.
+- Honour a reduced-motion preference. A reader who set it is saying that movement costs them something, so the design has to still work with every transition taken out.
+
+Don't:
+
+- Write a hover style a touch device will apply. A touch browser puts hover on whatever was tapped and leaves it there until something else is tapped, so an affordance carried by hover arrives as a state stuck on the last thing the reader touched.
+- Put a hover rule and a focus rule in one selector list. One is a pointer's affordance and the other is a keyboard indicator every device needs, so suppressing the first takes the second with it.
+- Carry information in motion alone. A still frame — a reduced-motion preference, a screenshot, a device that dropped the animation — has to say what the moving one said.
+
+## Words
+
+The words in this interface are design material, and this vocabulary is decided rather than inherited. A control's label is the name of the thing it opens; two states that share a treatment are told apart by the word each one prints; and the word for a thing somebody finished is not the word for the set it belongs to. Every one of those was learned by shipping the other version first.
+
+Do:
+
+- Name a destination with the same words at both ends. A control that says one thing and opens a page headed with another breaks the vocabulary at the click, which is the moment a reader is least able to absorb it.
+- Where two states share a treatment, let the word carry the difference, and print it where the reader is already looking rather than somewhere they have to go and find it.
+- Say what a thing is in the reader's terms rather than the system's. A name that only makes sense once you know how the data is stored is a name every reader has to be taught.
+
+Don't:
+
+- Use the word for the earned thing as the heading for the whole set. A page listing everything that was entered cannot be headed with the word for the ones that were finished.
+- Leave two states that share a treatment with no word between them. The treatment can say that neither of them is the finished thing, and nothing but a word can say which of them this one is.
+- Let a label change between the control and its destination. Two strings that have to agree are one string, and a label that does not fit is shortened in both places at once.
+
+## Access
+
+Reaching and reading, which is the one subject here that is not about drawing. A design is finished when somebody can get to every part of it with a finger, with a keyboard, at the text size they chose, and with the colours replaced — and every one of those is a different reader rather than the same one described again.
+
+Do:
+
+- Give every control a target a fingertip can find, on both axes. Something comfortable under a mouse can still be a target a thumb misses, and the two dimensions fail separately: a wide, thin row is the usual one.
+- Put one landmark around each region a reader might skip to, and make the page's own name its first heading. Skipping is how a page is read without being seen, and it only works on regions that were declared.
+- Let a reader double the text without the page seeing a font-size change. That size is the reader's own setting rather than an input the design gets to read, so every box has to survive the result already.
+
+Don't:
+
+- Let reading order drift from visual order. A keyboard meets the markup, so a column moved by the layout is still read where it was written.
+- Depend on a colour surviving. A forced-colours mode replaces every one of them, so whatever a colour alone was carrying arrives blank.
+- Hide from the accessibility tree something a sighted reader can act on. A control nobody can name is a control only some readers have.

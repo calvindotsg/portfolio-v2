@@ -70,6 +70,17 @@ import {PALETTE, valueIn} from "./palette"
  *   instruction above as the second thing to re-add if a future run finds room. Both are named
  *   in `.design-sync/NOTES.md` in that order.
  *
+ *   AND THE THREE SECTIONS PUBLISHED AFTER IT ARE ALL DECLARED DROPPED, WHICH IS A REFUSAL AND
+ *   NOT AN OVERSIGHT. States, Words and Access reach `/design` and the full spec and none of them
+ *   reaches this audience. Every one was measured in the shape a carried section is drawn in —
+ *   heading, label, its don'ts and nothing else — against the spare that existed when they were
+ *   written, and the CHEAPEST of the three overruns that spare by more than the spare itself. So
+ *   there was no arithmetic to do: carrying any one of them means dropping something already
+ *   here, and nothing already here has a claim that survives elsewhere in this document, which is
+ *   the standard every drop above was held to. The figures and the candidates that were weighed
+ *   and refused are in `.design-sync/NOTES.md`; each section's own entry in `AGENT_DROPS` says
+ *   what its reader is losing.
+ *
  *   THE STANDALONE `control-surface` WARNING WENT WITH IT, and that one is a strict improvement
  *   rather than a cost. It was a sentence authored here naming one class; the module's own
  *   controls don't now names BOTH surfaces and says the same thing, so the claim survives wider
@@ -349,6 +360,25 @@ export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
         + "the same document: two of its don'ts restate the closed set declared above, and the "
         + "third is twinned almost verbatim by the controls don't that remains. The arithmetic "
         + "that forced the trade, and what it cost, are in this file's header.",
+    states: "The budget refused it and nothing here is glad about that — for an agent building "
+        + "screens out of an exported bundle these are the most valuable lines this system has, "
+        + "since a stuck hover state and a press that never draws are exactly what a token table "
+        + "cannot warn anybody about. Its don'ts alone were measured and do not fit, by a margin "
+        + "wider than the whole spare. It is FIRST in the re-add queue in `.design-sync/NOTES.md`, "
+        + "ahead of the two single instructions that were queued before it, because it is a "
+        + "subject this document does not mention at all rather than a line missing from one it "
+        + "does.",
+    words: "Dropped on merit rather than on arithmetic, and it would be dropped at any budget. "
+        + "That agent is handed a bundle and writes screens; it does not write this site's copy, "
+        + "and every instruction here is about the site's own domain words — what a finished race "
+        + "is called, which word separates two states that share a treatment. The reader who needs "
+        + "them is a person naming things in this interface, and that reader has `/design` and the "
+        + "full spec.",
+    access: "The budget refused it, and it is the cheapest of the three by measurement — so it is "
+        + "SECOND in the re-add queue and the one to try first if room appears. What is lost is "
+        + "worth naming: a forced-colours mode replacing every colour, and a reading order that "
+        + "has drifted from the visual one, are failures that agent cannot see anywhere in its own "
+        + "output, where a stuck hover state at least shows up the first time somebody taps it.",
 }
 
 /** The complete spec, for a reader who can open this repository. */
