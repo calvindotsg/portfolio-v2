@@ -49,35 +49,6 @@
       - google-site-verification=l7o6u3vVat-T_oPwXJQjdAabpMlVVUZvfmRygupTsY0
       - v=spf1 include:_spf.mx.cloudflare.net ~all
 
-# Four project sites on GitHub Pages. They share one target but not one repository; GitHub
-# routes them apart by Host header, the same way Cloudflare Pages does.
-battleship:
-  octodns:
-    cloudflare:
-      auto-ttl: true
-      proxied: true
-  ttl: 300
-  type: CNAME
-  value: calvindotsg.github.io.
-
-diving:
-  octodns:
-    cloudflare:
-      auto-ttl: true
-      proxied: true
-  ttl: 300
-  type: CNAME
-  value: calvindotsg.github.io.
-
-garden:
-  octodns:
-    cloudflare:
-      auto-ttl: true
-      proxied: true
-  ttl: 300
-  type: CNAME
-  value: calvindotsg.github.io.
-
 # The Hermes agent's dashboard, on a Hetzner box in nbg1. `proxied: true` IS LOAD-BEARING HERE,
 # unlike on the records around it: a `cfargotunnel.com` target has no public address and resolves
 # only through Cloudflare's edge, so an unproxied version of this record is simply broken rather
@@ -94,6 +65,7 @@ hermes:
   type: CNAME
   value: 7016c4ba-d138-48e7-a7f1-2ec672540ce8.cfargotunnel.com.
 
+# A project site on GitHub Pages, routed apart from the Pages project by Host header.
 model:
   octodns:
     cloudflare:

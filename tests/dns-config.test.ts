@@ -479,7 +479,7 @@ describe("the octoDNS config still asks for the exclusions it documents", () => 
         expect(rejects(names, "cf2025-1._domainkey")).toBe(true);
         // The control: a pattern that excluded everything would pass the two above and be useless.
         expect(rejects(names, "www")).toBe(false);
-        expect(rejects(names, "battleship")).toBe(false);
+        expect(rejects(names, "hermes")).toBe(false);
     });
 
     /**
@@ -533,9 +533,29 @@ describe("the zone file holds what it claims and nothing it excluded", () => {
         expect(www.octodns.cloudflare.proxied).toBe(true);
     });
 
-    it("proxies every record that fronts a website", () => {
-        for (const name of ["battleship", "diving", "garden", "model", "slickshots", "www"]) {
-            const rec = ZONE[name] as {octodns?: {cloudflare?: {proxied?: boolean}}};
+    /**
+     * DERIVED FROM THE FILE, NOT LISTED BESIDE IT. This used to name six hostnames, and a list
+     * is the wrong shape twice over: a record deleted from the zone reads back `undefined` and
+     * fails an assertion that has nothing to say about it, while a record ADDED to the zone is
+     * covered by nothing at all — which is the direction that matters, since an unproxied
+     * record is the defect. Iterating the file catches both.
+     *
+     * The invariant is universal for a reason rather than by coincidence. Every routable name
+     * here reaches something only Cloudflare's edge can reach: the apex and `www` are the Pages
+     * project, and `hermes`/`ssh-hermes` are `cfargotunnel.com` targets, which have no public
+     * address at all. There is no member of this file for which grey-cloud is the right answer,
+     * so a new one arriving unproxied is a mistake and not a decision.
+     */
+    it("proxies every routable record in the file", () => {
+        type Rec = {type?: string; octodns?: {cloudflare?: {proxied?: boolean}}};
+        const routable = Object.entries(ZONE).flatMap(([name, entries]) =>
+            (Array.isArray(entries) ? (entries as Rec[]) : [entries as Rec])
+                .filter((r) => r.type === "CNAME" || r.type === "ALIAS")
+                .map((r) => [name || "@", r] as const),
+        );
+        // The control: an empty derivation would pass every assertion below it.
+        expect(routable.length).toBeGreaterThan(1);
+        for (const [name, rec] of routable) {
             expect(rec?.octodns?.cloudflare?.proxied, `${name}.calvin.sg`).toBe(true);
         }
     });
