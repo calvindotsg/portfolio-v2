@@ -110,15 +110,6 @@ export const TRAINING: {
      */
     ahead_label: string
     /**
-     * A WEEK'S SPAN IN THE MARKDOWN TWIN, `{from}` to `{to}`, AS ISO DAYS.
-     *
-     * THE PAGE DOES NOT PRINT A SPAN AT ALL — `shortDate` in `src/lib/season.ts` records why —
-     * and the document does, which is the two renderings answering to their own readers rather
-     * than a divergence. A reader of the page has fifty-two rows in order and a lede saying a
-     * bar is a week; a machine quoting one line out of the document has neither, so the line
-     * has to carry both ends and carry them unambiguously.
-     */
-    /**
      * THE HALF OF THE GOAL CARD'S HERO THAT IS NOT THE FIGURE — `{unit}` is the goals' own.
      *
      * THE CARD'S HERO IS A WEEK NOW, WHICH IS WHY THESE FOUR STRINGS LIVE HERE RATHER THAN BESIDE
@@ -169,6 +160,15 @@ export const TRAINING: {
     card_spark_above: string
     card_spark_below: string
     card_spark_level: string
+    /**
+     * A WEEK'S SPAN IN THE MARKDOWN TWIN, `{from}` to `{to}`, AS ISO DAYS.
+     *
+     * THE PAGE DOES NOT PRINT A SPAN AT ALL — `shortDate` in `src/lib/season.ts` records why —
+     * and the document does, which is the two renderings answering to their own readers rather
+     * than a divergence. A reader of the page has fifty-two rows in order and a lede saying a
+     * bar is a week; a machine quoting one line out of the document has neither, so the line
+     * has to carry both ends and carry them unambiguously.
+     */
     week_span: string
 } = {
     heading: "My training",
