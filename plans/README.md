@@ -1,6 +1,6 @@
 # Implementation Plans
 
-**045 and 046 are done and archived; 047 is queued.** The three were approved as a shape on
+**All three are done and archived; the chain is closed.** They were approved as a shape on
 2026-08-27 after four rendered directions were reviewed, and they answer one question the repository
 had never asked: **can the race wall and a training log be one surface?** They can, because they are
 already one dataset — a race stores `recordings: [{id, metres, elapsed_time}]`, one entry per Strava
@@ -19,6 +19,15 @@ bibs hanging off the weeks they were ridden in, each with a markdown twin. The w
 that is measured rather than asserted: the `<body>` of all three wall pages, the home page and the
 404 are byte-identical to a build of `e5b6b47`, all three wall twins are byte-identical, and every
 existing page's CSS differs by exactly two declarations.
+
+**047 landed the day after that**, merged as `b47b120` (#245) and live. A goal card leads with the
+week's volume and its single plate opens `/training/<sport>`; the year's fraction is a line, and the
+twelve bars beside it are the last twelve rows of the page the plate opens. `<main>` is **identical
+at the default text size at every viewport measured** — 829px at 1024, 809px from 1280 up, on this
+revision and the one before it — and `dist/` is byte-identical to `main` in 30 of 31 files, only
+`index.html` differing. **Three of 047's own instructions were falsified by drawing them too**, and
+two of its step-7 mutations did not behave as written; what executing it established is in
+`done/README.md` under "Plan 047".
 
 **Three of 046's own design instructions were falsified by drawing them**, each replaced with a
 measurement rather than a preference: future-first ordering opens the page on eighteen empty weeks
@@ -371,7 +380,7 @@ recreated.
 | 044 | Make the spec conform to the format it claims | P3 | M | 041, 043 | **DONE** (`ed35e5f`) |
 | 045 | Fetch the weekly training series, and store the sessions rather than the totals | P1 | L | — | **DONE** (`30e38d9`) |
 | 046 | Draw the year as one spine, with the races on it | P1 | L | 045 | **DONE** (`35a47ca`) |
-| 047 | Let the goal card lead with the build, and point its one plate at the spine | P2 | M | 045, 046 | **TODO** |
+| 047 | Let the goal card lead with the build, and point its one plate at the spine | P2 | M | 045, 046 | **DONE** (`b47b120`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
