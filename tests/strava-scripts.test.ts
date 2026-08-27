@@ -4,6 +4,9 @@ import {pathToFileURL} from "node:url";
 
 import {afterEach, describe, expect, it, vi} from "vitest";
 
+import {
+    orderSessions, renderWeek, toSession, weekKeysOfYear, yearWindow,
+} from "../scripts/fetch-strava-weeks.mjs";
 import {accessToken, canReachTheTruth} from "../scripts/strava-auth.mjs";
 import {
     activityId, calendarDate, commentSafe, distinctIds, editOrderNote, hms, modulesOn,
@@ -770,5 +773,92 @@ describe("the race scaffold's edit-order note", () => {
             .toContain("ADD THE RECORDING FIRST");
         expect(editOrderNote("2026-08-03", modulesOn("2026-08-03", ENTRIES)))
             .toContain("FETCH FIRST");
+    });
+});
+
+/**
+ * THE WEEK FETCHER'S OUTPUT, WHICH IS A SCRIPT'S CONTRACT RATHER THAN A PROPERTY OF THE DATA.
+ *
+ * The allow-list, the ISO week rule and the cross-check against the year total all live in
+ * `tests/training.test.ts`, beside the type they are about. What belongs HERE is what belongs
+ * beside the other two Strava scripts: the bytes this one writes, and whether a value the API
+ * controls can become code in the file it is written into.
+ *
+ * THE BYTE-STABILITY HALF IS NOT COSMETIC. `.github/workflows/strava-progress.yml` commits only
+ * when the staged index holds something, so unstable output means a commit, a merge and a
+ * production deploy every single night, for ever, with nothing red. The sibling script's
+ * `nextProgress` has the same contract asserted in `tests/projection.test.ts` under "the bot's
+ * write contract"; this is that contract for the other half of the same job.
+ */
+describe("the week fetcher's output", () => {
+    const SESSIONS = [
+        {id: "19876422727", sport_type: "Run", start_local: "2026-08-24T18:27:38Z", metres: 6007.3, moving_seconds: 2439, elapsed_seconds: 2971},
+        {id: "19871739075", sport_type: "WeightTraining", start_local: "2026-08-24T06:22:00Z", metres: 0, moving_seconds: 3586, elapsed_seconds: 3586},
+    ];
+
+    it("writes a module that compiles, imports its own type, and ends in a newline", () => {
+        const rendered = renderWeek(SESSIONS);
+        expect(rendered).toContain('import type {TrainingWeek} from "../../lib/training"');
+        expect(rendered).toContain("satisfies TrainingWeek");
+        expect(rendered.endsWith("\n"), "no trailing newline — every diff would show the last line")
+            .toBe(true);
+        // Four-space indent on the session rows, matching every other generated module here.
+        for (const row of rendered.split("\n").filter((line) => line.startsWith(" "))) {
+            expect(row, "a session row is not indented four spaces").toMatch(/^ {4}\{/);
+        }
+    });
+
+    it("orders sessions totally, so a re-fetch cannot reorder a file", () => {
+        // START TIME FIRST, THEN THE ID. Two uploads really can share a start second — a
+        // duplicated import does it — and without the tiebreak the order would follow whatever
+        // order the API paged them in. That is stable on most nights and not all of them, which
+        // is the worst kind of unstable: a nightly deploy nobody can reproduce.
+        const sameSecond = [
+            {...SESSIONS[0], id: "300"}, {...SESSIONS[0], id: "100"}, {...SESSIONS[0], id: "200"},
+        ];
+        expect(orderSessions(sameSecond).map((s) => s.id)).toEqual(["100", "200", "300"]);
+        expect(orderSessions(SESSIONS).map((s) => s.id)).toEqual(["19871739075", "19876422727"]);
+        // Ordering is not mutation: the caller's array survives.
+        expect(SESSIONS.map((s) => s.id)).toEqual(["19876422727", "19871739075"]);
+    });
+
+    it("renders the same bytes for the same sessions, whatever order it is handed them", () => {
+        expect(renderWeek(SESSIONS)).toBe(renderWeek([...SESSIONS].reverse()));
+    });
+
+    /**
+     * REFUSED, NOT ESCAPED — the same rule the race scaffold's payload block states. A value
+     * Strava controls that reaches a `.ts` file this repository then imports is code, and
+     * `sport_type` is the only string on a session that is not already a fixed shape.
+     *
+     * THE THROW IS TYPED. A bare `toThrow()` would pass on a `TypeError` from a refactor that
+     * never reached the guard, so each case names the field that refused it.
+     */
+    it("cannot be made to write executable code out of a sport_type", () => {
+        const activity = (sport_type: string) => ({
+            id: 19876422727, sport_type, start_date_local: "2026-08-24T18:27:38Z",
+            distance: 6007.3, moving_time: 2439, elapsed_time: 2971,
+        });
+        for (const payload of [
+            'Run", metres: (globalThis.PWNED = 1, 5), z: "',
+            "Run\\", "Run\n", "Run*/ globalThis.PWNED = 1; /*", "",
+        ]) {
+            expect(() => toSession(activity(payload)),
+                `${JSON.stringify(payload)} was accepted as a sport_type`).toThrow(/sport_type/);
+        }
+    });
+
+    it("asks Strava for one week-year and sweeps exactly what it asked for", () => {
+        // The sweep deletes a covered week that came back empty, which is how a deleted Strava
+        // activity leaves this repository — and is why the covered set is DERIVED from the same
+        // list the window is derived from rather than globbed off the filenames.
+        expect(weekKeysOfYear(2026)).toHaveLength(53);
+        expect(weekKeysOfYear(2025)).toHaveLength(52);
+        expect(weekKeysOfYear(2026).at(0)).toBe("2026-W01");
+        expect(weekKeysOfYear(2026).at(-1)).toBe("2026-W53");
+        const {after, before} = yearWindow(2026);
+        expect(before - after, "a year's window is at least a year wide").toBeGreaterThan(370 * 86400);
+        expect(Number.isInteger(after) && Number.isInteger(before), "epochs must be whole seconds")
+            .toBe(true);
     });
 });

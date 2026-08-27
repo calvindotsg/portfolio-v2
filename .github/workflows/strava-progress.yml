@@ -5,7 +5,22 @@ on:
     # 21:13 UTC = 05:13 SGT — after a full Singapore day; off the top of the
     # hour to avoid GitHub's peak scheduling delays.
     - cron: "13 21 * * *"
-  workflow_dispatch: {}   # manual runs, and re-enabling after auto-disable
+  workflow_dispatch:      # manual runs, and re-enabling after auto-disable
+    inputs:
+      # WHICH WEEK-YEAR `scripts/fetch-strava-weeks.mjs` REWRITES. Empty on every scheduled
+      # run, which is what makes the nightly take the current Singapore year without this
+      # file naming one — a year written here would be a configuration value in a workflow,
+      # and this repository allows exactly three homes for one, none of them here.
+      #
+      # IT IS FOR A BACKFILL AND FOR NOTHING ELSE. The fetch rewrites a whole week-year every
+      # time, so asking for a past year writes that year's modules and leaves the current
+      # year's alone; asking for the current year is what the cron already does. The year
+      # totals in `src/data/strava-progress.json` are year-to-date and ignore this entirely,
+      # so a backfill run moves weeks and never moves a kilometre figure.
+      year:
+        description: "Week-year to fetch, YYYY. Blank means the current Singapore year."
+        required: false
+        type: string
 
 # `actions: write` is what lets the last step dispatch `ci.yml`, and it has to be
 # written here rather than assumed: a `permissions:` block REPLACES the defaults
@@ -198,6 +213,32 @@ jobs:
           STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
           STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
         run: node scripts/fetch-strava-progress.mjs
+      # THE SECOND FETCH, IN THE SAME JOB, AND THAT IS THE DECISION RATHER THAN A CONVENIENCE.
+      #
+      # The two scripts call two endpoints for two questions — `/athletes/{id}/stats` returns
+      # totals only, and a weekly series needs `/athlete/activities` — but they read one
+      # account at one moment, and every gate that holds the series against the year total
+      # depends on that. Run seconds apart in one job, a new upload lands in both or in
+      # neither. Split across two workflows they would be two pull requests a night racing the
+      # same protected branch, and a night where one merged and the other did not would leave
+      # `main` carrying weeks that do not sum to the year they are published beside.
+      #
+      # THE SAME ENV BLOCK, DELIBERATELY. `STRAVA_ATHLETE_ID` is unused by this script — the
+      # activities endpoint is scoped to the token's own athlete and takes no id — and it is
+      # supplied anyway so the two steps share one credential surface rather than drifting into
+      # two. The script's own `main()` says why it does not read it.
+      #
+      # NOTHING IS COMMITTED HERE. Both fetches write into the runner's checkout and the step
+      # below is what decides whether anything moved.
+      - name: Fetch the week's sessions and write src/data/weeks/
+        env:
+          STRAVA_ATHLETE_ID: ${{ vars.STRAVA_ATHLETE_ID }}
+          STRAVA_CLIENT_ID: ${{ vars.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+          # Empty on a scheduled run, so the script takes the current Singapore year.
+          STRAVA_WEEKS_YEAR: ${{ inputs.year }}
+        run: node scripts/fetch-strava-weeks.mjs
       # THIS STEP USED TO BE `git commit` AND `git push`, AND THE PUSH WAS TO `main`.
       #
       # It stopped working on 2026-08-21, on the nightly, with the failure notification going
@@ -269,8 +310,36 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           APP_TOKEN: ${{ steps.bot-app.outputs.token }}
         run: |
-          if git diff --quiet -- src/data/strava-progress.json; then
-            echo "Progress unchanged; nothing to commit. Today's build still runs — the site's clock moved even if the kilometres did not. See the next step."
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # STAGE FIRST, THEN TEST THE INDEX — AND THAT IS A CHANGE OF IDIOM RATHER THAN A
+          # WIDER PATHSPEC. This gate used to be `git diff --quiet -- src/data/strava-progress.json`
+          # with a matching `git add` further down and no `-a` on the commit, which was correct
+          # for exactly as long as one already-tracked file was the whole of what moved. Two
+          # separate defects appear the moment `src/data/weeks/` is in scope, and missing either
+          # one produces a GREEN workflow that silently discards every week module:
+          #
+          #   1. The staging was scoped to one path, so a week module written into the runner
+          #      would never be staged and never committed.
+          #   2. `git diff` CANNOT SEE AN UNTRACKED FILE at all — it compares the tracked
+          #      worktree against the index — so even with the pathspec widened, the guard would
+          #      report "no change" on the very night a brand-new week first appears and exit
+          #      before committing. The old spelling worked only because
+          #      `src/data/strava-progress.json` is already tracked.
+          #
+          # `git add -A` sees an untracked file AND a deletion, which is what the fetcher's own
+          # sweep depends on: a week whose activities were all deleted on Strava has its module
+          # removed, and a removal has to reach the commit like anything else.
+          #
+          # THE ZERO-DIFF PROPERTY IS UNCHANGED AND IS STILL THE ONLY THING standing between
+          # this repository and a commit-merge-deploy every night. It now rests on TWO scripts
+          # writing byte-identical output when nothing moved rather than one; see
+          # `src/data/weeks/README.md` for the week half of that contract.
+          git add -A -- src/data/strava-progress.json src/data/weeks
+
+          if git diff --cached --quiet; then
+            echo "Neither the kilometres nor the week's sessions moved; nothing to commit. Today's build still runs — the site's clock moved even if the training did not. See the next step."
             exit 0
           fi
 
@@ -283,10 +352,6 @@ jobs:
           # the name makes the failure self-healing instead, because the next run force-pushes
           # over the stale commit and merges the pull request that is already there.
           BRANCH="bot/strava-progress"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/data/strava-progress.json
 
           # shellcheck disable=SC2016
           # The `${...}` below are a JS template literal read by `node -e`, not shell
@@ -304,6 +369,19 @@ jobs:
           # loud and this one is earlier; the outcome that still cannot happen is the silent
           # numberless commit, so do not "fix" the quoting to prevent it.
           SUBJECT="$(node -e 'const p=require("./src/data/strava-progress.json"); console.log(`chore(goals): update Strava progress to ${p.cycling_km} km ride / ${p.running_km} km run`)')"
+
+          # THE SUBJECT NAMES WHAT MOVED, AND TWO THINGS CAN NOW MOVE INDEPENDENTLY. A night
+          # that adds a gym session moves a week module and no kilometre figure at all — the
+          # year totals only count rides and runs — so a subject naming the two unchanged
+          # totals and nothing else would describe a commit that did not touch them. The count
+          # is read off the INDEX rather than off the fetch, because the index is what is about
+          # to be committed: a week the fetcher rewrote byte-identically is not in it.
+          WEEK_FILES="$(git diff --cached --name-only -- src/data/weeks | grep -c . || true)"
+          if [ "${WEEK_FILES:-0}" -eq 1 ]; then
+            SUBJECT="${SUBJECT}, and 1 training week"
+          elif [ "${WEEK_FILES:-0}" -gt 1 ]; then
+            SUBJECT="${SUBJECT}, and ${WEEK_FILES} training weeks"
+          fi
 
           git commit -m "$SUBJECT"
           HEAD_SHA="$(git rev-parse HEAD)"
@@ -331,7 +409,7 @@ jobs:
           # block scalar: a continuation line carries the block's own indentation into the
           # string, and four spaces at the start of a Markdown line is a code fence nobody
           # asked for.
-          BODY="$(printf '%s\n\n%s\n' "Fetched from Strava's year-to-date totals by \`scripts/fetch-strava-progress.mjs\`, and opened by the run below. Nothing here is hand-edited, and a run opens nothing at all unless the kilometres moved." "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
+          BODY="$(printf '%s\n\n%s\n' "Fetched from Strava by \`scripts/fetch-strava-progress.mjs\` (the year-to-date totals) and \`scripts/fetch-strava-weeks.mjs\` (the week's sessions), in one run, and opened by the run below. Nothing here is hand-edited, and a run opens nothing at all unless one of the two moved." "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
 
           # `gh pr create` REFUSES A HEAD THAT ALREADY HAS AN OPEN PULL REQUEST, with an error
           # rather than by reusing it, so the reuse the branch policy above depends on has to
