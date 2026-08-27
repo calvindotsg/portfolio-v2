@@ -35,8 +35,12 @@ interface Props {
 // that page. That is the strongest relationship a card and its control can have, and it only
 // became available once the races and the weeks were one dataset — see the head of
 // ../lib/season.ts. The wall did not lose its way in: the intro card's plate still opens
-// /patches and the spine's own row of sport controls reaches the races, which is a fact
-// tests/build-output.test.ts walks the link graph to hold.
+// /patches, and the page this control opens DRAWS the races itself, on the weeks they were
+// ridden in — so a reader who came for the races is not sent anywhere to find them.
+// tests/build-output.test.ts walks the link graph from / to hold the first half of that.
+// Note what it does NOT hold, measured by breaking it: pointing the intro plate elsewhere
+// leaves that walk green, because /design links to the wall too. Read the note in CLAUDE.md
+// before treating the plate as the only thing keeping /patches reachable.
 //
 // THE FIGURE IS ANNOUNCED BY THE DRAWING, NOT BY ITSELF. The hero is aria-hidden and the
 // spark beside it carries a name holding the same figure in a sentence a screen reader can
@@ -64,10 +68,18 @@ interface Props {
 // one extra `text-xs` line at 1024x600 took Now from 154 to 150.7px and the OTHER goal card
 // from 232.8 to 227px before; after, only the edited card moves.
 //
-// SO WEIGH A DESIGN CHANGE HERE AGAINST THE PAGE, NOT AGAINST A BUDGET. What is still true
-// is that the page gets taller: at a 797px-tall viewport and above it does not scroll today,
-// and enough new rows will change that. The card-level figures are the cheapest way to price
-// one — 232.8px per goal card, the Now card at 154px, and 20px for a `text-xs` row.
+// SO WEIGH A DESIGN CHANGE HERE AGAINST THE PAGE, NOT AGAINST A BUDGET — AND THERE IS LESS
+// ROOM THAN THE PARAGRAPH ABOVE IMPLIES. Re-measured on the built page at the default text
+// size, against a build of `main`: `<main>` asks for 809px from 1280x800 up and 829px at
+// 1024, and each goal card is 266.8px. What is free is 14px of growth PER GOAL CARD at 1280+
+// and 24px at 1024 — beyond that `<main>` itself gets taller, so a reader at an 800px-tall
+// viewport scrolls further than they already do.
+//
+// PRICE A ROW BEFORE DRAWING IT, because a whole one does not fit: a new `text-xs` line in
+// `.goal-lines` costs 20px (16px of line plus the column's 4px gap), and 16px where the gap
+// is taken back. That is why this revision's extra line came in at 16 and the drawing pays
+// nothing at all — it shares a row rather than taking one. The Now card is 154px if you need
+// the third figure.
 //
 // `progress_last_year` is still configured and nothing renders it — deliberately, so it
 // is one edit from returning, and the January checklist in `src/data/goals.ts` still asks

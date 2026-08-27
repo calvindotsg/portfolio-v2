@@ -310,12 +310,17 @@ block above it before giving either consumer the other's list.
   `Goal met` is still printed and is now a LINE, which is the fix and not a regression.
   **`components/ProgressBar.astro` has no consumer as a result** and is owed a deletion that
   plan 047 left out of scope — four comments outside that scope name it
-- **THE WALL'S ONLY WAY IN FROM THE HOME PAGE IS NOW THE INTRO CARD'S PLATE.** That is one
-  link holding the reachability of three pages, and `tests/build-output.test.ts` walks the
-  link graph from `/` — so treat a change to `IntroCard.astro`'s plate as a change to
-  `/patches`. That same gate asserts each destination is headed with its control's own words,
-  which is a pairing no single-page test can see, and it is why `NEXT_RACE.control` was NOT
-  edited when the goal cards moved: that string names the events wall and is read by five
+- **THE INTRO CARD'S PLATE IS THE ONLY DIRECT LINK FROM `/` TO THE WALL — AND IT IS NOT WHAT
+  KEEPS THE WALL REACHABLE.** That distinction is measured rather than reasoned: pointing that
+  plate somewhere else leaves `tests/build-output.test.ts`'s reachability walk GREEN, because
+  the walk goes `/` → `/design` (the footer's way in) → `/patches`, where the four control
+  specimens in `design.astro` are drawn as real links to the wall and its two sport pages.
+  Orphaning the wall takes cutting BOTH routes, and doing that names all three wall pages.
+  So treat `IntroCard.astro`'s plate as the wall's front door and `/design` as the thing that
+  would hide the loss of it — a reader can still get there, but only through a page about the
+  design system. That same gate asserts each destination is headed with its control's own
+  words, which is a pairing no single-page test can see, and it is why `NEXT_RACE.control` was
+  NOT edited when the goal cards moved: that string names the events wall and is read by five
   consumers, so the card took a second string — `TRAINING.control` — instead
 - **The card is height-neutral and that was measured rather than assumed.** `<main>` asks
   for 809px at 1280x800 and up and 829px at 1024, on this revision and on the one before it,
