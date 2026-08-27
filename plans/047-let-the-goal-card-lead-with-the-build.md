@@ -18,9 +18,21 @@
 - **Effort**: M
 - **Risk**: MED — it reverses a rule `CLAUDE.md` states, and it edits the one page with no height to spare
 - **Depends on**: 045, **DONE** and merged as `30e38d9` (archived at
-  `plans/done/045-fetch-the-weekly-training-series.md`), and `plans/046-draw-the-year-as-one-spine.md`
+  `plans/done/045-fetch-the-weekly-training-series.md`), and 046, **DONE** and merged as `35a47ca`
+  (archived at `plans/done/046-draw-the-year-as-one-spine.md`)
 - **Category**: direction
 - **Planned at**: commit `719d3d6`, 2026-08-27
+- **Reconciled after 046 shipped**, and two of this plan's premises moved. Read
+  "Plan 046" in `plans/done/README.md` before executing:
+  - **`TRAINING.control` already exists** and already reads `My {sport} training`. 046 needed the
+    string as the heading of `/training/<sport>`, so it authored it there rather than leaving a key
+    for this plan to add — one string at both ends is what makes the control-and-heading pairing
+    impossible to break, and that gate reads the rendered pair. This plan's step for it is a
+    verification, not an edit.
+  - **There is no year chip row and no `/training/<year>` URL.** 046's own text named one; its
+    scope and done criteria forbade it, and `src/data/weeks/` holds one year, so a row of chips
+    would have had a single member pointing at the page it is on. Anything here that assumes a
+    year control is planning against a page that does not exist.
 
 ## Why this matters
 
