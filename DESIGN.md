@@ -80,7 +80,7 @@ Every token is defined only under the two theme blocks — there is no bare :roo
     <html data-theme="light">
     <html data-theme="dark">
 
-## Colour
+## Colors
 
 The tokens below carry the whole design. Each is defined twice — once per theme — and nowhere else, so a design is on-brand exactly to the degree it reaches for these and nothing else. A mark meant for an ink-flooded surface is drawn on one here, because showing it against the page ground renders the pale half of every pair as a mistake.
 
@@ -114,7 +114,7 @@ Don't:
 - Reach for --brand-ink to draw something interactive. That is --accent's job, and the two only coincide in light mode.
 - Assume dark is light with the lightness inverted. --progress-fill and --progress-track deliberately trade places.
 
-## Type
+## Typography
 
 A deliberately short ramp. There is no webfont and no display face — the system sans stack is the typeface, and restraint in the ramp is what carries hierarchy instead. Each step below is set in the size it names.
 
@@ -222,3 +222,53 @@ Don't:
 - Let reading order drift from visual order. A keyboard meets the markup, so a column moved by the layout is still read where it was written.
 - Depend on a colour surviving. A forced-colours mode replaces every one of them, so whatever a colour alone was carrying arrives blank.
 - Hide from the accessibility tree something a sighted reader can act on. A control nobody can name is a control only some readers have.
+
+## Do's and Don'ts
+
+Every line below is repeated from the section it names, which is where its reason is. This
+section exists because the format this document follows makes it the one place a consumer
+reads for guardrails, and guidance that sits only under a heading that format does not know
+reaches that reader not at all.
+
+- **Colors** — Do: Reach for the token whose role matches what you are drawing, not the one whose colour you like.
+- **Colors** — Do: Design in both themes. Every token is defined in each, and several swap polarity rather than merely darkening.
+- **Colors** — Do: Use an -on-ink variant on a surface flooded with --text, which is the only place it is right.
+- **Colors** — Don't: Hardcode a hex, even one printed here. Only the token name carries BOTH values, so a literal is right in at most one theme and wrong in the other.
+- **Colors** — Don't: Reach for --brand-ink to draw something interactive. That is --accent's job, and the two only coincide in light mode.
+- **Colors** — Don't: Assume dark is light with the lightness inverted. --progress-fill and --progress-track deliberately trade places.
+- **Typography** — Do: Carry hierarchy with size, weight and space, taken from the ramp as it stands.
+- **Typography** — Do: Let the reader's own text size drive the layout: every breakpoint and every box here is sized in rem for exactly that reason.
+- **Typography** — Do: Space sibling groups with a gap on a flex or grid parent.
+- **Typography** — Don't: Introduce a decorative or display face. There is no webfont to pair one with.
+- **Typography** — Don't: Invent an intermediate step because something is a little too big.
+- **Typography** — Don't: Pin a height in pixels. Text that grows then clips instead of pushing.
+- **Controls** — Do: Give every link a signifier a reader can perceive: an underline, a mark, or a border.
+- **Controls** — Do: Let a labelled control wrap. Its width belongs to its container; its height belongs to its text.
+- **Controls** — Do: Draw the press, and snap it. A tap is over long before a 300ms colour ramp finishes, so a pressed state must not ease.
+- **Controls** — Don't: Reach for a surface class. control-surface and chip-surface are source-level shortcuts the boxes compose, nothing wears either directly, and neither is in the shipped stylesheet.
+- **Controls** — Don't: Draw a link exactly like the prose beside it.
+- **Controls** — Don't: Pin a control's height in pixels. The box is sized in rem so that it grows with the reader's text.
+- **Marks** — Do: Size a mark with font-size. They are background images scaled to the text box.
+- **Marks** — Do: Pair a mark with a word wherever the mark alone would be a guess.
+- **Marks** — Do: Give an icon-only control an accessible name, since the mark is the whole control.
+- **Marks** — Don't: Substitute an emoji for a mark that is not in the set.
+- **Marks** — Don't: Mix another icon family in. The ones that ship do different jobs and were chosen against each other.
+- **Marks** — Don't: Recolour a brand mark away from what the surface it sits on needs for contrast.
+- **States** — Do: Hold a press on anything that navigates until the page actually changes. The press ends when the finger lifts and the reader then waits, with nothing on screen saying the tap landed.
+- **States** — Do: Draw keyboard focus on every device, and draw it apart from hover. Hover is a pointer's affordance and some readers have no pointer; focus is how anyone driving the page from a keyboard knows where they are.
+- **States** — Do: Honour a reduced-motion preference. A reader who set it is saying that movement costs them something, so the design has to still work with every transition taken out.
+- **States** — Don't: Write a hover style a touch device will apply. A touch browser puts hover on whatever was tapped and leaves it there until something else is tapped, so an affordance carried by hover arrives as a state stuck on the last thing the reader touched.
+- **States** — Don't: Put a hover rule and a focus rule in one selector list. One is a pointer's affordance and the other is a keyboard indicator every device needs, so suppressing the first takes the second with it.
+- **States** — Don't: Carry information in motion alone. A still frame — a reduced-motion preference, a screenshot, a device that dropped the animation — has to say what the moving one said.
+- **Words** — Do: Name a destination with the same words at both ends. A control that says one thing and opens a page headed with another breaks the vocabulary at the click, which is the moment a reader is least able to absorb it.
+- **Words** — Do: Where two states share a treatment, let the word carry the difference, and print it where the reader is already looking rather than somewhere they have to go and find it.
+- **Words** — Do: Say what a thing is in the reader's terms rather than the system's. A name that only makes sense once you know how the data is stored is a name every reader has to be taught.
+- **Words** — Don't: Use the word for the earned thing as the heading for the whole set. A page listing everything that was entered cannot be headed with the word for the ones that were finished.
+- **Words** — Don't: Leave two states that share a treatment with no word between them. The treatment can say that neither of them is the finished thing, and nothing but a word can say which of them this one is.
+- **Words** — Don't: Let a label change between the control and its destination. Two strings that have to agree are one string, and a label that does not fit is shortened in both places at once.
+- **Access** — Do: Give every control a target a fingertip can find, on both axes. Something comfortable under a mouse can still be a target a thumb misses, and the two dimensions fail separately: a wide, thin row is the usual one.
+- **Access** — Do: Put one landmark around each region a reader might skip to, and make the page's own name its first heading. Skipping is how a page is read without being seen, and it only works on regions that were declared.
+- **Access** — Do: Let a reader double the text without the page seeing a font-size change. That size is the reader's own setting rather than an input the design gets to read, so every box has to survive the result already.
+- **Access** — Don't: Let reading order drift from visual order. A keyboard meets the markup, so a column moved by the layout is still read where it was written.
+- **Access** — Don't: Depend on a colour surviving. A forced-colours mode replaces every one of them, so whatever a colour alone was carrying arrives blank.
+- **Access** — Don't: Hide from the accessibility tree something a sighted reader can act on. A control nobody can name is a control only some readers have.

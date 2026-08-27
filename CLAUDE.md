@@ -430,7 +430,11 @@ The entries below are the ones carrying non-obvious constraints:
   reach and read any of it, sitting beside colour, type, controls and marks as ordinary sections
   rather than an appendix. No section may restate another, wherever it sits: the sections are
   subjects and not owners, so a line belongs where it was first written down and a later section
-  that wants it has to find the thing only it can say
+  that wants it has to find the thing only it can say. **The full markdown rendering heads a
+  section with the DESIGN.md format's own name for it wherever that format has one, so the page
+  and the document deliberately say different words above the same section** — a canonical name is
+  a wire format, in the sense the Configuration rule means, and the site's own word stays on the
+  page. `src/lib/design-doc.ts` holds the mapping and the argument
 
 ## Plans
 
