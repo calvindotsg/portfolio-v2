@@ -15,7 +15,10 @@
 - **Priority**: P1
 - **Effort**: L
 - **Risk**: MED — it adds a route family and a new drawing to a design system with a published spec
-- **Depends on**: `plans/045-fetch-the-weekly-training-series.md` (the series does not exist without it)
+- **Depends on**: 045, **DONE** and merged as `30e38d9` — archived at
+  `plans/done/045-fetch-the-weekly-training-series.md`. The series exists; read
+  `src/lib/training.ts` and `src/data/weeks/README.md` before this plan's own excerpts, and read
+  "Plan 045" in `plans/done/README.md` for the two rules executing it changed
 - **Category**: direction
 - **Planned at**: commit `719d3d6`, 2026-08-27
 

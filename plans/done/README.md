@@ -3396,3 +3396,128 @@ claim made about what ships rather than about a local file.
 `.design-sync/conventions.md` is not in the diff and needed no regeneration. That audience carries
 no front matter and none of these sections; the format's names are not its problem, as the plan's
 scope says and as its budget would have refused anyway. Suite 683 → **687**.
+
+## Plan 045 — the weekly training series, stored as sessions
+
+Merged as `30e38d9` (#238), the same day it was written. The site knew two numbers about a year of
+training and nothing about its shape. `src/data/weeks/` now holds one module per ISO week —
+35 of them for 2026, 229 sessions — written by `scripts/fetch-strava-weeks.mjs` in the same job as
+the year totals. It renders nothing; 046 and 047 render it. What follows is only what executing it
+established.
+
+### The plan's fetch-year rule drops three days of sessions every New Year, and nothing in review saw it
+
+The plan said the fetcher takes "the Singapore calendar year". Running the boundary found the hole.
+ISO week `2026-W53` runs **Monday 28 December 2026 to Sunday 3 January 2027**, so on 1 January 2027
+a calendar rule asks for week-year 2027 — whose weeks begin on the **4th** — while the 2026 runs have
+already stopped. The ride ridden that morning falls in a week nothing covers any more. Three days
+dropped, silently, every year, with `ytd_ride_totals` still counting them, so the cross-check gate
+would go red on correct code in the first week of January and nobody would know why.
+
+**Asking which week-year TODAY falls in closes it by construction**, because that answer only moves
+once the previous week-year is complete: `2025-12-30` answers `2026`, `2027-01-01` answers `2026`,
+and `2027-01-04` answers `2027`. It costs the ordinary case nothing — every day of calendar 2026
+answers `2026`. The general shape is worth keeping: **a rule stated in one calendar and applied in
+another is correct for 362 days a year**, which is exactly long enough for review to read past it.
+
+### The commit-guard BLOCK was right, and the half that looks like the fix is also wrong
+
+The review's first BLOCK said widening the pathspec would not be enough because `git diff` cannot
+see an untracked file. Measured in a scratch clone against a brand-new `src/data/weeks/2026-W36.ts`,
+which is what a first-of-the-week night really produces:
+
+```
+OLD      git diff --quiet -- src/data/strava-progress.json      → NOTHING MOVED   (discarded)
+WIDENED  git diff --quiet -- src/data/strava-progress.json src/data/weeks → NOTHING MOVED (discarded)
+SHIPPED  git add -A -- <both> ; git diff --cached --quiet       → SOMETHING MOVED (committed)
+```
+
+The middle row is the finding. A reader repairing this on their own would reach for the widened
+pathspec, get a green workflow, and lose a week module a night until somebody noticed the wall was
+short. The whole step was then exercised against five stimuli — nothing moved, a new untracked
+module, a deletion plus moved kilometres, exactly one module changed (the singular branch of the
+subject line), and a file outside the pathspec — and only the last one is a no-op.
+
+### The sport mapping is an empirical fact and the account answers it cleanly
+
+Summing all 228 of 2026's activities per `sport_type` against `GET /athletes/{id}/stats`: the subset
+matching `ytd_ride_totals.distance` is exactly **`Ride`**, and the subset matching `ytd_run_totals`
+is exactly **`Run` and `TrailRun`**. Residuals **1.6 m** and **0.3 m** — 0.0001 % each, which is
+float summation rather than a missing activity. Seven other values (`Walk` 69 activities,
+`WeightTraining` 34, `Workout` 32, `HighIntensityIntervalTraining` 6, `Hike` 3, `Kayaking` 2,
+`Elliptical` 1) pay into neither goal and are kept as sessions.
+
+`VirtualRide` and `EBikeRide` never appear, so they are **not guessed at**: `sportOf` returns null
+for an unmeasured value, and the cross-check goes red the first night one is uploaded. A guess that
+is wrong publishes a wrong total silently; a null publishes nothing and says so.
+
+### The comparison needed the stored figure's own bucket, which is not slack
+
+The bot writes kilometres to one decimal rounded **down**, so `2602.2` means `[2602200, 2602300)`.
+A metres-to-metres comparison ignoring that is wrong by up to 99.9 m by construction and would have
+needed a 100 m "tolerance" that hides a real 100 m error. The gate asserts the interval and carries
+a **2 m** tolerance — the measurement rounded up to the next whole metre, 0.00008 % of the ride
+total against the plan's 1 % stop condition.
+
+The zero case is not an exemption: the year totals reset on 1 January, so the interval assertion is
+made unconditionally and only the non-emptiness check is conditional — **on the stored figure rather
+than on the summed one**, so a mapping returning null for everything is still red.
+
+### A spread in the writer does not reach the rendered module, so only the key-set assertion sees it
+
+Mutation 3 changed `toSession` to `{...activity, ...}` and the rendered-output check stayed green:
+`renderWeek` reads only the six named keys, so nothing private reaches a file through that path
+today. What reddened was `returns exactly the six keys, whatever it was handed`. **The gate that
+catches this is the one asserting the projection, and it is the only one** — which is why the plan
+asked for the projection rather than a list of forbidden fields, and why a renderer that ever
+starts iterating a session's keys would silently arm the hazard again.
+
+The hazard is real and was measured: a summary activity carries **48 keys**, and over the 200 most
+recent, `name`, `map`, `start_latlng` and `end_latlng` were on **200/200**, `suffer_score` 199,
+`device_name` 195, `average_heartrate` 170, `gear_id` 107. No detail fetch is needed to leak any of
+it.
+
+### A mutation that comes back green is a claim about the stimulus first
+
+Mutation 6 — render a non-race session id into a page — was **green on the first attempt**, and the
+gate was not at fault: the edit never reached `dist/`. The re-run builds first and asserts the id is
+in `dist/robots.txt` *before* running the suite, at which point the gate reddens. Read the other
+way this is the same rule the rest of this directory keeps hitting: a detector on a wrong stimulus
+proves nothing in either direction, and "the gate is vacuous" is the second hypothesis, not the
+first.
+
+### The bare-filename gate reddens on a week that has not happened yet
+
+`docs-drift`'s bare-filename check resolves any backticked `<name>.<ext>`, so
+`` `2026-W53.ts` `` — written as an illustration in two documents — was a file that does not exist
+until December. Reworded to name the **key** (`` `2026-W53` ``) rather than the file, which is what
+the sentence meant. The general case: **a directory whose filenames are a calendar cannot have its
+future members quoted in prose**, and the fix is always to name the key.
+
+### What was verified rather than asserted
+
+- `dist/` is **byte-identical** across the merge — `find dist -type f | sort | xargs shasum` over
+  `main` and the branch, 24 files each, empty manifest diff. That is the proof of "renders nothing".
+- The runner's own totals match the local ones exactly: `24 passed | 1 skipped (25)`,
+  `723 passed | 7 skipped (730)`, read out of run `33083750600`'s log. Suite 694 → **723**.
+- Byte-stability proved **twice on two machines**: locally, a second run wrote 0 modules and left no
+  diff; and in CI, run `33084356943` (a hand dispatch with `year=2026`) reported
+  `229 sessions across 35 weeks — 0 module(s) written, 0 removed` and the new guard's early exit.
+  That run is also what verified the `year` input and the changed step end to end before the cron
+  ever touched it.
+- The fetch is **3 requests** for a year (2 activity pages plus `/stats`) against 100 per 15 minutes.
+- `import.meta.glob` has exactly two call sites and neither is reachable from `uno.config.ts`'s
+  import graph, which runs `uno.config.ts` → `src/lib/icons.ts` → `src/content/{home,races,site}` +
+  `src/lib/goal.ts` → `src/data/goals.ts`.
+
+### A correction to the plan's own text
+
+`2025-W01` begins Monday **30** December 2024, not the 29th — 29 December 2024 was a Sunday and the
+last day of `2024-W52`. The plan offered the date as evidence that a W01 routinely begins in the
+previous calendar year, which is true and unaffected. Every ISO date in the shipped code was
+computed rather than quoted.
+
+### What is deferred
+
+Backfilling 2022–2025, deliberately: 046 renders one year at a time, and a back catalogue is a data
+edit that can land whenever it is wanted (`gh workflow run strava-progress.yml -f year=2025`).
