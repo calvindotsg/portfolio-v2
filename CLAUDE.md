@@ -415,7 +415,14 @@ The entries below are the ones carrying non-obvious constraints:
   type used to enforce is the PRECEDENCE, and that moved into `raceKm` — the metres win
   wherever both exist — with a test in `tests/content.test.ts` that names the rule and
   three more gates that redden on the mutation. `official` may only appear beside an
-  `advertised_km`; the `Documented | Undocumented` pairing is what says so
+  `advertised_km`; the `Documented | Undocumented` pairing is what says so.
+  **EVERY FIELD `RaceEvent` DECLARES ALSO HAS A DECLARED ORIGIN**, in `src/lib/provenance.ts`
+  — which carries the site's position on Strava's API Policy and the argument for it, and is
+  held to the type in both directions by `tests/data-contract.test.ts`. Adding a field to the
+  type without an entry there is red. **That module is INTERNAL: nothing renders it, and a
+  gate walks the built output to keep it that way.** An origin names the original source of
+  record and never a store the fact passed through, so `src/data/strava-progress.json` is not
+  a legal value — read the rule at the top of the file before adding one
 - `PATCHES`: the wall's own prose, now one lede rather than a scope sentence plus a key.
   Its heading is `My events`; "patch wall" survives in the URL and the metaphor, not as a
   visible title

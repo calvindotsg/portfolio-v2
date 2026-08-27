@@ -4,9 +4,12 @@ import ts from "typescript";
 import {describe, expect, it} from "vitest";
 
 import {EVENTS} from "../src/data/races";
+import stravaProgress from "../src/data/strava-progress.json";
 import {GOALS} from "../src/lib/goal";
 import {parseIsoDate, patchState, stampLagDays} from "../src/lib/projection";
-import {raceKm, recordingsOf} from "../src/lib/race";
+import {PROGRESS_SOURCE_OF_RECORD, SOURCE_OF_RECORD, STRAVA_SOURCED} from "../src/lib/provenance";
+import type {SourceOfRecord} from "../src/lib/provenance";
+import {raceKm, recordingKm, recordingsOf} from "../src/lib/race";
 import type {RaceEvent} from "../src/lib/race";
 import {BUILD_DATE} from "../src/lib/today";
 
@@ -742,5 +745,162 @@ describe("the bot's stamp, against the day the build ran", () => {
             + "`<=` here would quietly grant a thirtieth day").toBe(false);
         expect(Number.isFinite(stampLagDays("not-a-date", "2026-07-31")),
             "an unreadable stamp must not answer a number, or it would compare as fresh").toBe(false);
+    });
+});
+
+/**
+ * WHERE EVERY PUBLISHED FIGURE COMES FROM.
+ *
+ * A TOP-LEVEL `describe` RATHER THAN AN ADDITION TO THE ONE ABOVE, deliberately: appending to a
+ * file's tail lands a test inside whatever block happens to end there, and two of these read
+ * `dist/` rather than the modules that block is scoped to.
+ *
+ * `src/lib/provenance.ts` carries the argument and the position it records. These are the four
+ * things that hold it up, and each was measured before it was written.
+ */
+describe("where every published figure comes from", () => {
+    it("declares an origin for every field the type has, and none it does not", () => {
+        const declared = declaredFieldPaths();
+        expect(declared.size, "no fields were derived from src/lib/race.ts — this gate is vacuous")
+            .toBeGreaterThan(5);
+
+        const mapped = Object.keys(SOURCE_OF_RECORD);
+        expect([...declared].filter((path) => !mapped.includes(path)).sort(),
+            "src/lib/provenance.ts does not say where these fields come from. A field with no "
+            + "declared origin is a figure nobody can answer for, which is the one question that "
+            + "file exists to make answerable").toEqual([]);
+        expect(mapped.filter((path) => !declared.has(path)).sort(),
+            "src/lib/provenance.ts names these as fields and src/lib/race.ts does not declare them. "
+            + "Delete the entry — an origin for a field that does not exist is a claim about "
+            + "nothing").toEqual([]);
+    });
+
+    it("names a source of record, never a store a fact passed through", () => {
+        /*
+         * THE RULE THE MAP RESTS ON, ASSERTED RATHER THAN LEFT TO THE TYPE. `SourceOfRecord` is
+         * erased at runtime, so a fifth member added to the union — or a string widened past it —
+         * compiles and ships without this.
+         *
+         * `src/data/strava-progress.json` IS THE ONE A LATER READER WILL REACH FOR, because it is
+         * where the kilometres are read from. It is a ROUTE. Naming it as an origin would put the
+         * site's own store in the position of the source, which is the mistake this catches.
+         */
+        const allowed: readonly SourceOfRecord[] = ["strava", "organiser", "results", "athlete"];
+        const used = [...new Set([
+            ...Object.values(SOURCE_OF_RECORD),
+            ...Object.values(PROGRESS_SOURCE_OF_RECORD),
+        ])].sort();
+        expect(used.filter((source) => !allowed.includes(source)),
+            "a source that is not one of the four. If it names a file, a cache or a downstream "
+            + "repository it is a route and not an origin — read the rule at the top of "
+            + "src/lib/provenance.ts before widening this").toEqual([]);
+
+        expect(STRAVA_SOURCED.length,
+            "nothing is marked `strava`, so the reversal question that file exists to answer has "
+            + "no subject — either the map is wrong or the site stopped publishing those figures")
+            .toBeGreaterThan(0);
+        expect(STRAVA_SOURCED.every((path) => SOURCE_OF_RECORD[path] === "strava"),
+            "STRAVA_SOURCED must be derived from the map, never listed beside it").toBe(true);
+    });
+
+    it("explains every figure printed on a published surface", () => {
+        /*
+         * EVERY DISTANCE AND CLOCK ON THE MARKDOWN TWINS, TRACED TO A DECLARED FIELD. The expected
+         * set is built ONLY from paths the map declares, so this fails in two directions: a
+         * renderer that starts printing a figure from somewhere undeclared, and a map that quietly
+         * loses a path something still prints.
+         *
+         * MEASURED BOTH WAYS BEFORE IT WAS WRITTEN. On the tree this landed against: 43 expected
+         * values and ZERO unexplained. Deleting `recordings.metres` from the map left TWELVE
+         * figures unexplained across `patches.md` and `patches/cycling.md`, so the coupling is
+         * real rather than argued.
+         *
+         * THE MARKDOWN TWINS RATHER THAN THE HTML, because a figure is a bare string in one and is
+         * wrapped in per-component attributes in the other. They are the same numbers;
+         * `tests/patch-wall.test.ts` holds the wall to the same modules.
+         */
+        const km = (n: number) => n.toFixed(2);
+        const has = (path: string) => path in SOURCE_OF_RECORD;
+        const expected = new Set<string>();
+
+        for (const race of EVENTS) {
+            if (has("recordings.metres") || has("advertised_km")) expected.add(km(raceKm(race)));
+            if (has("advertised_km") && race.advertised_km !== undefined) expected.add(km(race.advertised_km));
+            if (has("elapsed_time") && race.elapsed_time) expected.add(race.elapsed_time);
+            if (has("official.net_time") && race.official?.net_time) expected.add(race.official.net_time);
+            if (has("official.gun_time") && race.official?.gun_time) expected.add(race.official.gun_time);
+            for (const recording of recordingsOf(race)) {
+                if (has("recordings.metres")) expected.add(km(recordingKm(recording)));
+                if (has("recordings.elapsed_time")) expected.add(recording.elapsed_time);
+            }
+        }
+        // The goal targets are authored in `src/data/goals.ts` and are not race fields;
+        // `PROGRESS_SOURCE_OF_RECORD` is what answers for the two kilometre totals.
+        for (const goal of GOALS) {
+            expected.add(String(goal.total_goal));
+            expected.add(String(goal.raw_progress));
+            expected.add(String(goal.current_progress));
+        }
+        if (PROGRESS_SOURCE_OF_RECORD.cycling_km) expected.add(String(stravaProgress.cycling_km));
+        if (PROGRESS_SOURCE_OF_RECORD.running_km) expected.add(String(stravaProgress.running_km));
+
+        const unexplained: string[] = [];
+        for (const file of ["dist/patches.md", "dist/patches/cycling.md", "dist/patches/running.md", "dist/llms.txt"]) {
+            const text = readFileSync(file, "utf8");
+            const figures = [
+                ...[...text.matchAll(/\b(\d+(?:\.\d+)?) km\b/g)].map(([, value]) => value),
+                ...[...text.matchAll(/\b(\d+:\d{2}:\d{2})\b/g)].map(([, value]) => value),
+            ];
+            unexplained.push(...figures.filter((figure) => !expected.has(figure)).map((f) => `${file}: ${f}`));
+        }
+        expect(expected.size, "the expected set is empty — this gate would pass on anything")
+            .toBeGreaterThan(20);
+        expect([...new Set(unexplained)].sort(),
+            "these figures are printed but trace to no field src/lib/provenance.ts declares. Either "
+            + "a renderer gained a number from somewhere undeclared, or the map lost a path "
+            + "something still prints").toEqual([]);
+    });
+
+    it("never publishes the origin record itself", () => {
+        /*
+         * THE ORIGIN RECORD IS INTERNAL, and that is the whole of what this gate holds. A site
+         * that prints where its figures came from is making a claim about a source on every page;
+         * this one makes that claim in its repository instead, where it can be changed without
+         * republishing.
+         *
+         * DELIBERATELY NOT A BAN ON THE WORD "STRAVA", AND THE ALTERNATIVE WAS MEASURED. Strava's
+         * brand guidelines require a link to an activity to read "View on Strava", and that is
+         * accepted here — the links stay. An allow-list around the brand name was tried first and
+         * would have REDDENED A CORRECT BUILD 42 TIMES, on two forms that are not link labels at
+         * all: the icon token `i-fa6-brands-strava`, which `/design` also publishes as
+         * documentation, and the accessible name on a split race's part link, which reads
+         * ", on Strava, <race>, <date>". Five carve-outs around a brand name is a rule that goes
+         * red on correct prose the first time somebody writes some. One rule about the origin
+         * record does not.
+         *
+         * IT READS `dist/`, so a source-only mutation is dead for it under `SKIP_BUILD=1`: a
+         * negative control has to rebuild, or change what a renderer emits.
+         */
+        const banned = [
+            "SOURCE_OF_RECORD", "PROGRESS_SOURCE_OF_RECORD", "STRAVA_SOURCED",
+            "SourceOfRecord", "source of record", "provenance",
+        ];
+        const found: string[] = [];
+        const walk = (dir: string): void => {
+            for (const entry of readdirSync(dir, {withFileTypes: true})) {
+                const path = join(dir, entry.name);
+                if (entry.isDirectory()) { walk(path); continue; }
+                if (!/\.(html|txt|md|xml|json)$/.test(entry.name)) continue;
+                const text = readFileSync(path, "utf8").toLowerCase();
+                found.push(...banned
+                    .filter((term) => text.includes(term.toLowerCase()))
+                    .map((term) => `${path}: ${term}`));
+            }
+        };
+        walk("dist");
+        expect(found.sort(),
+            "the origin record reached a published surface. It is read by this suite and by a "
+            + "person deciding what may be published, and by nothing else — see the header of "
+            + "src/lib/provenance.ts").toEqual([]);
     });
 });
