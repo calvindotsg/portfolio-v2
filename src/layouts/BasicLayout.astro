@@ -661,6 +661,10 @@ const schema = {
     main > *:nth-child(6) { animation-delay: 0.40s; }
     main > *:nth-child(7) { animation-delay: 0.48s; }
     main > *:nth-child(8) { animation-delay: 0.56s; }
+    /* The ninth rung arrived with the design system's eighth section: `/design` renders one
+       grid item per section plus its index row, so a section published there is a child of
+       `main` and the ladder has to reach it. The gate above is what noticed. */
+    main > *:nth-child(9) { animation-delay: 0.64s; }
 
     /*
      * THE WALL'S BIBS TAKE THE SAME ENTRANCE, AND THAT IS THE WHOLE POINT OF PUTTING IT
@@ -680,15 +684,20 @@ const schema = {
      * because the count moves with the calendar, and a hand-written ladder that has to be
      * extended when data is added is the exact defect the gate above exists to catch.
      *
-     * THE CEILING IS SHARED, NOT COPIED. `min(var(--i), 7)` makes bib 8 and every bib
-     * after it land on 0.56s — the same instant the home page's last card lands — so the
-     * two pages cannot drift into different total durations as races are added. Thirteen
-     * bibs at an uncapped 0.08s would run for 1.04s, which is a page loading slowly rather
-     * than a page arriving.
+     * THE CEILING IS SHARED, NOT COPIED. `min(var(--i), 8)` makes bib 9 and every bib
+     * after it land on 0.64s — the same instant the LAST RUNG above lands — so the two
+     * pages cannot drift into different total durations as races are added. Thirteen bibs
+     * at an uncapped 0.08s would run for 1.04s, which is a page loading slowly rather than
+     * a page arriving.
+     *
+     * THE CAP IS THE LADDER'S LAST RUNG AND MOVES WITH IT. It was `min(var(--i), 7)` against
+     * an eight-rung ladder; a ninth rung was added for `/design`'s eighth section and the cap
+     * had to follow, because the gate asserts the product rather than the literal — which is
+     * exactly what stops the two arriving at different times.
      */
     .bib-cell {
         animation: card-in 0.4s ease-out backwards;
-        animation-delay: calc(min(var(--i), 7) * 0.08s);
+        animation-delay: calc(min(var(--i), 8) * 0.08s);
     }
 
     /*

@@ -175,6 +175,22 @@ Don't:
 - Mix another icon family in. The ones that ship do different jobs and were chosen against each other.
 - Recolor a brand mark away from what the surface it sits on needs for contrast.
 
+## Data Visualization
+
+A quantity is drawn as a flat two-pixel stroke: a marked region over the remainder, and nothing else in the box. The same stroke answers two different questions, and which one it is answering is the whole of what a reader has to be told. A FRACTION is drawn once and measured against a target the design chose — how much of a year's goal is banked. A SERIES is drawn many times and measured against its own largest member, so the lengths are comparable to each other and to nothing outside the set: that is what makes a ramp, a taper and a gap visible, and it is the one thing a grid of cards cannot show however the cards are sorted.
+
+Do:
+
+- Say what a bar is measured against, in words the reader meets before the bars. A length means nothing until the scale is named, and a target and the largest value in the set are two different pictures drawn identically.
+- Give the marked region more contrast against the surface than the unmarked remainder has. Whichever region stands further from the ground is the one a reader takes for the mark, so a bar drawn the other way round reads as full when it is empty.
+- Draw a value that does not exist yet as an absence rather than as a zero, and print the word for it. A quantity nobody has measured and a measured zero are different facts, and the drawing can only separate them by leaving one of them undrawn.
+
+Don't:
+
+- Split one bar into segments a reader can only separate by hue. Two categories at the same lightness arrive as one bar in two indistinguishable halves; give each category its own view and let the reader choose one.
+- Put ink inside a bar. The fill flips polarity between the themes, so a label on it has to be legible against both poles, and the same words have more room beside the bar than on it.
+- Let the drawing be the only carrier of a figure it encodes. Print the number as well: a bar is a shape, and the reader who cannot resolve the shape is the reader who most needs the value.
+
 ## Interaction States
 
 Every control here has states, and the states are what tell a reader that something can be pressed and that a press landed. This is the half of the system that is invisible on a desktop with a mouse and obvious on a phone: hover is not a state a finger can enter and leave, and a tap is over long before an easing curve has finished, so a design carrying its whole affordance in hover and its whole feedback in a transition arrives with neither.
@@ -244,6 +260,9 @@ reaches that reader not at all.
 - **Iconography** — Size a mark with font-size. They are background images scaled to the text box.
 - **Iconography** — Pair a mark with a word wherever the mark alone would be a guess.
 - **Iconography** — Give an icon-only control an accessible name, since the mark is the whole control.
+- **Data Visualization** — Say what a bar is measured against, in words the reader meets before the bars. A length means nothing until the scale is named, and a target and the largest value in the set are two different pictures drawn identically.
+- **Data Visualization** — Give the marked region more contrast against the surface than the unmarked remainder has. Whichever region stands further from the ground is the one a reader takes for the mark, so a bar drawn the other way round reads as full when it is empty.
+- **Data Visualization** — Draw a value that does not exist yet as an absence rather than as a zero, and print the word for it. A quantity nobody has measured and a measured zero are different facts, and the drawing can only separate them by leaving one of them undrawn.
 - **Interaction States** — Hold a press on anything that navigates until the page actually changes. The press ends when the finger lifts and the reader then waits, with nothing on screen saying the tap landed.
 - **Interaction States** — Draw keyboard focus on every device, and draw it apart from hover. Hover is a pointer's affordance and some readers have no pointer; focus is how anyone driving the page from a keyboard knows where they are.
 - **Interaction States** — Honor a reduced-motion preference. A reader who set it is saying that movement costs them something, so the design has to still work with every transition taken out.
@@ -268,6 +287,9 @@ reaches that reader not at all.
 - **Iconography** — Substitute an emoji for a mark that is not in the set.
 - **Iconography** — Mix another icon family in. The ones that ship do different jobs and were chosen against each other.
 - **Iconography** — Recolor a brand mark away from what the surface it sits on needs for contrast.
+- **Data Visualization** — Split one bar into segments a reader can only separate by hue. Two categories at the same lightness arrive as one bar in two indistinguishable halves; give each category its own view and let the reader choose one.
+- **Data Visualization** — Put ink inside a bar. The fill flips polarity between the themes, so a label on it has to be legible against both poles, and the same words have more room beside the bar than on it.
+- **Data Visualization** — Let the drawing be the only carrier of a figure it encodes. Print the number as well: a bar is a shape, and the reader who cannot resolve the shape is the reader who most needs the value.
 - **Interaction States** — Write a hover style a touch device will apply. A touch browser puts hover on whatever was tapped and leaves it there until something else is tapped, so an affordance carried by hover arrives as a state stuck on the last thing the reader touched.
 - **Interaction States** — Put a hover rule and a focus rule in one selector list. One is a pointer's affordance and the other is a keyboard indicator every device needs, so suppressing the first takes the second with it.
 - **Interaction States** — Carry information in motion alone. A still frame — a reduced-motion preference, a screenshot, a device that dropped the animation — has to say what the moving one said.

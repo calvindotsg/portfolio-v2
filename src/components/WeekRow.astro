@@ -1,0 +1,379 @@
+---
+import {TRAINING} from "../content/training";
+import {kmFromMetres} from "../lib/race";
+import {hoursMinutes, shortDate, type SpineWeek} from "../lib/season";
+
+/**
+ * ONE ROW ON THE SPINE — a week, or the heading row above them.
+ *
+ * BOTH SHAPES COME OUT OF ONE FILE BECAUSE THEY SHARE ONE GRID, and that is a structural fact
+ * rather than a convenience. Astro scopes a component's styles to the template that declares
+ * them, so a heading rendered by the route would be laid out by rules the route wrote and the
+ * weeks by rules this file wrote — two grids, drifting apart on the first edit. `.bib-ledger` in
+ * Patch.astro spends a paragraph on exactly this: a heading and the column under it that do not
+ * share a grid are a heading and a column that WILL disagree, and the fix there was to keep them
+ * in one selector list. Here it is to keep them in one file.
+ */
+type Props =
+    | {head: true; week?: undefined; busiest?: undefined; unit: string}
+    | {head?: false; week: SpineWeek; busiest: number; unit: string};
+
+const {head, week, busiest, unit} = Astro.props as Props;
+
+/*
+ * THE BAR IS THE ONE NEW DRAWING ON THIS SITE AND IT IS DELIBERATELY THE PROGRESS RULE'S OWN
+ * VOCABULARY: a flat 2px stroke, a marked region in `--progress-fill` over an unmarked remainder
+ * in `--progress-track`. What makes a second one of these allowed to exist at all is that it
+ * answers a different question. The goal card's rule is a FRACTION — how much of one target is
+ * banked — and it is drawn once. This is a SERIES: fifty-two strokes whose lengths are comparable
+ * to each other and to nothing outside the page, because the scale is the year's own busiest week
+ * rather than a target. A ramp, a taper and a gap are properties of the shape of the whole
+ * column, which is exactly what a grid of bibs cannot show, and it is why this page is a spine
+ * rather than a second wall.
+ *
+ * 2px IS A STROKE WEIGHT, NOT A CONTAINER, which is the argument the goal card's own rule is
+ * exempted by in tests/card-fill.test.ts: there is no ink inside it, so there is nothing for a
+ * reader's text size to clip, and a hairline that grew with the type would stop being a hairline.
+ * Its LENGTH carries the data and that is a percentage.
+ *
+ * A WEEK THAT HAS NOT HAPPENED IS DRAWN EXACTLY LIKE A RACE NOT YET EARNED — no fill, a hairline
+ * at `color-mix(in srgb, var(--text) 32%, transparent)`, which is the value `.bib--booked` and
+ * `.bib--dnf` take in Patch.astro and the value a chip's resting border takes in uno.config.ts.
+ * ONE RULE, THREE OBJECTS: the treatment means "not earned, not yet, nothing here" and it means
+ * that wherever it appears. That correspondence is the strongest argument this whole integration
+ * has, and it is why the outline is not merely a paler track.
+ *
+ * AND IT IS NOT THE TRACK, WHICH LOOKS LIKE A DETAIL AND IS NOT. An elapsed week with no training
+ * draws a full-length TRACK with no fill; a week that has not happened draws neither. Without
+ * that difference a rest week in March and a week in November are the same picture — and since
+ * the difference is a colour, {@link TRAINING.ahead_label} carries it in words as well, because
+ * SC 1.4.1 does not accept a treatment as the only carrier of information.
+ *
+ * THE SPORT IS NOT IN THE BAR'S COLOUR, and that is a departure from the plan this component was
+ * written from. It asked for one stacked bar per week, run in `--sport-run` and ride in
+ * `--sport-ride`. The split cannot be carried by hue alone: SC 1.4.1 again, and this pair is the
+ * hardest case for it — `#A82334` and `#1F4E9C` are within two points of lightness, so a reader
+ * with a red-green deficiency gets one bar in two indistinguishable halves and no other channel
+ * says which is which. Three pages already exist to answer that question and the row of sport
+ * chips is one press, so the split is a URL rather than a hue — the shape the wall next door already uses
+ * for the identical question.
+ */
+
+const km = week === undefined ? "" : kmFromMetres(week.totals.metres).toFixed(2);
+
+// A PERCENTAGE OF THE YEAR'S BUSIEST WEEK, computed here rather than in the module, because it is
+// a property of the DRAWING and not of the week. `busiest` is zero only where the whole spine is
+// — a year the fetcher has not reached — and a zero-length bar is then the honest picture rather
+// than a division to guard against.
+const fill = week === undefined || !busiest ? 0 : (week.totals.metres / busiest) * 100;
+---
+
+{head ? (
+        /* THE HEADING ROW STATES EACH UNIT ONCE, IN THE COLUMN IT GOVERNS, which is the ledger's
+           argument applied to a longer column: fifty-two rows means a unit on every figure is
+           fifty-two copies of one fact. It is a real row rather than something kept out of the
+           accessibility tree — a listener meets it before the figures, which is how it does its
+           job for them too — and the narrowest arm below takes it away in the same breath as it
+           turns the per-figure units on, so a unit is stated exactly once at every width. */
+        <p class="spine-row spine-head">
+            <span class="spine-km">{unit}</span>
+            <span class="spine-sessions">{TRAINING.sessions_head}</span>
+            <span class="spine-time">{TRAINING.time_head}</span>
+        </p>
+) : (
+        <li class={`spine-row${week!.ahead ? " spine-row--ahead" : ""}`}>
+            <span class="spine-no">{week!.key.slice(5)}</span>
+            <time class="spine-day" datetime={week!.monday}>{shortDate(week!.monday)}</time>
+            {/* DECORATIVE, AND THAT IS A DECISION RATHER THAN AN OMISSION. Every fact the bar
+                 carries is in the figures to its right, in text, at full precision — so
+                 announcing the bar as well would read one week twice to a listener, once as a
+                 number and once as a percentage nobody printed. `role="progressbar"` was the
+                 other candidate and is worse than redundant: this is not progress toward
+                 anything, which is the whole distinction the note above draws between a series
+                 and a fraction. */}
+            <span class="spine-bar" aria-hidden="true">
+                {!week!.ahead && <span class="spine-fill" style={`--fill:${fill.toFixed(3)}%`}></span>}
+            </span>
+            {week!.ahead
+                    ? <span class="spine-ahead">{TRAINING.ahead_label}</span>
+                    : <Fragment>
+                        <span class="spine-km">{km}<span class="spine-unit">{unit}</span></span>
+                        <span class="spine-sessions">{week!.totals.sessions}<span
+                                class="spine-unit">{TRAINING.sessions_head}</span></span>
+                        <span class="spine-time">{hoursMinutes(week!.totals.moving_seconds)}<span
+                                class="spine-unit">{TRAINING.time_head}</span></span>
+                    </Fragment>}
+        </li>
+)}
+
+<style>
+    /*
+     * FIXED TRACKS IN `ch` RATHER THAN `auto`, AND THAT IS WHAT MAKES A COLUMN A COLUMN. Each row
+     * is its own grid — a week row carries a treatment, and `display: contents` would delete the
+     * box that treatment paints, which is why the ledger's idiom next door is not available here
+     * — so nothing is shared between rows except the track sizes themselves. `auto` would size
+     * every row's tracks to that row's own content, and fifty-two rows would sit on fifty-two
+     * rails.
+     *
+     * `ch` IS FONT-RELATIVE, which is the standing rule: it is the width of a `0` in the row's
+     * own font, so every track grows with the reader's text exactly as the figures inside it do.
+     * The tracks are sized for the HEADINGS rather than the figures, because `SESSIONS` is wider
+     * than any session count will ever be and a heading that does not fit its own column is the
+     * one thing this grid exists to prevent.
+     */
+    .spine-row {
+        display: grid;
+        grid-template-columns: 4.5ch 9ch minmax(0, 1fr) 8ch 9ch 8ch;
+        grid-template-areas: "no day bar km sessions time";
+        align-items: center;
+        column-gap: 0.6em;
+        row-gap: 0.2rem;
+        margin: 0;
+        font-size: 0.6875rem;
+    }
+
+    .spine-head {
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.7;
+        margin-bottom: 0.4rem;
+    }
+
+    /*
+     * THE BAR. `min-width: 0` is not cosmetic: this is a grid item in a `minmax(0, 1fr)` track,
+     * and without it the track's automatic minimum size is its content's — which for a
+     * percentage-width child resolves to something the row cannot go below.
+     */
+    .spine-bar {
+        grid-area: bar;
+        /* A grid container so the fill inside it is laid out as a box rather than as text.
+           `.spine-bar` is itself a grid item and so is already blockified; the fill is not. */
+        display: grid;
+        min-width: 0;
+        height: 2px;
+        background-color: var(--progress-track);
+    }
+
+    /*
+     * THE MARKED REGION, AND THE POLARITY IS THE ONE THING HERE THAT CAN BE DRAWN BACKWARDS.
+     * Whichever region stands further from the card is the one a reader takes for the mark, so the
+     * FILL has to be that region. `tests/training-page.test.ts` holds this bar to the same three
+     * ratios the home page's is held to rather than trusting that the two share a token.
+     */
+    .spine-fill {
+        width: var(--fill);
+        height: 100%;
+        background-color: var(--progress-fill);
+    }
+
+    /*
+     * A WEEK THAT HAS NOT HAPPENED. No track and no fill — a hairline in the same value
+     * `.bib--booked` takes, which is the correspondence the frontmatter argues.
+     *
+     * AND IT IS 1px WHERE A WEEK THAT HAPPENED IS 2, WHICH IS NOT TIDYING. At the same weight
+     * the outline is the LOUDER of the two — 32% of the ink against a track token deliberately
+     * kept quiet against its own card — so eighteen weeks that have not happened were the
+     * strongest thing in the column, and a rest week in March was quieter than a week in
+     * November. The bib settles the same question the same way: a booked outline is 1px where a
+     * finished bib's forced-colours border is 3. A hairline is thinner than a stroke.
+     */
+    .spine-row--ahead .spine-bar {
+        height: 1px;
+        background-color: color-mix(in srgb, var(--text) 32%, transparent);
+    }
+
+    /*
+     * THE WEEK NUMBER AND ITS DATE ARE SET IN THE BIB'S OWN EYEBROW REGISTER — small, heavy,
+     * tracked wide — because that is the register this site uses for a label over a column of
+     * figures. The figures themselves take the tighter tracking the ledger uses, for the ledger's
+     * reason: a run of tabular digits reads as one quantity only when it is set tight, and
+     * lettering set that tight beside a caption set loose is exactly the drift a shared selector
+     * list exists to prevent.
+     */
+    .spine-no,
+    .spine-day {
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+    }
+
+    .spine-no {
+        grid-area: no;
+        opacity: 0.7;
+    }
+
+    .spine-day {
+        grid-area: day;
+        white-space: nowrap;
+    }
+
+    /*
+     * THE FIGURES. `tabular-nums` is what makes a column of them a column: proportional digits put
+     * a `1` at a different width from an `8`, so fifty-two right-aligned figures would sit on
+     * fifty-two different rails. `overflow-wrap: anywhere` is the ledger's pair for the same
+     * problem — a figure that cannot fit its cell escapes the row rather than breaking, and at
+     * 200% text zoom that is ink painted on the card outside anything that clips.
+     */
+    .spine-km,
+    .spine-sessions,
+    .spine-time,
+    .spine-ahead {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.06em;
+        overflow-wrap: anywhere;
+        text-align: right;
+    }
+
+    .spine-km { grid-area: km; }
+
+    .spine-sessions { grid-area: sessions; }
+
+    .spine-time { grid-area: time; }
+
+    /*
+     * THE WORD A WEEK AHEAD PRINTS, IN THE PLACE ITS DISTANCE WOULD HAVE GONE — the device
+     * `dnf_result` uses on a bib, where a status word REPLACES a result rather than annotating
+     * one. It takes the FIRST figure track rather than spanning all three, so it lands on the rail
+     * every other week's distance is on, and it takes the eyebrow register rather than the
+     * figures': it is a word, not a quantity.
+     */
+    .spine-ahead {
+        grid-area: km;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.7;
+    }
+
+    /*
+     * THE UNIT TRAVELS WITH ITS FIGURE ONLY WHERE THE COLUMN IT HEADED HAS GONE — the ledger's
+     * rule, and for the ledger's reason: the heading row states each unit once, which is that
+     * row's whole job, and the narrowest arm below turns these on in the same breath as it takes
+     * the headings away. So a unit is stated exactly once at every width, in one carrier or the
+     * other.
+     *
+     * THE TRACKING IS RESTATED RATHER THAN INHERITED, which the ledger also records: this is the
+     * eyebrow's 0.12em taken back from the 0.06em the figure cell hands down. The two are not
+     * interchangeable — the tighter one is the FIGURES' and exists so a run of digits reads as one
+     * quantity.
+     */
+    .spine-unit {
+        display: none;
+        margin-left: 0.3em;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.7;
+        /*
+         * IT BREAKS AWAY WHOLE OR NOT AT ALL, WHICH IS THE LEDGER'S PAIR AND IS NOT OPTIONAL.
+         * The figure cell carries `overflow-wrap: anywhere` so a figure can never escape the
+         * row, and that permission reaches every word inside it — measured at a 40px root in a
+         * 320px viewport, where the arm below had already put each figure on its own line: the
+         * unit had 171px and wanted about 200, so it broke mid-word and the page shipped
+         * `SESSIO` above `NS`. A figure that cannot fit needs to break; a WORD that cannot fit
+         * needs a line of its own instead.
+         */
+        white-space: nowrap;
+    }
+
+    /*
+     * FIRST ARM: THE BAR TAKES ITS OWN LINE. Six tracks stop fitting well before the reader stops
+     * enlarging, and the bar is both the elastic one and the only one here that loses nothing by
+     * moving — the figures keep their shared rails, which is the property the whole grid exists
+     * for. The threshold is in `em` and so is measured in the reader's own text: the row's content
+     * is sized in `ch` of the same inherited font, so the two scale together and this arm lands at
+     * the same PROPORTION of the container at every text size.
+     */
+    @container (max-width: 34em) {
+        .spine-row {
+            grid-template-columns: 4.5ch 9ch minmax(0, 1fr) 9ch 8ch;
+            grid-template-areas:
+                    "no day km sessions time"
+                    "bar bar bar bar bar";
+        }
+    }
+
+    /*
+     * SECOND ARM: ONE FIGURE PER LINE, AND THE UNITS COME WITH THEM. The headings go because by
+     * here they head nothing — once each figure has its own line there is no column under `KM` for
+     * `KM` to sit over, and a reader following it down arrives at a clock. That is the ledger's
+     * own measurement one file over, and this takes its answer: the unit moves onto the figure, so
+     * `24.40 KM` says what it is on its own.
+     *
+     * THE FIGURES GO LEFT HERE. Right alignment is what puts a column on a rail, and there is no
+     * column left to be on: each figure has the row to itself, so alignment to the right would
+     * only put it as far as possible from the label above it.
+     */
+    @container (max-width: 14em) {
+        .spine-row {
+            grid-template-columns: 4.5ch minmax(0, 1fr);
+            grid-template-areas:
+                    "no day"
+                    "bar bar"
+                    "km km"
+                    "sessions sessions"
+                    "time time";
+        }
+
+        .spine-head {
+            display: none;
+        }
+
+        .spine-unit {
+            display: revert;
+        }
+
+        .spine-km,
+        .spine-sessions,
+        .spine-time,
+        .spine-ahead {
+            text-align: left;
+        }
+    }
+
+    /*
+     * FORCED COLOURS TAKES A BACKGROUND AWAY, WHICH IS THE WHOLE BAR. Both regions are painted
+     * with `background-color`, so the mode flattens the series to nothing — every figure survives
+     * and the series does not, and the series is why this page exists. So the fill opts out and
+     * takes the pair a UA reserves for a marked region, and the track is left to the mode: what
+     * remains is a Highlight stroke of the right length on the mode's own ground, which is the
+     * data. Nothing here carries ink, so there is no foreground to pair — the gate in
+     * tests/build-output.test.ts skips an opted-out element with no text for exactly that reason.
+     */
+    @media (forced-colors: active) {
+        .spine-fill {
+            forced-color-adjust: none;
+            background-color: Highlight;
+        }
+    }
+
+    /*
+     * PRINT IS THE SAME PROBLEM AND TAKES THE OPPOSITE ANSWER TO THE BIB'S. A bib prints as an
+     * outline because its face is behind INK that has to stay legible; a bar has nothing on it, so
+     * there is no legibility to trade and the honest thing is to print the drawing. `print-color-adjust: exact`
+     * is the declaration that says so — without it Chrome's default `economy` discards both
+     * regions and the page prints fifty-two blank rows. Literal black rather than a token, for the
+     * bib's reason: paper is white whichever theme the reader had on screen.
+     */
+    @media print {
+        .spine-bar {
+            print-color-adjust: exact;
+            background-color: #FFF;
+            border: 1px solid #000;
+            height: 4px;
+        }
+
+        .spine-fill {
+            print-color-adjust: exact;
+            background-color: #000;
+        }
+
+        .spine-row--ahead .spine-bar {
+            background-color: transparent;
+            border-style: dotted;
+        }
+    }
+</style>

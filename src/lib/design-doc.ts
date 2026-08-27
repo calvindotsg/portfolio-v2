@@ -361,6 +361,13 @@ const SECTION_BLOCKS: Partial<Record<keyof typeof SECTIONS, () => string>> = {
 export const AGENT_SECTIONS: readonly (keyof typeof SECTIONS)[] = ["palette", "controls", "icons"]
 
 export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
+    data: "The budget refused it outright, and the arithmetic is not close: the rendering had 134 "
+        + "characters of headroom the day this section arrived and the section is an order of "
+        + "magnitude larger than that. It is also the one section here whose subject that agent "
+        + "may never meet — it is handed a token bundle and asked for screens, and a screen with "
+        + "no data on it has no quantity to draw. What is lost if it ever does draw one is the "
+        + "polarity rule, which is the failure a token table cannot warn anybody about: a bar "
+        + "painted the other way round reads as full when it is empty.",
     type: "The budget took it, and it was chosen on how much of the claim survives elsewhere in "
         + "the same document: two of its don'ts restate the closed set declared above, and the "
         + "third is twinned almost verbatim by the controls don't that remains. The arithmetic "

@@ -6,13 +6,37 @@ This is a personal portfolio website built with Astro, featuring a bento-style,
 minimal design. The home page is a single-screen bento grid showing Calvin's
 professional background, his cycling and running goals, and personal interests;
 `/patches` is a wall of **every race he has entered**, in any year, drawn as bibs,
-with a prerendered page per sport. A **Finisher Patch** is a race completed and
+with a prerendered page per sport; `/training` is the same dataset drawn as a
+series — one bar a week for a whole calendar year, with the races on the weeks
+they were ridden in. A **Finisher Patch** is a race completed and
 earned, which is why the wall's headings say "events" and only the earned bibs are
 patches. **An outline is a bib with no patch on it, and that is TWO different
 facts**: a race still to come, or one that was started and not finished. They share
 a treatment because the treatment means "not earned"; what tells them apart is the
 word each one prints — `Booked` in the meta row, or `DNF` in the hero slot. See
 `patchState` in `projection.ts` and `.bib--dnf` in `Patch.astro`.
+
+**THAT OUTLINE IS ONE TREATMENT WORN BY THREE OBJECTS, AND THE THIRD IS ON THE
+OTHER PAGE.** A week that has not happened is drawn exactly like a race not yet
+earned — the same `color-mix(in srgb, var(--text) 32%, transparent)` hairline, no
+fill — because the treatment means "not earned, not yet, nothing here" and it means
+that wherever it appears. The word is again what separates them: `Ahead` on a week,
+where a bib prints `Booked` or `DNF`. It is a hairline rather than a stroke on a
+week, which is what keeps eighteen weeks nobody has ridden from being the loudest
+thing in the column. See `.spine-row--ahead` in `WeekRow.astro`, and note the second
+half of the same rule: an elapsed week with no training draws a full-length TRACK
+with no fill, so a rest week in March and a week in November are not one picture.
+
+**THE RACES AND THE TRAINING ARE ONE DATASET, AND `/training` IS WHERE THAT STOPS
+BEING A CLAIM.** A race stores `recordings: [{id, metres, elapsed_time}]`, one entry
+per Strava activity, and a `TrainingWeek` stores the same activities as sessions —
+so a race's kilometres are ALREADY INSIDE its week. The year summary therefore reads
+"N km this year, M **of it** in races", never "plus": any figure that adds them is
+the double count `src/lib/projection.ts` refuses at length. `seasonTotals` in
+`src/lib/season.ts` makes it true by construction rather than by arithmetic that
+happens to agree — the race figure is the sum of the sessions whose Strava id is one
+of a race's recording ids, so it is literally a subset of the total it is quoted
+against. **The spine adds nothing to the year; it only marks it.**
 
 **A race can be known TWICE and the bib prints both accounts without reconciling
 them.** Any bib that is not booked carries a **ledger**, and a DNF carries one too —
@@ -295,6 +319,34 @@ block above it before giving either consumer the other's list.
   `RaceEvent.outcome`. It is immutable history rather than an answer the calendar
   keeps re-deriving, which is the test the rule is actually made of; read the note on
   the field before adding a second
+- `src/pages/training/[...sport].astro` — the spine. One rest-parameter route
+  prerenders three pages (`/training`, `/training/cycling`, `/training/running`), the
+  wall's own shape for the wall's own reasons. **The YEAR is not in the URL and that is
+  a limit rather than a design**: a spine is one calendar year, so the page takes the
+  year the build is in, and `src/data/weeks/` holds one year today. A second year of
+  weeks is what makes a year segment real, and adding one moves every URL below
+  `/training`. **Which weeks a year holds is decided by the week's MONDAY**
+  (`seasonWeekKeys` in `src/lib/season.ts`), never by the first four digits of the ISO
+  week key — those are a week-YEAR and answer a different question. The Mondays
+  partition the calendar, so every week belongs to exactly one year's spine.
+  **A RACE IS SCOPED BY ITS WEEK HERE AND BY `eventsInYear` ON A GOAL CARD**, and the
+  two disagree for at most three days a year: a goal is a calendar-year promise, and a
+  spine is a partition of weeks, so a race on 2 January sits on the week beginning in
+  December. Read the block above `seasonSpine` before giving either consumer the
+  other's rule.
+- **The spine reads FORWARDS — January at the top — where the wall reads next-race
+  first.** Both come from one principle and land in opposite places because the
+  populations differ: the wall's forward-pointing run is four races and burying the
+  next one is the defect, while the spine's is eighteen empty weeks, so future-first
+  would open the page on eighteen rows of nothing and reverse the series in the
+  bargain. A ramp, a taper and a gap are only legible in one direction.
+- **Each of `/training`'s three URLs has a markdown twin too, and it takes the same TWO
+  endpoint files.** `src/lib/training-doc.ts` renders the spine as markdown;
+  `src/pages/training.md.ts` answers `/training.md` and
+  `src/pages/training/[sport].md.ts` answers the two sport spines. The split is forced
+  for the wall's reason, and the same restatement rule binds: type a distance, a clock,
+  a count or a state word into `training-doc.ts` rather than deriving it and it is a
+  second home nothing will notice.
 - **Each of the wall's three URLs has a markdown twin, and it takes TWO endpoint files
   to serve them.** `src/lib/patch-doc.ts` renders the wall as markdown; the route
   filenames are the addresses. `src/pages/patches.md.ts` answers `/patches.md` and

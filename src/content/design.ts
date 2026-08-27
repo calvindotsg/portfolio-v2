@@ -266,7 +266,7 @@ export const CONTROLS: readonly {name: string, role: string}[] = [
  * vocabulary — it costs only the assumption that a reader already knows it.
  */
 export const SECTIONS: Readonly<Record<
-    "palette" | "type" | "controls" | "icons" | "states" | "words" | "access", {
+    "palette" | "type" | "controls" | "icons" | "data" | "states" | "words" | "access", {
     heading: string
     lede: string
     does: readonly string[]
@@ -346,6 +346,27 @@ export const SECTIONS: Readonly<Record<
             "Substitute an emoji for a mark that is not in the set.",
             "Mix another icon family in. The ones that ship do different jobs and were chosen against each other.",
             "Recolor a brand mark away from what the surface it sits on needs for contrast.",
+        ],
+    },
+    data: {
+        heading: "Data Visualization",
+        lede: "A quantity is drawn as a flat two-pixel stroke: a marked region over the "
+            + "remainder, and nothing else in the box. The same stroke answers two different "
+            + "questions, and which one it is answering is the whole of what a reader has to be "
+            + "told. A FRACTION is drawn once and measured against a target the design chose — "
+            + "how much of a year's goal is banked. A SERIES is drawn many times and measured "
+            + "against its own largest member, so the lengths are comparable to each other and "
+            + "to nothing outside the set: that is what makes a ramp, a taper and a gap visible, "
+            + "and it is the one thing a grid of cards cannot show however the cards are sorted.",
+        does: [
+            "Say what a bar is measured against, in words the reader meets before the bars. A length means nothing until the scale is named, and a target and the largest value in the set are two different pictures drawn identically.",
+            "Give the marked region more contrast against the surface than the unmarked remainder has. Whichever region stands further from the ground is the one a reader takes for the mark, so a bar drawn the other way round reads as full when it is empty.",
+            "Draw a value that does not exist yet as an absence rather than as a zero, and print the word for it. A quantity nobody has measured and a measured zero are different facts, and the drawing can only separate them by leaving one of them undrawn.",
+        ],
+        donts: [
+            "Split one bar into segments a reader can only separate by hue. Two categories at the same lightness arrive as one bar in two indistinguishable halves; give each category its own view and let the reader choose one.",
+            "Put ink inside a bar. The fill flips polarity between the themes, so a label on it has to be legible against both poles, and the same words have more room beside the bar than on it.",
+            "Let the drawing be the only carrier of a figure it encodes. Print the number as well: a bar is a shape, and the reader who cannot resolve the shape is the reader who most needs the value.",
         ],
     },
     states: {

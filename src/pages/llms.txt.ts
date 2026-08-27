@@ -2,6 +2,7 @@ import type {APIRoute} from "astro"
 import {DESIGN_PAGE} from "../content/design"
 import {ABOUT_ME, CAREER, PROJECTS} from "../content/home"
 import {NEXT_RACE, PATCHES} from "../content/races"
+import {TRAINING} from "../content/training"
 import {LINKS, METADATA, PAGE_HEADER} from "../content/site"
 import {GOAL_YEAR} from "../data/goals"
 import {GOALS} from "../lib/goal"
@@ -205,6 +206,23 @@ export const GET: APIRoute = ({site}) => {
             + `(${abs(`/patches/${goal.sport}/`)}): ${goal.goal_name.toLowerCase()} events only`,
             `- [${goal.goal_name} events as markdown](${abs(`/patches/${goal.sport}.md`)}): `
             + `the ${goal.goal_name.toLowerCase()} wall as markdown`,
+        ]),
+        // THE SPINE ANSWERS THE QUESTION THE RACE LINES ABOVE CANNOT. Those are one line per race
+        // and say nothing about the weeks between them, which is where a training year actually
+        // is: this is every week of it, one bar each, with the races on the weeks they were
+        // ridden in. An agent asked "what has his training been doing" has nothing else to read.
+        //
+        // NO FIGURE IN THE NOTE. The kilometres move every night, and this file has already had
+        // to delete one count for exactly that reason.
+        `- [${TRAINING.heading}](${abs("/training/")}): every week of this year's training, `
+        + "with the races on the weeks they were ridden in",
+        `- [The whole year as markdown](${abs("/training.md")}): the same weeks as markdown, each `
+        + "carrying its own distance, session count and moving time",
+        ...GOALS.flatMap((goal) => [
+            `- [${TRAINING.control.replace("{sport}", goal.goal_name.toLowerCase())}]`
+            + `(${abs(`/training/${goal.sport}/`)}): ${goal.goal_name.toLowerCase()} weeks only`,
+            `- [${goal.goal_name} training as markdown](${abs(`/training/${goal.sport}.md`)}): `
+            + `the ${goal.goal_name.toLowerCase()} year as markdown`,
         ]),
         `- [${DESIGN_PAGE.heading}](${abs("/design/")}): the site's own design system — every color token, `
         + "type step, control and icon it is built from, drawn live",

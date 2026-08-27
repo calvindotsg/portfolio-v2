@@ -736,22 +736,62 @@ describe("dist/", () => {
         expect(notFoundLinks, `${NOT_FOUND_PAGE} is reachable from nothing, so a reader who lands on it can only `
             + "leave by an anchor it carries — and it carries none to the site root").toContain("/");
 
-        const seen = new Set<string>(["/"]);
-        const queue = ["/"];
-        let followed = 0;
-        while (queue.length > 0) {
-            const path = queue.shift()!;
-            for (const m of read(byPath.get(path)!).matchAll(/href="(\/[^"#?]*)"/g)) {
-                const href = m[1].endsWith("/") ? m[1] : `${m[1]}/`;
-                followed++;
-                if (!byPath.has(href) || seen.has(href)) continue;
-                seen.add(href);
-                queue.push(href);
+        /*
+         * A SECOND KIND OF EXEMPTION, AND IT EXPIRES BY BEING ASSERTED FROM BOTH SIDES.
+         *
+         * The 404 above is exempt FOREVER — being unreachable is what that page is. This one is
+         * exempt UNTIL SOMETHING LINKS TO IT, which is a different claim and needs a different
+         * shape: the entry names the plan that will link it, and the loop below refuses to keep
+         * the entry once the walk from `/` reaches the page anyway. So landing that plan turns
+         * this list red rather than leaving a permanent hole behind, which is the whole
+         * difference between an expiring exemption and a widened one.
+         *
+         * ONLY THE ENTRANCE IS LISTED, NOT THE FAMILY. `/training/` is seeded as a second root
+         * and its own sport chips carry the walk to `/training/running/` and
+         * `/training/cycling/`, which are therefore NOT exempt — they are reachable, and if the
+         * chip row ever stopped drawing them this gate would still say so. A list of three
+         * would have excused two pages nothing was wrong with.
+         */
+        const AWAITING_A_CONTROL = [{
+            path: "/training/",
+            plan: "plan 047",
+            why: "the spine ships before anything on the home page points at it: plan 046 builds "
+                + "the route and plan 047 moves the goal card that opens it. The two are separate "
+                + "plans because they are separately revertible, and the cost of that boundary is "
+                + "one page that is in the sitemap and reachable only from a search result until "
+                + "the second one lands",
+        }];
+
+        const walk = (roots: string[]) => {
+            const seen = new Set<string>(roots);
+            const queue = [...roots];
+            let followed = 0;
+            while (queue.length > 0) {
+                const path = queue.shift()!;
+                for (const m of read(byPath.get(path)!).matchAll(/href="(\/[^"#?]*)"/g)) {
+                    const href = m[1].endsWith("/") ? m[1] : `${m[1]}/`;
+                    followed++;
+                    if (!byPath.has(href) || seen.has(href)) continue;
+                    seen.add(href);
+                    queue.push(href);
+                }
             }
+            return {seen, followed};
+        };
+
+        const fromRoot = walk(["/"]);
+        expect(fromRoot.followed, "no internal links followed — this assertion would be vacuous").toBeGreaterThan(1);
+
+        for (const entry of AWAITING_A_CONTROL) {
+            expect(byPath.has(entry.path), `${entry.path} is exempted from the reachability walk and the `
+                + "build does not emit it — delete the entry").toBe(true);
+            expect(fromRoot.seen.has(entry.path), `${entry.path} is reachable from / now, so its exemption `
+                + `has expired: ${entry.plan} has landed. Delete the entry rather than leaving a hole the `
+                + "next unreachable page would fall through").toBe(false);
         }
-        expect(followed, "no internal links followed — this assertion would be vacuous").toBeGreaterThan(1);
+
         expect(
-            [...byPath.keys()].filter((path) => !seen.has(path)),
+            [...byPath.keys()].filter((path) => !walk(["/", ...AWAITING_A_CONTROL.map((e) => e.path)]).seen.has(path)),
             "these pages are built and in the sitemap but cannot be reached from / by following links",
         ).toEqual([]);
     });
@@ -3122,16 +3162,17 @@ describe("hashed assets are cached forever, and are hashed", () => {
             // reason `llms.txt` does — a file at the root is what the URL says, and no such name
             // is one Cloudflare Pages reads as configuration.
             //
-            // THE WALL'S OTHER TWO TWINS ARE NOT HERE, and that asymmetry is the routing rather
-            // than an omission: `/patches/cycling.md` and `/patches/running.md` sit inside the
-            // `patches` directory below. `/patches.md` cannot, because a rest parameter matches
-            // zero segments only where it is a whole path segment — which is why the wall needs
-            // two endpoint files where `/design` needed one.
+            // THE PER-SPORT TWINS ARE NOT HERE, and that asymmetry is the routing rather than an
+            // omission: `/patches/cycling.md` and `/training/running.md` sit inside the `patches`
+            // and `training` directories below. `/patches.md` and `/training.md` cannot, because a
+            // rest parameter matches zero segments only where it is a whole path segment — which
+            // is why each of those two route families needs two endpoint files where `/design`
+            // needed one.
             "_headers", "404.html", "design.md", "favicon.ico", "index.html", "llms.txt",
             "patches.md", "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml",
-            "sitemap-index.xml",
+            "sitemap-index.xml", "training.md",
         ];
-        const ALLOWED_DIRECTORIES = [".well-known", "_astro", "design", "patches"];
+        const ALLOWED_DIRECTORIES = [".well-known", "_astro", "design", "patches", "training"];
 
         const entries = readdirSync("dist", {withFileTypes: true});
         expect(entries.length, "dist/ is empty — this assertion is vacuous").toBeGreaterThan(0);
