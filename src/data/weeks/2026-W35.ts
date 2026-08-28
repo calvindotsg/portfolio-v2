@@ -8,4 +8,5 @@ export default {sessions: [
     {id: "19900566905", sport_type: "WeightTraining", start_local: "2026-08-26T06:19:44Z", metres: 0, moving_seconds: 3518, elapsed_seconds: 3518},
     {id: "19907141443", sport_type: "Run", start_local: "2026-08-26T19:31:29Z", metres: 5293, moving_seconds: 2055, elapsed_seconds: 2180},
     {id: "19915918049", sport_type: "Workout", start_local: "2026-08-27T06:26:47Z", metres: 0, moving_seconds: 2691, elapsed_seconds: 2691},
+    {id: "19935313036", sport_type: "Run", start_local: "2026-08-28T18:34:45Z", metres: 16063.9, moving_seconds: 6662, elapsed_seconds: 6665},
 ]} satisfies TrainingWeek
