@@ -21,6 +21,15 @@ control classes; the component namespace is empty by construction.
 - Point the converter's node-modules flag at the staged tool's own install, not this
   repository's. React, its types and playwright live there because the converter needs them
   and **this project must never acquire a React dependency**.
+- **Install five packages there, not the three the skill's own command line names.** That
+  line installs the bundler, the type reader and the React type definitions; the converter
+  also vendors React and React DOM into the upload it publishes, and drives a headless
+  browser to check renders, and the line says neither. Leaving them out gets all the way
+  through configuration and then dies inside the emit stage complaining that React is not
+  under the node-modules flag — which reads like a wrongly pointed flag, or a broken
+  repository, rather than a short install. Add React, React DOM and playwright to the same
+  isolated install. Measured on 31 August 2026: that was the whole of the first run's
+  failure, and the second run was clean.
 - **Install those with the workspace-ignoring flag, or the project's lockfile is polluted.**
   This was measured, not feared: a plain pnpm install inside the staged directory added it
   to the root lockfile as an importer — 102 lines pinning React, playwright and the rest into
@@ -50,6 +59,20 @@ removed.
 
 The script exits non-zero if the CSS splitting ever changes shape. That is deliberate — a
 silent fallback would ship the wrong sheet.
+
+**It picks that sheet by EXTRACTING the tokens rather than by looking for a string, and it
+learned to on 31 August 2026 by crying wolf.** The old test was whether a sheet's text
+contained the opening characters of the theme selector. The design page then grew a
+specimen drawing the two themes beside each other, and that page's scoped chunk uses the
+very same selector as an ANCESTOR of the specimen's own class — declaring no token
+whatsoever — so two sheets matched where the script permits one, and a correct build
+failed. It now asks each sheet for its custom-property blocks and takes the one that
+yields any, which is the same pass that emits them, so the identifier and the extractor
+cannot come apart. **The looser test was not merely unlucky, it was answering a different
+question**: whether the selector appears, rather than whether the tokens are declared.
+Measured on that build — the old test found two sheets and the new one finds one, while
+both real failures still fail: strip the declarations out of every sheet and it exits
+naming none, plant a second sheet that genuinely declares tokens and it exits naming two.
 
 ## The suite had to learn about the sync
 
@@ -270,6 +293,19 @@ scope, and the reason the list was the wrong mechanism is argued in place there.
 
 ## Re-sync risks
 
+- **The project held four retired preview cards for four days, and no diff would ever
+  have found them.** The generator that wrote them was deleted here on 27 August 2026, and
+  that deletion never reached the project: the verification anchor records components, this
+  is a system with none, so the preview directory sits outside everything the diff models
+  and it reported nothing to delete. They were removed by hand on 31 August 2026, after
+  reading the project's own file listing. **Read that listing every sync.** For a system
+  with no components it is the only thing that can see a file the build has stopped
+  producing, and an orphan nobody deletes at the moment it appears is an orphan for good.
+  Leave the two files the design tool writes for itself alone — the converter does not emit
+  them and the tool regenerates them on open.
+- Validate printed **no warn lines at all** on the 31 August 2026 run, so there is no
+  known-warn list to check a future run against, because nothing is on it. Treat any warn
+  line that appears as new.
 - **The stylesheet is a closed set of about 150 selectors, generated from what the SITE
   uses.** Stop using a class here and it silently leaves the design system. The suite catches
   the part of that which is nameable — the classes the conventions file promises are present,

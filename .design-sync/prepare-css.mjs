@@ -24,11 +24,31 @@ if (!sheets.length) {
   process.exit(1);
 }
 
-const globals = sheets.filter((f) => readFileSync(join(ASTRO_DIR, f), "utf8").includes(":root[data-theme"));
+// Tokens are re-emitted one declaration per line: same values, read by an agent rather
+// than a browser. This pass is ALSO how the global sheet is identified — a sheet is the
+// global one when tokens can be read out of it — so the identifier and the extractor
+// cannot come apart. Asking whether the text CONTAINS `:root[data-theme` is weaker, and
+// stopped being true the day /design grew its theme-example specimen: that page's chunk
+// ships `:root[data-theme=dark] .design-theme-example[…]{display:none}`, which carries
+// the substring as an ANCESTOR selector and declares no token at all.
+const tokenBlocks = (sheet) => {
+  const blocks = [];
+  for (const [, selector, body] of sheet.matchAll(TOKEN_RULE)) {
+    const decls = body.split(";").map((d) => d.trim()).filter((d) => d.startsWith("--"));
+    if (decls.length) blocks.push(`${selector.trim()} {\n${decls.map((d) => `  ${d};`).join("\n")}\n}`);
+  }
+  return blocks;
+};
+
+const globals = sheets
+  .map((file) => ({ file, css: readFileSync(join(ASTRO_DIR, file), "utf8") }))
+  .map((sheet) => ({ ...sheet, blocks: tokenBlocks(sheet.css) }))
+  .filter((sheet) => sheet.blocks.length);
+
 if (globals.length !== 1) {
   console.error(
-    `[PREPARE_CSS] expected exactly one sheet defining :root[data-theme], found ${globals.length}`
-    + ` (${globals.join(", ") || "none"}).`,
+    `[PREPARE_CSS] expected exactly one sheet declaring theme tokens on :root, found ${globals.length}`
+    + ` (${globals.map((s) => s.file).join(", ") || "none"}).`,
   );
   // The likely cause, and it is measured history here rather than a guess. Astro's default
   // `inlineStylesheets: "auto"` moves a small sheet INTO the page as a <style> block, and
@@ -40,27 +60,17 @@ if (globals.length !== 1) {
   // page's cascade — so it cannot follow that idiom, and fails loudly here instead.
   if (!globals.length) {
     console.error("[PREPARE_CSS] the tokens are most likely inlined into the pages rather than"
-      + " emitted as a file. Read the header of tests/helpers/css.ts, then decide whether to"
-      + " harvest them from a built page's <style> blocks instead of this directory.");
+      + " emitted as a file — or the declaration shape moved out from under TOKEN_RULE. Read"
+      + " the header of tests/helpers/css.ts, then decide whether to harvest them from a"
+      + " built page's <style> blocks instead of this directory.");
   }
   process.exit(1);
 }
 
-const css = readFileSync(join(ASTRO_DIR, globals[0]), "utf8");
+const { file: globalSheet, css, blocks } = globals[0];
 mkdirSync(OUT_DIR, { recursive: true });
 
-// Tokens are re-emitted one declaration per line: same values, read by an agent
-// rather than a browser.
-const blocks = [];
-for (const [, selector, body] of css.matchAll(TOKEN_RULE)) {
-  const decls = body.split(";").map((d) => d.trim()).filter((d) => d.startsWith("--"));
-  if (decls.length) blocks.push(`${selector.trim()} {\n${decls.map((d) => `  ${d};`).join("\n")}\n}`);
-}
-if (!blocks.length) {
-  console.error("[PREPARE_CSS] no custom-property blocks extracted — the token rule shape changed");
-  process.exit(1);
-}
-const tokens = `/* Theme tokens, extracted verbatim from the compiled ${globals[0]}.\n`
+const tokens = `/* Theme tokens, extracted verbatim from the compiled ${globalSheet}.\n`
   + `   Authored in src/layouts/BasicLayout.astro, where each token's role is documented. */\n\n`
   + blocks.join("\n\n") + "\n";
 writeFileSync(join(OUT_DIR, "tokens.css"), tokens);
@@ -73,4 +83,4 @@ writeFileSync(join(OUT_DIR, "tokens.css"), tokens);
 // identical, so whichever wins paints the same colour — and it puts the whole palette in
 // the first forty lines of the one stylesheet a design agent is handed.
 writeFileSync(join(OUT_DIR, "site.css"), `${tokens}\n${css}`);
-console.error(`[PREPARE_CSS] ${globals[0]} -> site.css (${css.length}B + ${blocks.length} token blocks)`);
+console.error(`[PREPARE_CSS] ${globalSheet} -> site.css (${css.length}B + ${blocks.length} token blocks)`);
