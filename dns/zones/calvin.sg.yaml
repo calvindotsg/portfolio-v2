@@ -90,6 +90,28 @@ ssh-hermes:
   type: CNAME
   value: 7016c4ba-d138-48e7-a7f1-2ec672540ce8.cfargotunnel.com.
 
+# The Telegram Mini App at today.calvin.sg. THERE IS NO ORIGIN BEHIND THIS RECORD, and that is
+# what it is for: `100::` is the IPv6 discard prefix (RFC 6666), a documented Cloudflare pattern
+# for a hostname answered entirely by a Worker. `proxied: true` is therefore load-bearing in the
+# same way it is on `hermes` above — unproxied, this record resolves to a black hole and nothing
+# else. The Worker attaches by ROUTE (`today.calvin.sg/*`), which is not DNS and is invisible to
+# octoDNS.
+#
+# A WORKERS "CUSTOM DOMAIN" WOULD HAVE BEEN THE OBVIOUS CHOICE AND IS THE WRONG ONE. Cloudflare
+# creates and manages the DNS record for a custom domain itself, behind this file's back — so the
+# Monday drift run would find a record in the zone that is not here, and fail, every week, for as
+# long as the app exists. The route-plus-this-record split is what keeps this file the sole owner
+# of the name. See calvindotsg/today-mini-app's wrangler.jsonc, which says the same thing from
+# the other side.
+today:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: AAAA
+  value: '100::'
+
 # www DOES NOT SERVE THE SITE, and this record is not left over from when it did. It is proxied
 # so that requests reach Cloudflare's edge at all; a redirect rule then answers them with a 301
 # to the apex, before origin selection happens. www was detached from the Pages project on
