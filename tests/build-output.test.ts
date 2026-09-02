@@ -580,6 +580,23 @@ describe("dist/", () => {
     });
 
     /**
+     * AND THE TOKEN FILE THE SAME WAY, for the same reason and against the same failure: two
+     * files of token values, one served and one committed, with each matching only itself.
+     *
+     * IT IS PARSED RATHER THAN MERELY COMPARED. A markdown document that renders is a document;
+     * a JSON file that does not parse is a 404 with a 200 status for every consumer of it, and
+     * this one exists to be fetched by tools rather than read.
+     */
+    it("serves the design tokens as the same bytes the repository commits", () => {
+        expect(existsSync("dist/design_tokens.json"), "the token file is not in the build").toBe(true);
+        const served = read("dist/design_tokens.json");
+        expect(() => JSON.parse(served), "dist/design_tokens.json does not parse").not.toThrow();
+        expect(served, "dist/design_tokens.json and design_tokens.json are two different accounts "
+            + "of one design system's tokens. They are rendered by one function on purpose")
+            .toBe(read("design_tokens.json"));
+    });
+
+    /**
      * THE TWIN IS ANNOUNCED, IT IS ANNOUNCED ONCE, AND WHAT IT POINTS AT WAS ACTUALLY BUILT.
      *
      * `rel="alternate"` with a markdown type is how an agent finds a page's markdown without
@@ -3177,8 +3194,11 @@ describe("hashed assets are cached forever, and are hashed", () => {
             // rest parameter matches zero segments only where it is a whole path segment — which
             // is why each of those two route families needs two endpoint files where `/design`
             // needed one.
-            "_headers", "404.html", "design.md", "favicon.ico", "index.html", "llms.txt",
-            "patches.md", "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml",
+            // `design_tokens.json` IS THE NAME THE DESIGN.md FORMAT'S OWN EXAMPLES USE beside a
+            // DESIGN.md, which is what makes it findable by a tool that globs for it — the same
+            // reason `llms.txt` and `robots.txt` sit here under names nobody chose either.
+            "_headers", "404.html", "design.md", "design_tokens.json", "favicon.ico", "index.html",
+            "llms.txt", "patches.md", "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml",
             "sitemap-index.xml", "training.md",
         ];
         /*

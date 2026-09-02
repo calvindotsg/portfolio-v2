@@ -1,4 +1,5 @@
 import {CONTROLS, DESIGN_PAGE, OMISSIONS, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design"
+import {MARK_GEOMETRY, SIZE_LADDER, markFill} from "./brand-mark"
 import {COMPONENT_TOKENS} from "./component-tokens"
 import {ICON_IDS, iconClass} from "./icons"
 import {PALETTE, valueIn} from "./palette"
@@ -669,4 +670,39 @@ function renderAgent(): string {
 /** @see DocAudience for what each rendering may say, and the header for what each one drops. */
 export function renderDesignDoc(audience: DocAudience): string {
     return audience === "full" ? renderFull() : renderAgent()
+}
+
+/**
+ * THE TOKEN GROUPS AS JSON, WHICH IS THE SAME DOCUMENT FOR A READER THAT DOES NOT PARSE YAML.
+ *
+ * `design_tokens.json` is the filename the DESIGN.md format's own examples put beside a
+ * `DESIGN.md`, so a tool that globs for it finds this one. That is the whole reason it is not
+ * called something more descriptive: the name IS the discovery mechanism, the way `llms.txt` and
+ * `robots.txt` are.
+ *
+ * IT IS THE COMMITTED FILE AND THE SERVED ROUTE, BYTE-IDENTICAL, from this one function — the
+ * arrangement `DESIGN.md` and `/design.md` already have, for the reason written above them: two
+ * renderers producing the same document is two documents waiting to disagree, and the
+ * disagreement would be invisible because each would still match its own copy.
+ *
+ * IT CARRIES `MARK_GEOMETRY`, WHICH THE FRONT MATTER DELIBERATELY DOES NOT. The format's
+ * component property tokens are a fixed set of colours and dimensions; a viewBox, five ray angles
+ * and an arc command are none of those, and putting them under `components` would be claiming a
+ * schema for something the schema has no word for. Here there is no schema to violate, and the
+ * figures are what a consumer needs to lay the mark out without parsing an SVG — which is the one
+ * thing `/brand/mark.svg` does not give them.
+ *
+ * TWO SPACES AND A TRAILING NEWLINE, because this file is committed and read in diffs.
+ */
+export function renderDesignTokens(): string {
+    return `${JSON.stringify({
+        name: DESIGN_PAGE.heading,
+        description: DESIGN_PAGE.description,
+        colors: Object.fromEntries(THEMING.themes.flatMap((theme) =>
+            PALETTE.map((values) =>
+                [`${theme}-${values.token.replace(/^--/, "")}`, valueIn(values, theme)] as const))),
+        components: COMPONENT_TOKENS,
+        brandMark: {geometry: MARK_GEOMETRY, sizes: SIZE_LADDER, fill: markFill()},
+        omitted: OMISSIONS,
+    }, null, 2)}\n`
 }

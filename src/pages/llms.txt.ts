@@ -246,6 +246,17 @@ export const GET: APIRoute = ({site}) => {
         // already had to delete one count for exactly that reason.
         `- [The design system as markdown](${abs("/design.md")}): the same design system as `
         + "markdown, byte-identical to DESIGN.md in the repository",
+        // THE TWO MACHINE-READABLE HALVES OF THE SAME SYSTEM, and they are listed as pages
+        // rather than under `## Optional` because neither is safe to skip: an agent building
+        // in this design system needs the values, and the mark is the one thing it would
+        // otherwise have to invent. The notes say what each one answers, so a reader picks one
+        // rather than fetching both.
+        `- [The design tokens as JSON](${abs("/design_tokens.json")}): every color token in both `
+        + "themes, the style tokens each kind of control resolves to, and the brand mark's own "
+        + "geometry — the same values as the markdown, for a reader that does not parse YAML",
+        `- [The brand mark](${abs("/brand/mark.svg")}): the site's mark as an SVG that carries `
+        + "its own dark-mode block, so it re-tones without a stylesheet; the pinned mark-light "
+        + "and mark-dark files sit beside it for a consumer that cannot evaluate CSS",
         "",
         "## Projects",
         "",

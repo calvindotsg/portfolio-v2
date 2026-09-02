@@ -1,0 +1,118 @@
+{
+  "name": "How this site is drawn",
+  "description": "The colors, the type ramp, the controls and the marks this site is built from, drawn live from the stylesheet it ships.",
+  "colors": {
+    "light-background": "#FAFAFA",
+    "light-card-background": "#F5F5F5",
+    "light-card-border": "#E5E5E5",
+    "light-shadow": "#A82334",
+    "light-accent": "#A82334",
+    "light-text": "#0B0B0B",
+    "light-progress-fill": "#A82334",
+    "light-progress-track": "#E3B3B8",
+    "light-status-live": "#A82334",
+    "light-status-halo": "#A82334",
+    "light-brand-ink": "#A82334",
+    "light-sport-ride": "#A82334",
+    "light-sport-ride-on-ink": "#F3A3AA",
+    "light-sport-run": "#1F4E9C",
+    "light-sport-run-on-ink": "#9FC0F0",
+    "dark-background": "#111111",
+    "dark-card-background": "#171717",
+    "dark-card-border": "#2C2C2C",
+    "dark-shadow": "#F3A3AA",
+    "dark-accent": "#F9CDD3",
+    "dark-text": "#FAFAFA",
+    "dark-progress-fill": "#F9CDD3",
+    "dark-progress-track": "#462F32",
+    "dark-status-live": "#F3A3AA",
+    "dark-status-halo": "#F9CDD3",
+    "dark-brand-ink": "#F3A3AA",
+    "dark-sport-ride": "#F3A3AA",
+    "dark-sport-ride-on-ink": "#A82334",
+    "dark-sport-run": "#9FC0F0",
+    "dark-sport-run-on-ink": "#1F4E9C"
+  },
+  "components": {
+    "control-cta": {
+      "backgroundColor": "{colors.light-background}",
+      "textColor": "{colors.light-text}",
+      "rounded": "0.5rem",
+      "height": "3rem",
+      "width": "100%",
+      "padding": "0.25rem 0.75rem"
+    },
+    "text-link": {
+      "textColor": "{colors.light-text}"
+    },
+    "chip": {
+      "backgroundColor": "{colors.light-background}",
+      "textColor": "{colors.light-text}",
+      "rounded": "2px",
+      "height": "2.75rem",
+      "width": "2.75rem",
+      "padding": "0.3rem 0.7rem"
+    },
+    "chip-icon": {
+      "backgroundColor": "{colors.light-background}",
+      "textColor": "{colors.light-text}",
+      "rounded": "2px",
+      "height": "2.75rem",
+      "width": "2.75rem"
+    },
+    "brand-mark": {
+      "height": "120px",
+      "width": "120px",
+      "textColor": "{colors.light-brand-ink}",
+      "backgroundColor": "{colors.light-progress-track}"
+    }
+  },
+  "brandMark": {
+    "geometry": {
+      "viewBox": "0 0 100 100",
+      "rayAngles": [
+        -58,
+        -29,
+        0,
+        29,
+        58
+      ],
+      "rayPivotX": 50,
+      "rayPivotY": 62,
+      "ray": {
+        "x": 49,
+        "y": 6,
+        "width": 2.6,
+        "height": 13
+      },
+      "dome": "M21 62 A29 29 0 0 1 79 62 Z",
+      "barTrack": {
+        "x": 8,
+        "y": 73,
+        "width": 84,
+        "height": 13
+      }
+    },
+    "sizes": [
+      120,
+      48,
+      24,
+      16
+    ],
+    "fill": 0.5243866666666667
+  },
+  "omitted": [
+    {
+      "section": "typography",
+      "reason": "There is no webfont and no display face: the ramp is a handful of steps over the system sans stack, and each step is drawn at its own size on the page this renders from rather than restated as a measurement."
+    },
+    {
+      "section": "spacing",
+      "reason": "There is no authored spacing scale. Space comes from the utility engine's own steps and from gaps on flex and grid parents, so a scale written down here would be an invention rather than a record."
+    },
+    {
+      "section": "rounded",
+      "reason": "One radius, worn by the controls, and one two-pixel corner that is a bib's mark rather than a measurement. Neither is a scale."
+    }
+  ]
+}
