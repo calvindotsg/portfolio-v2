@@ -38,21 +38,33 @@ cache at all.
 takes both colours from its caller and reads none, so vendoring the fills would put
 thirty-five literal hexes in the tree that nothing resolves.
 
-**The `.ts` files are converted, not copied.** They open with `import { BodyPart } from ".."`,
-which does not resolve here, and carry a type annotation this repository has no declaration
-for. JSON is the form that has neither problem.
+**The `.ts` files are converted, not copied.** They open with an import that does not resolve
+here and carry a type annotation this repository has no declaration for. JSON is the form that
+has neither problem.
+
+## The one rule this directory is gated on
+
+**Every file here comes from the MIT upstream named above, and no other project's licence text
+may appear in this directory.** `tests/body-map.test.ts` asserts that, and it asserts it by
+searching for the other licence's own name — which is why this document states the rule rather
+than quoting it, and why the argument FOR the rule is written down where the gate cannot reach:
+the "Vendored third-party data" section of the root `README.md`, and the share-card block in
+`CLAUDE.md`.
+
+The short version. A second project redistributes these same paths under terms obliging a
+redistributor to reproduce a notice that carries a separate commercial product's advertising.
+Its own terms record that the paths are not its work — they are MIT, © Hicham El Boussarghini,
+originally from the upstream named above. Taking them from the original sheds that obligation
+for exactly the same pixels, which is why the decision runs this way round and why reversing it
+is not a free copy.
 
 ## What was NOT taken, and must never be
 
-The same paths are redistributed by [`Rippy1911/anatome`](https://github.com/Rippy1911/anatome)
-under Apache-2.0. **They are taken from the MIT original instead**, on evidence: Anatome's own
-terms document records, in its second section, that the anatomical SVG paths are MIT,
-© Hicham El Boussarghini, originally from this upstream. Taking them from here rather than from there removes an Apache
-`NOTICE` a redistributor must reproduce — one that carries a separate commercial product's
-advertising — from a public MIT repository, for exactly the same pixels.
+**That other project's bundled exercise photography.** Its own terms say the origin is
+unverified and it is not cleared for redistribution, and it is not upstream either. Its
+exercise catalogue is deliberately absent too: fuzzy-matching the studio's vocabulary against
+it was measured at 13 hits against 26 misses with several actively wrong, which is the failure
+`src/data/bft/aliases.ts` exists to close.
 
-So: **no Apache text belongs in this directory**, and a test asserts there is none. Anatome's
-bundled exercise photography must never be vendored anywhere — its own terms say the origin is
-unverified and it is not cleared for redistribution. The female figure upstream ships is also
-not here: the card draws the male figure, and adding a second is a separate decision rather
-than a free copy.
+**The female figure.** Upstream ships one; this vendors the male figure only, because that is
+what the card draws. Adding a second is a separate decision rather than a free copy.

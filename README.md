@@ -172,6 +172,13 @@ MIT, © 2022 ELABBASSI Hicham. Its licence is carried verbatim beside the data, 
 attribution that licence requires.
 
 With thanks to [`Rippy1911/anatome`](https://github.com/Rippy1911/anatome) for the shading
-approach — the idea of lighting a figure by muscle group at two opacities. The paths themselves
-come from the MIT original above rather than from that project's own copy of them; the reasoning
-is in [`src/lib/anatome/README.md`](./src/lib/anatome/README.md).
+approach — the idea of lighting a figure by muscle group at two opacities.
+
+**The paths come from the MIT original rather than from that project's copy of them, and that is
+a decision on evidence rather than a preference.** Anatome redistributes the same paths under
+Apache-2.0, whose §4(d) obliges a redistributor to reproduce its `NOTICE` — which carries
+advertising for a separate commercial product. Anatome's own terms record that the paths are not
+its work: they are MIT, © Hicham El Boussarghini, originally from the upstream above. Taking them
+from there sheds the obligation, the advertising and the mixed-licence question for exactly the
+same pixels, which is why no Apache text belongs anywhere under
+[`src/lib/anatome/`](./src/lib/anatome/) and a test says so.
