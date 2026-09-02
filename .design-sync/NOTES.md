@@ -279,6 +279,35 @@ room; the queue above says what to drop and in what order, and this line — a b
 object that is genuinely fetchable — is the cheapest thing in the document to re-evaluate if the
 answer is that something has to go.
 
+#### The sixth decision: a published section that costs this rendering nothing to drop
+
+The design system published a **Share Cards** section, and it is declared in `AGENT_DROPS` like
+the five above it — but it is the first drop whose arithmetic is zero rather than tight, and
+saying so is the point of this entry.
+
+**`AGENT_SECTIONS` is an ALLOWLIST and the agent renderer never iterates the section map.** It
+names the three sections it emits, one at a time, in its own body. So a tenth section reaches
+`/design` and the full spec and cannot reach this document however long it is: declaring the drop
+records a decision rather than paying for one. Measured both ways on this branch — the rendering
+is **4,009 characters with the section published and 4,009 without it**. The gate that makes the
+declaration mandatory is the audience check in `tests/design-system.test.ts`, which reddens on a
+section that appears in neither list; that is what turns "not carried" from an absence somebody
+has to infer into a decision they can read.
+
+**It would be dropped at any budget.** Every constraint in that section is a fact about somebody
+else's feed — a carousel that crops a portrait, an attribution chip drawn over the top-left
+corner, a third-of-size reading distance, an absence of alt text. None of it is true of a screen.
+The one line that generalises is the disjointness rule, and this reader has one surface, so it has
+nothing to be disjoint from.
+
+**The headroom recorded above was stale, and nothing gated it.** The fifth decision recorded
+4,027 characters and 69 spare; re-measured here it is **4,009 and 87 spare** — 18 characters came
+back somewhere between that entry and this one, with no test watching the figure and no commit
+naming it. That is this file's own standing warning working exactly as written: re-measure rather
+than trusting a number in prose. The queue is unchanged and the conclusion is unchanged — 87
+spare is still under half of what the fourth decision left, and the next token role somebody adds
+still lands here.
+
 ### What was retired, and why it was not repaired
 
 A generator script in this directory wrote four reference HTML cards — palette, type and

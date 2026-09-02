@@ -1,10 +1,15 @@
 # Scripts
 
-**Two kinds of thing live here, and the second kind arrived later.** Most of this directory is
-everything the site needs from Strava; the rest watches the origin the site is served from. Both
+**Three kinds of thing live here, and each arrived later than the last.** Most of this directory is
+everything the site needs from Strava; then come the two that watch the origin the site is served
+from; and one draws a share card. The first two kinds
 are plain node or plain shell with zero dependencies, no TypeScript — because the workflows that
 run them do so on GitHub Actions' preinstalled node with no `pnpm install` in front of them, and a
 dependency would buy an install step on the paths nobody watches.
+
+**The third kind breaks that rule and is the only thing here that does**, for a reason written out
+under "Drawing a share card": it is invoked by hand, never by a workflow, and it imports from
+`src/`, which no other script in this directory does at all.
 
 Each file argues its own decisions at the line that makes them. This page is the part that
 lives nowhere else: how they are invoked, what the nightly run does, and where the credentials
@@ -33,6 +38,50 @@ permanently, so it fails closed in every direction — production is never touch
 whose state cannot be read keeps its preview, and a refusal fires immediately before the request
 rather than restating the classifier. `.github/workflows/pages-retention.yml` binds the
 irreversible half to the default branch.
+
+## Drawing a share card
+
+**`scripts/render-share-card.ts`** — a square PNG for a gym session, plus the description that
+goes beside it. Two files out, nothing else: it makes **no network call and writes to no
+platform**, and both surfaces are attached by hand.
+
+```sh
+pnpm card:render -- --demo specimen --out .scratchpad
+pnpm card:render -- --session <file.json> --out <dir> [--px 2160]
+```
+
+| Flag | What it does |
+|---|---|
+| `--demo specimen` | draws the invented session `/design` shows. The only demo there is. |
+| `--session <file>` | draws a session read from JSON, validated at the boundary |
+| `--out <dir>` | where the two files go. Created if absent. Required. |
+| `--px <n>` | the capture size. Defaults to 2160 — see below, this one matters. |
+
+**Run it from the repository root.** The colour tokens and the type stack are read out of
+`src/layouts/BasicLayout.astro` by a path relative to the working directory, so a run from
+anywhere else would draw a card with no colours. The script checks and refuses.
+
+**`--px` IS DECLARED, NEVER INHERITED.** A browser screenshots at the display's backing scale, so
+the same command yields 2160 on a Retina Mac and 1080 headless — the same card at half the
+resolution, soft in a feed, with nothing reporting it. The script sets the scale explicitly from
+this flag and the card's own CSS size. The browser is found rather than pasted: set `CHROME_PATH`
+to override, or it searches the Playwright cache and the two ordinary application paths and
+throws with all of them named.
+
+**IT REFUSES RATHER THAN SCRUBBING, AND IT REFUSES WHEN IT CANNOT CHECK.** A session binds free
+prose out of a private training record, so both surfaces pass a leak gate before anything is
+written. The protected-name list lives outside this repository and is git-ignored where it sits;
+when it is absent the script says so and refuses, because "no names matched" and "nobody looked"
+are different answers and only one is evidence. `tests/share-card-redaction.test.ts` carries the
+mutation harness that proves the gate fires.
+
+**IT IS THE ONE SCRIPT HERE RUN THROUGH THE TOOLCHAIN, AND THAT IS MEASURED RATHER THAN A
+PREFERENCE.** Every module in the chain it imports uses extensionless relative specifiers and one
+of them imports JSON bare, neither of which Node's ESM resolver handles — so `node` cannot run it
+and `vite-node` can. **`vite-node` is not a dependency of this repository**: the `card:render`
+script reaches it through `npx`, which fetches it on a machine that has never run this. That is a
+deliberate trade — no workflow runs this script, so the alternative was a dependency on the
+install path of everything that does.
 
 ## The Strava scripts
 

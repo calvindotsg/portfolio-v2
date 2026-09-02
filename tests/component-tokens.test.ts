@@ -3,6 +3,7 @@ import {describe, expect, it} from "vitest";
 import {COMPONENT_TOKENS} from "../src/lib/component-tokens";
 import {SHORTCUTS} from "../src/lib/shortcuts";
 import {SIZE_LADDER} from "../src/lib/brand-mark";
+import {CARD_PADDING_PX, CARD_PX} from "../src/lib/share-card";
 import {PALETTE} from "../src/lib/palette";
 import {renderDesignDoc} from "../src/lib/design-doc";
 import {pageCss} from "./helpers/css";
@@ -33,8 +34,22 @@ const isBase = (name: string): boolean =>
 
 const WORN = Object.keys(SHORTCUTS).filter((name) => !isBase(name));
 
-/** The identifier the mark takes, which is the group's one member that is not a shortcut. */
+/** The identifier the mark takes. */
 const MARK = "brand-mark";
+
+/** The identifier the share card takes. */
+const CARD = "share-card";
+
+/**
+ * THE TWO MEMBERS THAT ARE NOT CONTROLS, AND WHAT THEY HAVE IN COMMON.
+ *
+ * Neither is a shortcut and neither has a rule in any stylesheet: the mark is an SVG drawn from
+ * geometry, and the card is a raster artifact posted somewhere else entirely. They are in this
+ * group because the format's `components` map is the only place this document can publish a
+ * drawing's box in a form a consumer can lay out from. Every assertion below that reads the
+ * shipped sheet skips them for that reason, and each gets its own describe block instead.
+ */
+const NOT_A_CONTROL = [MARK, CARD];
 
 describe("the published components are the worn kinds of control, and nothing else", () => {
     /**
@@ -52,9 +67,9 @@ describe("the published components are the worn kinds of control, and nothing el
      * BACKWARD: nothing is published that is not one. An identifier here that resolves to no
      * shortcut is a component a reader would reach for and find nothing behind.
      */
-    it("publishes nothing but those and the brand mark", () => {
+    it("publishes nothing but those, the brand mark and the share card", () => {
         for (const name of Object.keys(COMPONENT_TOKENS)) {
-            if (name === MARK) continue;
+            if (NOT_A_CONTROL.includes(name)) continue;
             expect(WORN, `the components group publishes "${name}", which is not a worn shortcut`)
                 .toContain(name);
         }
@@ -73,9 +88,10 @@ describe("the published components are the worn kinds of control, and nothing el
         for (const base of bases) expect(COMPONENT_TOKENS[base]).toBeUndefined();
     });
 
-    /** The mark is the one member that is not a control, and it is always present. */
-    it("publishes the brand mark", () => {
+    /** Both drawings are always present; a group of controls alone would publish neither box. */
+    it("publishes the brand mark and the share card", () => {
         expect(COMPONENT_TOKENS[MARK]).toBeDefined();
+        expect(COMPONENT_TOKENS[CARD]).toBeDefined();
     });
 });
 
@@ -109,7 +125,7 @@ describe("every published value is one the browser resolves", () => {
      */
     const same = (value: string): string => value.trim().replace(/\s+/g, " ").replace(/\b0\./g, ".");
 
-    it.each(Object.keys(COMPONENT_TOKENS).filter((n) => n !== MARK))(
+    it.each(Object.keys(COMPONENT_TOKENS).filter((n) => !NOT_A_CONTROL.includes(n)))(
         "matches the shipped rule for %s", (name) => {
             const rule = new RegExp(`[{}\\n]\\.${name}\\{([^}]*)\\}`).exec(css());
             expect(rule, `${name} has no rule in the stylesheet /design ships`).not.toBeNull();
@@ -138,7 +154,8 @@ describe("every published value is one the browser resolves", () => {
      * PADDING IS RECOMBINED FROM FOUR LONGHANDS, so it is the one value that is not a declaration
      * read straight off the sheet and it gets its own check.
      */
-    it.each(Object.keys(COMPONENT_TOKENS).filter((n) => COMPONENT_TOKENS[n]!.padding !== undefined))(
+    it.each(Object.keys(COMPONENT_TOKENS)
+        .filter((n) => !NOT_A_CONTROL.includes(n) && COMPONENT_TOKENS[n]!.padding !== undefined))(
         "recombines %s's padding into what the sheet ships", (name) => {
             const rule = new RegExp(`[{}\\n]\\.${name}\\{([^}]*)\\}`).exec(css())![1]!;
             // The minifier collapses the four longhands the generator emits into a shorthand, so
@@ -198,6 +215,34 @@ describe("the brand mark's entry", () => {
     it("names its two tokens rather than their values", () => {
         expect(COMPONENT_TOKENS[MARK]!.textColor).toMatch(/^\{colors\.\w+-brand-ink\}$/);
         expect(COMPONENT_TOKENS[MARK]!.backgroundColor).toMatch(/^\{colors\.\w+-progress-track\}$/);
+    });
+});
+
+describe("the share card's entry", () => {
+    /**
+     * ITS BOX COMES OFF THE FRAME CONSTANTS, so the published figures cannot disagree with the
+     * card the renderer draws. Asserted against the module rather than against 1080, which would
+     * be the second home this whole group exists to avoid.
+     */
+    it("takes its box and its inset from the card's own frame", () => {
+        expect(COMPONENT_TOKENS[CARD]!.height).toBe(`${CARD_PX}px`);
+        expect(COMPONENT_TOKENS[CARD]!.width).toBe(`${CARD_PX}px`);
+        expect(COMPONENT_TOKENS[CARD]!.padding).toBe(`${CARD_PADDING_PX}px`);
+    });
+
+    /**
+     * IT IS SQUARE, ASSERTED AS A COMPARISON. The card is square because the platform's carousel
+     * crops a portrait; equality is the claim, and pinning both to a literal would pass a build
+     * where the card had quietly become a rectangle in agreement with itself.
+     */
+    it("publishes a square box", () => {
+        expect(COMPONENT_TOKENS[CARD]!.width).toBe(COMPONENT_TOKENS[CARD]!.height);
+    });
+
+    /** Its two colours are references, so the entry names tokens rather than repeating values. */
+    it("names its two tokens rather than their values", () => {
+        expect(COMPONENT_TOKENS[CARD]!.backgroundColor).toMatch(/^\{colors\.\w+-background\}$/);
+        expect(COMPONENT_TOKENS[CARD]!.textColor).toMatch(/^\{colors\.\w+-text\}$/);
     });
 });
 

@@ -267,6 +267,54 @@ block above it before giving either consumer the other's list.
   whose name another shortcut composes is a BASE, reaches no element and no
   stylesheet, and is refused. `typography`, `spacing` and `rounded` stay omitted,
   because those are scales this site genuinely does not have
+- **THE SHARE CARD IS ONE FUNCTION WITH TWO CONSUMERS, AND EVERY CONSTRAINT ON IT
+  BELONGS TO SOMEBODY ELSE'S FEED.** `cardHtml` in `src/lib/share-card.ts` returns an
+  HTML string; `/design` embeds it as a specimen and `scripts/render-share-card.ts`
+  screenshots it. An Astro component for the page plus a template for the renderer
+  would be two homes for one drawing, and the page would then show a picture of the
+  card rather than the card. **The module may not contain a hex** — it was ported from
+  a Python module that typed eleven of this site's tokens in as literals, and that
+  port is the entire reason the card moved here. Four rules carry their reasons in
+  place and are not taste:
+  - **The brand chip goes TOP-RIGHT.** Strava overlays its own attribution chip on the
+    top-left of every activity photo — the slot that reads "Rouvy", "Runna", "Hevy" —
+    and it covered the wordmark completely. Top-left belongs to Strava
+  - **The type floor is 20px at 1080**, because the card renders about 350pt wide in a
+    feed, so a step arrives at roughly a third of its drawn size. The design note said
+    `~22px`; the card keeps 20 and `src/lib/share-card.ts` says why rather than
+    reconciling them quietly
+  - **THE CARD AND ITS DESCRIPTION ARE DISJOINT.** One dataset, two surfaces, and no
+    fact may appear on both: they share the session code (a join key) and the
+    publisher's name (a citation), and nothing else. `tests/share-card.test.ts` runs
+    both real renderers and asserts the intersection — never a fixture, which is what
+    let the original pass while the shipping renderer drifted. Its word-overlap proxy
+    **excludes the quote, and that limit is documented rather than silent**
+  - **The `/design` specimen is INVENTED and the page says so.** It is the only thing
+    on a page whose lede claims everything is real, so the lede is qualified and the
+    specimen is captioned. It is shaded from its class type on purpose: a session with
+    its movements published lights nearly every group, and the two fills stop being
+    distinguishable
+- **The card's safety gate lives on the SCRIPT, and that is the decision.**
+  `scripts/render-share-card.ts` refuses rather than scrubs — it raises, because a
+  surface that quietly lost a clause is worse than one that never shipped. It is not in
+  `src/lib/` because the specimen is invented and cannot leak, and because a site build
+  that required the protected-name list would fail on every machine without it, CI
+  included. **That list stays outside this repository**, read by path and git-ignored
+  where it sits; when it is absent the renderer says so and refuses, since "no names
+  matched" and "nobody looked" are different answers. It scans the card's own WORDS and
+  not its markup — scanning the markup scans the anatomical drawing's path data, and a
+  short protected value matches a coordinate immediately
+- **`src/lib/anatome/` is vendored MIT data, and which upstream it came from is the
+  decision.** The muscle paths are taken from
+  `HichamELBSI/react-native-body-highlighter`, not from `Rippy1911/anatome`, which
+  redistributes the same paths under Apache-2.0 with a `NOTICE` a redistributor must
+  reproduce that carries a separate commercial product's advertising. Anatome's own
+  terms record that the paths are not its work. So the original sheds the obligation
+  for identical pixels — **no Apache text may appear under that directory and
+  `tests/body-map.test.ts` asserts it by name**, which is why the vendored README
+  states the rule and the argument for it lives in `README.md`. Anatome's exercise
+  photography must never be vendored: its origin is unverified and it is not cleared
+  for redistribution
 - **A hover style must need a pointer to produce it.** A touch browser applies
   `:hover` on tap and holds it until the reader taps elsewhere, so every `hover:`
   utility is emitted inside `@media (hover: hover)` by the `hover-needs-a-pointer`

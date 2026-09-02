@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "test:update": "vitest run -u",
     "race:add": "node scripts/scaffold-race.mjs",
-    "strava:sync": "node scripts/strava-sync.mjs"
+    "strava:sync": "node scripts/strava-sync.mjs",
+    "card:render": "npx --yes vite-node scripts/render-share-card.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
