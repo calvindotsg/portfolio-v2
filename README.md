@@ -162,3 +162,16 @@ template and has diverged a long way since. Fork it and make it yours; a star is
 ## License
 
 MIT — see [`LICENSE`](./LICENSE), whose copyright covers the upstream authors as well as me.
+
+### Vendored third-party data
+
+The share card's body map is drawn from anatomical SVG paths vendored under
+[`src/lib/anatome/`](./src/lib/anatome/) from
+[`HichamELBSI/react-native-body-highlighter`](https://github.com/HichamELBSI/react-native-body-highlighter),
+MIT, © 2022 ELABBASSI Hicham. Its licence is carried verbatim beside the data, which is the
+attribution that licence requires.
+
+With thanks to [`Rippy1911/anatome`](https://github.com/Rippy1911/anatome) for the shading
+approach — the idea of lighting a figure by muscle group at two opacities. The paths themselves
+come from the MIT original above rather than from that project's own copy of them; the reasoning
+is in [`src/lib/anatome/README.md`](./src/lib/anatome/README.md).
