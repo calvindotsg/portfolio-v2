@@ -34,6 +34,21 @@ import {PALETTE, valueIn} from "../src/lib/palette";
 
 const CARD = cardHtml(SPECIMEN, {theme: "light"});
 
+/**
+ * A SESSION WITH ITS MOVEMENTS PUBLISHED, CONSTRUCTED HERE RATHER THAN TAKEN FROM THE SPECIMEN.
+ *
+ * The specimen is shaded from its class type, chosen for legibility on `/design` — a conditioning
+ * session with its movements published lights nearly every group, and the card's two fills stop
+ * being distinguishable. That makes it the wrong fixture for the other half of the contract, so
+ * this suite builds its own: a specimen is picked for what it shows a reader, and coverage belongs
+ * here.
+ */
+const WITH_MOVEMENTS: Session = {
+    ...SPECIMEN,
+    shading: "movements",
+    movements: ["Ski Erg", "Rower", "Bike", "Bionic Bike", "Sprinting", "Battle Ropes"],
+};
+
 /** Every `font-size` the card emits, in px. */
 const typeSteps = (html: string) =>
     [...html.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)].map((m) => Number(m[1]));
@@ -170,11 +185,15 @@ describe("the share card", () => {
         expect(workedBy(unmapped).shading).toBe("format");
         expect(stationsOf(unmapped), "an unmapped label is not a station").toEqual([]);
         expect(cardText(cardHtml(unmapped, {theme: "light"}))).toContain(PROVENANCE.format);
-        expect(workedBy(SPECIMEN).shading,
-            "the specimen's movements all resolve, so it must be shaded from its own list")
+        expect(workedBy(WITH_MOVEMENTS).shading,
+            "every one of these movements resolves, so it must be shaded from its own list")
             .toBe("movements");
-        expect(cardText(CARD)).toContain(PROVENANCE.movements);
-        expect(cardText(CARD)).not.toContain(PROVENANCE.format);
+        const drawn = cardText(cardHtml(WITH_MOVEMENTS, {theme: "light"}));
+        expect(drawn).toContain(PROVENANCE.movements);
+        expect(drawn).not.toContain(PROVENANCE.format);
+        // And the specimen itself is the other case, which is what `/design` shows a reader.
+        expect(cardText(CARD)).toContain(PROVENANCE.format);
+        expect(cardText(CARD)).not.toContain(PROVENANCE.movements);
     });
 
     it("escapes every text field it prints", () => {
@@ -197,12 +216,14 @@ describe("the share card", () => {
      * which `tests/body-map.test.ts` refuses.
      */
     it("lights only slugs the two figures hold", () => {
-        const {slugs} = workedBy(SPECIMEN);
-        expect(slugs.length, "the specimen shades nothing — this gate would be vacuous")
-            .toBeGreaterThan(4);
-        expect(slugs.filter((slug) => !FRONT_SLUGS.has(slug) && !BACK_SLUGS.has(slug)),
-            "the specimen works muscles neither figure can draw")
-            .toEqual([]);
+        for (const session of [SPECIMEN, WITH_MOVEMENTS]) {
+            const {slugs} = workedBy(session);
+            expect(slugs.length, `${session.code} shades nothing — this gate would be vacuous`)
+                .toBeGreaterThan(4);
+            expect(slugs.filter((slug) => !FRONT_SLUGS.has(slug) && !BACK_SLUGS.has(slug)),
+                `${session.code} works muscles neither figure can draw`)
+                .toEqual([]);
+        }
     });
 
     /**
@@ -213,12 +234,13 @@ describe("the share card", () => {
      * fact the reader is told twice and a fact that can drift, since nothing makes the two
      * renderings of it agree.
      */
-    it("keeps the card and the description disjoint but for the join key and the citation", () => {
-        const description = shareDescription(SPECIMEN);
+    it.each([["the specimen", SPECIMEN], ["a session with movements", WITH_MOVEMENTS]] as const)(
+        "keeps the card and the description disjoint for %s", (_label, session) => {
+        const description = shareDescription(session);
         expect(description.length, "the description is empty — this gate would be vacuous")
             .toBeGreaterThan(80);
-        const allowed = new Set([...words(SPECIMEN.code), ...words(PUBLISHER)]);
-        const shared = [...cardWords(SPECIMEN)]
+        const allowed = new Set([...words(session.code), ...words(PUBLISHER)]);
+        const shared = [...cardWords(session)]
             .filter((word) => words(description).has(word) && !allowed.has(word))
             .sort();
         expect(shared,
@@ -234,8 +256,11 @@ describe("the share card", () => {
      * the kind that goes quietly empty when a renderer changes shape.
      */
     it("reddens when a card-owned fact is appended to the description", () => {
-        const leaked = `${shareDescription(SPECIMEN)}\n`
-            + `${PROVENANCE.movements}. ${SPECIMEN.progressionCounter}.`;
+        // The card's OWN provenance line, derived rather than named, so this mutation follows the
+        // specimen if its shading ever changes. Naming the wrong one would append a sentence the
+        // card does not carry, and the assertion would pass while proving nothing.
+        const owned = PROVENANCE[workedBy(SPECIMEN).shading];
+        const leaked = `${shareDescription(SPECIMEN)}\n${owned}. ${SPECIMEN.progressionCounter}.`;
         const allowed = new Set([...words(SPECIMEN.code), ...words(PUBLISHER)]);
         const shared = [...cardWords(SPECIMEN)]
             .filter((word) => words(leaked).has(word) && !allowed.has(word));
@@ -245,13 +270,29 @@ describe("the share card", () => {
             .toBeGreaterThan(0);
     });
 
-    /** The description owns the stations, the muscles in words, and the citation with its date. */
-    it("puts the stations, the muscles and the citation in the description", () => {
-        const description = shareDescription(SPECIMEN);
-        expect(description).toContain("6 stations");
-        expect(description).toMatch(/^Muscles: .+\.$/m);
-        expect(description).toContain(SPECIMEN.code);
-        expect(description, "the read date is the citation's whole point")
-            .toContain("31 Aug 2026");
+    /**
+     * THE DESCRIPTION OWNS THE STATIONS, THE MUSCLES IN WORDS AND THE CITATION.
+     *
+     * The stations are asserted on the session that HAS them: a class-type-shaded session
+     * publishes no movement list, so it has no stations to print — and printing the week's would
+     * be presenting another session's movements as this one's, which is the rule `workedBy`
+     * enforces one level up.
+     */
+    it("puts the muscles and the citation in every description", () => {
+        for (const session of [SPECIMEN, WITH_MOVEMENTS]) {
+            const description = shareDescription(session);
+            expect(description).toMatch(/^Muscles: .+\.$/m);
+            expect(description).toContain(session.code);
+            expect(description, "the read date is the citation's whole point")
+                .toContain("31 Aug 2026");
+        }
+    });
+
+    it("prints the stations only for a session that published its own", () => {
+        expect(shareDescription(WITH_MOVEMENTS)).toContain("6 stations");
+        expect(shareDescription(SPECIMEN),
+            "a session shaded from its class type published no movements, so it has no stations "
+            + "to print — and the week's are a different session's")
+            .not.toContain("stations:");
     });
 });
