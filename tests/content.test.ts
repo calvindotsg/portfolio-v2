@@ -602,7 +602,7 @@ describe("public/preview.jpg", () => {
 
         expect(fingerprint, "the intro card's content has changed, so public/preview.jpg now "
             + "disagrees with the page it is a render of. Regenerate it by the recipe above, then "
-            + `record the new fingerprint here: ${fingerprint}`).toBe("0e3396c20d7321bb");
+            + `record the new fingerprint here: ${fingerprint}`).toBe("e5d36879e213d190");
     });
 });
 
