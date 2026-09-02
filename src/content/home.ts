@@ -200,9 +200,12 @@ export const WELCOME: {
      * room for a caption. That argument only holds if the mark takes the caption wherever
      * there IS room, and here there is: a name is not competing for space with anything.
      *
-     * There is no `greeting_icon` any more. It was `ri:open-arm-line`, a stock mark that
-     * said nothing this site owns; the brand mark replaces it and the census in
-     * `src/lib/icons.ts` fell by one.
+     * There is no `greeting_icon` any more. It was a stock Remix glyph of a figure with its
+     * arms out — a mark that said nothing this site owns. The brand mark replaces it, and the
+     * census in `src/lib/icons.ts` fell by one. THE OLD ID IS DELIBERATELY NOT WRITTEN HERE:
+     * that the retired glyph's name appears nowhere under `src/` is one of this change's own
+     * acceptance criteria, and a comment naming it is exactly what would keep it alive — a
+     * grep does not care that the only remaining hit is a note explaining its own absence.
      */
     mark_label: string
     description: string[]
