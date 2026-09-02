@@ -2,7 +2,9 @@ import {readFileSync} from "node:fs";
 import {describe, expect, it} from "vitest";
 
 import unoConfig from "../uno.config";
-import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
+import {
+    CARD_SPECIMEN_CAPTION, CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES,
+} from "../src/content/design";
 import {
     AGENT_DROPS, AGENT_SECTIONS, CANONICAL_SECTIONS, GUARDRAILS_HEADING, renderDesignDoc,
     renderDesignTokens,
@@ -800,6 +802,85 @@ describe("the design system this site publishes", () => {
                 + "design system says")
                 .toEqual([]);
         }
+    });
+
+    /**
+     * THE PAGE'S ONE EXCEPTION IS CAPTIONED, AND THE PAGE'S OWN CLAIM IS QUALIFIED TO MATCH.
+     *
+     * `/design` opens by saying everything on it is the real thing, and every specimen on it is
+     * drawn live out of the stylesheet — except the share card, whose session is invented, because
+     * a real one is a private training record. Both halves of the repair are asserted here because
+     * both are prose somebody can delete and NOTHING ELSE WOULD NOTICE.
+     *
+     * MEASURED, WHICH IS WHY THIS GATE EXISTS: deleting the caption from the page reddened exactly
+     * one test in the whole suite — the orphan-rule gate in `tests/build-output.test.ts`, and only
+     * because `.design-card-caption` was left in the stylesheet with nothing wearing it. Delete the
+     * rule as well and the suite goes green on a page that claims a specimen is real when it is
+     * invented. That is a claim about honesty failing silently, which is the worst kind here.
+     *
+     * THE SECOND HALF IS ANCHORED ON THE SENTENCE THAT WAS ACTUALLY WRONG. An unqualified
+     * "the real thing." — the claim closed with a full stop — is the page asserting a universal it
+     * no longer keeps. Matching the qualifying word instead would pass on any sentence that
+     * happened to contain it.
+     */
+    it("captions the one specimen that is not the real thing, and qualifies the claim", () => {
+        expect(CARD_SPECIMEN_CAPTION.length,
+            "the caption is too short to be doing the job the page needs it to do")
+            .toBeGreaterThan(80);
+        const page = designPageText();
+        expect(page.length, `no text parsed out of ${DESIGN_PAGE_FILE} — this gate would be vacuous`)
+            .toBeGreaterThan(1000);
+        expect(page.includes(collapsed(CARD_SPECIMEN_CAPTION)),
+            `${DESIGN_PAGE_FILE} does not carry the invented-session caption. It is the only thing `
+            + "on a page that opens by claiming everything on it is real which is not, so the "
+            + "caption is what keeps the page honest rather than a note about the specimen")
+            .toBe(true);
+        expect(DESIGN_PAGE.lede,
+            "the page's lede claims everything below it is the real thing and does not qualify "
+            + "that, while the page carries an invented specimen. Captioning the specimen is not "
+            + "enough: the sentence a reader meets FIRST is the one making the claim")
+            .not.toMatch(/the real thing\.\s/);
+        expect(DESIGN_PAGE.lede,
+            "the lede no longer makes the claim at all, so this gate is asserting nothing")
+            .toContain("the real thing");
+    });
+
+    /**
+     * THE SPECIMEN'S FRAME CARRIES NO ABSOLUTE LENGTH, WHICH NOTHING ELSE IN THIS SUITE CHECKS.
+     *
+     * The share card is 1080px square because that is what the platform receives, and the page has
+     * to shrink it without adding a length of its own — an `svg` viewBox does the scaling and the
+     * frame's only cap is in `rem`, so the box grows with the reader's text like every other box
+     * here.
+     *
+     * WHY IT IS ASSERTED HERE RATHER THAN LEFT TO `card-fill`. MEASURED: pinning
+     * `height: 448px` on the frame and running the WHOLE SUITE passes — 856 tests, nothing red.
+     * `tests/card-fill.test.ts` and `tests/page-fit.test.ts` both read `dist/index.html` only, so
+     * neither reaches `/design`. This is the one page where a fixed-pixel object is drawn, and it
+     * was the one page with no gate against pinning it.
+     *
+     * THE CARD'S OWN 1080 IS NOT IN SCOPE AND CANNOT BE, which is what makes the SHEET the right
+     * haystack: the artifact's dimensions live in an inline `style` attribute inside the
+     * `foreignObject`, and the page's opinion about how tall to draw it lives in the stylesheet.
+     * Reading the sheet separates the two without having to describe the difference.
+     */
+    it("draws the share-card specimen with no absolute length of the page's own", () => {
+        const css = pageCss(DESIGN_PAGE_FILE);
+        const rules = [...css.matchAll(/([^{}]*design-card[^{}]*)\{([^}]*)\}/g)];
+        expect(rules.length,
+            "no .design-card rule reached the stylesheet /design ships, so this gate is vacuous")
+            .toBeGreaterThan(2);
+        const absolute = /(?:^|[\s:,(])-?\d*\.?\d+(px|pt|pc|cm|mm|in)\b/;
+        const offenders = rules
+            .flatMap(([, selector, body]) => body.split(";")
+                .filter((d) => absolute.test(d))
+                .map((d) => `${selector.trim()} { ${d.trim()} }`));
+        expect(offenders,
+            "the page pinned an absolute length on the share-card specimen. The card inside is "
+            + "1080px because that is the artifact; the page's frame must scale it without an "
+            + "opinion of its own, or the specimen stops growing with the reader's text. Note "
+            + "that card-fill and page-fit read dist/index.html and cannot see this page")
+            .toEqual([]);
     });
 
     /**
