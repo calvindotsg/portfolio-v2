@@ -33,7 +33,7 @@ export const SPECIMEN: Session = {
     // way a real conditioning session's is rather than falling back to the program type.
     movements: ["Ski Erg", "Rower", "Bike", "Bionic Bike", "Sprinting", "Battle Ropes"],
     code: "HIIT 000",
-    progressionCounter: "6 of 6 — final",
+    progressionCounter: "6/6 — final",
     progressionNote: "third round added at the same work-to-rest ratio",
     intensity: "hard but repeatable — every round the same",
     note: "six stations, three rounds",

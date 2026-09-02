@@ -28,8 +28,13 @@
  * information.
  */
 
+import {readFileSync} from "node:fs"
+
 import {FORMAT_QUOTES, formatOf, musclesFromFormat, PUBLISHER, STUDIO} from "../data/bft/formats"
 import {canonical, resolve} from "../data/bft/aliases"
+import {bodyMapSvg} from "./body-map"
+import {markFill, markSvg} from "./brand-mark"
+import {token, valueIn} from "./palette"
 
 /**
  * WHERE THE SHADING CAME FROM, AS THE TWO SENTENCES THE CARD ACTUALLY PRINTS.
@@ -211,3 +216,250 @@ function readableDate(iso: string): string {
 
 /** The publisher's name, re-exported so a consumer of the card need not know where it is authored. */
 export {PUBLISHER}
+
+/* ------------------------------------------------------------------------------------------ *
+ * THE FRAME. Every figure below is a rule with a reason, not an incidental number.
+ * ------------------------------------------------------------------------------------------ */
+
+/**
+ * THE CARD IS SQUARE AT 1080, AND IT IS NOT 4:5.
+ *
+ * Every integration card the platform shows beside an activity — the cycling, running, lifting
+ * and recovery apps whose names sit in its own attribution chip — is square-ish, and the
+ * platform's photo carousel CROPS a portrait. A 4:5 card is therefore a square card with a
+ * decision about which fifth to lose taken by somebody else.
+ */
+export const CARD_PX = 1080
+
+/**
+ * THE TYPE FLOOR, AND WHERE THE NUMBER COMES FROM.
+ *
+ * The card renders about 350pt wide in the feed, so a step at 1080 arrives at roughly a third of
+ * its nominal size: 20px lands near 6.5pt. That is the edge of legible, which is why it is the
+ * floor rather than a step — going below it stops being readable at all rather than merely
+ * becoming quiet.
+ *
+ * THE DESIGN NOTE SAID "~22px" AND THE CARD KEEPS 20, which is the same estimate rounded the
+ * other way and is worth stating rather than quietly reconciling. Three lines sit on this floor —
+ * the legend's two labels and the provenance — and every one of them is a line whose job is to be
+ * AVAILABLE rather than read first. Raising them would also move the map, which is measured
+ * against the drawing this was ported from; the port is faithful and the floor records where it
+ * actually landed.
+ */
+export const TYPE_FLOOR_PX = 20
+
+/**
+ * THE TYPE STEPS, LARGEST FIRST. A short ramp for the same reason the site's is short: on a
+ * surface this small, hierarchy has to come from a few decisive jumps rather than from many
+ * near-neighbours nobody can tell apart at a third scale.
+ */
+const TYPE = {
+    /** The hero. The class's stated intention, quoted. */
+    quote: 58,
+    /** The session code in the footer — the join key, and the second-loudest thing here. */
+    code: 34,
+    /** The attribution under the quote, and the wordmark in the chip. */
+    cite: 26,
+    /** Everything on the floor: the legend, the provenance, the progression. */
+    quiet: TYPE_FLOOR_PX,
+} as const
+
+/**
+ * THE CARD'S REGIONS, TOP TO BOTTOM, AND WHY EACH SITS WHERE IT DOES.
+ *
+ * The order is by loudness rather than by importance, which is what makes it a card and not a
+ * report: the hero is the class's stated INTENTION, the map is the evidence for it, and the
+ * footer is everything a reader consults rather than reads.
+ *
+ * THE LEGEND SITS IN THE FOOTER, BELOW THE MAP, AND THAT IS A DEPARTURE WORTH NAMING. The design
+ * system asks that a quantity name its scale in words the reader meets FIRST. The map is not a
+ * quantity — nothing here is decoded into a number — and its two fills are self-evident on a
+ * body, so the legend confirms a reading rather than enabling one. Putting a 20px key above a
+ * 596px figure would also put the quietest element in the middle of the card. Inside the footer
+ * the legend DOES come first, ahead of the provenance and the code, because that is the order a
+ * reader consults them in.
+ */
+export const CARD_REGIONS = ["chip", "hero", "map", "footer"] as const
+
+/**
+ * 🔴 THE BRAND CHIP GOES TOP-RIGHT, AND THAT IS NOT A TASTE DECISION.
+ *
+ * Strava overlays its OWN chip on the TOP-LEFT of every activity photo — the sport type
+ * ("Workout"), or the connected app's name. It is the same slot that reads "Rouvy", "Runna",
+ * "Hevy" and "Peloton" in the reference screenshots: those are Strava's attribution chips, not
+ * those apps' own logos. Observed 2026-09-02 in the iOS app covering "calvin.sg" completely.
+ * Top-left belongs to Strava; do not move the mark back.
+ */
+export const CHIP_CORNER = "top-right"
+
+/** The card's inner margin, and the gap between its four regions. */
+const PADDING_PX = 50
+const REGION_GAP_PX = 18
+
+/**
+ * THE MAP'S DRAWN SIZE. It is a fixed square rather than a fraction of what is left, because the
+ * box it sits in has to be able to grow and shrink around a quote of unknown length without the
+ * figure resizing between one card and the next — two cards in a feed with differently-sized
+ * bodies read as two different scales rather than as two sessions.
+ */
+const MAP_PX = 596
+
+/** The wordmark beside the mark in the chip, and the site this card belongs to. */
+const WORDMARK = "calvin.sg"
+
+/** The mark's drawn size in the chip. Small, because the chip is an attribution, not a logo. */
+const CHIP_MARK_PX = 30
+
+/**
+ * THE FIVE TOKENS THE CARD IS DRAWN IN, resolved out of the layout by `src/lib/palette.ts`.
+ *
+ * The module this was ported from typed all five in as literal hexes, twice over — once per
+ * theme — and that is the entire reason the card moved into the repository that owns the palette.
+ * `tests/share-card.test.ts` asserts this file contains no hex at all.
+ */
+function palette(theme: string) {
+    const of = (name: string) => valueIn(token(name), theme)
+    return {
+        ground: of("--background"),
+        rule: of("--card-border"),
+        text: of("--text"),
+        ink: of("--brand-ink"),
+        track: of("--progress-track"),
+    }
+}
+
+/**
+ * THE TYPEFACE, READ OUT OF THE LAYOUT RATHER THAN RETYPED.
+ *
+ * The card carries its own font because it is rendered with no stylesheet — a specimen that
+ * inherited the page's font would look right on `/design` and ship a different face in the PNG.
+ * Reading the declaration is the same bargain `src/lib/palette.ts` makes with the colour blocks,
+ * and for the same reason: this site's Typography section opens by saying there is no webfont, so
+ * the stack IS the typeface and a second copy of it is a second typeface waiting to drift.
+ *
+ * THIS READ IS WHY NOTHING REACHABLE FROM `uno.config.ts` MAY IMPORT THIS MODULE, which is the
+ * guard `src/lib/palette.ts` states at length from the other side. Nothing does: this file is
+ * read by `src/pages/design.astro` and by `scripts/render-share-card.ts`, and the config reaches
+ * neither.
+ *
+ * 🔴 THE FAMILY NAMES ARE RE-QUOTED, AND SKIPPING THAT SILENTLY DELETES THE WHOLE CARD'S TYPE.
+ * The layout writes `"Segoe UI"` with double quotes, which is correct CSS in a stylesheet and
+ * fatal inside a double-quoted `style` attribute: the first one ends the attribute, so every
+ * declaration after `font-family` — size, weight, tracking, colour — is dropped by the parser
+ * with no error anywhere. Measured: the first render of this card came back set in the
+ * renderer's default serif at its default size, and the HTML was valid. Single quotes are
+ * equally valid CSS and cannot end the attribute.
+ */
+function fontStack(): string {
+    const source = readFileSync("src/layouts/BasicLayout.astro", "utf8")
+    const found = /font-family:\s*([^;]+);/.exec(source)
+    if (!found) {
+        throw new Error(
+            "src/lib/share-card.ts found no font-family declaration in "
+            + "src/layouts/BasicLayout.astro. The card renders with no stylesheet, so it would "
+            + "ship in the renderer's default serif while /design showed the right face.",
+        )
+    }
+    return found[1]!.trim().replace(/"/g, "'")
+}
+
+/**
+ * THE ONE SINK. Every string the card prints comes from a typed module in this repository, and
+ * every one of them is escaped anyway — because the next person to add a session will be
+ * thinking about muscles rather than markup, and because `/design` embeds the result with
+ * `set:html`, which does not escape.
+ */
+function text(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+}
+
+type Ink = ReturnType<typeof palette>
+
+/** The attribution chip: the mark, the wordmark, and an opaque ground under both. */
+function chip(ink: Ink, font: string): string {
+    const mark = markSvg({ink: ink.ink, track: ink.track, fill: markFill(), px: CHIP_MARK_PX})
+    return `<div style="display:flex;justify-content:flex-end;align-items:flex-start">`
+        + `<div style="display:inline-flex;align-items:center;gap:13px;background:${ink.ground};`
+        + `padding:12px 22px 12px 17px;align-self:flex-end">${mark}`
+        + `<div style="font-family:${font};font-size:${TYPE.cite}px;font-weight:650;`
+        + `letter-spacing:-0.01em;color:${ink.text}">${text(WORDMARK)}</div></div></div>`
+}
+
+/** The hero: the class's stated intention, quoted, and attributed to whoever published it. */
+function hero(session: Session, ink: Ink, font: string): string {
+    const program = programOf(session.code)
+    const quote = program?.quote ?? ""
+    const says = program === null ? PUBLISHER : `${PUBLISHER}, on ${program.name}`
+    return `<div style="display:flex;flex-direction:column;gap:14px">`
+        + `<div style="font-family:${font};font-size:${TYPE.quote}px;font-weight:700;`
+        + `letter-spacing:-0.03em;line-height:1.1;color:${ink.text};text-wrap:pretty">`
+        + `&ldquo;${text(quote)}&rdquo;</div>`
+        + `<div style="font-family:${font};font-size:${TYPE.cite}px;font-weight:600;`
+        + `color:${ink.ink}">&mdash; ${text(says)}</div></div>`
+}
+
+/** One legend entry: a swatch of the fill, and the word for what it means. */
+function swatch(fill: string, label: string, ink: Ink, font: string): string {
+    return `<div style="display:flex;align-items:center;gap:9px">`
+        + `<div style="width:24px;height:10px;background:${fill}"></div>`
+        + `<div style="font-family:${font};font-size:${TYPE.quiet}px;font-weight:500;`
+        + `color:${ink.text};opacity:0.7">${text(label)}</div></div>`
+}
+
+/** The footer: the legend, the provenance, and the join key with its progression. */
+function footer(session: Session, shading: Shading["shading"], ink: Ink, font: string): string {
+    return `<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;`
+        + `border-top:1px solid ${ink.rule};padding-top:20px">`
+        + `<div style="display:flex;flex-direction:column;gap:10px">`
+        + `<div style="display:flex;align-items:center;gap:20px">`
+        + swatch(ink.ink, "worked", ink, font)
+        + swatch(ink.track, "not worked", ink, font)
+        + `</div>`
+        + `<div style="font-family:${font};font-size:${TYPE.quiet}px;font-weight:500;`
+        + `color:${ink.text};opacity:0.5">${text(PROVENANCE[shading])}</div></div>`
+        + `<div style="text-align:right">`
+        + `<div style="font-family:${font};font-size:${TYPE.code}px;font-weight:750;`
+        + `letter-spacing:-0.015em;color:${ink.text}">${text(session.code)}</div>`
+        + `<div style="font-family:${font};font-size:${TYPE.quiet}px;font-weight:500;`
+        + `color:${ink.text};opacity:0.55;padding-top:6px">`
+        + `${text(session.progressionCounter)}</div></div></div>`
+}
+
+/**
+ * THE CARD, AS ONE HTML STRING WITH EVERY STYLE INLINE.
+ *
+ * Inline rather than a stylesheet because the card has exactly two consumers and neither can use
+ * one: `/design` embeds this into a page whose own sheet must not reach in, and the renderer
+ * screenshots it with no sheet at all. A `<style>` block would also make the specimen's rules
+ * global to `/design`, which is a class of bug this repository has a gate for.
+ *
+ * THE DATE AND THE PROGRAM NAME APPEAR ON NEITHER SURFACE. The platform prints the date above the
+ * photo, and the activity's own title already carries the program — printing either here would be
+ * the card competing with its own container.
+ */
+export function cardHtml(session: Session, options: {theme: string}): string {
+    const ink = palette(options.theme)
+    const font = fontStack()
+    const {slugs, shading} = workedBy(session)
+    const lit = new Set(slugs)
+    const map = bodyMapSvg({
+        front: new Set([...lit].filter((slug) => FRONT_SLUGS.has(slug))),
+        back: new Set([...lit].filter((slug) => BACK_SLUGS.has(slug))),
+        colours: {fillOn: ink.ink, fillOff: ink.track, outline: ink.text},
+        px: MAP_PX,
+    })
+    return `<div style="width:${CARD_PX}px;height:${CARD_PX}px;box-sizing:border-box;`
+        + `background:${ink.ground};padding:${PADDING_PX}px;display:flex;flex-direction:column;`
+        + `gap:${REGION_GAP_PX}px;font-family:${font}">`
+        + chip(ink, font)
+        + hero(session, ink, font)
+        + `<div style="flex-grow:1;display:flex;align-items:center;justify-content:center;`
+        + `min-height:0">${map}</div>`
+        + footer(session, shading, ink, font)
+        + `</div>`
+}
