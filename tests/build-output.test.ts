@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import sharp from "sharp";
 import {describe, expect, it} from "vitest";
 
-import {CAREER, PROJECTS, WELCOME} from "../src/content/home";
+import {CAREER, PROJECTS} from "../src/content/home";
 import {PATCHES} from "../src/content/races";
 import {FOOTER, LINKS, METADATA, SECURITY} from "../src/content/site";
 import {GOALS} from "../src/lib/goal";
@@ -1063,7 +1063,6 @@ describe("dist/", () => {
             ...LINKS.map(({logo}) => iconClass(logo)),
             ...GOALS.map(({goal_logo}) => iconClass(goal_logo)),
             ...CAREER.map(({icon}) => iconClass(icon)),
-            iconClass(WELCOME.greeting_icon),
             iconClass(FOOTER.icon),
         ]);
         for (const cls of wanted) {
@@ -3182,7 +3181,12 @@ describe("hashed assets are cached forever, and are hashed", () => {
             "patches.md", "preview.jpg", "resume.pdf", "robots.txt", "sitemap-0.xml",
             "sitemap-index.xml", "training.md",
         ];
-        const ALLOWED_DIRECTORIES = [".well-known", "_astro", "design", "patches", "training"];
+        /*
+         * `brand` HOLDS THE MARK AS FILES, and it is a directory rather than three root assets
+         * so that a consumer can be told one place to look. All three are prerendered SVG, and
+         * one of them — `mark.svg` — is what every page's `<link rel="icon">` points at.
+         */
+        const ALLOWED_DIRECTORIES = [".well-known", "_astro", "brand", "design", "patches", "training"];
 
         const entries = readdirSync("dist", {withFileTypes: true});
         expect(entries.length, "dist/ is empty — this assertion is vacuous").toBeGreaterThan(0);

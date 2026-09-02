@@ -43,7 +43,8 @@ import {readFileSync} from "node:fs"
  * `src/lib/icons.ts` through unconfig/jiti, and a config that read the filesystem at load time
  * would run this read on every extractor pass. State the guard as a graph rather than as a
  * directory: `src/lib/goal.ts` is in that graph and this file is not. `src/lib/design-doc.ts`
- * and `src/pages/design.astro` are the two consumers and neither is reachable from the config.
+ * and `src/pages/design.astro` were the first two consumers; the routes under `src/pages/brand/`
+ * are the third, and none of them is reachable from the config.
  */
 
 /**
@@ -143,5 +144,28 @@ export function valueIn(values: TokenValues, theme: string): string {
         `src/lib/palette.ts has no reading of ${values.token} in a theme called "${theme}". A `
         + "theme was added to src/content/design.ts or to the layout and this module was not "
         + "taught to read its block.",
+    )
+}
+
+/**
+ * ONE TOKEN BY NAME, AND IT THROWS RATHER THAN RETURNING `undefined`.
+ *
+ * The brand mark's three files are served without a stylesheet, so they carry literal hexes and
+ * have to look two tokens up by name. A lookup that can come back empty would let a renamed
+ * token ship an SVG with `fill="undefined"` — an invisible mark, a valid build and a green
+ * suite. Throwing turns that into a failed build, which is where a missing token belongs.
+ *
+ * It stays HERE rather than in `src/lib/brand-mark.ts` because that module authors the drawing
+ * and deliberately never chooses a colour: it takes `ink` and `track` from its caller, which is
+ * the whole reason one drawing can serve a CSS-variable inline SVG and two pinned files.
+ * `tests/brand-mark.test.ts` holds it to that with sentinel values.
+ */
+export function token(name: string): TokenValues {
+    const found = PALETTE.find((values) => values.token === name)
+    if (found) return found
+    throw new Error(
+        `src/lib/palette.ts found no token called "${name}" in ${THEME_SOURCE}. It was renamed `
+        + "or removed, and something that draws with it — the brand mark's files, most likely — "
+        + "has not been told.",
     )
 }

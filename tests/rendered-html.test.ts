@@ -1030,7 +1030,6 @@ describe("page content", () => {
     it("renders an aria-hidden icon for every icon migrated off emoji", () => {
         const migrated = [
             ...CAREER.map(({icon}) => iconClass(icon)),
-            iconClass(WELCOME.greeting_icon),
             iconClass(FOOTER.icon),
         ];
         for (const cls of migrated) {

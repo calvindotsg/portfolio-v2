@@ -593,7 +593,7 @@ describe("public/preview.jpg", () => {
     it("still depicts the content the intro card renders", () => {
         const depicted = JSON.stringify({
             lines: WELCOME.description,
-            greeting: WELCOME.greeting_icon,
+            mark: WELCOME.mark_label,
             wall: [PATCHES.heading, NEXT_RACE.icon],
             glyphs: LINKS.map(({logo}) => logo),
             portrait: createHash("sha256").update(readFileSync("src/assets/me.webp")).digest("hex"),

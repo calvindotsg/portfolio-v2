@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest";
 import {readFileSync} from "node:fs";
 import {parseHTML} from "linkedom";
 
-import {CAREER, NOW, WELCOME} from "../src/content/home";
+import {CAREER, NOW} from "../src/content/home";
 import {FOOTER, LINKS} from "../src/content/site";
 import {GOALS} from "../src/lib/goal";
 import {appliesAt, decl, isKeyframeStep, maxWidthOf, minWidthOf, pageCss, parseRules, type Rule, structuralSelector} from "./helpers/css";
@@ -301,7 +301,22 @@ describe("an inline icon is centred on its text's cap band", () => {
     const HERO_WALL_LINK_ICONS = 1;
     const EXPECTED_FLEX_HOSTED = LINKS.length + GOALS.length * FLEX_ICONS_PER_GOAL + TOGGLE_GLYPHS
         + HERO_WALL_LINK_ICONS + [NOW.explainer_icon].length;
-    const EXPECTED_INLINE_HOSTED = [WELCOME.greeting_icon, ...CAREER.map((c) => c.icon), FOOTER.icon].length;
+    /**
+     * THE GREETING IS NO LONGER IN THIS CENSUS, AND IT DID NOT MOVE GROUPS — IT LEFT.
+     *
+     * The `<h1>` used to open with `ri:open-arm-line`, a `presetIcons` mask on a `<span>`,
+     * which is exactly what this file is about: a mask box in a line of prose, needing the
+     * cap-band nudge to sit on the text's baseline. The brand mark that replaced it is an
+     * inline `<svg>`, so it is not a mask, carries no `--un-icon`, and none of the rules this
+     * file walks can reach it. Its own baseline treatment is asserted in
+     * `tests/brand-mark.test.ts`, where the thing being checked is the drawing rather than
+     * the mask machinery.
+     *
+     * So this count falls by one and NOTHING is added anywhere to compensate. Resist the
+     * pull to keep the total: the group is "icons this file's rules govern", and the mark is
+     * not one.
+     */
+    const EXPECTED_INLINE_HOSTED = [...CAREER.map((c) => c.icon), FOOTER.icon].length;
     const EXPECTED_ICONS = EXPECTED_FLEX_HOSTED + EXPECTED_INLINE_HOSTED;
 
     /**
@@ -592,7 +607,7 @@ describe("an inline icon is centred on its text's cap band", () => {
 
         // One per social link, one per goal bar, the two toggle glyphs and the Now
         // card's corner explainer, against
-        // the greeting, one per job title and the footer heart. Counted from the
+        // one per job title and the footer heart. Counted from the
         // data, because the interesting failure is an icon crossing from one group
         // to the other, which no per-element check would notice — and because a
         // content edit should not land in this file.
@@ -601,10 +616,13 @@ describe("an inline icon is centred on its text's cap band", () => {
         expect(inlineHosted().length, `inline-hosted icons: ${JSON.stringify(inlineHosted().map((i) => i.where))}`)
             .toBe(EXPECTED_INLINE_HOSTED);
 
-        // The greeting and both job titles are headings; the heart is not, and it is
-        // the one the reported instance did not include.
+        // The job titles are headings; the heart is not, and it is the one the reported
+        // instance did not include. THE GREETING USED TO BE HERE AND IS NOT ANY MORE: its
+        // `ri:open-arm-line` was replaced by the brand mark, an inline `<svg>` rather than a
+        // presetIcons mask, so it is not one of the icons this file walks at all. The count
+        // fell by one and nothing was added to hold the total — see EXPECTED_INLINE_HOSTED.
         expect(inlineHosted().filter(({el}) => /^H[1-6]$/.test(el.parentElement?.tagName ?? "")).length)
-            .toBe(1 + CAREER.length);
+            .toBe(CAREER.length);
 
         for (const icon of inlineHosted()) {
             for (const width of WIDTHS) {

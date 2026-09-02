@@ -1,6 +1,8 @@
 ---
+import BrandMark from "./BrandMark.astro";
 import Card from "./Card/index.astro";
 import {WELCOME} from "../content/home";
+import {markFill} from "../lib/brand-mark";
 import {PATCHES} from "../content/races";
 import {LINKS, METADATA} from "../content/site";
 import {iconClass} from "../lib/icons";
@@ -15,6 +17,19 @@ import portfolioImage from '../assets/me.webp'
  * first one shares its row with the theme control.
  */
 const [greeting, ...taglines] = WELCOME.description
+
+/*
+ * THE MARK IS 1.4x THE TEXT, AND THAT WAS MEASURED RATHER THAN TASTED. At `text-xl` a mark
+ * drawn at 1em puts each of the sunrise's five rays under 2px wide and they close up against
+ * the dome — the mark reads as a filled half-disc and the thing that makes it this mark is
+ * gone. 1.4em is where the fan survives in a run of text. It is chosen against a rendered
+ * ladder, and the cost is a slightly taller line box, which `<main>`'s height budget was
+ * measured against rather than assumed.
+ *
+ * The name prints the figure and says what it is a figure OF. That is the Data Visualization
+ * obligation discharged in the one placement that has room for it; see `WELCOME.mark_label`.
+ */
+const markLabel = WELCOME.mark_label.replace("{percent}", String(Math.round(markFill() * 100)))
 
 /*
  * THE QUIET CONTROLS ARE LAID OUT FOUR TO A ROW, AND THIS IS A GROUPING RATHER THAN A
@@ -183,7 +198,7 @@ const lastRowIsFull = linkRows[linkRows.length - 1].length >= PER_ROW
                     The preference is a quiet control and it now sits with the other quiet controls,
                     which is where a reader looks for it and where the vocabulary already puts it.
                 */}
-                <h1 class="m-0 font-light text-xl"><span class={iconClass(WELCOME.greeting_icon)} aria-hidden="true"></span> {greeting}</h1>
+                <h1 class="m-0 font-light text-xl"><BrandMark size="1.4em" label={markLabel}/> {greeting}</h1>
                 {taglines.map((item) => (<p class="m-0 font-light text-xl">{item}</p>))}
             </div>
             {/*
