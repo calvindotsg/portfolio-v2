@@ -1,4 +1,6 @@
 import {CONTROLS, DESIGN_PAGE, OMISSIONS, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design"
+import {MARK_GEOMETRY, SIZE_LADDER, markFill} from "./brand-mark"
+import {COMPONENT_TOKENS} from "./component-tokens"
 import {ICON_IDS, iconClass} from "./icons"
 import {PALETTE, valueIn} from "./palette"
 
@@ -181,6 +183,7 @@ function frontMatter(): string {
         `name: "${DESIGN_PAGE.heading}"`,
         `description: "${DESIGN_PAGE.description}"`,
         ...colorTokens(),
+        ...componentTokens(),
         "omitted:",
         ...OMISSIONS.flatMap(({section, reason}) => [
             `  - section: ${section}`,
@@ -189,6 +192,24 @@ function frontMatter(): string {
         ]),
         "---",
     ].join("\n")
+}
+
+/**
+ * THE `components` GROUP, IN THE POSITION THE FORMAT PUTS IT — after the value groups and before
+ * `omitted`, which is the order its own schema lists.
+ *
+ * NOTHING IS DECIDED HERE. `src/lib/component-tokens.ts` derives the map by asking UnoCSS what
+ * each kind of control resolves to; this function's whole job is to write it as YAML. Two levels
+ * of indent, because the group is a map of maps.
+ */
+function componentTokens(): string[] {
+    return [
+        "components:",
+        ...Object.entries(COMPONENT_TOKENS).flatMap(([name, tokens]) => [
+            `  ${name}:`,
+            ...Object.entries(tokens).map(([token, value]) => `    ${token}: "${value}"`),
+        ]),
+    ]
 }
 
 /**
@@ -361,6 +382,15 @@ const SECTION_BLOCKS: Partial<Record<keyof typeof SECTIONS, () => string>> = {
 export const AGENT_SECTIONS: readonly (keyof typeof SECTIONS)[] = ["palette", "controls", "icons"]
 
 export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
+    mark: "Dropped because that agent can FETCH it, which is true of no other section here. It "
+        + "is handed a bundle and builds screens; what it needs of the brand mark is the file, "
+        + "and the file is served — self-theming, in this palette, with its bar at whatever this "
+        + "year actually is. Every other section is guidance that only exists as prose, so "
+        + "dropping one loses the claim; dropping this one replaces a description of a drawing "
+        + "with the drawing. The one line kept in its place is the URL, which is the only part "
+        + "that document could not derive. What is lost is the argument for why the mark stands "
+        + "outside the rules about quantities — and that argument is aimed at somebody deciding "
+        + "whether to draw a bar this way, which is not what this reader is doing.",
     data: "The budget refused it outright, and the arithmetic is not close: the rendering had 134 "
         + "characters of headroom the day this section arrived and the section is an order of "
         + "magnitude larger than that. It is also the one section here whose subject that agent "
@@ -421,11 +451,22 @@ export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
  * intact under this system's own coinages — and a section added to `src/content/design.ts` needs no
  * edit here to reach this document correctly.
  *
- * WHY `Controls` IS NOT NAMED `Components`, which is the mapping a reader will reach for first.
- * Those are mountable things carrying property tokens; this site's component namespace is empty by
- * construction — the source is Astro and nothing mounts — and the front matter above declares that
- * group omitted for exactly that reason. Claiming the name would assert something this same
- * document denies two screens earlier.
+ * WHY `Controls` IS NOT NAMED `Components`, WHICH IS NOW A NARROWER CLAIM THAN IT WAS. The front
+ * matter above PUBLISHES a `components` group — derived in `src/lib/component-tokens.ts` from what
+ * UnoCSS resolves each kind of control to — so the old reason is gone with the omission it
+ * defended. What remains is that a heading and a token group are two different things: this
+ * section is prose about which kind to reach for and why, and renaming it `Components` would put
+ * a second, differently-shaped answer under the format's own word for the group thirty lines
+ * above. `Controls` is also already the common term for what this holds, which is the test every
+ * other heading here is chosen by.
+ *
+ * THE RETRACTED OMISSION SAID SOMETHING TRUE ABOUT A DIFFERENT QUESTION, and the sentence is worth
+ * keeping because it is the one a future reader will reach for when re-adding it. It said the
+ * source is Astro, components compile to a server render, nothing mounts, so the namespace is
+ * empty by construction. That is a fact about the EXPORTED BUNDLE — which really does hand a
+ * design agent a stylesheet and no mountable anything — and this file is where that class of claim
+ * lives, in the agent rendering's own opening line. The format's group has no notion of mounting;
+ * it is a map of style tokens, and this site has kinds of control with real ones.
  *
  * IT IS A CLAIM ABOUT SOMEBODY ELSE'S FORMAT AND IT WILL GO STALE. Stamped against
  * `@google/design.md` v0.4.0, whose `spec` subcommand prints the canonical list on demand. Re-read
@@ -593,7 +634,7 @@ function renderAgent(): string {
         // controls" while the type section was still here; the budget took that section, so the
         // sentence had to follow it or the document would open by promising a heading it does
         // not have.
-        "**Colors, controls and marks; no components** — the source is Astro, so nothing mounts.",
+        "**Colors, controls and marks** — the source is Astro, so there is nothing to mount.",
         "The token table and the class list are complete; every other list is a guardrail.",
         "",
         themingBlock(),
@@ -623,10 +664,51 @@ function renderAgent(): string {
         "",
         `${marks().length} marks ship and no others, each a \`.i-\` class sized with \`font-size\`.`,
         "",
+        // THE MARK SECTION IS DROPPED AND THIS LINE IS WHAT STANDS IN ITS PLACE — the one part
+        // of it this reader cannot derive. Everything else that section says is an argument
+        // aimed at somebody deciding whether to draw a bar this way; this audience is handed a
+        // bundle and needs the file. `AGENT_DROPS.mark` carries the reasoning.
+        "The brand mark is a file: fetch `/brand/mark.svg`, never redraw it.",
+        "",
     ].join("\n")
 }
 
 /** @see DocAudience for what each rendering may say, and the header for what each one drops. */
 export function renderDesignDoc(audience: DocAudience): string {
     return audience === "full" ? renderFull() : renderAgent()
+}
+
+/**
+ * THE TOKEN GROUPS AS JSON, WHICH IS THE SAME DOCUMENT FOR A READER THAT DOES NOT PARSE YAML.
+ *
+ * `design_tokens.json` is the filename the DESIGN.md format's own examples put beside a
+ * `DESIGN.md`, so a tool that globs for it finds this one. That is the whole reason it is not
+ * called something more descriptive: the name IS the discovery mechanism, the way `llms.txt` and
+ * `robots.txt` are.
+ *
+ * IT IS THE COMMITTED FILE AND THE SERVED ROUTE, BYTE-IDENTICAL, from this one function — the
+ * arrangement `DESIGN.md` and `/design.md` already have, for the reason written above them: two
+ * renderers producing the same document is two documents waiting to disagree, and the
+ * disagreement would be invisible because each would still match its own copy.
+ *
+ * IT CARRIES `MARK_GEOMETRY`, WHICH THE FRONT MATTER DELIBERATELY DOES NOT. The format's
+ * component property tokens are a fixed set of colours and dimensions; a viewBox, five ray angles
+ * and an arc command are none of those, and putting them under `components` would be claiming a
+ * schema for something the schema has no word for. Here there is no schema to violate, and the
+ * figures are what a consumer needs to lay the mark out without parsing an SVG — which is the one
+ * thing `/brand/mark.svg` does not give them.
+ *
+ * TWO SPACES AND A TRAILING NEWLINE, because this file is committed and read in diffs.
+ */
+export function renderDesignTokens(): string {
+    return `${JSON.stringify({
+        name: DESIGN_PAGE.heading,
+        description: DESIGN_PAGE.description,
+        colors: Object.fromEntries(THEMING.themes.flatMap((theme) =>
+            PALETTE.map((values) =>
+                [`${theme}-${values.token.replace(/^--/, "")}`, valueIn(values, theme)] as const))),
+        components: COMPONENT_TOKENS,
+        brandMark: {geometry: MARK_GEOMETRY, sizes: SIZE_LADDER, fill: markFill()},
+        omitted: OMISSIONS,
+    }, null, 2)}\n`
 }

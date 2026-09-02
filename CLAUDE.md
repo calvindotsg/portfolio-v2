@@ -178,11 +178,15 @@ block above it before giving either consumer the other's list.
 
 ### Styling System
 - **UnoCSS**: Atomic CSS. `uno.config.ts` holds the icon safelist, the
-  `blocklist`, **six shortcuts**, the presets, and a `theme` key holding **only**
-  the five breakpoints. Those are presetWind3's own defaults restated in `rem`,
-  which is load-bearing rather than cosmetic — see the note there. No colour or
-  shadow token lives in `theme`; those are CSS custom properties in
-  `BasicLayout.astro`
+  `blocklist`, the presets, and a `theme` key holding **only** the five
+  breakpoints. Those are presetWind3's own defaults restated in `rem`, which is
+  load-bearing rather than cosmetic — see the note there. No colour or shadow
+  token lives in `theme`; those are CSS custom properties in `BasicLayout.astro`.
+  **The **six shortcuts** live in `src/lib/shortcuts.ts`**, with the prose that
+  says what each one is for, because that object stopped having one reader: the
+  engine composes them and `src/lib/component-tokens.ts` publishes what each one
+  resolves to. That is the `ICON_IDS` rule applied to the other census this
+  repository keeps — one home, two consumers
 - **The shortcuts are the site's kinds of control, and they come in TWO WORLDS
   divided by loudness rather than by page.** THE RULE IS ONE SENTENCE: **the plate
   is spent on a card's SINGLE ACTION and on nothing else**; everything that is
@@ -228,6 +232,41 @@ block above it before giving either consumer the other's list.
   signifier in the bib's own idiom — a mark, an imperative label at the bib's emphatic
   weight, and the perforation the stub is drawn with — rather than as a text link. It
   was TWO exemptions until every destination became a stub line
+- **THE SITE HAS A BRAND MARK AND IT IS NOT AN ICON.** A sunrise over a two-tone
+  bar, authored as geometry in `src/lib/brand-mark.ts` — the only module in `src/`
+  that writes a number of its own — and drawn from tokens `src/lib/palette.ts`
+  reads out of the layout. Between the two, nothing about the mark is written down
+  twice, and `markSvg` NEVER CHOOSES A COLOUR: its caller supplies `ink` and
+  `track`, which is what lets one drawing serve the inline form that re-tones with
+  the theme and the three files under `/brand/` that cannot. **Its bar is LIVE**,
+  filled to the average of the two goals' own fractions — not the sum of kilometres
+  over the sum of targets, which is the cycling goal with a rounding error attached.
+  It goes in FOUR places and each is a different job: the intro card's `<h1>`, at
+  `1.4em` because at `1em` the rays close against the dome; the favicon; the hero,
+  which arrives free because that is a render of the card; and `/design`'s specimen.
+  It does NOT go in the page header, the 404 or the footer — the first two draw
+  their control's own signifier and the third is an attribution, so putting identity
+  there adds a thing to press that does nothing
+- **The mark's bar is the one drawing that stands OUTSIDE the Data Visualization
+  rules, and the design system says so rather than quietly contradicting itself.**
+  Those rules require that a bar name its scale in words the reader meets first;
+  a browser tab has room for none. So the Brand Mark section names the exception,
+  the Data Visualization section carries one sentence pointing at it, and neither
+  restates the other. The argument only holds because every placement WITH room
+  takes the caption: the intro card's mark prints the figure and its scale in its
+  accessible name, and the specimen names both regions. `public/favicon.ico` is the
+  one placement whose fill cannot move — an `.ico` is a raster and this build has no
+  rasteriser — so it is frozen at the designed proportion and documented as frozen
+- **The `components` token group is PUBLISHED, and the omission it replaces was
+  true about a different question.** That reason said the source is Astro, nothing
+  mounts, so the namespace is empty by construction — which is a fact about the
+  EXPORTED BUNDLE and keeps its home in `src/lib/design-doc.ts`. The DESIGN.md
+  format's group has no notion of mounting: it is a map of style tokens, and
+  `src/lib/component-tokens.ts` derives it by asking UnoCSS what each kind of
+  control resolves to. **Which kinds get published is derived too** — a shortcut
+  whose name another shortcut composes is a BASE, reaches no element and no
+  stylesheet, and is refused. `typography`, `spacing` and `rounded` stay omitted,
+  because those are scales this site genuinely does not have
 - **A hover style must need a pointer to produce it.** A touch browser applies
   `:hover` on tap and holds it until the reader taps elsewhere, so every `hover:`
   utility is emitted inside `@media (hover: hover)` by the `hover-needs-a-pointer`
@@ -456,11 +495,15 @@ The entries below are the ones carrying non-obvious constraints:
 - `WELCOME`, and everything else the intro card renders: **`public/preview.jpg` is a render
   of that card**, and it is both README's hero and the site's `og:image`. Nothing builds it,
   so it went stale invisibly twice. `tests/content.test.ts` now fingerprints what the card
-  depicts — the h1 stack, the greeting mark, the link out to the wall, the social glyphs in
-  order and the portrait's bytes — so editing any of them reddens the suite until the hero is
+  depicts — the h1 stack, the brand mark's accessible name, the link out to the wall, the
+  social glyphs in order and the portrait's bytes — so editing any of them reddens the suite
+  until the hero is
   regenerated. **The recipe is beside that gate**, and it is acceptance criteria rather than
   advice: a regeneration that cannot reproduce the composition is recomposing the hero. A
-  restyle still slips past, because the fingerprint watches the copy rather than the drawing
+  restyle still slips past, because the fingerprint watches the copy rather than the drawing.
+  **There is no `greeting_icon` any more** — the brand mark replaced `ri:open-arm-line`, and
+  `mark_label` is what took its place in `WELCOME`: the accessible name, carrying the figure
+  and its scale, which is the Data Visualization obligation discharged where there is room
 - `CAREER[0].job_name`: the site's only record of the current job. Most surfaces derive from
   it; `README.md`'s lede and `public/resume.pdf` are typed copies, and one of them has been
   wrong before. The README is gated — including against a title from further down the list,

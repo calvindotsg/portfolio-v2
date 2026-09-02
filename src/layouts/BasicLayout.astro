@@ -170,7 +170,28 @@ const schema = {
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width"/>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+    {/*
+        THE ORDER OF THESE TWO IS LOAD-BEARING, AND SO IS THE `sizes` ON THE FIRST ONE.
+
+        Two mechanisms decide which icon a browser takes, and this pair satisfies both. One
+        prefers a VECTOR when it is offered one, and `sizes` is what marks the `.ico` as the
+        bitmap so that preference can see the difference; the other simply takes the LAST
+        declaration it can use. Getting this backwards is not a cosmetic mistake — it ships the
+        frozen raster to every browser that could have had the live mark, and looks correct in
+        whichever browser you happen to check.
+
+        Do NOT gate the source order in a test. What matters is the icon a browser RESOLVES,
+        and a grep over the order would lock in whichever answer was written first; the
+        resolved-icon check belongs in a driver that actually loads the page.
+
+        `/favicon.ico` IS THE ONE PLACEMENT WHOSE BAR CANNOT BE LIVE. An `.ico` is a raster,
+        and regenerating one at build time needs a rasteriser this build has no other reason to
+        carry. It is drawn once at the designed proportion and kept as the legacy fallback —
+        documented as fixed rather than left to look stale — and `/design`'s Brand Mark section
+        says so where a reader will meet it.
+    */}
+    <link rel="icon" href="/favicon.ico" sizes="32x32"/>
+    <link rel="icon" type="image/svg+xml" href="/brand/mark.svg"/>
     <meta name="generator" content={Astro.generator}/>
     <meta name="build-date" content={BUILD_DATE}/>
     <title>{title}</title>
@@ -663,8 +684,11 @@ const schema = {
     main > *:nth-child(8) { animation-delay: 0.56s; }
     /* The ninth rung arrived with the design system's eighth section: `/design` renders one
        grid item per section plus its index row, so a section published there is a child of
-       `main` and the ladder has to reach it. The gate above is what noticed. */
+       `main` and the ladder has to reach it. The gate above is what noticed. The tenth came
+       the same way, with the Brand Mark section — which is the ladder working as designed
+       rather than a thing to be tidied: publishing a section is what lengthens this list. */
     main > *:nth-child(9) { animation-delay: 0.64s; }
+    main > *:nth-child(10) { animation-delay: 0.72s; }
 
     /*
      * THE WALL'S BIBS TAKE THE SAME ENTRANCE, AND THAT IS THE WHOLE POINT OF PUTTING IT
@@ -684,20 +708,22 @@ const schema = {
      * because the count moves with the calendar, and a hand-written ladder that has to be
      * extended when data is added is the exact defect the gate above exists to catch.
      *
-     * THE CEILING IS SHARED, NOT COPIED. `min(var(--i), 8)` makes bib 9 and every bib
-     * after it land on 0.64s — the same instant the LAST RUNG above lands — so the two
-     * pages cannot drift into different total durations as races are added. Thirteen bibs
-     * at an uncapped 0.08s would run for 1.04s, which is a page loading slowly rather than
-     * a page arriving.
+     * THE CEILING IS SHARED, NOT COPIED. `min(var(--i), 9)` makes bib 10 and every bib
+     * after it land on the same instant the LAST RUNG above lands, so the two pages cannot
+     * drift into different total durations as races are added. Thirteen bibs at an uncapped
+     * 0.08s would run for 1.04s, which is a page loading slowly rather than a page arriving.
      *
-     * THE CAP IS THE LADDER'S LAST RUNG AND MOVES WITH IT. It was `min(var(--i), 7)` against
-     * an eight-rung ladder; a ninth rung was added for `/design`'s eighth section and the cap
-     * had to follow, because the gate asserts the product rather than the literal — which is
-     * exactly what stops the two arriving at different times.
+     * THE CAP IS THE LADDER'S LAST RUNG AND MOVES WITH IT, AND IT HAS NOW MOVED TWICE FOR THE
+     * SAME REASON. It was `min(var(--i), 7)` against an eight-rung ladder; publishing an
+     * eighth design-system section added a ninth rung, and publishing the Brand Mark section
+     * added a tenth. Each time the cap followed, because the gate asserts the PRODUCT rather
+     * than the literal — which is exactly what stops the two pages arriving at different
+     * times. It reads as an odd coupling, a section on `/design` lengthening the wall's
+     * cascade by 80ms, and it is the coupling working: there is one entrance on this site.
      */
     .bib-cell {
         animation: card-in 0.4s ease-out backwards;
-        animation-delay: calc(min(var(--i), 8) * 0.08s);
+        animation-delay: calc(min(var(--i), 9) * 0.08s);
     }
 
     /*

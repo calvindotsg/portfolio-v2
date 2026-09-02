@@ -175,6 +175,59 @@ export const TOKEN_ROLES: readonly {token: string, role: string}[] = [
  * put a second home under a value the config already owns. The page draws the real thing
  * beside each of these, so a reader gets the measurement by looking at it.
  */
+/**
+ * WHAT EACH REGION OF THE BRAND MARK'S BAR IS, IN WORDS.
+ *
+ * This is the Data Visualization section's own requirement — "say what a bar is measured
+ * against, in words the reader meets before the bars" — discharged in the one placement of the
+ * mark that has room for words. The Brand Mark section argues that the mark stands OUTSIDE
+ * those rules because a browser tab has room for none; that argument is only honest if the
+ * page which does have room says it anyway.
+ *
+ * It is a list of TOKENS rather than of colours, so `/design` reads each value out of the
+ * stylesheet the way every other swatch on that page does and nothing here is a second home
+ * for one.
+ */
+export const MARK_REGIONS: readonly {token: string, says: string}[] = [
+    {
+        token: "--brand-ink",
+        says: "The part of this year that has been ridden and run — the two goals' own "
+            + "fractions, averaged so a strong year in the shorter sport is visible rather "
+            + "than rounded away by the longer one.",
+    },
+    {
+        token: "--progress-track",
+        says: "The whole year, which is what the filled part is measured against. It is the "
+            + "quieter of the pair in both themes, so the region that stands further from the "
+            + "ground is always the one that has been earned.",
+    },
+]
+
+/**
+ * THE CAPTION UNDER EACH STEP OF THE MARK'S SIZE LADDER, and it lives in this module for a
+ * reason that has nothing to do with copy.
+ *
+ * UnoCSS extracts from the text of `.astro` files and NOT from `.ts` ones. Writing the unit
+ * inline on `/design` — `{`${size}px`}` — puts the bare token `px` in a scanned file, the
+ * engine emits a `.px` rule, no element wears it, and the orphan gate in
+ * `tests/build-output.test.ts` fails the DEPLOY. It is the same trap the `blocklist` in
+ * `uno.config.ts` exists for, with a cheaper answer available: a string here is invisible to
+ * the extractor, so the unit reaches the page without the engine ever seeing the word.
+ *
+ * `{size}` is substituted with each step of the ladder, which the page reads from
+ * `src/lib/brand-mark.ts`. No size is written down here.
+ */
+export const MARK_SIZE_LABEL = "{size}px"
+
+/**
+ * The sentence that prints the figure. `{percent}` is substituted by the page from the same
+ * function the mark itself is drawn from, so the words and the drawing cannot disagree.
+ */
+export const MARK_READING = "The bar on every mark above is at {percent}% today, and it moves "
+    + "with the kilometres rather than with a redraw. The one exception is the icon file the "
+    + "oldest browsers fall back to, which is a raster frozen at the proportion the mark was "
+    + "designed at."
+
 export const CONTROLS: readonly {name: string, role: string}[] = [
     {
         name: "control-cta",
@@ -266,7 +319,7 @@ export const CONTROLS: readonly {name: string, role: string}[] = [
  * vocabulary — it costs only the assumption that a reader already knows it.
  */
 export const SECTIONS: Readonly<Record<
-    "palette" | "type" | "controls" | "icons" | "data" | "states" | "words" | "access", {
+    "palette" | "type" | "mark" | "controls" | "icons" | "data" | "states" | "words" | "access", {
     heading: string
     lede: string
     does: readonly string[]
@@ -308,6 +361,31 @@ export const SECTIONS: Readonly<Record<
             "Introduce a decorative or display face. There is no webfont to pair one with.",
             "Invent an intermediate step because something is a little too big.",
             "Pin a height in pixels. Text that grows then clips instead of pushing.",
+        ],
+    },
+    mark: {
+        heading: "Brand Mark",
+        lede: "A sunrise over a bar, and the bar is not ornament: it is filled to how far this "
+            + "year's two goals have come, averaged, so the mark moves as the year does. That "
+            + "makes it the one drawing here the rules below about quantities do not govern. "
+            + "Those rules ask that a bar name its scale in words the reader meets first, and "
+            + "the smallest place this mark appears is a browser tab, which has room for no "
+            + "words at all — so it is an identity device whose proportion happens to be "
+            + "measured, rather than a quantity offered for reading. Where there IS room to say "
+            + "so, it is said: the mark in the home page's own heading carries the figure and "
+            + "its scale in its accessible name. One drawing serves every size below. The rays "
+            + "are its thinnest ink and are the first thing to close against the dome as the box "
+            + "shrinks; at the smallest step they are barely ink at all, and that is accepted "
+            + "rather than answered with a second drawing to keep in step.",
+        does: [
+            "Fetch the mark rather than redrawing it. /brand/mark.svg carries its own dark-mode block and is what a browser should be pointed at; the pinned light and dark files beside it are for a consumer that cannot evaluate CSS at all.",
+            "Draw it in {colors.light-brand-ink} over {colors.light-progress-track}, which is the one place this palette's brand ink is spent on identity rather than on a flourish.",
+            "Let it take its size from the font-size of whatever contains it, the way every mark here is sized, so it grows with the reader's text instead of being pinned beside it.",
+        ],
+        donts: [
+            "Recolor it. The ink token is the only one carrying this mark in both themes, so any other choice is a different mark in one of them — and {colors.light-accent} in particular would claim the mark is interactive.",
+            "Draw it where a control's own mark belongs. The way back in a page header, and the way home on a missing page, are their control's signifier; identity is not, and putting it there adds a thing to press that does nothing.",
+            "Take /favicon.ico as the live mark or redraw the mark from the geometry printed here. That file is a raster fallback, frozen at the proportion the mark was designed at; the geometry is published so a consumer can lay the mark out, not so the drawing can be retyped and quietly stop agreeing with this year.",
         ],
     },
     controls: {
@@ -357,7 +435,9 @@ export const SECTIONS: Readonly<Record<
             + "how much of a year's goal is banked. A SERIES is drawn many times and measured "
             + "against its own largest member, so the lengths are comparable to each other and "
             + "to nothing outside the set: that is what makes a ramp, a taper and a gap visible, "
-            + "and it is the one thing a grid of cards cannot show however the cards are sorted.",
+            + "and it is the one thing a grid of cards cannot show however the cards are sorted. "
+            + "The brand mark's bar is the one drawing this section does not govern, and the "
+            + "Brand Mark section says why.",
         does: [
             "Say what a bar is measured against, in words the reader meets before the bars. A length means nothing until the scale is named, and a target and the largest value in the set are two different pictures drawn identically.",
             "Give the marked region more contrast against the surface than the unmarked remainder has. Whichever region stands further from the ground is the one a reader takes for the mark, so a bar drawn the other way round reads as full when it is empty.",
@@ -465,11 +545,5 @@ export const OMISSIONS: readonly {section: string, reason: string}[] = [
         section: "rounded",
         reason: "One radius, worn by the controls, and one two-pixel corner that is a bib's mark "
             + "rather than a measurement. Neither is a scale.",
-    },
-    {
-        section: "components",
-        reason: "The site is built in Astro, whose components compile to a server render and have "
-            + "no runtime form, so there is nothing to mount and the component namespace is empty "
-            + "by construction. Build with plain elements and the named classes below.",
     },
 ]

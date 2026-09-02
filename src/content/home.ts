@@ -188,10 +188,30 @@ export const ABOUT_ME: {
  * recipe sits beside it. A restyle still slips through — the gate watches the copy, not the drawing.
  */
 export const WELCOME: {
-    greeting_icon: string
+    /**
+     * THE BRAND MARK'S ACCESSIBLE NAME, and the one placement where the mark's bar has a
+     * reader who can be told what it measures. `{percent}` is substituted with the live
+     * figure by the card.
+     *
+     * That substitution is why this string exists at all rather than the mark being
+     * `aria-hidden` like every other decoration. `/design`'s Brand Mark section argues that
+     * the mark stands outside this system's Data Visualization rules — "say what a bar is
+     * measured against; print the number as well" — BECAUSE a favicon has 16 pixels and no
+     * room for a caption. That argument only holds if the mark takes the caption wherever
+     * there IS room, and here there is: a name is not competing for space with anything.
+     *
+     * There is no `greeting_icon` any more. It was a stock Remix glyph of a figure with its
+     * arms out — a mark that said nothing this site owns. The brand mark replaces it, and the
+     * census in `src/lib/icons.ts` fell by one. THE OLD ID IS DELIBERATELY NOT WRITTEN HERE:
+     * that the retired glyph's name appears nowhere under `src/` is one of this change's own
+     * acceptance criteria, and a comment naming it is exactly what would keep it alive — a
+     * grep does not care that the only remaining hit is a note explaining its own absence.
+     */
+    mark_label: string
     description: string[]
 } = {
-    greeting_icon: "ri:open-arm-line",
+    mark_label: "Calvin's mark — its bar is {percent}% full, the average of this year's "
+        + "cycling and running goals",
     description: ["Hi, I'm Calvin", `${CAREER[0].job_name}.`, "Road cyclist."]
 }
 

@@ -34,6 +34,34 @@ colors:
   dark-sport-ride-on-ink: "#A82334"
   dark-sport-run: "#9FC0F0"
   dark-sport-run-on-ink: "#1F4E9C"
+components:
+  control-cta:
+    backgroundColor: "{colors.light-background}"
+    textColor: "{colors.light-text}"
+    rounded: "0.5rem"
+    height: "3rem"
+    width: "100%"
+    padding: "0.25rem 0.75rem"
+  text-link:
+    textColor: "{colors.light-text}"
+  chip:
+    backgroundColor: "{colors.light-background}"
+    textColor: "{colors.light-text}"
+    rounded: "2px"
+    height: "2.75rem"
+    width: "2.75rem"
+    padding: "0.3rem 0.7rem"
+  chip-icon:
+    backgroundColor: "{colors.light-background}"
+    textColor: "{colors.light-text}"
+    rounded: "2px"
+    height: "2.75rem"
+    width: "2.75rem"
+  brand-mark:
+    height: "120px"
+    width: "120px"
+    textColor: "{colors.light-brand-ink}"
+    backgroundColor: "{colors.light-progress-track}"
 omitted:
   - section: typography
     reason: >-
@@ -49,11 +77,6 @@ omitted:
     reason: >-
       One radius, worn by the controls, and one two-pixel corner that is a bib's mark
       rather than a measurement. Neither is a scale.
-  - section: components
-    reason: >-
-      The site is built in Astro, whose components compile to a server render and have no
-      runtime form, so there is nothing to mount and the component namespace is empty by
-      construction. Build with plain elements and the named classes below.
 ---
 
 # How this site is drawn
@@ -130,6 +153,22 @@ Don't:
 - Invent an intermediate step because something is a little too big.
 - Pin a height in pixels. Text that grows then clips instead of pushing.
 
+## Brand Mark
+
+A sunrise over a bar, and the bar is not ornament: it is filled to how far this year's two goals have come, averaged, so the mark moves as the year does. That makes it the one drawing here the rules below about quantities do not govern. Those rules ask that a bar name its scale in words the reader meets first, and the smallest place this mark appears is a browser tab, which has room for no words at all — so it is an identity device whose proportion happens to be measured, rather than a quantity offered for reading. Where there IS room to say so, it is said: the mark in the home page's own heading carries the figure and its scale in its accessible name. One drawing serves every size below. The rays are its thinnest ink and are the first thing to close against the dome as the box shrinks; at the smallest step they are barely ink at all, and that is accepted rather than answered with a second drawing to keep in step.
+
+Do:
+
+- Fetch the mark rather than redrawing it. /brand/mark.svg carries its own dark-mode block and is what a browser should be pointed at; the pinned light and dark files beside it are for a consumer that cannot evaluate CSS at all.
+- Draw it in {colors.light-brand-ink} over {colors.light-progress-track}, which is the one place this palette's brand ink is spent on identity rather than on a flourish.
+- Let it take its size from the font-size of whatever contains it, the way every mark here is sized, so it grows with the reader's text instead of being pinned beside it.
+
+Don't:
+
+- Recolor it. The ink token is the only one carrying this mark in both themes, so any other choice is a different mark in one of them — and {colors.light-accent} in particular would claim the mark is interactive.
+- Draw it where a control's own mark belongs. The way back in a page header, and the way home on a missing page, are their control's signifier; identity is not, and putting it there adds a thing to press that does nothing.
+- Take /favicon.ico as the live mark or redraw the mark from the geometry printed here. That file is a raster fallback, frozen at the proportion the mark was designed at; the geometry is published so a consumer can lay the mark out, not so the drawing can be retyped and quietly stop agreeing with this year.
+
 ## Controls
 
 Which kind to reach for is decided by what the control CONTAINS and by how loud it should be. The surface belongs to the kind rather than to all of them: the offset plate under an --accent hairline is the mark for a page's ONE action and is spent on nothing else, and a quiet hairline at a fraction of the ink is for chrome — getting somewhere, and setting a preference. So there is no plated box for a mark alone: an action names itself in words, and a control that is only a glyph is a member of a set or a preference, which is the quiet kind. Every specimen below is a working link to the page it names.
@@ -155,9 +194,9 @@ Don't:
 
 Every mark here is in the stylesheet because some page uses it, so the set grows with the site rather than ahead of it. Nothing outside this set is available: a class with no rule renders as a mask box at zero size, which is an absent icon with correct markup and a green build.
 
-These 20 ship and no others. Remix Icon (14):
+These 19 ship and no others. Remix Icon (13):
 
-`i-ri-arrow-left-line`, `i-ri-arrow-right-line`, `i-ri-file-list-3-line`, `i-ri-file-pdf-2-line`, `i-ri-heart-fill`, `i-ri-information-line`, `i-ri-markdown-line`, `i-ri-moon-line`, `i-ri-open-arm-line`, `i-ri-riding-line`, `i-ri-run-line`, `i-ri-search-line`, `i-ri-sun-line`, `i-ri-tools-line`.
+`i-ri-arrow-left-line`, `i-ri-arrow-right-line`, `i-ri-file-list-3-line`, `i-ri-file-pdf-2-line`, `i-ri-heart-fill`, `i-ri-information-line`, `i-ri-markdown-line`, `i-ri-moon-line`, `i-ri-riding-line`, `i-ri-run-line`, `i-ri-search-line`, `i-ri-sun-line`, `i-ri-tools-line`.
 
 Brand marks (6):
 
@@ -177,7 +216,7 @@ Don't:
 
 ## Data Visualization
 
-A quantity is drawn as a flat two-pixel stroke: a marked region over the remainder, and nothing else in the box. The same stroke answers two different questions, and which one it is answering is the whole of what a reader has to be told. A FRACTION is drawn once and measured against a target the design chose — how much of a year's goal is banked. A SERIES is drawn many times and measured against its own largest member, so the lengths are comparable to each other and to nothing outside the set: that is what makes a ramp, a taper and a gap visible, and it is the one thing a grid of cards cannot show however the cards are sorted.
+A quantity is drawn as a flat two-pixel stroke: a marked region over the remainder, and nothing else in the box. The same stroke answers two different questions, and which one it is answering is the whole of what a reader has to be told. A FRACTION is drawn once and measured against a target the design chose — how much of a year's goal is banked. A SERIES is drawn many times and measured against its own largest member, so the lengths are comparable to each other and to nothing outside the set: that is what makes a ramp, a taper and a gap visible, and it is the one thing a grid of cards cannot show however the cards are sorted. The brand mark's bar is the one drawing this section does not govern, and the Brand Mark section says why.
 
 Do:
 
@@ -254,6 +293,9 @@ reaches that reader not at all.
 - **Typography** — Carry hierarchy with size, weight and space, taken from the ramp as it stands.
 - **Typography** — Let the reader's own text size drive the layout: every breakpoint and every box here is sized in rem for exactly that reason.
 - **Typography** — Space sibling groups with a gap on a flex or grid parent.
+- **Brand Mark** — Fetch the mark rather than redrawing it. /brand/mark.svg carries its own dark-mode block and is what a browser should be pointed at; the pinned light and dark files beside it are for a consumer that cannot evaluate CSS at all.
+- **Brand Mark** — Draw it in {colors.light-brand-ink} over {colors.light-progress-track}, which is the one place this palette's brand ink is spent on identity rather than on a flourish.
+- **Brand Mark** — Let it take its size from the font-size of whatever contains it, the way every mark here is sized, so it grows with the reader's text instead of being pinned beside it.
 - **Controls** — Give every link a signifier a reader can perceive: an underline, a mark, or a border.
 - **Controls** — Let a labeled control wrap. Its width belongs to its container; its height belongs to its text.
 - **Controls** — Draw the press, and snap it. A tap is over long before a 300ms color ramp finishes, so a pressed state must not ease.
@@ -281,6 +323,9 @@ reaches that reader not at all.
 - **Typography** — Introduce a decorative or display face. There is no webfont to pair one with.
 - **Typography** — Invent an intermediate step because something is a little too big.
 - **Typography** — Pin a height in pixels. Text that grows then clips instead of pushing.
+- **Brand Mark** — Recolor it. The ink token is the only one carrying this mark in both themes, so any other choice is a different mark in one of them — and {colors.light-accent} in particular would claim the mark is interactive.
+- **Brand Mark** — Draw it where a control's own mark belongs. The way back in a page header, and the way home on a missing page, are their control's signifier; identity is not, and putting it there adds a thing to press that does nothing.
+- **Brand Mark** — Take /favicon.ico as the live mark or redraw the mark from the geometry printed here. That file is a raster fallback, frozen at the proportion the mark was designed at; the geometry is published so a consumer can lay the mark out, not so the drawing can be retyped and quietly stop agreeing with this year.
 - **Controls** — Reach for a surface class. control-surface and chip-surface are source-level shortcuts the boxes compose, nothing wears either directly, and neither is in the shipped stylesheet.
 - **Controls** — Draw a link exactly like the prose beside it.
 - **Controls** — Pin a control's height in pixels. The box is sized in rem so that it grows with the reader's text.

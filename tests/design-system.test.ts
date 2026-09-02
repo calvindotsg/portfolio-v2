@@ -5,6 +5,7 @@ import unoConfig from "../uno.config";
 import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../src/content/design";
 import {
     AGENT_DROPS, AGENT_SECTIONS, CANONICAL_SECTIONS, GUARDRAILS_HEADING, renderDesignDoc,
+    renderDesignTokens,
 } from "../src/lib/design-doc";
 import {ICON_IDS, iconClass} from "../src/lib/icons";
 import {PALETTE} from "../src/lib/palette";
@@ -155,6 +156,12 @@ const sectionLines = (section: typeof SECTIONS[keyof typeof SECTIONS]) =>
 const DESIGN_DOC = "DESIGN.md";
 
 /**
+ * The token groups as data, beside the spec. Same discovery argument as `DESIGN_DOC`: the name
+ * is what a tool globs for, so it is not this repository's to choose either.
+ */
+const TOKEN_DOC = "design_tokens.json";
+
+/**
  * THE BUDGET, AND IT IS NOT THIS REPOSITORY'S NUMBER.
  *
  * `.design-sync/conventions.md` is prepended to a generated README through the `readmeHeader`
@@ -302,6 +309,16 @@ describe("the design system this site publishes", () => {
 
     it("is the module, rendered in full — the repository's spec has no second author", async () => {
         await expect(renderDesignDoc("full")).toMatchFileSnapshot(`../${DESIGN_DOC}`);
+    });
+
+    /**
+     * THE TOKEN GROUPS AS DATA, HELD THE SAME WAY AND FOR THE SAME REASON. `design_tokens.json`
+     * is the filename the format's own examples put beside a `DESIGN.md`, so a tool that globs
+     * for one finds this — which makes it a committed generated file, which this repository
+     * allows only with a gate that fails when it and its source disagree.
+     */
+    it("is the module, rendered as data — the token file has no second author", async () => {
+        await expect(renderDesignTokens()).toMatchFileSnapshot(`../${TOKEN_DOC}`);
     });
 
     /**

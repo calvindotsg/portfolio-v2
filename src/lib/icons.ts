@@ -29,7 +29,7 @@
  * `src/data/races/index.ts`.
  */
 
-import {CAREER, NOW, WELCOME} from "../content/home"
+import {CAREER, NOW} from "../content/home"
 import {NEXT_RACE, PATCHES} from "../content/races"
 import {FOOTER, LINKS, MARKDOWN_TWIN, NOT_FOUND, PAGE_HEADER} from "../content/site"
 import {GOALS} from "./goal"
@@ -48,7 +48,6 @@ export const ICON_IDS: readonly string[] = [
     ...LINKS.map((l) => l.logo),
     ...GOALS.map((g) => g.goal_logo),
     ...CAREER.map((c) => c.icon),
-    WELCOME.greeting_icon,
     FOOTER.icon,
     NOW.explainer_icon,
     PAGE_HEADER.home_icon,

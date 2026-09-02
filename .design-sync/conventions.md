@@ -1,6 +1,6 @@
 # calvin.sg — building with this system
 
-**Colors, controls and marks; no components** — the source is Astro, so nothing mounts.
+**Colors, controls and marks** — the source is Astro, so there is nothing to mount.
 The token table and the class list are complete; every other list is a guardrail.
 
 ## Set data-theme, or nothing is styled
@@ -60,4 +60,6 @@ Don't:
 
 ## Iconography
 
-20 marks ship and no others, each a `.i-` class sized with `font-size`.
+19 marks ship and no others, each a `.i-` class sized with `font-size`.
+
+The brand mark is a file: fetch `/brand/mark.svg`, never redraw it.
