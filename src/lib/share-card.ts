@@ -431,6 +431,33 @@ function footer(session: Session, shading: Shading["shading"], ink: Ink, font: s
 }
 
 /**
+ * EVERY STRING THE CARD PRINTS, AS TEXT — the surface a leak gate must scan, and NOT the HTML.
+ *
+ * MEASURED, AND THE REASON THIS FUNCTION EXISTS AT ALL: scanning the rendered card refuses honest
+ * sessions. The card embeds a 1448-unit anatomical drawing, so its markup carries tens of
+ * thousands of path coordinates, and a protected-name list holding any short value matches one of
+ * them immediately — the first real run refused the invented specimen over two three-digit runs
+ * inside `d="…"`. Path data is not published prose. What a reader can read is this list.
+ *
+ * IT IS DERIVED FROM THE SAME PLACES THE DRAWING READS, so a field added to the card and not here
+ * would be a field the gate stops seeing. That is the one way this can go quietly wrong; the
+ * ordering below follows `cardHtml`'s own regions for exactly that reason.
+ */
+export function cardStrings(session: Session): string[] {
+    const program = programOf(session.code)
+    return [
+        WORDMARK,
+        program?.quote ?? "",
+        program === null ? PUBLISHER : `${PUBLISHER}, on ${program.name}`,
+        "worked",
+        "not worked",
+        PROVENANCE[workedBy(session).shading],
+        session.code,
+        session.progressionCounter,
+    ]
+}
+
+/**
  * THE CARD, AS ONE HTML STRING WITH EVERY STYLE INLINE.
  *
  * Inline rather than a stylesheet because the card has exactly two consumers and neither can use
