@@ -555,9 +555,27 @@ SKIP_BUILD=1 npx vitest run tests/design-system.test.ts
 
 Create `src/lib/component-tokens.ts`. It **derives**; it authors nothing:
 
+**The mechanism is SPIKED, not assumed — measured 2026-09-02 at `a1b8ee5`, and four of the
+five facts below are traps you would otherwise hit one at a time:**
+
+1. Import `createGenerator` from **`unocss`**, which is a direct devDependency. **Not from
+   `@unocss/core`** — that is transitive, and pnpm's strict layout fails the import with
+   `Cannot find package`. **No new dependency is needed**; do not add one.
+2. `createGenerator` is **async** in v66: `const uno = await createGenerator(cfg)`.
+3. **Strip `safelist` from the config before generating.** Otherwise every call emits the whole
+   icon layer — measured at 44 KB of `data:` URIs — and the shortcut's own rule is a needle in
+   it. Filter the result to lines containing `.${name}`.
+4. `generate(name, {preflights: false})` then yields exactly the properties this step maps,
+   **with `var(--token)` intact**, e.g. `.control-cta{min-height:3rem;…border-color:var(--accent);
+   border-radius:0.5rem;background-color:var(--background);padding-left:0.75rem;…}`. Lengths
+   arrive resolved (`3rem`, `0.5rem`, `2px`), which is the Dimension form the format wants.
+5. **Two parsing quirks**: `transition-duration` is emitted TWICE (150ms then 300ms — last
+   wins), and padding arrives as four longhands rather than a shorthand, so `padding` has to be
+   recombined rather than read off.
+
 - For each shortcut in `SHORTCUTS`, run the class name through UnoCSS's own generator
-  (`createGenerator` over the config), parse the emitted declarations, and map a fixed set of
-  CSS properties onto the spec's component property tokens: `background-color` →
+  (`createGenerator` over the config, per the spike above), parse the emitted declarations, and
+  map a fixed set of CSS properties onto the spec's component property tokens: `background-color` →
   `backgroundColor`, `color` → `textColor`, `border-radius` → `rounded`, `padding` →
   `padding`, `min-height` → `height`, `min-width` → `width`. A declaration whose value is
   `var(--x)` is emitted in the format's own reference syntax against the token the Colors
@@ -790,10 +808,10 @@ Stop and report back — do not improvise — if:
   claim to make room.
 - **The preview regeneration's changed box is taller than the `<h1>` line.** You are
   recomposing the hero rather than retaking it.
-- **`src/lib/component-tokens.ts` cannot import `uno.config.ts` without a cycle.**
-  `tests/design-system.test.ts:4` already imports it, so this should not happen — but if it
-  does, do not paper over it with a second copy of the shortcuts. The fallback is to derive
-  the values from the shipped sheet in the test and author them in the module under that gate.
+- **The generator spike in step 6 does not reproduce.** It was run and measured at `a1b8ee5`
+  (see step 6), so a failure means something moved. Do not paper over it with a second copy of
+  the shortcuts: the fallback is to derive the values from the shipped sheet in the test and
+  author them in the module under that gate.
 - **Retracting `components` breaks a DESIGN.md consumer.** Report the message rather than
   reinstating the omission with the old reason.
 
