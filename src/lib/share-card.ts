@@ -82,7 +82,9 @@ export type Shading = ShadedFromMovements | ShadedFromFormat
  * THREE OF THESE FIELDS ARE FREE PROSE OUT OF A PRIVATE SOURCE — `note`, `progressionNote` and
  * `intensity` — which is why `tests/share-card-redaction.test.ts` exists and why the renderer
  * refuses rather than scrubs. Anything a future editor types into one of those reaches a public
- * post. See `src/lib/redaction.ts`.
+ * post. The refusal lives in `scripts/render-share-card.ts`, on the path that renders REAL
+ * sessions, and deliberately not here: the `/design` specimen is invented and cannot leak, and a
+ * site build that required the protected-name list would fail on every machine without it.
  */
 export type Session = Shading & {
     /** The studio's own code. The join key back to a training week, and the ONLY fact on both surfaces. */
@@ -292,8 +294,13 @@ export const CARD_REGIONS = ["chip", "hero", "map", "footer"] as const
  */
 export const CHIP_CORNER = "top-right"
 
-/** The card's inner margin, and the gap between its four regions. */
-const PADDING_PX = 50
+/**
+ * THE CARD'S INNER MARGIN. Published because `src/lib/component-tokens.ts` derives the card's
+ * `padding` token from it; typing that figure there would be a second home for this one.
+ */
+export const CARD_PADDING_PX = 50
+
+/** The gap between the card's four regions. */
 const REGION_GAP_PX = 18
 
 /**
@@ -481,7 +488,7 @@ export function cardHtml(session: Session, options: {theme: string}): string {
         px: MAP_PX,
     })
     return `<div style="width:${CARD_PX}px;height:${CARD_PX}px;box-sizing:border-box;`
-        + `background:${ink.ground};padding:${PADDING_PX}px;display:flex;flex-direction:column;`
+        + `background:${ink.ground};padding:${CARD_PADDING_PX}px;display:flex;flex-direction:column;`
         + `gap:${REGION_GAP_PX}px;font-family:${font}">`
         + chip(ink, font)
         + hero(session, ink, font)

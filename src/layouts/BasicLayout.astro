@@ -686,9 +686,12 @@ const schema = {
        grid item per section plus its index row, so a section published there is a child of
        `main` and the ladder has to reach it. The gate above is what noticed. The tenth came
        the same way, with the Brand Mark section — which is the ladder working as designed
-       rather than a thing to be tidied: publishing a section is what lengthens this list. */
+       rather than a thing to be tidied: publishing a section is what lengthens this list.
+       The eleventh came with Share Cards, which is the third time and settles that this is
+       the mechanism rather than a coincidence: one rung per published section, forever. */
     main > *:nth-child(9) { animation-delay: 0.64s; }
     main > *:nth-child(10) { animation-delay: 0.72s; }
+    main > *:nth-child(11) { animation-delay: 0.80s; }
 
     /*
      * THE WALL'S BIBS TAKE THE SAME ENTRANCE, AND THAT IS THE WHOLE POINT OF PUTTING IT
@@ -708,22 +711,22 @@ const schema = {
      * because the count moves with the calendar, and a hand-written ladder that has to be
      * extended when data is added is the exact defect the gate above exists to catch.
      *
-     * THE CEILING IS SHARED, NOT COPIED. `min(var(--i), 9)` makes bib 10 and every bib
+     * THE CEILING IS SHARED, NOT COPIED. `min(var(--i), 10)` makes bib 11 and every bib
      * after it land on the same instant the LAST RUNG above lands, so the two pages cannot
      * drift into different total durations as races are added. Thirteen bibs at an uncapped
      * 0.08s would run for 1.04s, which is a page loading slowly rather than a page arriving.
      *
-     * THE CAP IS THE LADDER'S LAST RUNG AND MOVES WITH IT, AND IT HAS NOW MOVED TWICE FOR THE
-     * SAME REASON. It was `min(var(--i), 7)` against an eight-rung ladder; publishing an
-     * eighth design-system section added a ninth rung, and publishing the Brand Mark section
-     * added a tenth. Each time the cap followed, because the gate asserts the PRODUCT rather
+     * THE CAP IS THE LADDER'S LAST RUNG AND MOVES WITH IT, AND IT HAS NOW MOVED THREE TIMES FOR
+     * THE SAME REASON. It was `min(var(--i), 7)` against an eight-rung ladder; publishing an
+     * eighth design-system section added a ninth rung, the Brand Mark section added a tenth, and
+     * Share Cards added an eleventh. Each time the cap followed, because the gate asserts the PRODUCT rather
      * than the literal — which is exactly what stops the two pages arriving at different
      * times. It reads as an odd coupling, a section on `/design` lengthening the wall's
      * cascade by 80ms, and it is the coupling working: there is one entrance on this site.
      */
     .bib-cell {
         animation: card-in 0.4s ease-out backwards;
-        animation-delay: calc(min(var(--i), 9) * 0.08s);
+        animation-delay: calc(min(var(--i), 10) * 0.08s);
     }
 
     /*

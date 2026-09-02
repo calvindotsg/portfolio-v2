@@ -65,6 +65,13 @@
       "width": "120px",
       "textColor": "{colors.light-brand-ink}",
       "backgroundColor": "{colors.light-progress-track}"
+    },
+    "share-card": {
+      "height": "1080px",
+      "width": "1080px",
+      "padding": "50px",
+      "backgroundColor": "{colors.light-background}",
+      "textColor": "{colors.light-text}"
     }
   },
   "brandMark": {

@@ -416,6 +416,15 @@ export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
         + "is called, which word separates two states that share a treatment. The reader who needs "
         + "them is a person naming things in this interface, and that reader has `/design` and the "
         + "full spec.",
+    card: "Dropped on merit rather than on arithmetic, and it costs this rendering nothing to "
+        + "drop — `AGENT_SECTIONS` is an allowlist, so a section that is not on it was never "
+        + "being rendered and declaring the drop only records the decision. That agent is handed "
+        + "a token bundle and asked for screens; it does not make off-site raster artifacts, and "
+        + "every constraint in this section is a fact about somebody else's feed — a container "
+        + "that crops a portrait, a chip drawn over the top-left corner, a third-of-size reading "
+        + "distance, an absence of alt text. None of that is true of a screen. The one line that "
+        + "would generalize is the disjointness rule, and that reader has one surface, so it has "
+        + "nothing to be disjoint from.",
     access: "The budget refused it, and it is the cheapest of the three by measurement — so it is "
         + "SECOND in the re-add queue and the one to try first if room appears. What is lost is "
         + "worth naming: a forced-colours mode replacing every colour, and a reading order that "

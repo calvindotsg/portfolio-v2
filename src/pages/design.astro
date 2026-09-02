@@ -2,12 +2,14 @@
 import Layout from "../layouts/BasicLayout.astro";
 import Card from "../components/Card/index.astro";
 import BrandMark from "../components/BrandMark.astro";
-import {CONTROLS, DESIGN_PAGE, MARK_READING, MARK_REGIONS, MARK_SIZE_LABEL, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
+import {CARD_SPECIMEN_CAPTION, CONTROLS, DESIGN_PAGE, MARK_READING, MARK_REGIONS, MARK_SIZE_LABEL, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
 import {NEXT_RACE, PATCHES} from "../content/races";
+import {SPECIMEN} from "../data/bft/specimen";
 import {GOALS} from "../lib/goal";
 import {SIZE_LADDER, markFill, markSvg} from "../lib/brand-mark";
 import {ICON_IDS, iconClass} from "../lib/icons";
 import {PALETTE, valueIn} from "../lib/palette";
+import {CARD_PX, cardHtml} from "../lib/share-card";
 
 /*
  * THE SITE, DESCRIBING ITSELF WITH ITSELF. Every specimen on this page is the real thing:
@@ -85,6 +87,22 @@ const UNIT = MARK_SIZE_LABEL.replace("{size}", "");
 const MARKS = [...new Set(ICON_IDS.map(iconClass))].sort();
 
 const SECTION_KEYS = Object.keys(SECTIONS) as (keyof typeof SECTIONS)[];
+
+/*
+ * THE SHARE CARD SPECIMEN, DRAWN BY THE SAME FUNCTION THAT DRAWS THE POSTED ONES.
+ *
+ * It is the artifact rather than a picture of it: real markup, real tokens, at its true 1080px,
+ * scaled by the frame below. `src/data/bft/specimen.ts` is invented in full and says so in its
+ * first sentence; `CARD_SPECIMEN_CAPTION` is what tells a reader, since this page opens by
+ * claiming everything on it is real and this is the one exception.
+ *
+ * THE LIGHT THEME, NOT THE READER'S. Every other specimen here re-tones with the page because
+ * every other specimen is drawn by the live stylesheet. A card is a raster artifact posted to
+ * somebody else's platform: one is made, it is the light one, and it stays that colour wherever
+ * it is looked at. Drawing a dark twin would advertise a card nobody renders — and would put a
+ * second copy of a 55 KB drawing on the page to do it.
+ */
+const CARD_SPECIMEN = cardHtml(SPECIMEN, {theme: "light"});
 
 /*
  * A SECTION'S ADDRESS IS DERIVED FROM ITS KEY, NEVER FROM ITS HEADING. A key is the module's
@@ -614,6 +632,35 @@ const MARKDOWN = "/design.md";
                                             </li>
                                     ))}
                                 </ul>
+                        )}
+
+                        {/* THE SPECIMEN IS SCALED BY AN SVG viewBox RATHER THAN BY A TRANSFORM,
+                             and the choice was measured rather than assumed. The card is 1080px
+                             square by construction — that is what the platform receives — so the
+                             page has to shrink it without pinning a length of its own. Two ways
+                             work in a modern browser and only one fails safely: a container query
+                             plus `scale(calc(100cqw / 1080px))` needs length-by-length division in
+                             `calc()`, and where that is unsupported the declaration is dropped and
+                             the card renders at full size inside a clipping frame — a reader sees
+                             its top-left corner and nothing says why. A viewBox has scaled its
+                             contents in every engine for a decade, gives the frame its aspect
+                             ratio for free, and degrades to a correctly-sized empty box. Both were
+                             driven in a real browser before this was written.
+
+                             THE svg CARRIES NO `role` AND NO LABEL ON PURPOSE. Naming it as an
+                             image would collapse everything inside it to that one string, and the
+                             card's own words — the quote, its attribution, the legend, the code —
+                             are text a reader should be able to reach. The body map inside is
+                             already `aria-hidden`, because a drawing of a body is not readable. */}
+                        {key === "card" && (
+                                <figure class="design-card">
+                                    <div class="design-card-frame">
+                                        <svg viewBox={`0 0 ${CARD_PX} ${CARD_PX}`} xmlns="http://www.w3.org/2000/svg">
+                                            <foreignObject width={CARD_PX} height={CARD_PX} set:html={CARD_SPECIMEN}></foreignObject>
+                                        </svg>
+                                    </div>
+                                    <figcaption class="design-card-caption text-sm">{CARD_SPECIMEN_CAPTION}</figcaption>
+                                </figure>
                         )}
 
                         {key === "icons" && (
@@ -1222,6 +1269,45 @@ const MARKDOWN = "/design.md";
     /* A mark is a mask sized by its own type size, so this is how a specimen is enlarged. */
     .design-glyph {
         font-size: 1.5rem;
+    }
+
+    /*
+     * THE SHARE CARD SPECIMEN. Three declarations and not one of them is a length, which is the
+     * whole requirement: the card inside is 1080px square because that is what it IS, and the
+     * page must not add a second opinion about how tall it should be. The `svg` takes its
+     * aspect ratio from its own viewBox, so `height: auto` is the frame's whole height rule and
+     * the box grows and shrinks with the card it sits in.
+     *
+     * IT IS CAPPED IN THE READER'S OWN UNITS RATHER THAN IN PIXELS, for the reason every box on
+     * this site is: at a wide viewport an uncapped square would be the tallest thing on the page
+     * by a long way, and a cap in rem grows with the reader's text the way the section's prose
+     * beside it does. `min()` keeps it the card's full width on a narrow one, where a cap would
+     * be the thing making the specimen small.
+     */
+    .design-card {
+        margin: 0 0 1.5rem;
+    }
+
+    .design-card-frame {
+        width: min(100%, 28rem);
+    }
+
+    .design-card-frame svg {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+
+    /*
+     * THE CAPTION IS THE PAGE KEEPING ITS OWN PROMISE, so it is drawn as the page's own voice
+     * rather than as part of the specimen: quieter than the guidance, hard against the card it
+     * qualifies, and never on the card, which is an artifact and does not carry notes about
+     * itself.
+     */
+    .design-card-caption {
+        max-width: 60ch;
+        margin-top: 0.75rem;
+        opacity: 0.75;
     }
 
     /*

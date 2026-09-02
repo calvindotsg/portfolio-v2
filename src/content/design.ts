@@ -78,7 +78,8 @@ export const DESIGN_PAGE: {
     title: `${NAME} — ${METADATA.name}`,
     heading: NAME,
     link_label: NAME,
-    lede: "Everything below is the real thing. The color sheet prints both themes at once, the "
+    lede: "Everything below is the real thing, with one captioned exception. The color sheet "
+        + "prints both themes at once, the "
         + "ramp wears the real classes, and the controls are the controls. Nothing here is "
         + "authored twice — every value on this page is read out of the block that declares it, "
         + "which is why the page can tell you what each color is and still not be able to go out "
@@ -318,8 +319,30 @@ export const CONTROLS: readonly {name: string, role: string}[] = [
  * this system says `a mark`, `a word`, `a press`. Nothing about renaming the headings costs the
  * vocabulary — it costs only the assumption that a reader already knows it.
  */
+/**
+ * THE ONE CAPTION THIS PAGE OWES ITSELF.
+ *
+ * `/design` opens by saying everything on it is the real thing, and that sentence is the page's
+ * whole claim. The share card's specimen is the single exception, so the exception is stated
+ * where a reader meets it rather than being left for somebody to notice. The lede is qualified
+ * too — captioning alone would leave the page's own opening sentence asserting a rule it no
+ * longer keeps.
+ *
+ * IT SAYS WHAT IS INVENTED AND WHAT IS NOT, because "this is a mockup" would be worse than no
+ * caption: the drawing, the palette, the type and the figure are all real, and only the session
+ * is made up. A reader has to know which half they can trust.
+ */
+export const CARD_SPECIMEN_CAPTION = "The session on this card never happened. Every other "
+    + "specimen here is the real thing; this one is invented, because a real session is a private "
+    + "training record and publishing one to make a picture is a poor trade. What is real is "
+    + "everything except the facts: the card is drawn by the same function that renders the "
+    + "posted ones, in these tokens, at its true size, and it fills every slot the layout has. "
+    + "It stays in the light theme when the rest of this page changes, because a card is an "
+    + "image and an image does not re-tone once it has been posted."
+
 export const SECTIONS: Readonly<Record<
-    "palette" | "type" | "mark" | "controls" | "icons" | "data" | "states" | "words" | "access", {
+    "palette" | "type" | "mark" | "controls" | "icons" | "data" | "states" | "words" | "access"
+    | "card", {
     heading: string
     lede: string
     does: readonly string[]
@@ -502,6 +525,27 @@ export const SECTIONS: Readonly<Record<
             "Let reading order drift from visual order. A keyboard meets the markup, so a column moved by the layout is still read where it was written.",
             "Depend on a color surviving. A forced-colors mode replaces every one of them, so whatever a color alone was carrying arrives blank.",
             "Hide from the accessibility tree something a sighted reader can act on. A control nobody can name is a control only some readers have.",
+        ],
+    },
+    card: {
+        heading: "Share Cards",
+        lede: "A square image posted beside an activity on somebody else's platform, drawn from "
+            + "these tokens and wearing this mark. It is the only thing this system draws that "
+            + "will be read somewhere it cannot control: about a third of its drawn size, in a "
+            + "feed, under a chip the platform puts there itself. So the constraints are the "
+            + "container's rather than the design's, and the guidance below is mostly about "
+            + "them. One rule here is not, and it is the one that generalizes: a card and the "
+            + "text posted with it are two renderings of one dataset, and the discipline that "
+            + "keeps them honest is that no fact appears on both.",
+        does: [
+            "When one dataset feeds two surfaces, let no fact appear on both. They share a join key and a citation; everything else belongs to exactly one of them, because a fact told twice is a fact that can drift and nothing makes the two renderings of it agree.",
+            "Size the type for where the card is read rather than where it is drawn. It arrives at about a third of its drawn size, so a step that is comfortable at full size is decoration by the time anybody sees it.",
+            "Say where a drawing's data came from, in the drawing's own words. A figure shaded from a published list and one shaded from a category look identical, and only the sentence beside them separates a measurement from an assumption.",
+        ],
+        donts: [
+            "Put identity where the container draws its own. The platform overlays an attribution chip on the top-left of every activity photo, so a mark there is a mark nobody ever sees.",
+            "Make the card taller than it is wide. The feed's carousel crops a portrait, which hands the choice of what to lose to somebody else.",
+            "Move a fact into the image to make it fit. There is no alt text on the other side, so anything drawn rather than written is unreachable to a reader who cannot see it.",
         ],
     },
 }

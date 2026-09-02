@@ -18,10 +18,13 @@
  *     reason this table exists: building it proved the hand-shaded mockups were wrong in BOTH
  *     directions, inventing trapezius and missing biceps and triceps.
  *
- * PORTED FROM `bft_card_lib/bft_aliases.py` AND ITS `vocab.json`, both in a declared-disposable
- * proof of concept that is not kept in sync. The observed labels come across as
- * {@link OBSERVED_LABELS} rather than being dropped, so {@link resolve} is gated against the real
- * corpus instead of against hand-picked cases.
+ * PORTED FROM `bft_card_lib/bft_aliases.py` and the vocabulary file beside it, both in a
+ * declared-disposable proof of concept that is not kept in sync. The observed labels come across
+ * as {@link OBSERVED_LABELS} rather than being dropped, so {@link resolve} is gated against the
+ * real corpus instead of against hand-picked cases.
+ *
+ * THE PORT WAS VERIFIED RATHER THAN ASSUMED: resolving all 240 observed labels through both
+ * implementations returns identical status and identical slugs for every one.
  */
 
 /** The muscle slugs the map can light — `src/lib/anatome/`'s set minus its non-muscle regions. */

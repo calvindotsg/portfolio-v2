@@ -48,6 +48,7 @@ import {createGenerator} from "unocss"
 
 import unoConfig from "../../uno.config"
 import {SIZE_LADDER} from "./brand-mark"
+import {CARD_PADDING_PX, CARD_PX} from "./share-card"
 import {SHORTCUTS} from "./shortcuts"
 
 /**
@@ -182,6 +183,34 @@ function brandMark(): Record<string, string> {
 }
 
 /**
+ * THE SHARE CARD'S ENTRY, WHICH IS THE ONE COMPONENT THAT IS NOT ON THE SITE.
+ *
+ * It is a raster artifact posted on somebody else's platform, and it is here for the reason the
+ * brand mark is: the format's group is where this document can publish a drawing's dimensions in a
+ * form a consumer can lay out from, and a card's box is the whole of what another surface would
+ * need to reserve room for one. Both figures come off `src/lib/share-card.ts`'s frame constants;
+ * nothing is typed.
+ *
+ * ITS SIZE IS PINNED RATHER THAN FLOORED, and it is the only thing this system publishes that is.
+ * Every control on the site takes its box from the reader's own text size, because a reader can
+ * change that; a card is an image at a fixed pixel size on a platform that will scale it however
+ * it likes, so there is no reader setting for it to answer to.
+ *
+ * THE COLOURS ARE THE FIRST THEME'S, matching the `colors` aliases and every other entry here, and
+ * for the recorded reason: a reference has to name one theme and the first is what the site serves
+ * with no stored preference. The card itself is drawn in whichever theme its caller asks for.
+ */
+function shareCard(): Record<string, string> {
+    return {
+        height: `${CARD_PX}px`,
+        width: `${CARD_PX}px`,
+        padding: `${CARD_PADDING_PX}px`,
+        backgroundColor: "{colors.light-background}",
+        textColor: "{colors.light-text}",
+    }
+}
+
+/**
  * A generator over the site's own config with the icon safelist removed. Built ONCE: creating one
  * per component would load presetIcons' collections per call for an answer that cannot differ.
  */
@@ -205,5 +234,6 @@ export const COMPONENT_TOKENS: Readonly<Record<string, Readonly<Record<string, s
         const out: Record<string, Record<string, string>> = {}
         for (const name of names) out[name] = componentFrom(css, name, "light")
         out["brand-mark"] = brandMark()
+        out["share-card"] = shareCard()
         return out
     })()
