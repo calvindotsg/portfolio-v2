@@ -1,9 +1,11 @@
 ---
 import Layout from "../layouts/BasicLayout.astro";
 import Card from "../components/Card/index.astro";
-import {CONTROLS, DESIGN_PAGE, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
+import BrandMark from "../components/BrandMark.astro";
+import {CONTROLS, DESIGN_PAGE, MARK_READING, MARK_REGIONS, MARK_SIZE_LABEL, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
 import {NEXT_RACE, PATCHES} from "../content/races";
 import {GOALS} from "../lib/goal";
+import {SIZE_LADDER, markFill, markSvg} from "../lib/brand-mark";
 import {ICON_IDS, iconClass} from "../lib/icons";
 import {PALETTE, valueIn} from "../lib/palette";
 
@@ -59,6 +61,21 @@ import {PALETTE, valueIn} from "../lib/palette";
  * no meaning the test looks at.
  */
 const RAMP = ["text-3xl", "text-xl", "text-base", "text-sm", "text-xs"];
+
+/*
+ * The mark's live fill, as a whole-number percentage, for the one sentence on this page that
+ * prints it. Rounded HERE and nowhere else: the drawing takes the unrounded fraction, so the
+ * bar is never quantised to whatever the prose happens to say.
+ */
+const MARK_PERCENT = Math.round(markFill() * 100);
+
+/*
+ * THE UNIT, TAKEN OFF THE CAPTION RATHER THAN TYPED. `MARK_SIZE_LABEL` explains why the word
+ * may not appear literally in this file; the inline `font-size` on each rung needs the same
+ * unit, so it is read from the one string that already carries it instead of being the second
+ * place it is written — which would also be the second place the extractor could see it.
+ */
+const UNIT = MARK_SIZE_LABEL.replace("{size}", "");
 
 /*
  * The census deduplicated, because `ICON_IDS` is deliberately not: two constants naming the
@@ -143,6 +160,37 @@ const NESTED_ROWS = NESTED.map((token) => {
 });
 
 const LEDGER_ROWS = PALETTE_ROWS.filter((row) => !NESTED.includes(row.token));
+
+/*
+ * THE MARK'S OFF-THEME SPECIMEN IS DRAWN IN LITERALS, FOR THE REASON THE SWATCHES ARE.
+ *
+ * The obvious mechanism is wrong and was BUILT before it was rejected: putting `data-theme` on
+ * the list item and letting the mark inside pick up `var(--brand-ink)`. Every token on this
+ * site is declared under `:root[data-theme]`, and `:root` matches the document element and
+ * nothing else — so a nested attribute redefines nothing, both specimens resolve the LIVE
+ * theme's values, and the page renders the same mark twice under two different words. It looks
+ * right in whichever theme you happen to be reading in, which is what makes it worth writing
+ * down rather than merely fixing.
+ *
+ * So the two grounds are drawn the way the colour sheet draws its cells: values read out of
+ * the parsed blocks by `valueIn` and written as literals. Nothing here is typed, and the rule
+ * at the top of this file is untouched — this is the same DERIVE-and-print mechanism, applied
+ * to a drawing instead of to a rectangle.
+ */
+const markToken = (name: string) => {
+    const row = PALETTE.find((t) => t.token === name);
+    if (!row) {
+        throw new Error(
+            `/design draws the brand mark from ${name} and src/lib/palette.ts read no value for `
+            + "it, so the specimen would render with an invalid fill and show nothing at all.",
+        );
+    }
+    return row;
+};
+
+const MARK_INK = markToken("--brand-ink");
+const MARK_TRACK = markToken("--progress-track");
+const GROUND = markToken("--background");
 
 /*
  * EVERY CONTROL SPECIMEN GOES SOMEWHERE REAL, and the alternative was measured against the
@@ -457,6 +505,73 @@ const MARKDOWN = "/design.md";
                                 </ul>
                         )}
 
+                        {key === "mark" && (
+                                <div class="design-brand">
+                                    {/*
+                                        THE LADDER, ON BOTH GROUNDS, AND THE BAR NAMED. Three things
+                                        rather than one specimen, and each answers something a single
+                                        drawing cannot.
+
+                                        THE LADDER, because there is one drawing at every size and the
+                                        cost of that decision is only visible as a sequence: the rays
+                                        thin, close against the dome, and at the last step are gone. A
+                                        reader who sees the largest step alone has been told the mark
+                                        is fine at every size, which is not what this system decided.
+
+                                        BOTH GROUNDS, for the reason the Colors section already gives
+                                        about the `-on-ink` pairs: drawing only on the page's own
+                                        ground renders the pale half of every pair as a mistake. The
+                                        mark's ink swaps polarity between the themes, so a specimen in
+                                        one theme is a specimen of half the mark.
+
+                                        THE BAR NAMED, and this is the part that is not decoration.
+                                        The Data Visualization section requires that a bar say what it
+                                        is measured against, in words the reader meets before the bar.
+                                        This mark stands outside that rule BECAUSE a favicon has no
+                                        room for words — an argument that would be hollow if the one
+                                        place with room declined to say it too. So the two regions are
+                                        named and the live figure is printed beside them, which is the
+                                        same "print the number as well" the section asks for.
+                                    */}
+                                    <ul class="design-brand-ladder">
+                                        {SIZE_LADDER.map((size) => (
+                                                <li class="design-brand-step">
+                                                    <span class="design-brand-box" style={`font-size:${size}${UNIT}`}>
+                                                        <BrandMark/>
+                                                    </span>
+                                                    <span class="design-name design-brand-size">{MARK_SIZE_LABEL.replace("{size}", String(size))}</span>
+                                                </li>
+                                        ))}
+                                    </ul>
+
+                                    <ul class="design-brand-grounds">
+                                        {THEMING.themes.map((theme) => (
+                                                <li class="design-brand-ground"
+                                                    style={`background:${valueIn(GROUND, theme)};color:${valueIn(INK, theme)}`}>
+                                                    <span class="design-brand-box design-brand-large"
+                                                          set:html={markSvg({
+                                                              ink: valueIn(MARK_INK, theme),
+                                                              track: valueIn(MARK_TRACK, theme),
+                                                              fill: markFill(),
+                                                          })}/>
+                                                    <span class="design-eyebrow">{theme}</span>
+                                                </li>
+                                        ))}
+                                    </ul>
+
+                                    <dl class="design-brand-legend">
+                                        {MARK_REGIONS.map(({token, says}) => (
+                                                <div class="design-brand-region">
+                                                    <span class="design-swatch" style={`background: var(${token})`}></span>
+                                                    <dt class="design-name">{token}</dt>
+                                                    <dd class="m-0 text-sm">{says}</dd>
+                                                </div>
+                                        ))}
+                                    </dl>
+                                    <p class="text-sm max-w-[60ch] m-0">{MARK_READING.replace("{percent}", String(MARK_PERCENT))}</p>
+                                </div>
+                        )}
+
                         {key === "controls" && (
                                 <ul class="design-rows">
                                     {CONTROL_ROWS.map(({name, role, specimen}) => (
@@ -568,8 +683,118 @@ const MARKDOWN = "/design.md";
         gap: 0.5rem;
     }
 
+    /*
+     * THE MARK'S THREE SPECIMENS, AND THE ONE CONSTRAINT THEY SHARE: NO ABSOLUTE HEIGHT. Every
+     * box below is sized by `font-size`, which is how the mark is sized everywhere on this
+     * site, so the whole block grows with the reader's text instead of clipping it. The ladder
+     * IS a set of pixel sizes, and that is the one place it belongs — it is the specimen's
+     * subject rather than a layout decision, and each figure comes off `SIZE_LADDER` rather
+     * than out of this stylesheet.
+     *
+     * `design-brand-` RATHER THAN `design-mark-`, WHICH IS NOT A PREFERENCE. `.design-mark` is
+     * ALREADY the Iconography section's per-glyph cell, and it carries `text-align: center`.
+     * Reusing the name silently centred this whole block and cost nothing visible until the
+     * specimen was looked at. A mark in this system's vocabulary is a GLYPH; the brand mark is
+     * the other thing, and the class names have to keep that distinction the prose does.
+     */
+    .design-brand {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /*
+     * Bottom-aligned, so the ladder reads as a ladder: the marks sit on one line and the eye
+     * runs along the tops rather than through four centres at four heights.
+     */
+    .design-brand-ladder {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 1.25rem;
+    }
+
+    .design-brand-step,
+    .design-brand-ground {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /*
+     * The box a specimen is sized by. It sets nothing but the drawing's own colour context —
+     * the mark inside is a `1em` square, so every rung of the ladder is one `font-size` and
+     * this rule is only what makes the box shrink-wrap the mark rather than take a line's
+     * worth of leading with it.
+     */
+    .design-brand-box {
+        display: inline-flex;
+        line-height: 0;
+    }
+
+    /*
+     * `:global` BECAUSE ONE OF THE TWO SPECIMENS IS RAW MARKUP. The ladder's marks come from
+     * `BrandMark.astro`, which brings its own scoped rule; the two grounds are `set:html` from
+     * `markSvg` and carry no scope id at all, so a scoped `svg` selector would compile to one
+     * they can never match — and an SVG with no intrinsic size and no rule lays out at zero by
+     * zero. Both specimens rendered as nothing, in a build with no error and a green suite.
+     */
+    .design-brand-ground :global(svg) {
+        width: 1em;
+        height: 1em;
+    }
+
+    .design-brand-size {
+        font-size: 0.75rem;
+    }
+
+    /*
+     * The two grounds sit side by side so the pair reads as one comparison. What each one is
+     * PAINTED with is decided in the frontmatter, not here — see `markToken` for why a nested
+     * `data-theme` cannot do this job.
+     */
+    .design-brand-grounds {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    /* Ground and ink come from the element's own `style`; only the box is here. */
+    .design-brand-ground {
+        border: 1px solid var(--card-border);
+        border-radius: 2px;
+        padding: 1rem 1.5rem;
+    }
+
+    .design-brand-large {
+        font-size: 3rem;
+    }
+
+    .design-brand-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin: 0;
+    }
+
+    /*
+     * The swatch, the token's name and what the region MEANS, on one row — the same three-part
+     * shape the colour sheet uses, for the same reason: a swatch that is not named is a colour
+     * nobody can reach for, and a name with no sentence is a colour nobody knows when to use.
+     */
+    .design-brand-region {
+        display: grid;
+        grid-template-columns: auto auto 1fr;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+
     .design-rows,
     .design-ramp,
+    .design-brand-ladder,
+    .design-brand-grounds,
     .design-marks,
     .design-list {
         list-style: none;

@@ -361,6 +361,15 @@ const SECTION_BLOCKS: Partial<Record<keyof typeof SECTIONS, () => string>> = {
 export const AGENT_SECTIONS: readonly (keyof typeof SECTIONS)[] = ["palette", "controls", "icons"]
 
 export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
+    mark: "Dropped because that agent can FETCH it, which is true of no other section here. It "
+        + "is handed a bundle and builds screens; what it needs of the brand mark is the file, "
+        + "and the file is served — self-theming, in this palette, with its bar at whatever this "
+        + "year actually is. Every other section is guidance that only exists as prose, so "
+        + "dropping one loses the claim; dropping this one replaces a description of a drawing "
+        + "with the drawing. The one line kept in its place is the URL, which is the only part "
+        + "that document could not derive. What is lost is the argument for why the mark stands "
+        + "outside the rules about quantities — and that argument is aimed at somebody deciding "
+        + "whether to draw a bar this way, which is not what this reader is doing.",
     data: "The budget refused it outright, and the arithmetic is not close: the rendering had 134 "
         + "characters of headroom the day this section arrived and the section is an order of "
         + "magnitude larger than that. It is also the one section here whose subject that agent "
