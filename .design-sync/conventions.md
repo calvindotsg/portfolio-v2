@@ -61,3 +61,5 @@ Don't:
 ## Iconography
 
 19 marks ship and no others, each a `.i-` class sized with `font-size`.
+
+The brand mark is a file: fetch `/brand/mark.svg`, never redraw it.

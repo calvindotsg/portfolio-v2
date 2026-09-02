@@ -249,6 +249,36 @@ never mentions outranks a single instruction missing from a section it does carr
 agent is handed a bundle and writes screens, not this site's copy, and every line in that section
 is about this site's own domain words.
 
+#### The fifth decision: a published section that this reader can FETCH instead
+
+The design system published a **Brand Mark** section, and it is the first section dropped from
+this rendering for a reason that is not arithmetic and not merit. Every other drop above loses a
+claim: the prose is the only place that claim exists, so the agent simply does not get it. This
+one does not. What the agent needs of the brand mark is the MARK, and the mark is served — at
+`/brand/mark.svg`, self-theming, in this palette, with its bar at whatever the year actually is.
+Dropping the section and keeping one line naming that URL replaces a description of a drawing
+with the drawing.
+
+**What is lost is the argument, not the object.** The section explains why the mark's bar stands
+outside this system's rules about quantities — that it is an identity device whose proportion
+happens to be measured, and that a browser tab has no room for the caption those rules require.
+That argument is aimed at somebody DECIDING whether to draw a bar that way. This reader is not.
+
+**Measured, and the headroom is now thin enough to say so plainly.** The rendering stands at
+**4,027 characters against the 4,096 budget — 69 spare**, against the 161 recorded above. Three
+things moved it and only one was a choice: retiring `ri:open-arm-line` took the mark census down
+by one and gave a character back; the opening line was reworded, because "no components" became
+false the moment the front matter started publishing that group, and that gave four back; and the
+brand-mark line cost 69.
+
+**69 spare is under half of what the fourth decision deliberately left**, and the warning written
+there applies with more force now: a budget spent down to nothing reddens on the next token role
+somebody adds. The next edit to `src/content/design.ts` that lengthens a token role or a control
+role will land here rather than on the page that changed. Re-measure before assuming there is
+room; the queue above says what to drop and in what order, and this line — a bare URL for an
+object that is genuinely fetchable — is the cheapest thing in the document to re-evaluate if the
+answer is that something has to go.
+
 ### What was retired, and why it was not repaired
 
 A generator script in this directory wrote four reference HTML cards — palette, type and

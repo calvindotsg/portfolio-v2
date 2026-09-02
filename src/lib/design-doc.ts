@@ -664,6 +664,12 @@ function renderAgent(): string {
         "",
         `${marks().length} marks ship and no others, each a \`.i-\` class sized with \`font-size\`.`,
         "",
+        // THE MARK SECTION IS DROPPED AND THIS LINE IS WHAT STANDS IN ITS PLACE — the one part
+        // of it this reader cannot derive. Everything else that section says is an argument
+        // aimed at somebody deciding whether to draw a bar this way; this audience is handed a
+        // bundle and needs the file. `AGENT_DROPS.mark` carries the reasoning.
+        "The brand mark is a file: fetch `/brand/mark.svg`, never redraw it.",
+        "",
     ].join("\n")
 }
 
