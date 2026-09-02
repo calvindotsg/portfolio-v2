@@ -546,10 +546,4 @@ export const OMISSIONS: readonly {section: string, reason: string}[] = [
         reason: "One radius, worn by the controls, and one two-pixel corner that is a bib's mark "
             + "rather than a measurement. Neither is a scale.",
     },
-    {
-        section: "components",
-        reason: "The site is built in Astro, whose components compile to a server render and have "
-            + "no runtime form, so there is nothing to mount and the component namespace is empty "
-            + "by construction. Build with plain elements and the named classes below.",
-    },
 ]

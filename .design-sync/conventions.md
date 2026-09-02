@@ -1,6 +1,6 @@
 # calvin.sg — building with this system
 
-**Colors, controls and marks; no components** — the source is Astro, so nothing mounts.
+**Colors, controls and marks** — the source is Astro, so there is nothing to mount.
 The token table and the class list are complete; every other list is a guardrail.
 
 ## Set data-theme, or nothing is styled

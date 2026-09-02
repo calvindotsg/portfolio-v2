@@ -34,6 +34,34 @@ colors:
   dark-sport-ride-on-ink: "#A82334"
   dark-sport-run: "#9FC0F0"
   dark-sport-run-on-ink: "#1F4E9C"
+components:
+  control-cta:
+    backgroundColor: "{colors.light-background}"
+    textColor: "{colors.light-text}"
+    rounded: "0.5rem"
+    height: "3rem"
+    width: "100%"
+    padding: "0.25rem 0.75rem"
+  text-link:
+    textColor: "{colors.light-text}"
+  chip:
+    backgroundColor: "{colors.light-background}"
+    textColor: "{colors.light-text}"
+    rounded: "2px"
+    height: "2.75rem"
+    width: "2.75rem"
+    padding: "0.3rem 0.7rem"
+  chip-icon:
+    backgroundColor: "{colors.light-background}"
+    textColor: "{colors.light-text}"
+    rounded: "2px"
+    height: "2.75rem"
+    width: "2.75rem"
+  brand-mark:
+    height: "120px"
+    width: "120px"
+    textColor: "{colors.light-brand-ink}"
+    backgroundColor: "{colors.light-progress-track}"
 omitted:
   - section: typography
     reason: >-
@@ -49,11 +77,6 @@ omitted:
     reason: >-
       One radius, worn by the controls, and one two-pixel corner that is a bib's mark
       rather than a measurement. Neither is a scale.
-  - section: components
-    reason: >-
-      The site is built in Astro, whose components compile to a server render and have no
-      runtime form, so there is nothing to mount and the component namespace is empty by
-      construction. Build with plain elements and the named classes below.
 ---
 
 # How this site is drawn

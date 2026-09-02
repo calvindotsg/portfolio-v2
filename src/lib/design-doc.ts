@@ -1,4 +1,5 @@
 import {CONTROLS, DESIGN_PAGE, OMISSIONS, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design"
+import {COMPONENT_TOKENS} from "./component-tokens"
 import {ICON_IDS, iconClass} from "./icons"
 import {PALETTE, valueIn} from "./palette"
 
@@ -181,6 +182,7 @@ function frontMatter(): string {
         `name: "${DESIGN_PAGE.heading}"`,
         `description: "${DESIGN_PAGE.description}"`,
         ...colorTokens(),
+        ...componentTokens(),
         "omitted:",
         ...OMISSIONS.flatMap(({section, reason}) => [
             `  - section: ${section}`,
@@ -189,6 +191,24 @@ function frontMatter(): string {
         ]),
         "---",
     ].join("\n")
+}
+
+/**
+ * THE `components` GROUP, IN THE POSITION THE FORMAT PUTS IT — after the value groups and before
+ * `omitted`, which is the order its own schema lists.
+ *
+ * NOTHING IS DECIDED HERE. `src/lib/component-tokens.ts` derives the map by asking UnoCSS what
+ * each kind of control resolves to; this function's whole job is to write it as YAML. Two levels
+ * of indent, because the group is a map of maps.
+ */
+function componentTokens(): string[] {
+    return [
+        "components:",
+        ...Object.entries(COMPONENT_TOKENS).flatMap(([name, tokens]) => [
+            `  ${name}:`,
+            ...Object.entries(tokens).map(([token, value]) => `    ${token}: "${value}"`),
+        ]),
+    ]
 }
 
 /**
@@ -430,11 +450,22 @@ export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
  * intact under this system's own coinages — and a section added to `src/content/design.ts` needs no
  * edit here to reach this document correctly.
  *
- * WHY `Controls` IS NOT NAMED `Components`, which is the mapping a reader will reach for first.
- * Those are mountable things carrying property tokens; this site's component namespace is empty by
- * construction — the source is Astro and nothing mounts — and the front matter above declares that
- * group omitted for exactly that reason. Claiming the name would assert something this same
- * document denies two screens earlier.
+ * WHY `Controls` IS NOT NAMED `Components`, WHICH IS NOW A NARROWER CLAIM THAN IT WAS. The front
+ * matter above PUBLISHES a `components` group — derived in `src/lib/component-tokens.ts` from what
+ * UnoCSS resolves each kind of control to — so the old reason is gone with the omission it
+ * defended. What remains is that a heading and a token group are two different things: this
+ * section is prose about which kind to reach for and why, and renaming it `Components` would put
+ * a second, differently-shaped answer under the format's own word for the group thirty lines
+ * above. `Controls` is also already the common term for what this holds, which is the test every
+ * other heading here is chosen by.
+ *
+ * THE RETRACTED OMISSION SAID SOMETHING TRUE ABOUT A DIFFERENT QUESTION, and the sentence is worth
+ * keeping because it is the one a future reader will reach for when re-adding it. It said the
+ * source is Astro, components compile to a server render, nothing mounts, so the namespace is
+ * empty by construction. That is a fact about the EXPORTED BUNDLE — which really does hand a
+ * design agent a stylesheet and no mountable anything — and this file is where that class of claim
+ * lives, in the agent rendering's own opening line. The format's group has no notion of mounting;
+ * it is a map of style tokens, and this site has kinds of control with real ones.
  *
  * IT IS A CLAIM ABOUT SOMEBODY ELSE'S FORMAT AND IT WILL GO STALE. Stamped against
  * `@google/design.md` v0.4.0, whose `spec` subcommand prints the canonical list on demand. Re-read
@@ -602,7 +633,7 @@ function renderAgent(): string {
         // controls" while the type section was still here; the budget took that section, so the
         // sentence had to follow it or the document would open by promising a heading it does
         // not have.
-        "**Colors, controls and marks; no components** — the source is Astro, so nothing mounts.",
+        "**Colors, controls and marks** — the source is Astro, so there is nothing to mount.",
         "The token table and the class list are complete; every other list is a guardrail.",
         "",
         themingBlock(),
