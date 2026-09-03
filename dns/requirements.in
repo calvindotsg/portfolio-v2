@@ -26,5 +26,5 @@
 # floor a universal resolution is computed against; `tests/dns-config.test.ts` holds the two
 # together, because a lock resolved for an interpreter the workflow no longer runs is a lock
 # proving nothing about the install that happens.
-octodns==1.21.1
+octodns==1.22.0
 octodns-cloudflare==1.2.0
