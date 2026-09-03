@@ -381,8 +381,19 @@ recreated.
 | 045 | Fetch the weekly training series, and store the sessions rather than the totals | P1 | L | — | **DONE** (`30e38d9`) |
 | 046 | Draw the year as one spine, with the races on it | P1 | L | 045 | **DONE** (`35a47ca`) |
 | 047 | Let the goal card lead with the build, and point its one plate at the spine | P2 | M | 045, 046 | **DONE** (`b47b120`) |
+| 048 | Give the site a brand mark, wear it, and publish it | P3 | M | — | **DONE** (`4a3a78e`) |
+| 049 | Make the share card a real component of this design system | P3 | L | 048 | **DONE** (`8baa79a`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
+
+**Why 049 depends on 048, which is a real edge rather than an ordering preference.** The share
+card wears the brand mark, so it draws from the geometry 048 authored rather than redrawing it; and
+its published tokens are entries in the `components` group 048 retracted an omission to create.
+Executed in the other order, 049 would have had to invent both and 048 would then have had two
+homes to reconcile. The coupling showed up a third way nobody planned: publishing a design-system
+section adds a child to `/design`'s `<main>`, and the hand-written entrance ladder in
+`src/layouts/BasicLayout.astro` has to grow a rung — 048 took it to ten, 049 to eleven, and the
+wall's bib cascade shares that ceiling by construction, so both moved it twice.
 
 **How the 040–044 chain divides, and why each boundary is real.** 040 was a gate and nothing else:
 it added assertions and made one renderer iterate a list it had hand-written, and its own
