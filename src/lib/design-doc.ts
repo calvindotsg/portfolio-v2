@@ -1,5 +1,5 @@
 import {CONTROLS, DESIGN_PAGE, OMISSIONS, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design"
-import {MARK_GEOMETRY, SIZE_LADDER, markFill} from "./brand-mark"
+import {MARK_GEOMETRY, SIZE_LADDER} from "./brand-mark"
 import {COMPONENT_TOKENS} from "./component-tokens"
 import {ICON_IDS, iconClass} from "./icons"
 import {PALETTE, valueIn} from "./palette"
@@ -707,6 +707,24 @@ export function renderDesignDoc(audience: DocAudience): string {
  * figures are what a consumer needs to lay the mark out without parsing an SVG — which is the one
  * thing `/brand/mark.svg` does not give them.
  *
+ * IT CARRIES THE DRAWING AND NEVER THE READING, and that is what makes it committable at all.
+ * The mark's bar is live: `markFill` averages the two goals' own fractions, so its value moves
+ * whenever the nightly bot rewrites `src/data/strava-progress.json`. That is right on every
+ * surface that DRAWS the mark and exactly wrong here, because this document is asserted
+ * byte-identical against the route it is rendered from, and the bot that moves the kilometres
+ * runs no toolchain to re-render it with. A number sourced from that data therefore reddens
+ * `pnpm test` on a pull request that contains nothing able to fix it — measured, on the first
+ * goals update after the mark landed, which could not merge and would have taken every nightly
+ * after it down too.
+ *
+ * SO THE FRACTION LIVES ONLY WHERE SOMETHING REDRAWS IT: `/brand/mark.svg` and the two pinned
+ * files beside it, rendered every build with the bar already drawn; the intro card's accessible
+ * name, which states the figure and its scale; and `/design`'s specimen. A reader here is told to
+ * fetch the file rather than redraw it, so what it needs is the geometry to lay the mark OUT, not
+ * the fraction to paint it. The format's own examples call this a Design Tokens Community Group
+ * file for Figma and Style Dictionary, and a token pipeline has no use for a figure that changes
+ * because somebody went for a ride.
+ *
  * TWO SPACES AND A TRAILING NEWLINE, because this file is committed and read in diffs.
  */
 export function renderDesignTokens(): string {
@@ -717,7 +735,7 @@ export function renderDesignTokens(): string {
             PALETTE.map((values) =>
                 [`${theme}-${values.token.replace(/^--/, "")}`, valueIn(values, theme)] as const))),
         components: COMPONENT_TOKENS,
-        brandMark: {geometry: MARK_GEOMETRY, sizes: SIZE_LADDER, fill: markFill()},
+        brandMark: {geometry: MARK_GEOMETRY, sizes: SIZE_LADDER},
         omitted: OMISSIONS,
     }, null, 2)}\n`
 }

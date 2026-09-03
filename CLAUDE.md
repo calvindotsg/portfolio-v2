@@ -257,6 +257,20 @@ block above it before giving either consumer the other's list.
   accessible name, and the specimen names both regions. `public/favicon.ico` is the
   one placement whose fill cannot move — an `.ico` is a raster and this build has no
   rasteriser — so it is frozen at the designed proportion and documented as frozen
+- **THE FILL IS DRAWN EVERYWHERE AND PUBLISHED NOWHERE, and that rule is the price of
+  `design_tokens.json` being committed.** That file and the route it renders from are asserted
+  byte-identical, so anything in it that moves when the nightly bot rewrites
+  `src/data/strava-progress.json` goes stale in a pull request holding no toolchain to
+  regenerate it — the bot's job installs nothing. It shipped carrying the fill and the first
+  goals update after the mark landed went red on two suites with nothing in its diff a reviewer
+  could fix, which would have blocked every nightly behind it. The token document therefore
+  carries `MARK_GEOMETRY` and the size ladder and no reading at all; the fraction reaches a
+  reader through the three `/brand/` files, the intro card's accessible name and `/design`'s
+  specimen, each redrawn by the build that serves it.
+  `tests/design-tokens-carry-no-reading.test.ts` holds the line by mocking the bot's JSON, which
+  is the only way to ask — on most days the committed snapshot is current and a fresh dependence
+  on that data is invisible. **The rule generalises past the mark**: a committed rendering may
+  only derive from source a person edits in the same change
 - **The `components` token group is PUBLISHED, and the omission it replaces was
   true about a different question.** That reason said the source is Astro, nothing
   mounts, so the namespace is empty by construction — which is a fact about the
