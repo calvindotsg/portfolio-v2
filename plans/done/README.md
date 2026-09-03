@@ -3737,3 +3737,197 @@ above it show it buying — and what `index.astro` records SC 1.4.12 as requirin
   suites and by a forced-colours rule in `BasicLayout.astro`, so the rename is of the surface every
   one of those gates is written against. The reason is recorded in the component.
 - **The `MONTHS_SHORT` and filter-row duplications 046 recorded are still owed**, unchanged by this.
+
+## Plan 048 — the site has a brand mark, wears it, and publishes it
+
+Merged as `4a3a78e` (#257). A five-ray sunrise over a two-tone bar, authored as geometry in
+`src/lib/brand-mark.ts`, drawn from tokens the layout declares, served at three URLs and worn in
+four places. `src/lib/component-tokens.ts` publishes the DESIGN.md format's `components` group by
+driving UnoCSS rather than by anyone typing a value. What follows is only what executing it
+established.
+
+### The extractor reads prose, so a comment explaining a fix can re-cause it
+
+UnoCSS scans `src/**` as TEXT — `.astro` frontmatter comments and `<style>` block comments
+included. Two orphan rules shipped from nothing but English: `display: block` in a style block
+emitted `.block`, and the word `aria-hidden` in a frontmatter comment emitted `.hidden`. Both
+failed `tests/build-output.test.ts`, which fails the DEPLOY rather than just the suite.
+
+**Then the comment written to explain the first fix re-emitted `.block` and reddened the build
+again.** That is the trap worth carrying: the remedy for an extraction footgun is itself
+extractable. Reword around the token; do not describe it.
+
+### `:root[data-theme]` matches the document element and nothing else
+
+Both "ground" specimens on `/design` were drawn with `data-theme` on a nested `<li>`, on the
+assumption that it would re-tone that subtree. It redefines nothing — the selector is anchored at
+the root — so both specimens silently drew the live theme, and the page's whole claim (that a mark
+meant for an ink-flooded surface is shown on one) was false while looking right. Fixed by rendering
+literal values through `valueIn`, which is the colour sheet's own mechanism.
+
+### `set:html` content carries no scope id
+
+The three raw SVG specimens laid out at 0x0. Astro scopes a component's styles by stamping a
+`data-astro-cid-…` attribute on elements it compiles; markup injected through `set:html` is never
+compiled, so a scoped `svg { … }` selector matches nothing in it. `:global(svg)` inside the scoped
+block is the fix. **A gate cannot see this** — the rule ships, the element renders, and only the
+box is wrong.
+
+### The plan's own mutation table had a dead row
+
+It proposed changing `chip`'s `px-[0.7rem]` and expecting `component-tokens` to redden. It stays
+GREEN, and correctly: both operands of that assertion derive from the same source, so editing the
+source moves them together. **A derived-vs-derived gate cannot be mutated at the shared source.**
+Three other mutations were substituted and each reddened exactly one named test.
+
+### A STOP condition fired and was disproved by measurement
+
+Step 9's condition was a changed box against `public/preview.jpg`. It tripped at 335x379. The
+disproof was three measurements rather than an argument: a fresh render of `main` matched the
+committed file at ZERO changed pixels, the intro card measured 357px on both trees, and `<main>`
+measured 829px on both. The h1 grew 28px to 30.95px and split the difference either side of the
+baseline — the mark takes `1.4em` because at `1em` its rays close against the dome.
+
+### An asserted browser behaviour that had never been checked
+
+The comment in `src/pages/brand/mark.svg.ts` claimed an SVG favicon evaluates its own `<style>`, so
+the self-theming file would re-tone in a browser tab. **Chromium does not** (crbug 1311553); Firefox
+and Safari do. It was caught by Calvin looking at a real tab, corrected in `8be0aeb`, and it is the
+reason the two pinned files exist. The toolchain on this machine cannot resolve which `rel="icon"`
+a browser picks — `chrome-headless-shell` never requests a favicon, so a server-side request log
+reports `[]` and proves nothing.
+
+### Publishing a section costs a rung, and the wall's bibs pay it too
+
+`/design` renders one grid item per section, so a published section is a child of `<main>` and the
+hand-written entrance ladder in `BasicLayout.astro` has to reach it. The bib cascade shares that
+ladder's ceiling by construction (`min(var(--i), N)`), so it moved with it. This was the second
+time; 049 made it the third, which is what turns it from a coincidence into a documented mechanism.
+
+### Smaller things the doing settled
+
+- **`createGenerator` comes from `unocss`, not `@unocss/core`** — the latter is transitive and
+  pnpm's strict layout refuses the import outright. It is async in v66, and the config's `safelist`
+  must be stripped first or every call emits 44 KB of icon `data:` URIs.
+- **The minifier normalises what the generator emits**: `0.5rem` becomes `.5rem`, four padding
+  longhands become a shorthand, and a `var()` can come back with a trailing space. The comparison
+  against the shipped sheet is normalised at the assertion rather than at the source, because the
+  source spelling is what every surface prints.
+- **`.design-mark` was already taken** by the Iconography per-glyph cell; the mark's specimen classes
+  became `design-brand-*`.
+- **A template literal in `.astro` markup is extracted too**: `{`${size}px`}` emitted `.px`. The unit
+  moved into `MARK_SIZE_LABEL` in the content module, because `.ts` files are not extracted.
+
+## Plan 049 — the share card is a real component of this design system
+
+Merged as `8baa79a` (#258). `cardHtml` in `src/lib/share-card.ts` is the whole implementation, with
+two consumers: `/design`'s Share Cards specimen and `scripts/render-share-card.ts`. The muscle map
+is vendored MIT path data; the module contains no hex. What follows is only what executing it
+established.
+
+### A CSS value lifted into an inline `style` attribute deleted the whole card's type
+
+The font stack is READ out of `BasicLayout.astro` rather than retyped — the right instinct — and the
+layout writes `"Segoe UI"` with DOUBLE QUOTES. That is correct CSS in a stylesheet and fatal inside
+a double-quoted `style` attribute: the first quote ends the attribute, so every declaration after
+`font-family` — size, weight, tracking, colour — is dropped by the parser.
+
+**The HTML stays valid, nothing errors, and the card renders in the default serif at the default
+size.** It was caught by looking at the render; no gate in this repository would have. Family names
+are re-quoted with single quotes on the way out. The rule generalises past fonts: any value lifted
+from a stylesheet into an attribute has to be re-quoted or entity-escaped.
+
+### A redaction scanner must read the published TEXT, never the rendered markup
+
+The leak gate substring-matches a list of protected names. Pointed at the card's rendered HTML, it
+scans a 1448-unit anatomical drawing — tens of thousands of path coordinates — and the real list's
+shortest values matched digits inside a `d="…"` on the FIRST run against real data. **It refused the
+deliberately-invented specimen.**
+
+The fix is not a smarter regex; it is `cardStrings()`, which returns the strings the surface
+actually prints. And the reason it was not caught earlier is worth keeping: the gate had only ever
+been exercised against a synthetic fixture whose names could not collide. **A gate parameterised by
+data that lives outside the repository has not been exercised until it has seen that data.**
+
+### `vite-node` makes the standard entry guard silently false
+
+`if (import.meta.url === pathToFileURL(process.argv[1]).href)` is the usual "only when invoked"
+test. Under `vite-node`, `argv[1]` is **vite-node's own bin** — its CLI consumes the script path,
+which never reaches the module — so the comparison is false on every real invocation. Measured: the
+script printed nothing, **exited 0**, and wrote no files. An exit 0 with no output reads as success.
+
+`vite-node` is also not a dependency of this repository and the plan assumed it was. `card:render`
+reaches it through `npx --yes`: no workflow runs this script, so the alternative was a dependency on
+the install path of everything that does.
+
+### Two Done criteria were real and nothing guarded them
+
+Found by running the plan's own mutation table before merging, and both closed in the same branch:
+
+- **The caption.** Deleting it reddened exactly ONE test in the whole suite — the orphan-rule gate,
+  and only because `.design-card-caption` was left in the stylesheet with nothing wearing it. Delete
+  the rule as well and the suite goes green on a page whose lede claims everything on it is real
+  while it carries an invented specimen.
+- **The specimen's frame.** The table says pinning its height in px reddens `card-fill`. It does
+  not: `height: 448px` passed the WHOLE suite, because `card-fill` and `page-fit` both read
+  `dist/index.html` and neither reaches `/design`. That is the one page drawing a fixed-pixel object
+  and it had no gate against pinning it.
+
+Two further rows of that table are imprecise rather than defects. `tests/design-system.test.ts`
+needed no extension — its gates iterate `SECTIONS`, so making the page skip the card section reddens
+two of them by name. And a changed frame constant reddens the committed-snapshot gates and the
+card's own literal `1080` anchor rather than `component-tokens`, whose two operands both derive from
+`CARD_PX`.
+
+### Visual equivalence is a CHANGED BOX and a SOLID-BLOCK test, never RMSE
+
+Rendering the proof of concept's own session through this card and diffing against its PNG: 1.30% of
+pixels differ, and the **largest solid changed square is 6x6 at 2160** — three CSS pixels, on a
+glyph corner. Every difference is a hairline on a glyph or path edge, which is what a rasteriser
+change looks like (the POC shot through WebKit, this through Chromium). A wrong colour, a shifted
+element or a mis-shaded muscle would produce a SOLID block. **The largest-solid-square measurement
+is the discriminator worth reusing**, because a percentage alone cannot tell those apart.
+
+### The licence chain, executed
+
+The paths come from `HichamELBSI/react-native-body-highlighter` (MIT), not from `Rippy1911/anatome`,
+which redistributes the same paths under Apache-2.0 with a `NOTICE` a redistributor must reproduce
+that carries a separate commercial product's advertising. Two things the doing added: the plan's
+table says "the `border` `<Path>`" SINGULAR and there are **two** outlines, front and back, both
+needed; and the viewBoxes are a JS ternary in the wrapper rather than attributes, so a `viewBox="…"`
+grep finds nothing and that is not drift.
+
+**The gate that keeps the other licence out matches it BY NAME, so the vendored README may state the
+rule but not the argument for it.** It reddened on correct prose the first time. The argument lives
+in `README.md` and `CLAUDE.md`, which the gate does not read — the same shape `CLAUDE.md` already
+records for skill guards, now with a second instance.
+
+### The agent budget was recorded as 69 and is 87, with nothing gating it
+
+`AGENT_SECTIONS` is an allowlist and the agent renderer names its three sections one at a time, so a
+tenth section cannot reach that document however long it is. Measured both ways: **4,009 characters
+with the Share Cards section and 4,009 without** — declaring the drop records a decision rather than
+paying for one. The headroom `.design-sync/NOTES.md` recorded was 4,027/69; eighteen characters came
+back somewhere with no test watching the figure, which is that file's own standing warning working
+exactly as written.
+
+### Smaller things the doing settled
+
+- **The specimen is shaded from its CLASS TYPE, on the maintainer's direction**, and it is the better
+  specimen: a conditioning session with its movements published lights nearly every muscle group, so
+  the card's two fills stop being distinguishable and the legend beneath them stops meaning
+  anything. The cost is that it no longer exercises the movement-list path, so the suite constructs
+  its own session for that half.
+- **The specimen is scaled by an SVG viewBox rather than by a transform.** A container query plus
+  `scale(calc(100cqw / 1080px))` needs length-by-length division in `calc()`; where that is
+  unsupported the declaration is dropped and the card renders full size inside a clipping frame — a
+  reader gets its top-left corner and nothing says why. A viewBox degrades to a correctly-sized
+  empty box. Both were driven in a real browser before the choice was made.
+- **The alias table's port was verified rather than assumed**: all 240 observed labels resolved
+  through both implementations return identical status and identical slugs.
+- **The type floor is 20px, not the ~22px the design note reached for.** Three lines sit on it, all
+  of them lines whose job is to be available rather than read first, and raising them would move the
+  map the port is measured against. The module says so rather than reconciling the two quietly.
+- **`src/layouts/BasicLayout.astro` was the one out-of-scope file touched**, mechanically forced by
+  the ladder coupling 048 recorded. Expect a forced edit outside scope whenever a plan adds a member
+  to a set some global gate counts.
