@@ -62,6 +62,12 @@ components:
     width: "120px"
     textColor: "{colors.light-brand-ink}"
     backgroundColor: "{colors.light-progress-track}"
+  share-card:
+    height: "1080px"
+    width: "1080px"
+    padding: "50px"
+    backgroundColor: "{colors.light-background}"
+    textColor: "{colors.light-text}"
 omitted:
   - section: typography
     reason: >-
@@ -278,6 +284,22 @@ Don't:
 - Depend on a color surviving. A forced-colors mode replaces every one of them, so whatever a color alone was carrying arrives blank.
 - Hide from the accessibility tree something a sighted reader can act on. A control nobody can name is a control only some readers have.
 
+## Share Cards
+
+A square image posted beside an activity on somebody else's platform, drawn from these tokens and wearing this mark. It is the only thing this system draws that will be read somewhere it cannot control: about a third of its drawn size, in a feed, under a chip the platform puts there itself. So the constraints are the container's rather than the design's, and the guidance below is mostly about them. One rule here is not, and it is the one that generalizes: a card and the text posted with it are two renderings of one dataset, and the discipline that keeps them honest is that no fact appears on both.
+
+Do:
+
+- When one dataset feeds two surfaces, let no fact appear on both. They share a join key and a citation; everything else belongs to exactly one of them, because a fact told twice is a fact that can drift and nothing makes the two renderings of it agree.
+- Size the type for where the card is read rather than where it is drawn. It arrives at about a third of its drawn size, so a step that is comfortable at full size is decoration by the time anybody sees it.
+- Say where a drawing's data came from, in the drawing's own words. A figure shaded from a published list and one shaded from a category look identical, and only the sentence beside them separates a measurement from an assumption.
+
+Don't:
+
+- Put identity where the container draws its own. The platform overlays an attribution chip on the top-left of every activity photo, so a mark there is a mark nobody ever sees.
+- Make the card taller than it is wide. The feed's carousel crops a portrait, which hands the choice of what to lose to somebody else.
+- Move a fact into the image to make it fit. There is no alt text on the other side, so anything drawn rather than written is unreachable to a reader who cannot see it.
+
 ## Do's and Don'ts
 
 Every line below is repeated from the section it names, which is where its reason is. This
@@ -314,6 +336,9 @@ reaches that reader not at all.
 - **Accessibility** — Give every control a target a fingertip can find, on both axes. Something comfortable under a mouse can still be a target a thumb misses, and the two dimensions fail separately: a wide, thin row is the usual one.
 - **Accessibility** — Put one landmark around each region a reader might skip to, and make the page's own name its first heading. Skipping is how a page is read without being seen, and it only works on regions that were declared.
 - **Accessibility** — Let a reader double the text without the page seeing a font-size change. That size is the reader's own setting rather than an input the design gets to read, so every box has to survive the result already.
+- **Share Cards** — When one dataset feeds two surfaces, let no fact appear on both. They share a join key and a citation; everything else belongs to exactly one of them, because a fact told twice is a fact that can drift and nothing makes the two renderings of it agree.
+- **Share Cards** — Size the type for where the card is read rather than where it is drawn. It arrives at about a third of its drawn size, so a step that is comfortable at full size is decoration by the time anybody sees it.
+- **Share Cards** — Say where a drawing's data came from, in the drawing's own words. A figure shaded from a published list and one shaded from a category look identical, and only the sentence beside them separates a measurement from an assumption.
 
 ### Don't
 
@@ -344,3 +369,6 @@ reaches that reader not at all.
 - **Accessibility** — Let reading order drift from visual order. A keyboard meets the markup, so a column moved by the layout is still read where it was written.
 - **Accessibility** — Depend on a color surviving. A forced-colors mode replaces every one of them, so whatever a color alone was carrying arrives blank.
 - **Accessibility** — Hide from the accessibility tree something a sighted reader can act on. A control nobody can name is a control only some readers have.
+- **Share Cards** — Put identity where the container draws its own. The platform overlays an attribution chip on the top-left of every activity photo, so a mark there is a mark nobody ever sees.
+- **Share Cards** — Make the card taller than it is wide. The feed's carousel crops a portrait, which hands the choice of what to lose to somebody else.
+- **Share Cards** — Move a fact into the image to make it fit. There is no alt text on the other side, so anything drawn rather than written is unreachable to a reader who cannot see it.
