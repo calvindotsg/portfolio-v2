@@ -62,6 +62,24 @@
       - google-site-verification=l7o6u3vVat-T_oPwXJQjdAabpMlVVUZvfmRygupTsY0
       - v=spf1 include:_spf.mx.cloudflare.net ~all
 
+# A second assistant instance, on its own Hetzner box in nbg1 and its own tunnel UUID. It is the
+# same shape as `hermes` below and a different scope — a separate agent, separate context, separate
+# data. Separate tunnel, SSH key and firewall too, by design, so a compromise of one box does not
+# reach the other. `proxied: true` is load-bearing for the same reason it is on `hermes`: a
+# `cfargotunnel.com` target has no public address and resolves only through Cloudflare's edge, so
+# an unproxied version of this record is broken rather than merely direct.
+#
+# The box publishes no inbound port — its Hetzner firewall is attached with zero rules, which is
+# deny-all — so this record and Cloudflare Access in front of it are the only route in.
+evelyn:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: 1af77dca-7133-487a-a676-f964086fcdb2.cfargotunnel.com.
+
 # The Hermes agent's dashboard, on a Hetzner box in nbg1. `proxied: true` IS LOAD-BEARING HERE,
 # unlike on the records around it: a `cfargotunnel.com` target has no public address and resolves
 # only through Cloudflare's edge, so an unproxied version of this record is simply broken rather
@@ -77,6 +95,18 @@ hermes:
   ttl: 300
   type: CNAME
   value: 7016c4ba-d138-48e7-a7f1-2ec672540ce8.cfargotunnel.com.
+
+# SSH to the evelyn box, on its own hostname for the same reason `ssh-hermes` has one:
+# `cloudflared access ssh` needs a hostname it does not share with an HTTP application.
+# Same tunnel UUID as `evelyn` above; the tunnel's ingress rules route each hostname to a port.
+ssh-evelyn:
+  octodns:
+    cloudflare:
+      auto-ttl: true
+      proxied: true
+  ttl: 300
+  type: CNAME
+  value: 1af77dca-7133-487a-a676-f964086fcdb2.cfargotunnel.com.
 
 # SSH to the same box and the same tunnel, on its own hostname because `cloudflared access ssh`
 # needs one it does not share with an HTTP application. Same tunnel UUID as `hermes` above; the
