@@ -163,8 +163,10 @@ export const ABOUT_ME: {
 }
 
 /**
- * The intro card's h1 stack — one `<h1>` per line, and THE JOB LINE IS DERIVED like every other
- * statement of the job on this site.
+ * The intro card's hero stack — the first line is the `<h1>` greeting and carries the brand mark,
+ * the rest are taglines drawn as paragraphs, and THE JOB LINE IS DERIVED like every other
+ * statement of the job on this site. The card splits the array, so a line added here is a
+ * tagline wherever it sits after the first; see `src/components/IntroCard.astro`.
  *
  * IT USED TO BE A TYPED COPY, AND IT WAS WRONG. The line was character-identical to the NCS title
  * of the day — {@link CAREER}[1].job_name, held until Aug 2023 — while the role card a few hundred
@@ -178,7 +180,28 @@ export const ABOUT_ME: {
  * reference worth keeping anywhere. It named nothing else on the site — no card, no page, no goal,
  * no event — and it was already cut from {@link METADATA.title} for the pixels. Cutting it here too
  * is what makes that a decision about the copy rather than a truncation forced by a budget, and it
- * pays for the longer job line: the stack is three h1s where it was four.
+ * pays for the longer job line: the stack went to three lines from four.
+ *
+ * THE TAGLINES RUN SPORT FIRST AND THE JOB LAST, and that is an editorial call rather than a
+ * derived one — so it is written down here, where the lines are, instead of being inferred from
+ * their order. `Runner.` was missing outright while a running goal card, a running patch wall and
+ * a running spine all shipped, and the job led a hero standing on a page whose every other card is
+ * about the training. The stack is back to four lines: greeting, `Runner.`, `Road cyclist.`, job.
+ *
+ * IT COSTS ONE LINE AND THE CARD ABSORBS IT AT `md` AND UP — measured on builds of both revisions
+ * in one sitting, not assumed, because the figures move with whatever the system font stack
+ * resolves to and a pair read on different days is not a comparison. The copy column reserves
+ * `md:min-h-[18.75rem]` and centres what it holds, so a fourth line spends slack that column was
+ * already carrying: the type block goes 86.95 to 114.95, and the card and `<main>` measure the
+ * same on both revisions at 1280, 1440 and 1024. That is the height budget `src/pages/index.astro`
+ * keeps, untouched. Below `md` there is no slack to spend, and the document grows by exactly that
+ * line — 28px at 390x844.
+ *
+ * A FIFTH LINE IS NOT FREE, AND WHAT IT COSTS DEPENDS ON WHERE THE SLACK RAN OUT. Read the note in
+ * `src/components/IntroCard.astro` before adding one: past the floor the column sizes to its own
+ * content, so the line lands on the card and then on `<main>`, whose budget is 14px at 1280 and
+ * 24px at 1024. Nothing clips either way — that is the floor's whole job — but the one screen the
+ * home page promises is spent.
  *
  * ANY EDIT HERE OWES A `public/preview.jpg` REGENERATION. That file is both the OG/social image and
  * README's hero, and it is a render of this very card. It used to go stale invisibly — nothing
@@ -212,7 +235,7 @@ export const WELCOME: {
 } = {
     mark_label: "Calvin's mark — its bar is {percent}% full, the average of this year's "
         + "cycling and running goals",
-    description: ["Hi, I'm Calvin", `${CAREER[0].job_name}.`, "Road cyclist."]
+    description: ["Hi, I'm Calvin", "Runner.", "Road cyclist.", `${CAREER[0].job_name}.`]
 }
 
 /**
