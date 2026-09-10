@@ -339,8 +339,12 @@ describe("page content", () => {
             // two sport walls; it is simply no longer on this page.
             expect(text, `the card's heading and its control must write "${sport}" identically`)
                 .toContain(TRAINING.control.replace("{sport}", sport));
-            // Composed phrases, not bare numbers: "1000" alone also appears in
-            // ABOUT_ME prose, so a bare containment cannot fail for the card.
+            // Composed phrases, not bare numbers. The example this used to cite was
+            // "1000" appearing in ABOUT_ME's prose as well as in a goal, and that
+            // sentence has since been removed — which is the reason to state the rule
+            // rather than the coincidence that once demonstrated it. A bare number is
+            // satisfied by any digits anywhere on a page this dense in figures, so it
+            // cannot fail for the card even while the card is wrong.
             //
             // The card prints its fraction as a hero pair now — "2279.7 / 5000 km" — where
             // it used to print "2279.7 km of 5000 km". This is the gate on the card's

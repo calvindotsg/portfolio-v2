@@ -584,10 +584,31 @@ describe("prose blocks", () => {
  *   composite at (10, 63) on a 1200x630 canvas filled with #111111. 1200x630 is the OG aspect
  *   ratio and is load-bearing; the 1.43x enlargement is what makes it a recognisable hero.
  *   Encode with `sharp` — already a devDependency — at `{quality: 82, chromaSubsampling: "4:4:4",
- *   mozjpeg: true}`, which lands around 54-56 KB. 4:4:4 because the subject is UI text and icon
- *   edges. Then diff the new render against the committed file and look at the BOUNDING BOX of
- *   the changed pixels, not a whole-image metric: a copy change should move one band the height
- *   of one line. Anything taller means the composition moved.
+ *   mozjpeg: true}`, which lands in the low 50s of KB. 4:4:4 because the subject is UI text and
+ *   icon edges. Then diff the new render against the committed file and look at the BOUNDING BOX
+ *   of the changed pixels, not a whole-image metric.
+ *
+ * TWO THINGS THE RECIPE USED TO SAY ARE CORRECTED HERE, both by re-measuring rather than by
+ * reasoning, and both would have read as a failed retake to the next person who followed it:
+ *
+ *   THE BOUNDING BOX IS NOT ONE LINE-BAND, and it stopped being one when the copy column started
+ *   centring what it holds. This said "a copy change should move one band the height of one line.
+ *   Anything taller means the composition moved" — true of a column pinned at its top, and false
+ *   of this one: adding a line pushes everything above the centre up by half a line and everything
+ *   below it down by the same, so the box covers the whole copy column. Retaking with a fourth
+ *   tagline moved 661x417 of it. What still holds is the useful half — the CARD's own box must not
+ *   move. It measured 824x358.30 at the 1200px capture width before and after, so the composite
+ *   geometry above was unchanged; a card that has grown is the thing a retake must not paper over.
+ *
+ *   THE TYPE IS A SYSTEM STACK, SO THE RENDERING MACHINE IS PART OF THE RECIPE. `BasicLayout.astro`
+ *   asks for `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ...`, so a Mac renders this
+ *   hero in SF and a bare Linux box falls through to whatever Helvetica aliases to — Liberation
+ *   Sans, i.e. Arial metrics, which set the same copy 4-5% wider and widened the call to action
+ *   with it. That is a re-typesetting arriving inside a copy change, and it is invisible in a
+ *   fingerprint. Resolve the stack as authored: with Roboto installed, a Linux retake of the
+ *   UNCHANGED card reproduced the committed file to a mean absolute difference of 1.35/255 and
+ *   within 1.1% of its byte size, which is what makes the retake a regeneration rather than a
+ *   redraw. Reproduce the previous file that way before trusting a new one.
  */
 describe("public/preview.jpg", () => {
     it("still depicts the content the intro card renders", () => {
@@ -602,7 +623,7 @@ describe("public/preview.jpg", () => {
 
         expect(fingerprint, "the intro card's content has changed, so public/preview.jpg now "
             + "disagrees with the page it is a render of. Regenerate it by the recipe above, then "
-            + `record the new fingerprint here: ${fingerprint}`).toBe("e5d36879e213d190");
+            + `record the new fingerprint here: ${fingerprint}`).toBe("9bd4aa884204467c");
     });
 });
 
