@@ -508,7 +508,20 @@ describe("a card sizes to its content, not to its grid area", () => {
      * card. `BasicLayout.astro` already named one as the residue it could not reach:
      * the intro card's copy column carried a 300px cap, and at a 768px width and a
      * 24px root it still ate 48px of the control row after everything else had been
-     * fixed. It is `18.75rem` now, which is the same 300px at the default root size.
+     * fixed. Making it `18.75rem` — the same 300px at the default root size — fixed the
+     * SCALING and left the ceiling in place, and the column is not capped at all now.
+     *
+     * THAT LAST STEP IS THE ONE WORTH READING, because a relative cap looks like the end
+     * of this argument and is not. What overflows this column is the wrapping control
+     * row, which gains a whole row at a stroke rather than growing with the text, so the
+     * content clears any ceiling in rem exactly as it cleared one in px — just later.
+     * Measured at 1280 on the revision before the copy column took a fourth line: zero
+     * overflow at a 16px and a 24px root, then 95px of it at 32px and 189px at 40px, the
+     * column being centred so half of that left the card's top edge and took the greeting
+     * with it. The ceiling is a floor now (`md:min-h-[18.75rem]` in `IntroCard.astro`),
+     * which reserves exactly what the cap was there to reserve — the card's proportions
+     * at the default size, where the column holds less than it — and reserves nothing at
+     * the sizes where it was deleting ink. Overflow is 0 at every root from 16 to 40.
      *
      * Written with a KNOWN-EXCEPTION set rather than as a blanket ban, because two
      * absolute caps in here are right — and the exception is keyed on the ELEMENT,

@@ -133,8 +133,8 @@ const lastRowIsFull = linkRows[linkRows.length - 1].length >= PER_ROW
             swap, because the arrangement it replaces was deliberate and its reason expired rather
             than being overridden.
 
-            At `md` and up this column is a STRETCHED flex item under a cap, so its height is that
-            cap whatever it holds — it does not size to its content and never did. While the
+            At `md` and up this column is a STRETCHED flex item over a FLOOR, so its height is at
+            least that floor whatever it holds and it never shrinks to its content. While the
             controls were seven plated boxes the content nearly filled it, and pinning them to the
             foot with `justify-between` plus a stretching type column was what kept the slack out of
             the middle. Retiring the plate took the content from 300px to 224, so the same
@@ -150,8 +150,21 @@ const lastRowIsFull = linkRows[linkRows.length - 1].length >= PER_ROW
             DO NOT PUT THE SLACK BACK AT ONE END. Both ends were built and measured: at the foot it
             is the 92px hole above, and at the top it is 76px of empty card below the call to
             action, which is the failure this file's own history calls a 130px hole.
+
+            AND THE FLOOR IS A FLOOR RATHER THAN A CEILING BECAUSE A CEILING WAS DELETING INK, which
+            is a different fault from the one this file already records against absolute lengths.
+            `18.75rem` grows with the reader's text, so it looked settled; what defeats it is that
+            the control row below does not scale with the text, it WRAPS — it gains a whole row at a
+            stroke — so the column's content clears the ceiling in one step whatever unit the
+            ceiling is in. Measured at 1280 with the copy at three taglines: nothing overflowed at a
+            16px or 24px root, then 95px did at 32px and 189px at 40px, and because the column is
+            centred half of that left the card's TOP edge and took the greeting with it. The card
+            clips, so that ink was gone. A floor reserves what the cap was actually for — the card's
+            proportions at the default size, where the content is smaller than it — and stops
+            reserving anything where the content is larger. Overflow is 0 at every root from 16 to
+            40, and at the default size `<main>` and the card measure what they measured before.
         */}
-        <div class="flex flex-col justify-center md:max-h-[18.75rem] gap-4">
+        <div class="flex flex-col justify-center md:min-h-[18.75rem] gap-4">
             <div class="intro-type flex flex-col self-start md:self-auto">
                 {/*
                     ONE TOP-LEVEL HEADING, AND NO EYEBROW. Both halves are the same judgement and both are
