@@ -387,6 +387,39 @@ function text(value: string): string {
 
 type Ink = ReturnType<typeof palette>
 
+/**
+ * 🔴 A QUIETER SHADE OF A TOKEN, AND THE CARD MAY NOT GET THERE WITH `opacity`.
+ *
+ * THE ALPHA LIVES IN THE COLOUR because `/design` embeds this card inside an SVG `foreignObject`
+ * that a `viewBox` scales, and WebKit paints a layered HTML child of a `foreignObject` in the
+ * WRONG COORDINATE SPACE — bug 23113, open since 2009 and unfixed in Safari 27. The bug's own
+ * diagnosis names the trigger exactly: "Opacity makes a RenderLayer in the HTML. That RenderLayer
+ * is parented currently in the SVGRoot's layer, not the foreignObject's layer, so ends up in
+ * completely the wrong places." A property that makes a RenderLayer — `opacity` below 1, a
+ * `transform`, a `position` other than static — is therefore the thing to avoid, not this one
+ * property; that list is upstream's rather than ours.
+ *
+ * MEASURED IN SAFARI 27 AGAINST THE LIVE SITE, and this is what a reader actually saw: the three
+ * legend lines and the progression counter — every element on the card carrying an `opacity`, and
+ * no others — were painted at their FULL 20px, unscaled, roughly a thousand pixels below the card,
+ * on top of the prose underneath it. Chromium and Firefox park the layer correctly and showed
+ * nothing wrong, which is why this shipped. The card's own PNG renderer is Chromium too, so the
+ * posted artifact was never affected; this was `/design` alone.
+ *
+ * IT IS EXACT RATHER THAN A NEAR-MISS. Every caller here is a leaf carrying text and no box, so
+ * compositing the element at `a` and drawing its glyphs at alpha `a` are the same operation —
+ * there is nothing else in the layer to fade. `color-mix` premultiplies, so mixing toward
+ * `transparent` yields the token at that alpha and not a blend toward black.
+ *
+ * THE BODY MAP KEEPS ITS OWN `opacity` AND MUST. Those are SVG presentation attributes on `path`
+ * elements, which are SVG all the way down, make no RenderLayer, and paint correctly — see
+ * `src/lib/body-map.ts`. The rule is about HTML inside the `foreignObject`, which is why the gate
+ * in `tests/share-card.test.ts` reads the CSS declaration and not the attribute.
+ */
+function dim(colour: string, percent: number): string {
+    return `color-mix(in srgb, ${colour} ${percent}%, transparent)`
+}
+
 /** The attribution chip: the mark, the wordmark, and an opaque ground under both. */
 function chip(ink: Ink, font: string): string {
     const mark = markSvg({ink: ink.ink, track: ink.track, fill: markFill(), px: CHIP_MARK_PX})
@@ -415,7 +448,7 @@ function swatch(fill: string, label: string, ink: Ink, font: string): string {
     return `<div style="display:flex;align-items:center;gap:9px">`
         + `<div style="width:24px;height:10px;background:${fill}"></div>`
         + `<div style="font-family:${font};font-size:${TYPE.quiet}px;font-weight:500;`
-        + `color:${ink.text};opacity:0.7">${text(label)}</div></div>`
+        + `color:${dim(ink.text, 70)}">${text(label)}</div></div>`
 }
 
 /** The footer: the legend, the provenance, and the join key with its progression. */
@@ -428,12 +461,12 @@ function footer(session: Session, shading: Shading["shading"], ink: Ink, font: s
         + swatch(ink.track, "not worked", ink, font)
         + `</div>`
         + `<div style="font-family:${font};font-size:${TYPE.quiet}px;font-weight:500;`
-        + `color:${ink.text};opacity:0.5">${text(PROVENANCE[shading])}</div></div>`
+        + `color:${dim(ink.text, 50)}">${text(PROVENANCE[shading])}</div></div>`
         + `<div style="text-align:right">`
         + `<div style="font-family:${font};font-size:${TYPE.code}px;font-weight:750;`
         + `letter-spacing:-0.015em;color:${ink.text}">${text(session.code)}</div>`
         + `<div style="font-family:${font};font-size:${TYPE.quiet}px;font-weight:500;`
-        + `color:${ink.text};opacity:0.55;padding-top:6px">`
+        + `color:${dim(ink.text, 55)};padding-top:6px">`
         + `${text(session.progressionCounter)}</div></div></div>`
 }
 
