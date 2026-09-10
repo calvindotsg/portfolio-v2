@@ -138,6 +138,38 @@ describe("the share card", () => {
     });
 
     /**
+     * 🔴 THE CARD'S HTML MAKES NO RENDER LAYER, BECAUSE `/design` DRAWS IT INSIDE A `foreignObject`.
+     *
+     * WebKit parents a layered HTML child of a `foreignObject` in the SVG root's layer rather than
+     * the `foreignObject`'s, so it is painted outside the `viewBox` transform — bug 23113, open
+     * since 2009 and reproduced in Safari 27. Measured against the live site: three legend lines
+     * and the progression counter, which were the only elements on the card carrying an `opacity`,
+     * painted unscaled about a thousand pixels below the card and over the prose beneath it.
+     * Chromium and Firefox park the layer correctly, so nothing but a Safari reproduced this.
+     *
+     * IT READS THE CSS DECLARATION AND NOT THE ATTRIBUTE, and the distinction is the whole gate:
+     * the body map is SVG all the way down and its `opacity="…"` on a `path` makes no layer and
+     * paints correctly. What is forbidden is the HTML side — `dim()` in `src/lib/share-card.ts`
+     * carries the argument and is how a quieter shade is reached instead.
+     *
+     * THE OTHER TWO TRIGGERS ARE UPSTREAM'S LIST RATHER THAN OURS. The bug names `transform` and a
+     * non-static `position` alongside `opacity`; the card needs none of the three, so all three
+     * are refused here rather than waiting for the next one to ship broken.
+     */
+    it("draws no HTML layer inside the foreignObject that Safari would misplace", () => {
+        const declarations = CARD.match(/(?:opacity|transform|position)\s*:[^;"]*/g) ?? [];
+        expect(declarations,
+            "the card set a property that makes a RenderLayer. WebKit bug 23113 paints such a "
+            + "layer outside the viewBox transform that /design scales the card with, so it "
+            + "lands unscaled and far from the card. Reach a quieter shade with dim() instead")
+            .toEqual([]);
+        expect(CARD.match(/opacity="[^"]*"/g)?.length,
+            "the body map emitted no opacity attribute — the gate above is no longer "
+            + "distinguishing the SVG attribute from the CSS declaration, so it proves nothing")
+            .toBeGreaterThan(0);
+    });
+
+    /**
      * THE TYPE FLOOR, ASSERTED AGAINST A CONSTANT RATHER THAN AGAINST THE SMALLEST STEP. Comparing
      * every step to `Math.min(...steps)` would pass whatever the card printed, which is the shape
      * of assertion this suite exists to avoid.

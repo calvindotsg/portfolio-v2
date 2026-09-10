@@ -647,6 +647,14 @@ const MARKDOWN = "/design.md";
                              ratio for free, and degrades to a correctly-sized empty box. Both were
                              driven in a real browser before this was written.
 
+                             🔴 WHAT THE viewBox COSTS, AND IT IS PAID INSIDE THE CARD: WebKit
+                             paints an HTML child of a `foreignObject` that makes a RenderLayer
+                             OUTSIDE this transform, so it lands unscaled and nowhere near the
+                             frame. That is why `src/lib/share-card.ts` reaches a quieter shade
+                             with `dim()` rather than `opacity` — the argument, the measurement
+                             and the gate all live there, beside the markup that has to obey it.
+                             Anything else ever put in this `foreignObject` obeys it too.
+
                              THE svg CARRIES NO `role` AND NO LABEL ON PURPOSE. Naming it as an
                              image would collapse everything inside it to that one string, and the
                              card's own words — the quote, its attribution, the legend, the code —
