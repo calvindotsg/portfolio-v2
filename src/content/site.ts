@@ -435,9 +435,9 @@ export const METADATA: {
      * One sentence on the work, in his own words, for `/llms.txt`.
      *
      * NOT {@link ABOUT_ME}, WHICH IS THE WRONG REGISTER FOR THIS. That copy is the
-     * page's voice — waking before sunrise, #cyclehome — and it is right there and wrong
-     * here: an agent asked "what does Calvin do professionally" should not have to infer
-     * it from cycling banter. {@link METADATA.description} is no better; it is a meta
+     * page's voice — being talked out of bed before sunrise for a ride — and it is right
+     * there and wrong here: an agent asked "what does Calvin do professionally" should not
+     * have to infer it from cycling banter. {@link METADATA.description} is no better; it is a meta
      * description, written to earn a click.
      *
      * Quoted from the profile README rather than paraphrased, so the sentence GitHub

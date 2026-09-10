@@ -1,5 +1,5 @@
 /**
- * THE HOME PAGE'S CARDS, IN THEIR OWN WORDS: the intro card's h1 stack and its about
+ * THE HOME PAGE'S CARDS, IN THEIR OWN WORDS: the intro card's hero stack, the About card's
  * bullets, the two career entries, the open-source list that reaches no card at all, and
  * the Now card. Copy that belongs to no single card is next door in `src/content/site.ts`.
  *
@@ -145,20 +145,27 @@ export const PROJECTS: {
 }]
 
 /**
- * The intro card's own voice — and the second line NAMES A CHALLENGE THAT IS STILL ON.
+ * The About card's own voice, one bullet per entry. It is ONE line now, and this note is the
+ * record of why the second one left, because that removal is the one thing this file spent a
+ * paragraph arguing an agent must not do on its own.
  *
- * ITS AGE IS NOT EVIDENCE OF DRIFT. A copy audit reached for this line because it had
- * not changed in over a year, which measures the git log rather than the challenge:
- * the ride it names is one the maintainer is still riding, so the sentence is current
- * and was kept. The only thing that can settle this line is the challenge itself —
- * check that before rewriting it, and do not take a commit date as the answer.
+ * THE SECOND LINE ADVERTISED A "1000km in 5 weeks" CHALLENGE, AND ITS AGE WAS NEVER THE
+ * ARGUMENT AGAINST IT. A copy audit reached for it because it had not changed in over a year,
+ * which measures the git log rather than the challenge, and the challenge was still on at the
+ * time — so it was kept, and the defence written here was correct. `plans/README.md` filed the
+ * same finding as DIRECT-04 and left it open on the same grounds: it is the owner's own voice,
+ * so an agent should not rewrite it. THE OWNER ASKED FOR IT, which is exactly and only what
+ * could settle it; that entry now carries the resolution.
+ *
+ * WHAT SURVIVES IS THE RULE RATHER THAN THE SENTENCE IT PROTECTED. A line here is a
+ * self-description, so a commit date is never evidence that one has expired — and neither is a
+ * removed line being missed. Ask; do not audit.
  */
 export const ABOUT_ME: {
     description: string[]
 } = {
     description: [
-        "If you tell me to wake up before sunrise, I'd say you're crazy. But if it's for cycling? Count me in!",
-        "Join me in my latest cycling challenge 1000km in 5 weeks, helping vulnerable teens #cyclehome"
+        "If you tell me to wake up before sunrise, I'd say you're crazy. But if it's for cycling? Count me in!"
     ]
 }
 

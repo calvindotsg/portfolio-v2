@@ -1197,9 +1197,11 @@ re-audited next run:
 ## Deliberately not planned
 
 Two direction findings survived vetting as the maintainer's call, not an
-agent's. **DIRECT-01 has since been decided** (2026-07-22 → plan 015); it is
-kept below with its resolution so the reasoning is not re-derived. DIRECT-04
-remains open:
+agent's. **Both have since been decided** — DIRECT-01 on 2026-07-22 (→ plan 015)
+and DIRECT-04 on 2026-09-10 — and both are kept below with their resolutions so
+the reasoning is not re-derived. Neither was overruled; each waited for the one
+person who could answer it, which is the point of this section rather than an
+overhead of it:
 
 - **DIRECT-01 — resolved 2026-07-22, see plan 015.** The maintainer supplied the
   decision this finding was waiting on: a daily GitHub Actions cron writes
@@ -1210,11 +1212,17 @@ remains open:
   than overruled: the fetch happens in CI, not at build time, so the static build
   can still never fail on someone else's API — a bad or missing response simply
   produces no commit.
-- **DIRECT-04 — stale time-bounded copy.** `ABOUT_ME.description` has advertised a
-  "latest cycling challenge 1000km in 5 weeks" unchanged for 13 months, and it is
-  live in production right now. It is a ten-second edit, but it is the owner's
-  own voice; an agent should not rewrite someone's self-description. Plan 007
-  flags it and changes nothing.
+- **DIRECT-04 — resolved 2026-09-10.** The finding: `ABOUT_ME.description` had
+  advertised a "latest cycling challenge 1000km in 5 weeks" unchanged for 13
+  months, live in production. It was a ten-second edit and it stayed open anyway,
+  because it is the owner's own voice and an agent should not rewrite someone's
+  self-description. Plan 007 flagged it and changed nothing; the note above
+  `ABOUT_ME` argued the same thing from the other end, that the line's AGE
+  measured the git log rather than the challenge, which was still on. **The owner
+  asked for the line to be removed**, which is the only thing that could settle
+  it, and the card is one bullet now. The reasoning is worth keeping past the
+  edit: what expired here was a fact about the world that no gate in this tree can
+  see, so the resolution came from the person and not from a re-audit.
 
 ## Open items owned by the maintainer
 
