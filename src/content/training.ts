@@ -58,6 +58,13 @@ import type {PATCHES} from "./races"
  * otherwise get wrong in the expensive direction. A race is a Strava activity, so its
  * kilometres are already inside its week's bar; a reader who took the bib as an addition would
  * double count exactly the way the header of `src/lib/projection.ts` refuses to.
+ *
+ * AND IT NAMES THE PULSE, for the outline's reason: the dot on one row is the Now card's live
+ * indicator worn by the week in progress, and a treatment that means "this one is still moving"
+ * has to be given that meaning somewhere a reader meets before the rows. "In progress" rather
+ * than a sport's own verb, because the sentence is printed on the running page too — and it
+ * is true of the row on the Monday its bar is still empty, which is the day the dot earns its
+ * place: without it that row is drawn exactly like a rest week.
  */
 export const TRAINING: {
     heading: string
@@ -109,6 +116,13 @@ export const TRAINING: {
      * booked because somebody entered it, and nobody books a week.
      */
     ahead_label: string
+    /**
+     * WHAT THE MARKDOWN TWIN PRINTS ON THE WEEK IN PROGRESS, where the page draws the pulse. A
+     * document has no dot and no `aria-current`, so the one row whose figures will move by
+     * tomorrow needs a word — beside the span, because that is the part of the line that says
+     * WHEN. Lower-case, because it sits inside a parenthesis the span already opened.
+     */
+    current_label: string
     /**
      * THE HALF OF THE GOAL CARD'S HERO THAT IS NOT THE FIGURE — `{unit}` is the goals' own.
      *
@@ -174,8 +188,8 @@ export const TRAINING: {
     heading: "My training",
     control: "My {sport} training",
     lede: "One bar a week, drawn against the busiest week of the year. The outlines are weeks "
-        + "that have not happened, and every race sits on the week it was ridden in rather than "
-        + "beside it.",
+        + "that have not happened, the pulse is the week in progress, and every race sits on the "
+        + "week it was ridden in rather than beside it.",
     description_all: "Every week of Calvin's training year, drawn as one bar each, with the races on it.",
     description_sport: "Every week of Calvin's {sport} year, drawn as one bar each, with the races on it.",
     all_label: "All",
@@ -187,6 +201,7 @@ export const TRAINING: {
     sessions_head: "Sessions",
     time_head: "Moving",
     ahead_label: "Ahead",
+    current_label: "in progress",
     card_week: "{unit} this week",
     card_year: "{done} / {target} {unit}",
     card_spark: "{km} {unit} this week, {direction} a twelve-week average of {mean} {unit}.",

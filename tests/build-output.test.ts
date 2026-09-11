@@ -13,7 +13,7 @@ import stravaProgress from "../src/data/strava-progress.json";
 import {patchState} from "../src/lib/projection";
 import {iconClass} from "../src/lib/icons";
 import {contrast, expandHex} from "./helpers/contrast";
-import {decl, isStateful, lastDecl, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
+import {decl, decl as ruleDecl, isStateful, lastDecl, pageCss, parseRules, splitSelectorList, structuralSelector} from "./helpers/css";
 import {builtPages, classTokens, cssChunks} from "./helpers/pages";
 
 /**
@@ -1340,36 +1340,95 @@ describe("dist/", () => {
     });
 
     /**
-     * The Now card's live dot is a non-text status graphic, so SC 1.4.11 asks
+     * The live dot is a non-text status graphic, so SC 1.4.11 asks
      * 3:1 of it against the card it sits on. It went unmeasured for as long as
      * it existed because it borrowed --shadow, a token whose own job (a
      * decorative offset plate) carries no such requirement — at #EC7981 it sat
      * at 2.53:1 and nobody was looking. Splitting --status-live off is what
      * makes this assertable; pinning `.via` is what stops a future re-coupling
      * from quietly reintroducing the same blind spot.
+     *
+     * ON EVERY PAGE THAT DRAWS ONE, NOT THE HOME PAGE ALONE. The indicator was the Now
+     * card's for years and this read `dist/index.html` by name; it is worn by the spine's
+     * current week and by `/design`'s specimen now, and each of those sits on a surface
+     * this gate has to resolve for itself — the same card token today, which is exactly the
+     * kind of fact a gate should measure rather than assume. The set is discovered from the
+     * built pages so a fourth wearer is gated the day it lands. The home page is asserted
+     * to be in it, because a build that dropped the card's dot would otherwise shrink the
+     * population silently.
      */
-    it("holds the live status dot at 3:1 against the card it sits on", () => {
+    it("holds the live status dot at 3:1 against the surface it sits on, wherever it is worn", () => {
         const css = sheet();
-        const doc = parseHTML(read("dist/index.html")).document;
-        const dot = doc.querySelector('[class*="status-live"]');
-        expect(dot, "the Now card must render a live indicator").toBeTruthy();
+        const wearers = builtPages().filter((page) =>
+            parseHTML(read(page)).document.querySelector('[class*="status-live"]') !== null);
+        expect(wearers, "the home page must render the Now card's live indicator").toContain("dist/index.html");
+        expect(wearers.length, "the spine and /design wear the indicator too — a shrinking set is a lost surface")
+            .toBeGreaterThan(1);
 
-        let card = dot!.parentElement;
-        while (card && !painted(css, card.getAttribute("class"), "background-color", themeTokens(css, "light"))) {
-            card = card.parentElement;
+        for (const page of wearers) {
+            const doc = parseHTML(read(page)).document;
+            const dots = [...doc.querySelectorAll('[class*="status-live"]')];
+            expect(dots.length, `${page} draws more than one live dot — now is one moment`).toBe(1);
+            const dot = dots[0]!;
+
+            let card = dot.parentElement;
+            while (card && !painted(css, card.getAttribute("class"), "background-color", themeTokens(css, "light"))) {
+                card = card.parentElement;
+            }
+            expect(card, `${page}: the dot must sit on an element that paints a surface`).toBeTruthy();
+
+            for (const theme of ["light", "dark"]) {
+                const t = themeTokens(css, theme);
+                const ink = painted(css, dot.getAttribute("class"), "background-color", t)!;
+                const surface = painted(css, card!.getAttribute("class"), "background-color", t)!;
+                expect(ink?.via, `${page} ${theme}: the dot paints ${ink?.via} — the indicator must own its colour`)
+                    .toBe("--status-live");
+                const ratio = contrast(ink.hex, surface.hex);
+                expect(
+                    ratio,
+                    `${page} ${theme}: live dot ${ink.hex} on ${surface.hex} is ${ratio.toFixed(2)}:1 — a status indicator needs 3:1`,
+                ).toBeGreaterThanOrEqual(3);
+            }
         }
-        expect(card, "the dot must sit on an element that paints a surface").toBeTruthy();
+    });
 
-        for (const theme of ["light", "dark"]) {
-            const t = themeTokens(css, theme);
-            const ink = painted(css, dot!.getAttribute("class"), "background-color", t)!;
-            const surface = painted(css, card!.getAttribute("class"), "background-color", t)!;
-            expect(ink?.via, `${theme}: the dot paints ${ink?.via} — the indicator must own its colour`).toBe("--status-live");
-            const ratio = contrast(ink.hex, surface.hex);
-            expect(
-                ratio,
-                `${theme}: live dot ${ink.hex} on ${surface.hex} is ${ratio.toFixed(2)}:1 — a status indicator needs 3:1`,
-            ).toBeGreaterThanOrEqual(3);
+    /**
+     * THE HALO MOVES ONLY FOR A READER WHO HAS NOT ASKED FOR LESS MOTION. It is the one thing
+     * on the site that keeps animating after the page has arrived, and for as long as it was
+     * one card's detail it ran under `prefers-reduced-motion: reduce` unchecked — the layout's
+     * arm names `main > *` and `.bib-cell`, and a span inside a card is neither. The repair is
+     * not a wider arm: the animation utility carries the preset's reduced-motion variant, so
+     * the ping is EMITTED inside `prefers-reduced-motion: no-preference` and there is no
+     * unconditional rule for a third wearer to be missed by.
+     *
+     * ASSERTED ON THE SHIPPED SHEET, BOTH WAYS. Every rule that animates the halo's class must
+     * sit under that media query, and there must be at least one — a halo with no animation at
+     * all would pass a one-directional check and be a dot with a second, static dot behind it.
+     * The halo is found from the markup by the token it paints, on every page that wears one,
+     * so the class this gate reads is whatever the component actually ships.
+     */
+    it("emits the live indicator's pulse only under prefers-reduced-motion: no-preference", () => {
+        const wearers = builtPages().filter((page) =>
+            parseHTML(read(page)).document.querySelector('[class*="status-halo"]') !== null);
+        expect(wearers.length, "no page draws the halo, so there is nothing to gate").toBeGreaterThan(1);
+        // A class token as the shipped sheet spells it: every character outside the identifier
+        // set is backslash-escaped, which is how `a:b` becomes the selector `.a\:b`.
+        const asSelector = (token: string) => `.${token.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`)}`;
+
+        for (const page of wearers) {
+            const rules = parseRules(pageCss(page));
+            const halo = parseHTML(read(page)).document.querySelector('[class*="status-halo"]')!;
+            const selectors = (halo.getAttribute("class") ?? "").split(/\s+/).filter(Boolean).map(asSelector);
+            // `ruleDecl` is the helper's; this describe shadows `decl` with a class-list resolver.
+            const animating = rules.filter((r) => ruleDecl(r.body, "animation") !== undefined
+                && r.selectors.some((s) => selectors.includes(s)));
+            expect(animating.length, `${page}: no rule animates the halo — it would be a static second dot`)
+                .toBeGreaterThan(0);
+            for (const rule of animating) {
+                expect(rule.at ?? "", `${page}: "${rule.selectors.join(", ")}" animates the halo unconditionally, so a `
+                    + "reader who asked for less motion gets the pulse anyway")
+                    .toMatch(/prefers-reduced-motion:\s*no-preference/);
+            }
         }
     });
 

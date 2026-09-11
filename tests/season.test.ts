@@ -216,6 +216,47 @@ describe("the year as one spine", () => {
         expect(onStamp.ahead, "read from the stamp, that same week has not begun").toBe(true);
     });
 
+    /**
+     * THE CURRENT WEEK IS THE ONE THE BUILD DAY FALLS IN, AND THERE IS AT MOST ONE. Mutated one
+     * default at a time for the reason the test above gives; and asked at BOTH ends of the week,
+     * because `monday <= iso` alone is green on every elapsed week and `iso <= sunday` alone on
+     * every week ahead — only the pair names one row.
+     *
+     * THE YEAR BOUNDARY IS THE CASE THAT HAS NO CURRENT WEEK, and it is asserted rather than
+     * avoided. A spine holds the weeks whose Monday is in its year, so a build on the Friday of
+     * a week that began in December sits on the previous year's spine; this year's has every
+     * week ahead and none current. Papering over that with "the first week" would mark a week
+     * nobody is riding yet.
+     */
+    it("marks the week the build day falls in as current, and never more than one", () => {
+        const currentOf = (iso?: string) =>
+            weekRows(seasonSpine(YEAR, undefined, iso)).filter((w) => w.current).map((w) => w.key);
+
+        expect(currentOf(), "the default must be BUILD_DATE").toEqual(currentOf(BUILD));
+        expect(currentOf(), "the two clocks must disagree here, or this assertion proves nothing")
+            .not.toEqual(currentOf(STAMP));
+
+        expect(currentOf(BUILD), "exactly one week holds the build day").toEqual([isoWeekKey(BUILD)]);
+        const week = weekRows(seasonSpine(YEAR, undefined, BUILD)).find((w) => w.current)!;
+        expect(week.monday <= BUILD && BUILD <= week.sunday, "the current week must span the build day").toBe(true);
+        expect(week.ahead, "a week in progress has begun, so it is not ahead").toBe(false);
+
+        // Both ends of the week are inside it and the days either side are not.
+        expect(currentOf(week.monday)).toEqual([week.key]);
+        expect(currentOf(week.sunday)).toEqual([week.key]);
+        expect(currentOf(day(week.monday, -1))).not.toEqual([week.key]);
+        expect(currentOf(day(week.sunday, 1))).not.toEqual([week.key]);
+
+        // A day whose week began in the previous year: this year's spine has no current week.
+        const jan1 = `${YEAR}-01-01`;
+        expect(isoWeekMonday(isoWeekKey(jan1)) < jan1, `${YEAR} opens mid-week, so this branch is exercised`)
+            .toBe(true);
+        expect(currentOf(jan1), "a build on a week that belongs to last year's spine marks nothing here")
+            .toEqual([]);
+        expect(weekRows(seasonSpine(YEAR - 1, undefined, jan1)).filter((w) => w.current).map((w) => w.key),
+            "that same day IS current on the previous year's spine").toEqual([isoWeekKey(jan1)]);
+    });
+
     it("moves the summary with the build day, and not with the stamp", () => {
         // Only the totals a CALENDAR decides may move. The kilometres are the same either way —
         // they come off the weeks, which are the same weeks — so what changes is which of them the

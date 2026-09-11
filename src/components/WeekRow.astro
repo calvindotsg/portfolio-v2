@@ -1,4 +1,5 @@
 ---
+import Pulse from "./Pulse.astro";
 import {TRAINING} from "../content/training";
 import {kmFromMetres} from "../lib/race";
 import {hoursMinutes, shortDate, type SpineWeek} from "../lib/season";
@@ -57,6 +58,30 @@ const {head, week, busiest, unit} = Astro.props as Props;
  * says which is which. Three pages already exist to answer that question and the row of sport
  * chips is one press, so the split is a URL rather than a hue — the shape the wall next door already uses
  * for the identical question.
+ *
+ * THE CURRENT WEEK WEARS THE NOW CARD'S LIVE INDICATOR, AND IT IS THE SAME OBJECT FOR THE SAME
+ * REASON. The card's dot says "what its owner is doing at this moment"; a week still being ridden
+ * is the same claim about a row — its figures are the only ones on the page that will move by
+ * tomorrow — so it wears the same `Pulse`, one treatment for one meaning, which is the rule the
+ * outline above already keeps. It trails the DATE, the way the card's dot trails its heading: a
+ * label, then the mark that says the label is live. The boundary between the last full-length
+ * track and the first hairline marks the same row by arrangement, and that is exactly the
+ * reading that fails on a Monday, when the current week has no fill yet and is drawn like a
+ * rest week — the dot is what separates "nothing yet" from "nothing".
+ *
+ * WHAT `VolumeSpark.astro` REFUSED, THIS ACCEPTS, AND THE POPULATION IS WHY. The card's twelve
+ * bars end on the current week by construction and its hero prints that week's figure a few
+ * pixels away, so a mark there would restate the arrangement. Fifty-two rows have no such edge:
+ * the current week is somewhere in the middle of the column, under a scroll, and nothing else on
+ * the row names it.
+ *
+ * THE ROW SAYS IT IN THE MARKUP AS WELL: `aria-current="date"` on the list item is the fact the
+ * dot draws, told to the accessibility tree in the attribute's own vocabulary — a listener meets
+ * "current date" on the row rather than a decorative span. It is the same attribute the sport
+ * chips use for the page you are on, with the token for a dated item rather than a page. No
+ * printed word is added: the dot is a shape and not a colour, so it is not the colour-only cue
+ * SC 1.4.1 refuses, and {@link TRAINING.lede} gives it its meaning the way it gives the outline
+ * one. The markdown twin, which has no dot, prints {@link TRAINING.current_label} instead.
  */
 
 const km = week === undefined ? "" : kmFromMetres(week.totals.metres).toFixed(2);
@@ -81,9 +106,15 @@ const fill = week === undefined || !busiest ? 0 : (week.totals.metres / busiest)
             <span class="spine-time">{TRAINING.time_head}</span>
         </p>
 ) : (
-        <li class={`spine-row${week!.ahead ? " spine-row--ahead" : ""}`}>
+        <li class={`spine-row${week!.ahead ? " spine-row--ahead" : ""}`} aria-current={week!.current ? "date" : undefined}>
             <span class="spine-no">{week!.key.slice(5)}</span>
-            <time class="spine-day" datetime={week!.monday}>{shortDate(week!.monday)}</time>
+            {/* THE DOT IS INSIDE THE `<time>` AND THAT IS ALLOWED: with a `datetime` attribute the
+                 element's machine value is the attribute, and its content is free — the date text
+                 is still the whole of what it says, since the dot has no text. Keeping it inside
+                 is what lets the dot follow the date at every width without a track of its own;
+                 a sibling in the same grid area would sit at the cell's far edge, which on the
+                 narrowest arm is the other side of the row. */}
+            <time class="spine-day" datetime={week!.monday}>{shortDate(week!.monday)}{week!.current && <Pulse/>}</time>
             {/* DECORATIVE, AND THAT IS A DECISION RATHER THAN AN OMISSION. Every fact the bar
                  carries is in the figures to its right, in text, at full precision — so
                  announcing the bar as well would read one week twice to a listener, once as a
@@ -204,8 +235,17 @@ const fill = week === undefined || !busiest ? 0 : (week.totals.metres / busiest)
         opacity: 0.7;
     }
 
+    /*
+     * A FLEX ROW SO THE LIVE INDICATOR SITS ON THE DATE'S OWN CENTRE LINE. The date text becomes
+     * an anonymous flex item and `nowrap` keeps it one; the dot, on the current week only, is the
+     * second item, a gap after it. `flex` rather than `inline-flex` because a grid item is
+     * blockified whatever it asks for, and the token should say what the box is.
+     */
     .spine-day {
         grid-area: day;
+        display: flex;
+        align-items: center;
+        gap: 0.35em;
         white-space: nowrap;
     }
 
