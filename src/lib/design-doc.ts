@@ -430,6 +430,13 @@ export const AGENT_DROPS: Partial<Record<keyof typeof SECTIONS, string>> = {
         + "worth naming: a forced-colours mode replacing every colour, and a reading order that "
         + "has drifted from the visual one, are failures that agent cannot see anywhere in its own "
         + "output, where a stuck hover state at least shows up the first time somebody taps it.",
+    status: "Dropped for the budget's reason and it costs this rendering nothing, since "
+        + "`AGENT_SECTIONS` is an allowlist and the section was never being rendered. What is "
+        + "lost is small and named: that agent has the two status tokens and their roles from the "
+        + "palette above, so it can draw the dot; what it does not get is the placement rule — "
+        + "after the name of the live thing — and the halo's motion contract. It is THIRD in the "
+        + "re-add queue in `.design-sync/NOTES.md`, behind the two sections whose whole subject is "
+        + "missing rather than one whose tokens already arrive.",
 }
 
 /**

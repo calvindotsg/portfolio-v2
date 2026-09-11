@@ -22,7 +22,7 @@ Every token is defined only under the two theme blocks — there is no bare :roo
 | `--text` | body ink |
 | `--progress-fill` | the marked region of a progress bar |
 | `--progress-track` | the unmarked remainder of that bar |
-| `--status-live` | the Now card's live indicator dot |
+| `--status-live` | the live indicator's dot |
 | `--status-halo` | that dot's decorative pulsing halo |
 | `--brand-ink` | a brand-colored glyph standing in for a word in prose |
 | `--sport-ride` | the cycling mark where it sits on a card |

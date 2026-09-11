@@ -242,7 +242,11 @@ never mentions outranks a single instruction missing from a section it does carr
 2. **The Access don'ts**, cheapest of the three and the one to try first if a little room appears.
    A forced-colours mode and a drifted reading order are failures that agent cannot see anywhere
    in its own output, where a stuck hover state at least shows up the first time somebody taps.
-3. The accessible-name instruction, and then the emoji instruction — the two that used to head
+3. **The Status Indicators placement rule** — after the name of the live thing — and the halo's
+   motion contract. Third rather than higher because this reader already holds the two status
+   tokens and their roles from the palette, so it can draw the dot; the subject is partly
+   present where States and Access are absent outright.
+4. The accessible-name instruction, and then the emoji instruction — the two that used to head
    this queue.
 
 **Words is not in the queue at any budget**, and that is on merit rather than arithmetic: that

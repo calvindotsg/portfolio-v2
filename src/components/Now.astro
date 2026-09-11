@@ -20,9 +20,9 @@ import {iconClass} from "../lib/icons";
  * and a heading written out here inherits nothing.
  *
  * So the fix is structural and the spacing follows from it. The link becomes an icon in
- * the card's own corner slot beside the dot, the heading goes back to being
- * `title="Now"`, and the 20px arrives on its own. Nothing in this file sets a spacing
- * value any more.
+ * the card's own corner slot beside the dot, the heading goes back to being the card's
+ * `title` — `NOW.heading`, which `/design` also draws — and the 20px arrives on its own.
+ * Nothing in this file sets a spacing value any more.
  *
  * WHY THE CORNER AND NOT INSIDE THE HEADING. An adornment after the title text was the
  * first shape tried, and it is worse for the reason that matters most about a heading:
@@ -47,7 +47,7 @@ import {iconClass} from "../lib/icons";
  */
 ---
 
-<Card colSpan="md:col-span-1" rowSpan="md:row-span-2" title="Now">
+<Card colSpan="md:col-span-1" rowSpan="md:row-span-2" title={NOW.heading}>
     <Fragment slot="corner">
         <a
                 href={NOW.explainer_url}

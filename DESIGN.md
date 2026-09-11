@@ -123,7 +123,7 @@ The tokens below carry the whole design. Each is defined twice — once per them
 | `--text` | `#0B0B0B` | `#FAFAFA` | body ink |
 | `--progress-fill` | `#A82334` | `#F9CDD3` | the marked region of a progress bar |
 | `--progress-track` | `#E3B3B8` | `#462F32` | the unmarked remainder of that bar |
-| `--status-live` | `#A82334` | `#F3A3AA` | the Now card's live indicator dot |
+| `--status-live` | `#A82334` | `#F3A3AA` | the live indicator's dot |
 | `--status-halo` | `#A82334` | `#F9CDD3` | that dot's decorative pulsing halo |
 | `--brand-ink` | `#A82334` | `#F3A3AA` | a brand-colored glyph standing in for a word in prose |
 | `--sport-ride` | `#A82334` | `#F3A3AA` | the cycling mark where it sits on a card |
@@ -219,6 +219,22 @@ Don't:
 - Substitute an emoji for a mark that is not in the set.
 - Mix another icon family in. The ones that ship do different jobs and were chosen against each other.
 - Recolor a brand mark away from what the surface it sits on needs for contrast.
+
+## Status Indicators
+
+A dot with a halo, worn by whatever is happening now: the card that says what its owner is doing at the moment, and the week of the training year still in progress. The dot is the whole indicator. The halo pulses, and only for a reader who has not asked for less motion, so a still frame, a screenshot and a printout all keep the dot and lose nothing. It is geometry rather than a glyph, in colors of its own, and it says one thing — this one is live — so the word beside it is what says which thing that is.
+
+Do:
+
+- Put it after the name of the thing that is live, on that name's own line. The dot says now; the name says what, and a dot that has drifted from its name is a dot beside the wrong thing.
+- Hold the dot at the contrast a status graphic needs against the surface it sits on. It is neither text nor a control, so neither of those floors reaches it on its own, and it once borrowed a decorative plate's color and sat under the floor for as long as nobody measured.
+- Say in the markup what the dot says on screen. A current item is a state the accessibility tree has a word for, and a listener meets that word on the row where a sighted reader meets the dot.
+
+Don't:
+
+- Tint it with the interactive affordance. A status and an affordance are different claims, and a status colored like a control is a thing that asks to be pressed and does nothing.
+- Let the halo carry anything. It is the one thing here that keeps moving after the page has arrived, so it is the first thing taken away — by a motion preference, a still capture, a printer — and whatever it carried goes with it.
+- Wear it twice in one view. Now is one moment; a page with several live dots on it has stopped saying which thing is happening.
 
 ## Data Visualization
 
@@ -324,6 +340,9 @@ reaches that reader not at all.
 - **Iconography** — Size a mark with font-size. They are background images scaled to the text box.
 - **Iconography** — Pair a mark with a word wherever the mark alone would be a guess.
 - **Iconography** — Give an icon-only control an accessible name, since the mark is the whole control.
+- **Status Indicators** — Put it after the name of the thing that is live, on that name's own line. The dot says now; the name says what, and a dot that has drifted from its name is a dot beside the wrong thing.
+- **Status Indicators** — Hold the dot at the contrast a status graphic needs against the surface it sits on. It is neither text nor a control, so neither of those floors reaches it on its own, and it once borrowed a decorative plate's color and sat under the floor for as long as nobody measured.
+- **Status Indicators** — Say in the markup what the dot says on screen. A current item is a state the accessibility tree has a word for, and a listener meets that word on the row where a sighted reader meets the dot.
 - **Data Visualization** — Say what a bar is measured against, in words the reader meets before the bars. A length means nothing until the scale is named, and a target and the largest value in the set are two different pictures drawn identically.
 - **Data Visualization** — Give the marked region more contrast against the surface than the unmarked remainder has. Whichever region stands further from the ground is the one a reader takes for the mark, so a bar drawn the other way round reads as full when it is empty.
 - **Data Visualization** — Draw a value that does not exist yet as an absence rather than as a zero, and print the word for it. A quantity nobody has measured and a measured zero are different facts, and the drawing can only separate them by leaving one of them undrawn.
@@ -357,6 +376,9 @@ reaches that reader not at all.
 - **Iconography** — Substitute an emoji for a mark that is not in the set.
 - **Iconography** — Mix another icon family in. The ones that ship do different jobs and were chosen against each other.
 - **Iconography** — Recolor a brand mark away from what the surface it sits on needs for contrast.
+- **Status Indicators** — Tint it with the interactive affordance. A status and an affordance are different claims, and a status colored like a control is a thing that asks to be pressed and does nothing.
+- **Status Indicators** — Let the halo carry anything. It is the one thing here that keeps moving after the page has arrived, so it is the first thing taken away — by a motion preference, a still capture, a printer — and whatever it carried goes with it.
+- **Status Indicators** — Wear it twice in one view. Now is one moment; a page with several live dots on it has stopped saying which thing is happening.
 - **Data Visualization** — Split one bar into segments a reader can only separate by hue. Two categories at the same lightness arrive as one bar in two indistinguishable halves; give each category its own view and let the reader choose one.
 - **Data Visualization** — Put ink inside a bar. The fill flips polarity between the themes, so a label on it has to be legible against both poles, and the same words have more room beside the bar than on it.
 - **Data Visualization** — Let the drawing be the only carrier of a figure it encodes. Print the number as well: a bar is a shape, and the reader who cannot resolve the shape is the reader who most needs the value.

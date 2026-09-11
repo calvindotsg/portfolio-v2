@@ -2,7 +2,9 @@
 import Layout from "../layouts/BasicLayout.astro";
 import Card from "../components/Card/index.astro";
 import BrandMark from "../components/BrandMark.astro";
+import Pulse from "../components/Pulse.astro";
 import {CARD_SPECIMEN_CAPTION, CONTROLS, DESIGN_PAGE, MARK_READING, MARK_REGIONS, MARK_SIZE_LABEL, SECTIONS, THEMING, TOKEN_ROLES} from "../content/design";
+import {NOW} from "../content/home";
 import {NEXT_RACE, PATCHES} from "../content/races";
 import {SPECIMEN} from "../data/bft/specimen";
 import {GOALS} from "../lib/goal";
@@ -671,6 +673,21 @@ const MARKDOWN = "/design.md";
                                 </figure>
                         )}
 
+                        {/* THE INDICATOR AS THE HOME PAGE WEARS IT: the Now card's heading with the
+                             dot after it, which is the section's first instruction drawn rather than
+                             described. It is the real `Pulse` and the card's real heading string, so
+                             the specimen re-tones with the theme, stops with a motion preference and
+                             opts into Highlight under forced colours exactly as the card's does — and
+                             a change to either reaches here without anybody remembering to make it.
+                             A `p` rather than a heading, because it is a specimen of a heading and
+                             not one; a real `h3` would put "Now" into this page's outline. */}
+                        {key === "status" && (
+                                <p class="design-status">
+                                    <span class="design-name">{NOW.heading}</span>
+                                    <Pulse/>
+                                </p>
+                        )}
+
                         {key === "icons" && (
                                 <ul class="design-marks">
                                     {MARKS.map((mark) => (
@@ -1277,6 +1294,19 @@ const MARKDOWN = "/design.md";
     /* A mark is a mask sized by its own type size, so this is how a specimen is enlarged. */
     .design-glyph {
         font-size: 1.5rem;
+    }
+
+    /*
+     * THE STATUS SPECIMEN IS A ROW, name then dot, at the size the Now card wears it — the
+     * page's base type, since the indicator is sized in `em` and this is the one place its size
+     * is a fact about the card rather than about this page. The gap is the card's own step
+     * between its corner marks, in `em` so it tracks the type.
+     */
+    .design-status {
+        display: flex;
+        align-items: center;
+        gap: 0.75em;
+        margin: 0 0 1.5rem;
     }
 
     /*
