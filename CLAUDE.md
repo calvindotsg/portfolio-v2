@@ -27,6 +27,21 @@ thing in the column. See `.spine-row--ahead` in `WeekRow.astro`, and note the se
 half of the same rule: an elapsed week with no training draws a full-length TRACK
 with no fill, so a rest week in March and a week in November are not one picture.
 
+**THE LIVE INDICATOR IS THE OTHER TREATMENT SHARED ACROSS PAGES, AND IT IS ONE
+COMPONENT.** `Pulse.astro` — a dot with a pulsing halo — is worn by the Now card beside
+its heading and by the spine's week in progress beside its date, after the name in both
+places, because both mean "this one is live". `/design` publishes it as Status
+Indicators. Three facts about it are not derivable from the drawing: the row carries
+`aria-current="date"` (the markup's own word for the dot, and the reason there is no
+printed word — `TRAINING.current_label` is what the markdown twin prints instead); the
+halo's animation is emitted only under `prefers-reduced-motion: no-preference` via the
+preset's `motion-safe:` variant, so no layout arm has to remember a wearer, and
+`tests/build-output.test.ts` refuses an unconditional rule; and `SpineWeek.current` is
+true for AT MOST one week, and for none on up to three days a year, because a spine holds
+weeks by their Monday and a build on 2 January sits on last year's — the zero case is a
+correct page, not a case to paper over. `NOW.heading` is one string with two ends: the
+card's title and the specimen.
+
 **THE RACES AND THE TRAINING ARE ONE DATASET, AND `/training` IS WHERE THAT STOPS
 BEING A CLAIM.** A race stores `recordings: [{id, metres, elapsed_time}]`, one entry
 per Strava activity, and a `TrainingWeek` stores the same activities as sessions —

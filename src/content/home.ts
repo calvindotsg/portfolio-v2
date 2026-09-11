@@ -262,13 +262,20 @@ export const WELCOME: {
  * It used to be the whole name, and the sentence saying so outlived the second span. It says what the destination explains rather than gesturing at
  * it — "what's that ?" reads fine beside the word it follows and says nothing at all
  * when read out of a list of links.
+ *
+ * `heading` IS HERE BECAUSE IT HAS TWO READERS. The card wore it as a literal for as long as
+ * the card was its only reader; `/design` now draws the live indicator's specimen as the
+ * home page's own arrangement — this word with the dot after it — and a word drawn at two
+ * ends is one string, for the reason `NEXT_RACE.control` is.
  */
 export const NOW: {
+    heading: string
     description: string
     explainer_url: string
     explainer_name: string
     explainer_icon: string
 } = {
+    heading: "Now",
     description: "Building processes at a startup, probably running when you find me",
     explainer_url: "https://sive.rs/nowff",
     explainer_name: "What's a /now page?",

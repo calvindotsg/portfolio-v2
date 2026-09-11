@@ -86,6 +86,16 @@ export type SpineWeek = {
     sunday: string
     /** True when the week has not begun. A week in progress is not ahead. */
     ahead: boolean
+    /**
+     * True for the week the build falls in — the one still being ridden. AT MOST one week on a
+     * spine has it, and for up to three days a year NONE does: a spine holds the weeks whose
+     * MONDAY is in its year, so a build on 2 January sits on a week that belongs to the year
+     * before. That is the same three-day disagreement the header records for races, seen from
+     * the calendar's side, and a spine with no current week is the honest picture on those days
+     * rather than a case to paper over. {@link RecentWeek.current} is the same fact on the goal
+     * card's run, where exactly one week always has it because the run is built AROUND today.
+     */
+    current: boolean
     totals: WeekTotals
 }
 
@@ -172,12 +182,14 @@ export function seasonSpine(
     const rows: SpineRow[] = []
     for (const key of keys) {
         const monday = isoWeekMonday(key)
+        const sunday = addDays(monday, 6)
         rows.push({
             kind: "week",
             key,
             monday,
-            sunday: addDays(monday, 6),
+            sunday,
             ahead: monday > iso,
+            current: monday <= iso && iso <= sunday,
             totals: weekTotals(scopeWeek(weeks.get(key) ?? NO_WEEK, sport)),
         })
         const races = (racesByWeek.get(key) ?? []).slice().sort((a, b) =>

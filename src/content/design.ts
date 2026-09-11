@@ -159,7 +159,7 @@ export const TOKEN_ROLES: readonly {token: string, role: string}[] = [
     {token: "--text", role: "body ink"},
     {token: "--progress-fill", role: "the marked region of a progress bar"},
     {token: "--progress-track", role: "the unmarked remainder of that bar"},
-    {token: "--status-live", role: "the Now card's live indicator dot"},
+    {token: "--status-live", role: "the live indicator's dot"},
     {token: "--status-halo", role: "that dot's decorative pulsing halo"},
     {token: "--brand-ink", role: "a brand-colored glyph standing in for a word in prose"},
     {token: "--sport-ride", role: "the cycling mark where it sits on a card"},
@@ -341,8 +341,8 @@ export const CARD_SPECIMEN_CAPTION = "The session on this card never happened. E
     + "image and an image does not re-tone once it has been posted."
 
 export const SECTIONS: Readonly<Record<
-    "palette" | "type" | "mark" | "controls" | "icons" | "data" | "states" | "words" | "access"
-    | "card", {
+    "palette" | "type" | "mark" | "controls" | "icons" | "status" | "data" | "states" | "words"
+    | "access" | "card", {
     heading: string
     lede: string
     does: readonly string[]
@@ -447,6 +447,41 @@ export const SECTIONS: Readonly<Record<
             "Substitute an emoji for a mark that is not in the set.",
             "Mix another icon family in. The ones that ship do different jobs and were chosen against each other.",
             "Recolor a brand mark away from what the surface it sits on needs for contrast.",
+        ],
+    },
+    /*
+     * THE INDICATOR WAS WORN ON ONE CARD FOR YEARS AND PUBLISHED NOWHERE, which is exactly the
+     * state the states section describes for a press: decided somewhere in the tree, argued in a
+     * component's header, and invisible to anybody handed the vocabulary. The day it went on a
+     * second surface it stopped being one card's detail and became a kind of thing this system
+     * draws, and a kind of thing has a section — with the rules for where it may go, since the
+     * whole value of a status is that it is rare.
+     *
+     * NOT UNDER ICONOGRAPHY, though it is small and sits beside words the way a mark does: a mark
+     * is a glyph from the set and this is geometry in tokens of its own, and filing it under marks
+     * would put the icon rules — font-size, an accessible name — on a thing none of them fit. NOT
+     * UNDER INTERACTION STATES either, whose subject is what a CONTROL does when touched; this is
+     * worn by things nobody presses. The industry's word is the heading, as for every section the
+     * format leaves open.
+     */
+    status: {
+        heading: "Status Indicators",
+        lede: "A dot with a halo, worn by whatever is happening now: the card that says what "
+            + "its owner is doing at the moment, and the week of the training year still in "
+            + "progress. The dot is the whole indicator. The halo pulses, and only for a reader "
+            + "who has not asked for less motion, so a still frame, a screenshot and a printout "
+            + "all keep the dot and lose nothing. It is geometry rather than a glyph, in colors "
+            + "of its own, and it says one thing — this one is live — so the word beside it is "
+            + "what says which thing that is.",
+        does: [
+            "Put it after the name of the thing that is live, on that name's own line. The dot says now; the name says what, and a dot that has drifted from its name is a dot beside the wrong thing.",
+            "Hold the dot at the contrast a status graphic needs against the surface it sits on. It is neither text nor a control, so neither of those floors reaches it on its own, and it once borrowed a decorative plate's color and sat under the floor for as long as nobody measured.",
+            "Say in the markup what the dot says on screen. A current item is a state the accessibility tree has a word for, and a listener meets that word on the row where a sighted reader meets the dot.",
+        ],
+        donts: [
+            "Tint it with the interactive affordance. A status and an affordance are different claims, and a status colored like a control is a thing that asks to be pressed and does nothing.",
+            "Let the halo carry anything. It is the one thing here that keeps moving after the page has arrived, so it is the first thing taken away — by a motion preference, a still capture, a printer — and whatever it carried goes with it.",
+            "Wear it twice in one view. Now is one moment; a page with several live dots on it has stopped saying which thing is happening.",
         ],
     },
     data: {

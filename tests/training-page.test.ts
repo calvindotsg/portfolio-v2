@@ -127,6 +127,55 @@ describe("the training spine, as it ships", () => {
     });
 
     /**
+     * THE WEEK IN PROGRESS WEARS THE NOW CARD'S LIVE INDICATOR, AND SAYS SO IN THE MARKUP. Three
+     * things, each asserted against the module rather than against the page's own claim: WHICH
+     * row is current (`seasonSpine`'s answer, from the page's own build date), that the row
+     * carries `aria-current="date"` and the dot, and that no other row carries either.
+     *
+     * THE DOT IS THE CARD'S DOT, asserted by class string rather than by looking similar: the
+     * indicator is one component, and a page that drew its own would be a second home for the
+     * treatment `/design` publishes once. The dot's own contrast is gated in
+     * tests/build-output.test.ts, on every page that draws one.
+     *
+     * THE ZERO CASE IS REAL AND IS NOT SKIPPED. For up to three days a year the build day sits
+     * on a week whose Monday is in the previous year, so this year's spine has no current week
+     * and must draw no indicator — the assertion that the marked set EQUALS the module's answer
+     * covers both branches, and the positive branch is what runs on every other day.
+     */
+    it.each(PAGES)("marks the week in progress with the live indicator, and no other (%s)", (page) => {
+        const iso = buildDateOf(page);
+        const sport = SPORT_OF[page];
+        const weeks = seasonSpine(Number(iso.slice(0, 4)), sport, iso).filter((r) => r.kind === "week");
+        const current = weeks.filter((w) => w.current).map((w) => w.key.slice(5));
+        expect(current.length, "the module marks more than one week as current").toBeLessThanOrEqual(1);
+
+        const rows = [...docOf(page).querySelectorAll(".spine-weeks > .spine-row")];
+        const marked = rows.filter((r) => r.getAttribute("aria-current") === "date");
+        expect(marked.map((r) => text(r.querySelector(".spine-no"))),
+            "the rows carrying aria-current are not the week the build day falls in")
+            .toEqual(current);
+        const dotted = rows.filter((r) => r.querySelector('[class*="status-live"]') !== null);
+        expect(dotted.map((r) => text(r.querySelector(".spine-no"))),
+            "the rows drawing the live dot are not the week the build day falls in")
+            .toEqual(current);
+
+        for (const row of marked) {
+            expect(row.classList.contains("spine-row--ahead"), "a week in progress has begun").toBe(false);
+            const dot = row.querySelector('[class*="status-live"]')!;
+            expect(dot.closest(".spine-day"), "the dot must trail the date, inside its own cell").not.toBeNull();
+            expect(text(row.querySelector(".spine-day")), "the dot must add no text to the date")
+                .toBe(shortDate(weeks.find((w) => w.current)!.monday));
+            const home = parseHTML(read("dist/index.html")).document.querySelector('[class*="status-live"]');
+            expect(home, "the home page draws no live indicator, so there is nothing to be the same as").not.toBeNull();
+            expect(dot.getAttribute("class"), "the spine's dot must be the Now card's dot — one component, not a copy")
+                .toBe(home!.getAttribute("class"));
+        }
+        // The other carrier of aria-current on this page is the filter row, and it is a
+        // different token; a week must never be marked as a page or a page as a date.
+        expect(docOf(page).querySelectorAll('.spine-weeks [aria-current="page"]')).toHaveLength(0);
+    });
+
+    /**
      * THE BAR'S LENGTH IS THE DATA, so it is the one inline value on this page that has to be
      * checked against the derivation rather than merely present. A fill of a constant width is a
      * page that looks like a series and is not one.
@@ -312,6 +361,10 @@ describe("the training spine, as it ships", () => {
                 expect(lines[i]).toContain(kmFromMetres(week.totals.metres).toFixed(2));
                 expect(lines[i]).toContain(hoursMinutes(week.totals.moving_seconds));
             }
+            // The document has no dot, so the week the page marks is the one line that says so.
+            expect(lines[i]!.includes(TRAINING.current_label),
+                `${href}: ${week.key} ${week.current ? "is in progress and does not say so" : "is not in progress and says it is"}`)
+                .toBe(week.current);
         }
     });
 });

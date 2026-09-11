@@ -1,6 +1,12 @@
 ---
 /**
- * The Now card's live indicator: a dot with a pulsing halo.
+ * THE LIVE INDICATOR: a dot with a pulsing halo, worn by whatever is happening NOW.
+ *
+ * TWO WEARERS, ONE DRAWING. The Now card wears it beside its heading — the card says what its
+ * owner is doing at the moment — and the spine wears it on the week still being ridden, beside
+ * that week's date. Both are the same claim, "this one is live", so both wear the same object;
+ * `/design` publishes it as a Status Indicator and says where it may go. It is NOT a mark in
+ * this system's vocabulary: a mark is a glyph from the icon set, and this is geometry.
  *
  * It has its own two tokens rather than borrowing the offset plate's and the
  * control accent's, which is what it did until the palette change. That was the
@@ -8,16 +14,42 @@
  * unrelated piece of meaning — and it was load-bearing in a way nobody had
  * noticed: the dot is a non-text status graphic, and at the old --shadow it sat
  * at 2.53:1 against the Now card, i.e. a shipping SC 1.4.11 failure. Splitting
- * the tokens is what lets a test hold it at 3:1 without pinning the plate.
+ * the tokens is what lets a test hold it at 3:1 without pinning the plate —
+ * and now that gate walks every page that draws one, not the home page alone.
  *
- * The halo carries no information the dot does not; it is decorative and
- * animated, so it is not gated.
+ * SIZED IN `em`, NOT `rem`, AND THE NOW CARD DOES NOT MOVE. It was three quarters of a rem,
+ * which is 12px in a 16px heading row and 12px in a 10px spine row — a dot taller than the
+ * date beside it. Three quarters of an em is the same 12px where it always was and 7.5px on
+ * the spine, so the indicator is scaled by the text it sits beside, which is the rule every
+ * box inside a card already keeps.
+ *
+ * THE HALO CARRIES NO INFORMATION THE DOT DOES NOT; it is decorative and animated, and it
+ * moves ONLY FOR A READER WHO HAS NOT ASKED FOR LESS MOTION. The ping is emitted under the
+ * preset's own reduced-motion variant, so the stylesheet holds it inside
+ * `prefers-reduced-motion: no-preference` and a reader who set the preference gets the still
+ * dot with nothing taken away — a plans/README.md open item, closed here because putting the
+ * halo on three more pages was the moment to. `tests/build-output.test.ts` holds it: no
+ * unconditional rule may animate the halo.
+ *
+ * FORCED COLOURS EATS `background-color`, AND THE DOT IS NOTHING ELSE. So it opts out and takes
+ * Highlight, the pair a UA reserves for a marked region — the same answer `.spine-fill` gives
+ * one component over. It has no text, so there is no foreground to pair; the halo is left to
+ * the mode, which makes it Canvas and invisible, and that is right for a decoration.
  */
 ---
 
-<span class="relative flex h-3 w-3">
+<span class="relative flex h-[.75em] w-[.75em]">
   <span
-          class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--status-halo)] opacity-75"
+          class="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--status-halo)] opacity-75"
   ></span>
-  <span class="relative inline-flex rounded-full h-3 w-3 bg-[var(--status-live)]"></span>
+  <span class="pulse-dot relative inline-flex rounded-full h-[.75em] w-[.75em] bg-[var(--status-live)]"></span>
 </span>
+
+<style>
+    @media (forced-colors: active) {
+        .pulse-dot {
+            forced-color-adjust: none;
+            background-color: Highlight;
+        }
+    }
+</style>

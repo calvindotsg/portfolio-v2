@@ -87,7 +87,11 @@ const raceDistance = (event: RaceEvent): number | undefined => {
 const fixed = (value: number) => value.toFixed(2)
 
 const weekLine = (week: SpineWeek, unit: string): string => {
-    const span = TRAINING.week_span.replace("{from}", week.monday).replace("{to}", week.sunday)
+    // THE WEEK IN PROGRESS SAYS SO BESIDE ITS SPAN, where the page draws the pulse beside the
+    // date. The figures on that line are the only ones in the document that will move by
+    // tomorrow, and a reader quoting it needs to know that from the line itself.
+    const when = TRAINING.week_span.replace("{from}", week.monday).replace("{to}", week.sunday)
+    const span = week.current ? `${when}, ${TRAINING.current_label}` : when
     const figures = week.ahead
         ? TRAINING.ahead_label
         : `${fixed(kmFromMetres(week.totals.metres))} ${unit}, `

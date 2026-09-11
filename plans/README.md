@@ -930,12 +930,11 @@ What was genuinely unmeasured, and now is:
 
 **Also verified and downgraded:**
 
-- **The `ping` halo under `prefers-reduced-motion`.** `Pulse.astro` states a
-  rationale, and it is about CONTRAST ("the halo carries no information the dot
-  does not"), not about motion — so the rationale does not answer the motion
-  question, and the reduced-motion arm in `BasicLayout.astro` names `main > *` and
-  `.bib-cell`, neither of which reaches a span inside a card. Recorded as open
-  rather than resolved; it is a small, real inconsistency, not a WCAG A failure.
+- ~~**The `ping` halo under `prefers-reduced-motion`.**~~ **Resolved 2026-09-11**, the
+  day the halo went on three more pages — see the open-items entry below for what
+  changed. The finding as recorded stands as history: `Pulse.astro`'s rationale was
+  about CONTRAST, not motion, and the reduced-motion arm in `BasicLayout.astro`
+  reached `main > *` and `.bib-cell`, neither of which is a span inside a card.
 - **A year axis on the patch wall.** Rejected on measurement in the first panel
   (+47.4% document height at 1440, from empty grid cells beside singleton years,
   and it breaks the one-cell-per-race contract). The stale premise it originally
@@ -1243,13 +1242,17 @@ their resolutions rather than deleted.
   load-bearing. What the outline carries alone is the bib's EXTENT, not its state.
   Do not change a token to close this without asking; do not delete this entry
   because the argument above is persuasive, either. It is measured and open.
-- **The `ping` halo keeps animating under `prefers-reduced-motion`.** The
-  reduced-motion arm in `BasicLayout.astro` names `main > *` and `.bib-cell`;
-  the halo is a span inside a card, so neither reaches it. `Pulse.astro` states a
-  rationale for not gating the halo, but that rationale is about contrast, not
-  motion, so it does not settle this. Small and real; a design call rather than a
-  conformance failure, since SC 2.2.2 is about content that moves for more than
-  five seconds and this is a decorative pulse on a status dot.
+- ~~**The `ping` halo keeps animating under `prefers-reduced-motion`.**~~ **Resolved
+  2026-09-11.** The halo's animation utility now carries the preset's own
+  reduced-motion variant, so the shipped sheet holds the ping inside
+  `prefers-reduced-motion: no-preference` and there is no unconditional rule that
+  animates it — the layout's arm was not widened, because a variant on the one
+  class that moves is a rule that cannot be missed by a third wearer. Closed in the
+  change that put the same indicator on the spine's current week
+  (`WeekRow.astro`), which was the moment one card's decoration became a kind of
+  thing the site draws; `/design` publishes it as Status Indicators, and
+  `tests/build-output.test.ts` holds the motion contract. The finding as recorded
+  was right that it was a design call rather than a conformance failure.
 
 - ~~**`www.calvin.sg` serves the site instead of redirecting.**~~ **Resolved 2026-07-30.**
   `https://www.calvin.sg/` now answers `301` to the apex, preserving path and query, in
