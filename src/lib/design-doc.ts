@@ -220,10 +220,34 @@ function componentTokens(): string[] {
  * premise sounds right and the format does not impose it: its own words are that "the exact
  * mapping from color palettes to color tokens may follow any consistent naming convention", so a
  * theme prefix IS such a convention and a two-theme palette is expressible. Measured with
- * `@google/design.md` v0.4.0 — a thirty-token map named this way lints at zero errors and zero
- * warnings once a `primary` exists, and `export --format css-vars` emits one custom property per
- * token. Declaring the group omitted cost the format's whole toolchain: Tailwind themes, W3C
- * design tokens and CSS custom properties, all generable from values and none from prose.
+ * `@google/design.md` v0.4.0 — a thirty-token map named this way lints at zero errors once a
+ * `primary` exists, and `export --format css-vars` emits one custom property per token.
+ * Declaring the group omitted cost the format's whole toolchain: Tailwind themes, W3C design
+ * tokens and CSS custom properties, all generable from values and none from prose.
+ *
+ * "ZERO WARNINGS" WAS TRUE OF THAT MAP ALONE AND IS NOT TRUE OF THE DOCUMENT, and the sentence
+ * that said so outlived the `components` group by several releases. Re-measured 2026-09-11 with
+ * the same linter over the committed `DESIGN.md` and the live `/design.md` (byte-identical):
+ * **0 errors, 27 warnings**, in two classes, both of which fire BECAUSE a components group now
+ * exists and neither of which is a defect in this document —
+ *
+ *   - `orphaned-tokens`, once per colour a component never references (26 of the 32). The rule
+ *     exempts Material Design 3 colour FAMILIES by stripping MD3 affixes from a token's name, so
+ *     `on-surface` is spared as `surface`'s kin; a theme prefix sits where no MD3 affix does, so
+ *     `light-background` collapses to itself and is flagged, and every `dark-*` token is flagged
+ *     by construction because the group can name only one theme. The convention is the one the
+ *     format's own words allow and the one every gate here holds; renaming to an MD3 family
+ *     would buy a quieter linter with a second naming scheme.
+ *   - `contrast-ratio`, once, on `brand-mark`: its `textColor` (the brand ink) on its
+ *     `backgroundColor` (the progress track) is 3.86:1 against the rule's 4.5:1, which is the
+ *     floor for TEXT. The mark's bar is ink over track — a non-text graphic, held to 3:1 by SC
+ *     1.4.11 and clearing it. The format's property vocabulary has no word for a fill on a track,
+ *     so the pair has to be published as if it were type, and the rule reads it as type.
+ *
+ * Both rules are in the linter's `linter/rules/` directory under those names; re-derive rather
+ * than trust this paragraph, since nothing in `pnpm test` runs the linter (the reason is beside
+ * the duplicate-heading gate in `tests/design-system.test.ts`) and a release can move either
+ * rule. `npx -y @google/design.md@0.4.0 lint DESIGN.md` is the whole re-measurement.
  *
  * THE NAMES ARE DERIVED, NOT WRITTEN. The prefix is one string and the rest is `PALETTE`; the
  * leading `--` is stripped because a YAML key beginning with a dash is not what the format's
