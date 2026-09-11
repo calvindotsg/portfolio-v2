@@ -346,8 +346,27 @@ const fill = week === undefined || !busiest ? 0 : (week.totals.metres / busiest)
      * THE FIGURES GO LEFT HERE. Right alignment is what puts a column on a rail, and there is no
      * column left to be on: each figure has the row to itself, so alignment to the right would
      * only put it as far as possible from the label above it.
+     *
+     * THE THRESHOLD IS WHERE THE FIRST ARM STOPS FITTING, AND IT WAS 14em, WHICH IS NOT. A
+     * query's `em` is the CONTAINER'S type — `.spine` inherits the page's 1rem — and the row is
+     * set at 0.6875rem, so every figure below is in the row's own em and then scaled by that
+     * ratio. The first arm's four set tracks cost 30.5ch, about 18.8em in the system stack
+     * (a `0` measures 0.617em), plus four gaps at 0.6em: its elastic km track is the container
+     * less 21.2em of row type, and the widest figure this page prints (`121.10`, or `AHEAD`)
+     * needs about 4.1em of it. Below roughly 25.3em of row type — 17.4em of the container's —
+     * the km cell has less than a figure, and `overflow-wrap: anywhere` then does exactly what
+     * it promises: measured on the shipped page, a 320px viewport at the DEFAULT text size — the
+     * width SC 1.4.10 names — gave the km cell 16px, set `30.15` on three lines and `AHEAD` as
+     * five letters, on every row. The old 14em was 20.4em of row type, well inside the broken
+     * band, and the band is not phone-only: it is 375–414px at 125% text, 480px at 150% and
+     * 600px at 200%. At 18em the first arm keeps 5em of row type for the figure; a 360px phone
+     * at the default size (18.4em) measured 56px and nothing wrapped, and 352px hands over.
+     *
+     * `tests/training-page.test.ts` holds the relationship rather than the number — the stacked
+     * arm must take over before the first arm's set tracks and gaps leave less than a figure —
+     * and records the sweep this paragraph quotes. Re-sweep in a browser when either arm moves.
      */
-    @container (max-width: 14em) {
+    @container (max-width: 18em) {
         .spine-row {
             grid-template-columns: 4.5ch minmax(0, 1fr);
             grid-template-areas:

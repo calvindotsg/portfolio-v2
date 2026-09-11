@@ -336,6 +336,74 @@ describe("the training spine, as it ships", () => {
     });
 
     /**
+     * THE STACKED ARM TAKES OVER BEFORE THE FIVE-COLUMN ARM RUNS OUT OF ROOM FOR A FIGURE.
+     *
+     * THE DEFECT, MEASURED ON THE SHIPPED PAGE BEFORE THE ARM MOVED: at a 320px viewport at the
+     * default text size — the width SC 1.4.10 names — the km cell was 16px wide, `30.15` sat on
+     * three lines and `AHEAD` was five letters down the page, on every row. The five-column arm's
+     * fixed tracks and gaps cost more than the container had, `minmax(0, 1fr)` let the elastic
+     * track go to nothing, and `overflow-wrap: anywhere` did what it promises. The stacked arm
+     * was at 14em of the container's type and needed to be above ~17.4em; it is 18em.
+     *
+     * WHAT IS GATED IS THE RELATIONSHIP, READ OUT OF THE SHIPPED SHEET: the stacked arm's
+     * threshold must be at least what the five-column arm needs — its fixed `ch` tracks and its
+     * gaps, plus one figure — converted into the container's em, because a container query's
+     * `em` is the CONTAINER'S font and the row is set smaller in rem. Move a track width, the
+     * gap or the row's type size and this reddens until the threshold follows.
+     *
+     * TWO CONSTANTS ARE MEASUREMENTS AND ARE SAID SO. `CH_EM` is how wide a `0` is in the system
+     * stack this site sets, measured in Chromium as 0.617em; `FIGURE_EM` is the widest thing the
+     * km cell prints — `121.10` in tabular figures at the cell's tracking, or `AHEAD` in the
+     * eyebrow register — measured at 4.1em of the row's type. Neither can be read from CSS, and
+     * a browser is the only instrument that can re-derive them. The sweep that produced them:
+     * emulate 320–768px viewports at 16–40px roots on `/training` and count rows whose `.spine-km`
+     * or `.spine-ahead` box is taller than one line — the fix is right when that count is zero
+     * everywhere the five-column arm applies. Re-sweep when either arm moves.
+     *
+     * THE SPELLINGS ARE THE MINIFIER'S, for the reason tests/patch-wall.test.ts records: the
+     * source says `(max-width: 18em)` and the sheet says `(width<=18em)`; the source says
+     * `column-gap` and the sheet says `gap: <row> <column>`.
+     */
+    it("hands the row to the stacked arm before the five-column arm has less than a figure", () => {
+        const CH_EM = 0.617;
+        const FIGURE_EM = 4.1;
+        const rules = parseRules(pageCss(PAGES[0])).filter((r) => r.selectors.some((s) => /^\.spine-row\b/.test(s)));
+        const base = rules.find((r) => r.at === "" && decl(r.body, "font-size") !== undefined);
+        expect(base, "the row's base rule must set its own type size").toBeDefined();
+        const rowRem = /^([\d.]+)rem$/.exec(decl(base!.body, "font-size")!)?.[1];
+        expect(rowRem, "the row's type must be in rem, so its ratio to the container's em is knowable").toBeTruthy();
+        const gapDecl = decl(base!.body, "column-gap") ?? decl(base!.body, "gap")?.split(/\s+/).pop();
+        const gapEm = /^([\d.]+)em$/.exec(gapDecl ?? "")?.[1];
+        expect(gapEm, `the column gap must be in em of the row's type, got ${gapDecl}`).toBeTruthy();
+
+        const threshold = (at: string) => {
+            const m = /(?:max-width\s*:|width\s*<=)\s*([\d.]+)(\w+)/.exec(at);
+            expect(m, `"${at}" must carry a readable width threshold`).toBeTruthy();
+            expect(m![2], `"${at}" must be font-relative, or it stops moving with the reader's text`).toBe("em");
+            return Number(m![1]);
+        };
+        const arms = rules.filter((r) => /@container/.test(r.at) && decl(r.body, "grid-template-columns") !== undefined)
+            .map((r) => ({at: r.at, tracks: decl(r.body, "grid-template-columns")!.split(/\s+(?![^(]*\))/), threshold: threshold(r.at)}));
+        const five = arms.find((a) => a.tracks.length === 5);
+        const stacked = arms.find((a) => a.tracks.length === 2);
+        expect(five, "the five-column arm is missing").toBeDefined();
+        expect(stacked, "the stacked arm is missing").toBeDefined();
+        expect(stacked!.threshold, "the stacked arm must sit below the five-column one").toBeLessThan(five!.threshold);
+
+        const fixedCh = five!.tracks.map((t) => /^([\d.]+)ch$/.exec(t)?.[1]).filter(Boolean).map(Number);
+        expect(fixedCh.length, "the five-column arm must size its fixed tracks in ch").toBe(4);
+        const chSum = fixedCh.reduce((a, b) => a + b, 0);
+        const needsRowEm = chSum * CH_EM + (five!.tracks.length - 1) * Number(gapEm) + FIGURE_EM;
+        const needsContainerEm = needsRowEm * Number(rowRem);
+        expect(stacked!.threshold,
+            `the stacked arm hands over at ${stacked!.threshold}em of the container's type, but the five-column `
+            + `arm needs ${needsContainerEm.toFixed(2)}em (${chSum}ch of fixed tracks at ${CH_EM}em, four gaps at `
+            + `${gapEm}em and a ${FIGURE_EM}em figure, at a row set in ${rowRem}rem) — below that the km cell `
+            + "has less than a figure and breaks it character by character")
+            .toBeGreaterThanOrEqual(needsContainerEm);
+    });
+
+    /**
      * THE TWIN IS THE PAGE, NOT A SUMMARY OF IT. Both are rendered from `seasonSpine`, so what is
      * asserted is that the DOCUMENT carries the same figures — a document that restated a figure
      * would match its own snapshot perfectly and say something else from the page beside it.
