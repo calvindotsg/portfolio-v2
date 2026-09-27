@@ -690,3 +690,13 @@ For whoever owns this after it lands:
 - Add row 049 to the execution table: P3 / L / depends on 048 / status.
 - Note under "Dependency notes" that 049 requires 048 because the card's chip is drawn from
   `src/lib/brand-mark.ts` and its tokens extend the `components` group 048 publishes.
+
+## Superseded in part — 2026-09-27
+
+- **2026-09-27: production rendering moved to `hermes-training-wiki` (`tools/bft_card.py`), by
+  Calvin's ruling, superseding locked decision 1.** His words: *"consider first: portfolio-v2 is
+  the single source of truth for only the design of the card."*, then the option *"Keep design,
+  remove the real-card tools"*. This repository keeps `src/lib/share-card.ts`, `body-map.ts`, the
+  vendored anatomy, the invented `/design` specimen and DESIGN.md's Share Cards component; the
+  renderer script, its `card:render` entry, its protected-name-list read with the redaction test,
+  and the real observed labels in `aliases.ts` were removed. Everything above is left as written.

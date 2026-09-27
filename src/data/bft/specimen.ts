@@ -29,8 +29,9 @@
  * publisher's own published prose, quoted rather than invented: making up marketing copy and
  * attributing it to a real business would be the one thing worse than publishing a real session.
  *
- * THE SPECIMEN IS FROZEN. New cards are rendered from a file by `scripts/render-share-card.ts`
- * and are never committed. A second specimen would need the same caption and the same scrutiny.
+ * THE SPECIMEN IS FROZEN. Real cards are drawn by the training wiki, never in this repository,
+ * and are never committed here. A second specimen would need the same caption and the same
+ * scrutiny.
  */
 
 import type {Session} from "../../lib/share-card"
