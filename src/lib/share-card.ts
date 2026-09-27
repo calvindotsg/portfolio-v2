@@ -2,11 +2,14 @@
  * THE SHARE CARD: a square image posted beside a gym activity, drawn in this site's palette and
  * wearing this site's mark.
  *
- * ONE IMPLEMENTATION, TWO CONSUMERS, AND THAT IS THE WHOLE ARCHITECTURE. `cardHtml` returns an
- * HTML string; `/design` embeds it as a specimen and `scripts/render-share-card.ts` writes it to
- * a file and screenshots it. An Astro component for the page plus a template for the renderer
- * would be two homes for one drawing, which is the defect this repository is organised against —
- * and the page would then be showing a picture of the card rather than the card.
+ * ONE IMPLEMENTATION, AND THE PAGE SHOWS IT RATHER THAN A PICTURE OF IT. `cardHtml` returns an
+ * HTML string and `/design` embeds it as a specimen. An Astro component beside a template would be
+ * two homes for one drawing, which is the defect this repository is organised against.
+ *
+ * THIS MODULE IS THE CARD'S DESIGN, NOT ITS PRODUCTION PATH (ruled 2026-09-27). Real sessions are
+ * drawn by the training wiki (`hermes-training-wiki`, `tools/bft_card.py`), which ports this
+ * layout and reads this site's published tokens and mark. The renderer that used to screenshot
+ * this string, and the protected-name gate on it, were removed here in the same change.
  *
  * IT WAS PORTED FROM A PYTHON MODULE THAT HARDCODED THIS SITE'S PALETTE. Eleven distinct hexes
  * over twenty-eight occurrences, every one of them a token `src/lib/palette.ts` publishes. THIS
@@ -79,12 +82,9 @@ export type Shading = ShadedFromMovements | ShadedFromFormat
 /**
  * ONE SESSION, AS BOTH SURFACES SEE IT.
  *
- * THREE OF THESE FIELDS ARE FREE PROSE OUT OF A PRIVATE SOURCE — `note`, `progressionNote` and
- * `intensity` — which is why `tests/share-card-redaction.test.ts` exists and why the renderer
- * refuses rather than scrubs. Anything a future editor types into one of those reaches a public
- * post. The refusal lives in `scripts/render-share-card.ts`, on the path that renders REAL
- * sessions, and deliberately not here: the `/design` specimen is invented and cannot leak, and a
- * site build that required the protected-name list would fail on every machine without it.
+ * THREE OF THESE FIELDS ARE FREE PROSE — `note`, `progressionNote` and `intensity`. In this
+ * repository the only session is the invented `/design` specimen, which cannot leak. Real sessions
+ * come from a private source and are drawn by the training wiki, whose path carries the leak gate.
  */
 export type Session = Shading & {
     /** The studio's own code. The join key back to a training week, and the ONLY fact on both surfaces. */
@@ -338,16 +338,16 @@ function palette(theme: string) {
 /**
  * THE TYPEFACE, READ OUT OF THE LAYOUT RATHER THAN RETYPED.
  *
- * The card carries its own font because it is rendered with no stylesheet — a specimen that
- * inherited the page's font would look right on `/design` and ship a different face in the PNG.
+ * The card carries its own font because a posted card is rendered with no stylesheet — a
+ * specimen that inherited the page's font would look right on `/design` and ship a different
+ * face in the PNG.
  * Reading the declaration is the same bargain `src/lib/palette.ts` makes with the colour blocks,
  * and for the same reason: this site's Typography section opens by saying there is no webfont, so
  * the stack IS the typeface and a second copy of it is a second typeface waiting to drift.
  *
  * THIS READ IS WHY NOTHING REACHABLE FROM `uno.config.ts` MAY IMPORT THIS MODULE, which is the
  * guard `src/lib/palette.ts` states at length from the other side. Nothing does: this file is
- * read by `src/pages/design.astro` and by `scripts/render-share-card.ts`, and the config reaches
- * neither.
+ * read by `src/pages/design.astro`, and the config does not reach it.
  *
  * 🔴 THE FAMILY NAMES ARE RE-QUOTED, AND SKIPPING THAT SILENTLY DELETES THE WHOLE CARD'S TYPE.
  * The layout writes `"Segoe UI"` with double quotes, which is correct CSS in a stylesheet and
@@ -471,39 +471,12 @@ function footer(session: Session, shading: Shading["shading"], ink: Ink, font: s
 }
 
 /**
- * EVERY STRING THE CARD PRINTS, AS TEXT — the surface a leak gate must scan, and NOT the HTML.
- *
- * MEASURED, AND THE REASON THIS FUNCTION EXISTS AT ALL: scanning the rendered card refuses honest
- * sessions. The card embeds a 1448-unit anatomical drawing, so its markup carries tens of
- * thousands of path coordinates, and a protected-name list holding any short value matches one of
- * them immediately — the first real run refused the invented specimen over two three-digit runs
- * inside `d="…"`. Path data is not published prose. What a reader can read is this list.
- *
- * IT IS DERIVED FROM THE SAME PLACES THE DRAWING READS, so a field added to the card and not here
- * would be a field the gate stops seeing. That is the one way this can go quietly wrong; the
- * ordering below follows `cardHtml`'s own regions for exactly that reason.
- */
-export function cardStrings(session: Session): string[] {
-    const program = programOf(session.code)
-    return [
-        WORDMARK,
-        program?.quote ?? "",
-        program === null ? PUBLISHER : `${PUBLISHER}, on ${program.name}`,
-        "worked",
-        "not worked",
-        PROVENANCE[workedBy(session).shading],
-        session.code,
-        session.progressionCounter,
-    ]
-}
-
-/**
  * THE CARD, AS ONE HTML STRING WITH EVERY STYLE INLINE.
  *
- * Inline rather than a stylesheet because the card has exactly two consumers and neither can use
- * one: `/design` embeds this into a page whose own sheet must not reach in, and the renderer
- * screenshots it with no sheet at all. A `<style>` block would also make the specimen's rules
- * global to `/design`, which is a class of bug this repository has a gate for.
+ * Inline rather than a stylesheet because `/design` embeds this into a page whose own sheet must
+ * not reach in, and the production port draws the same layout with no sheet at all. A `<style>`
+ * block would also make the specimen's rules global to `/design`, which is a class of bug this
+ * repository has a gate for.
  *
  * THE DATE AND THE PROGRAM NAME APPEAR ON NEITHER SURFACE. The platform prints the date above the
  * photo, and the activity's own title already carries the program — printing either here would be

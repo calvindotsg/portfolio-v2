@@ -19,12 +19,14 @@
  *     directions, inventing trapezius and missing biceps and triceps.
  *
  * PORTED FROM `bft_card_lib/bft_aliases.py` and the vocabulary file beside it, both in a
- * declared-disposable proof of concept that is not kept in sync. The observed labels come across
- * as {@link OBSERVED_LABELS} rather than being dropped, so {@link resolve} is gated against the
- * real corpus instead of against hand-picked cases.
+ * declared-disposable proof of concept that is not kept in sync. THE PORT WAS VERIFIED RATHER
+ * THAN ASSUMED: resolving all 240 observed labels through both implementations returned identical
+ * status and identical slugs for every one.
  *
- * THE PORT WAS VERIFIED RATHER THAN ASSUMED: resolving all 240 observed labels through both
- * implementations returns identical status and identical slugs for every one.
+ * THIS TABLE NOW SERVES THE DESIGN, NOT PRODUCTION (2026-09-27). Real cards are drawn by the
+ * training wiki, which keeps its own alias table and its own corpus of observed labels. The real
+ * labels this module used to carry were removed with the renderer that consumed them; what stays
+ * is what the `/design` specimen and `tests/share-card.test.ts` need to shade a session.
  */
 
 /** The muscle slugs the map can light — `src/lib/anatome/`'s set minus its non-muscle regions. */
@@ -244,8 +246,9 @@ export function canonical(label: string): string {
  * produced the labels in the first place: in the proof of concept the extractor spaced a slash
  * and this function did not, so `battle rope/burpee combo` resolved as unmapped in the real
  * pipeline while the table's own unit test — which reads pre-normalised keys — passed. The
- * integration gate caught it; the unit gate could not. That is why {@link OBSERVED_LABELS} is
- * carried across and asserted against, rather than the table being checked against its own keys.
+ * integration gate caught it; the unit gate could not. A table checked only against its own keys
+ * cannot see that class of defect, which is why the corpus of real labels is the gate wherever
+ * real cards are drawn.
  */
 export function resolve(label: string): {slugs: readonly string[], status: ResolveStatus} {
     let key = label.toLowerCase().replace(/-/g, " ").replace(/’/g, "'").replace(/\//g, " / ")
@@ -269,145 +272,4 @@ export function resolve(label: string): {slugs: readonly string[], status: Resol
         return {slugs: [...new Set(found)].sort(), status: "mapped"}
     }
     return {slugs: [], status: "unmapped"}
-}
-
-/**
- * EVERY RAW LABEL THIS VOCABULARY HAS ACTUALLY BEEN PUBLISHED AS, keyed by the canonical form.
- *
- * This is the corpus, not a lookup — {@link resolve} normalises rather than consulting it. It is
- * carried so a gate can walk what the studio really wrote (`Chin-Up`, `CHIN UPS`, `Battle Ropes`,
- * `battle rope/burpee combo`) instead of the tidy keys the table is written in, which is the one
- * form of this test that could have caught the slash bug described above.
- */
-export const OBSERVED_LABELS: Readonly<Record<string, readonly string[]>> = {
-    "30 second efforts": ["30-second efforts"],
-    "3:40 per station": ["3:40 per station"],
-    "alt bkwd lunge": ["ALT BKWD LUNGE"],
-    "alt contra lunge press": ["ALT CONTRA LUNGE PRESS"],
-    arabesque: ["Arabesque", "arabesque"],
-    "arnold press": ["Arnold press"],
-    "battle rope": ["Battle Ropes", "battle ropes"],
-    "battle rope / burpee combo": ["battle rope/burpee combo"],
-    "bb conventional deadlift": ["BB Conventional Deadlift"],
-    "bb military press": ["BB MILITARY PRESS", "BB Military Press"],
-    "bb zercher squat": ["BB ZERCHER SQUAT", "BB Zercher Squat"],
-    "bench press": ["bench press"],
-    "bicep curl": ["BICEP CURLS"],
-    bike: ["Bike", "bike"],
-    "bike seated": ["BIKE SEATED"],
-    "bionic bike": ["BIONIC BIKE", "Bionic Bike"],
-    "bottoms up press": ["Bottoms-Up Press"],
-    "box jump": ["BOX JUMP"],
-    "burpee clean": ["Burpee Clean"],
-    "cable db split stance rdl": ["CABLE DB SPLIT STANCE RDL"],
-    "chin up": ["CHIN UP", "Chin Up", "Chin Ups", "Chin-Up"],
-    "clean r": ["CLEAN R"],
-    "cossack lunge": ["Cossack lunge"],
-    "db bench press": ["DB Bench Press", "DB bench press"],
-    "db bent over row": ["DB Bent-Over Row"],
-    "db fly": ["DB fly"],
-    "db front squat paired with box jump": ["DB Front Squat paired with Box Jumps"],
-    "db rdl": ["DB RDL"],
-    "db reverse lunge l racked": ["DB REVERSE LUNGE L RACKED"],
-    "db shoulder press paired with push press": ["DB Shoulder Press paired with Push Press"],
-    "db split stance rdl": ["DB Split Stance RDL"],
-    "db sprinter squat": ["DB sprinter squat"],
-    "dead ball thruster": ["Dead Ball Thruster"],
-    "dead bug": ["dead bug"],
-    "deadball squat": ["deadball squat"],
-    deadlift: ["DEADLIFT"],
-    "devil press": ["Devil Press"],
-    dips: ["DIPS", "Dips", "dips"],
-    "double kb shoulder press": ["double KB shoulder press"],
-    "double unders": ["double unders"],
-    "dumbbell incline bench press": ["dumbbell incline bench press"],
-    "farmer's carry": ["farmer's carry"],
-    "front squat": ["FRONT SQUAT", "Front Squat"],
-    "goblet squat": ["Goblet Squat"],
-    "good morning": ["Good Morning"],
-    "gorilla row": ["gorilla row"],
-    "hip switches": ["hip switches"],
-    "incline bench press": ["incline bench press"],
-    "incline press": ["incline press"],
-    "incline row": ["INCLINE ROW"],
-    jogging: ["JOGGING"],
-    "kb front squat": ["KB Front Squat"],
-    "kb push press": ["KB Push Press"],
-    "kb rack walk": ["KB Rack Walk"],
-    "kb renegade row": ["KB Renegade Row"],
-    "kb romanian deadlift": ["KB Romanian deadlift"],
-    "kb snatch": ["KB snatch"],
-    "kb swing": ["KB Swing"],
-    "kb swings": ["KB swings"],
-    "keiser bike": ["Keiser Bike"],
-    "kneeling arnold press": ["kneeling Arnold press"],
-    "kneeling iron cross": ["kneeling iron cross"],
-    "l sit": ["L-sit"],
-    "lateral movement patterns": ["lateral movement patterns"],
-    "loaded carries": ["loaded carries"],
-    "mid grip jog": ["MID GRIP JOG"],
-    "out of seat climbing": ["OUT OF SEAT CLIMBING"],
-    "plank jackknife with shoulder taps": ["plank jackknife with shoulder taps"],
-    "powerbag forward lunge with rotation": ["Powerbag Forward Lunge with rotation"],
-    "powerbag lunge": ["Powerbag Lunge"],
-    press: ["PRESS"],
-    "pull overs": ["pull-overs"],
-    "push press": ["PUSH PRESS"],
-    "push up with power bag pull through": ["push-ups with power bag pull-through"],
-    "rack walk": ["rack walk"],
-    "rack walk / loaded carry": ["rack walk / loaded carry"],
-    "rack walk l": ["RACK WALK L"],
-    rdl: ["RDL"],
-    "reverse flys": ["reverse flys"],
-    "reverse lunge": ["reverse lunge"],
-    "reverse lunge with rotation": ["reverse lunge with rotation"],
-    "rope alt 5 l 5 r wave big": ["ROPE ALT 5 L 5 R WAVES BIG"],
-    "rope alt wave big": ["ROPE ALT WAVES BIG"],
-    "rope dbl wave big": ["ROPE DBL WAVES BIG"],
-    "rotational and curtsy lunge": ["rotational and curtsy lunges"],
-    rower: ["ROWER", "Rower", "rower"],
-    rows: ["Rows"],
-    running: ["running"],
-    "running on track": ["RUNNING ON TRACK"],
-    "sa kb clean": ["SA KB Clean"],
-    "seated bike": ["Seated Bike"],
-    "seated shoulder press": ["Seated Shoulder Press"],
-    "sh press": ["SH PRESS"],
-    "shoulder press": ["shoulder press"],
-    "side lunge": ["Side Lunge"],
-    "side plank with rotation": ["side plank with rotation"],
-    "single arm kb clean": ["Single-Arm KB Clean"],
-    "single arm press": ["single-arm press"],
-    "single arm row": ["single-arm row"],
-    "single leg push up": ["single-leg push-up"],
-    "ski erg": ["SKI ERG", "Ski Erg", "ski erg"],
-    skierg: ["SkiErg"],
-    skipping: ["SKIPPING", "skipping"],
-    slam: ["SLAM"],
-    "sled run": ["sled run"],
-    sleds: ["sleds"],
-    "snatch grip deadlift": ["snatch-grip deadlift"],
-    "snatch grip deadlift (introduced this week)": ["snatch-grip deadlift (introduced this week)"],
-    "snatch grip deficit deadlift": ["snatch-grip deficit deadlift"],
-    "snatch grip rdl": ["Snatch Grip RDL"],
-    "snatch grip rdl paired with double kb cleans": ["Snatch Grip RDL paired with Double KB Cleans"],
-    "sprinter squat": ["sprinter squat"],
-    sprinting: ["SPRINTING", "Sprinting"],
-    "step jump l": ["STEP JUMPS L"],
-    "step up": ["Step-Up"],
-    "step up row": ["step-up row"],
-    swing: ["SWING"],
-    thruster: ["Thruster"],
-    "torsonator hack squat": ["torsonator hack squat"],
-    "torsonator row": ["torsonator row"],
-    track: ["track"],
-    "track running": ["track running"],
-    "trap bar": ["trap bar"],
-    "trap bar deadlift": ["Trap Bar Deadlift", "trap bar deadlift"],
-    "trx squat jump": ["TRX squat jumps"],
-    "upright row": ["upright row"],
-    "wall ball": ["Wall Ball"],
-    "wall balls": ["WALL BALLS", "wall balls"],
-    windmill: ["windmill"],
-    "zercher squat": ["Zercher Squat"],
 }

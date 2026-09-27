@@ -296,14 +296,17 @@ block above it before giving either consumer the other's list.
   whose name another shortcut composes is a BASE, reaches no element and no
   stylesheet, and is refused. `typography`, `spacing` and `rounded` stay omitted,
   because those are scales this site genuinely does not have
-- **THE SHARE CARD IS ONE FUNCTION WITH TWO CONSUMERS, AND EVERY CONSTRAINT ON IT
-  BELONGS TO SOMEBODY ELSE'S FEED.** `cardHtml` in `src/lib/share-card.ts` returns an
-  HTML string; `/design` embeds it as a specimen and `scripts/render-share-card.ts`
-  screenshots it. An Astro component for the page plus a template for the renderer
-  would be two homes for one drawing, and the page would then show a picture of the
-  card rather than the card. **The module may not contain a hex** — it was ported from
-  a Python module that typed eleven of this site's tokens in as literals, and that
-  port is the entire reason the card moved here. Four rules carry their reasons in
+- **THE SHARE CARD IS ONE FUNCTION, AND EVERY CONSTRAINT ON IT BELONGS TO SOMEBODY
+  ELSE'S FEED.** `cardHtml` in `src/lib/share-card.ts` returns an HTML string and
+  `/design` embeds it as a specimen. An Astro component plus a template would be two
+  homes for one drawing, and the page would then show a picture of the card rather
+  than the card. **This repository owns the card's DESIGN only** (ruled 2026-09-27):
+  real sessions are drawn by the training wiki, `hermes-training-wiki`, whose
+  `tools/bft_card.py` ports this layout and reads the published tokens and mark. So
+  nothing here renders a PNG, reads the private protected-name list, or carries the
+  studio's real observed labels — do not add them back. **The module may not contain
+  a hex** — it was ported from a Python module that typed eleven of this site's
+  tokens in as literals, and that port is the entire reason the card moved here. Four rules carry their reasons in
   place and are not taste:
   - **The brand chip goes TOP-RIGHT.** Strava overlays its own attribution chip on the
     top-left of every activity photo — the slot that reads "Rouvy", "Runna", "Hevy" —
@@ -323,16 +326,6 @@ block above it before giving either consumer the other's list.
     specimen is captioned. It is shaded from its class type on purpose: a session with
     its movements published lights nearly every group, and the two fills stop being
     distinguishable
-- **The card's safety gate lives on the SCRIPT, and that is the decision.**
-  `scripts/render-share-card.ts` refuses rather than scrubs — it raises, because a
-  surface that quietly lost a clause is worse than one that never shipped. It is not in
-  `src/lib/` because the specimen is invented and cannot leak, and because a site build
-  that required the protected-name list would fail on every machine without it, CI
-  included. **That list stays outside this repository**, read by path and git-ignored
-  where it sits; when it is absent the renderer says so and refuses, since "no names
-  matched" and "nobody looked" are different answers. It scans the card's own WORDS and
-  not its markup — scanning the markup scans the anatomical drawing's path data, and a
-  short protected value matches a coordinate immediately
 - **`src/lib/anatome/` is vendored MIT data, and which upstream it came from is the
   decision.** The muscle paths are taken from
   `HichamELBSI/react-native-body-highlighter`, not from `Rippy1911/anatome`, which
