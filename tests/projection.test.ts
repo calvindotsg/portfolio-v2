@@ -75,10 +75,11 @@ describe("date handling", () => {
         expect(daysRemaining("2027-01-01")).toBe(0);     // and the year is over the day after
         expect(daysRemaining("2027-03-01")).toBe(0);
 
-        // The pairing, pinned to values rather than to an inequality. The Kiprun is a
-        // single-day RUNNING event on 27 September. On that date its whole 21.10 km is
-        // still owed, and the day count must still contain the day it is run on; the day
-        // after, both drop by exactly that event and exactly that day.
+        // The pairing, pinned to values rather than to an inequality. The Singapore
+        // marathon is a single-day RUNNING event on 6 December. On that date its whole
+        // 42.20 km is still owed, and the day count must still contain the day it is run
+        // on; the day after, both drop by exactly that event and exactly that day. (It was
+        // the Kiprun on 27 September until that race gained its recording.)
         //
         // An inequality here is not enough: `>` and `-1` are satisfied by a version
         // that books the event on the WRONG side of its own start date, so long as it
@@ -91,10 +92,10 @@ describe("date handling", () => {
         // this property at all. Whichever sport can changes as races are run: if this goes
         // red, find a sport with a single-day race still ahead rather than loosening it to
         // an inequality.
-        expect(bookedAhead("running", "2026-09-27")).toBeCloseTo(63.30, 2);
-        expect(bookedAhead("running", "2026-09-28")).toBeCloseTo(42.20, 2);
-        expect(daysRemaining("2026-09-27")).toBe(96);
-        expect(daysRemaining("2026-09-28")).toBe(95);
+        expect(bookedAhead("running", "2026-12-06")).toBeCloseTo(42.20, 2);
+        expect(bookedAhead("running", "2026-12-07")).toBeCloseTo(0, 2);
+        expect(daysRemaining("2026-12-06")).toBe(26);
+        expect(daysRemaining("2026-12-07")).toBe(25);
     });
 
     /**
@@ -252,9 +253,11 @@ describe("booked race distance", () => {
         // a 2024 race is out by YEAR and would be out even with no recording at all.
         //
         // THE SUM IS SPELLED OUT rather than folded to 1064, so that adding or removing a
-        // booked race shows up here as a term rather than as a digit.
+        // booked race shows up here as a term rather than as a digit. Running is the
+        // December marathon alone: the September Kiprun is out by its RECORDING, the first
+        // mechanism, even though 27 July is before it.
         expect(bookedAhead("cycling", "2026-07-27")).toBeCloseTo(42.00 + 1022.00, 2);
-        expect(bookedAhead("running", "2026-07-27")).toBeCloseTo(63.30, 2);
+        expect(bookedAhead("running", "2026-07-27")).toBeCloseTo(42.20, 2);
     });
 
     it("drops an event once it is past", () => {
