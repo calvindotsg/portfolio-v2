@@ -39,13 +39,14 @@ never as what the suite pins.
 
 - 2026-07-29 · running · Garmin Run Virtual Challenge · 10.16 km
 - 2026-08-02 · cycling · Pesta Sukan Round Island Bike Adventure · 160.56 km
+- 2026-09-27 · running · The Kiprun Singapore 2026 · 10.11 km
 
 WHAT THE MIX IS WORTH, which is the half a list of names leaves out. Those kilometres
 were ridden and are not in the frozen totals, so the required rate below asks for them a
 second time — by this much:
 
 - cycling: the required rate is overstated by 7.11 km/wk (160.56 km / 22.57 weeks), 9.7% of the 73.3804 published below
-- running: the required rate is overstated by 0.45 km/wk (10.16 km / 22.57 weeks), 2.6% of the 17.0127 published below
+- running: the required rate is overstated by 0.90 km/wk (20.27 km / 22.57 weeks), 5.0% of the 17.9475 published below
 
 The de-raced pace is NOT affected: its numerator subtracts only races that ended on or
 before the reference, which is the one scoping rule this generator applies.
@@ -54,8 +55,8 @@ before the reference, which is the one scoping rule this generator applies.
 
 | figure | cycling | running |
 |---|---|---|
-| booked ahead | 1064.00 km | 63.30 km |
-| required rate | 74 km/wk (exactly 73.3804; 7.11 of that is the epoch mix) | 18 km/wk (exactly 17.0127; 0.45 of that is the epoch mix) |
+| booked ahead | 1064.00 km | 42.20 km |
+| required rate | 74 km/wk (exactly 73.3804; 7.11 of that is the epoch mix) | 18 km/wk (exactly 17.9475; 0.90 of that is the epoch mix) |
 | ignoring races | 121 km/wk (exactly 120.5196) | 20 km/wk (exactly 19.8171) |
 | what booking races is worth | 121 → 74 km/wk, 38.8% | 20 → 18 km/wk, 10.0% |
 | observed pace | 76.72 km/wk | 5.14 km/wk |
@@ -76,7 +77,7 @@ The ORDERING is the rule and the gaps move:
 ## Ceil against round
 
 Over every day from the reference to 31 December, both sports: **290** sport-days
-land in the rate branch, and on **146** of them rounding the requirement
+land in the rate branch, and on **147** of them rounding the requirement
 to nearest would ask for LESS than the goal needs. That is the whole case for rounding up:
 a rider following a rounded-down rate exactly misses the goal, and which days discriminate
 moves with the numerator, so no single worked example survives a data edit.
