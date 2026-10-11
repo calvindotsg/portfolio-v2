@@ -306,6 +306,9 @@ export function bookedAhead(sport: Sport, iso: string, events: readonly RaceEven
         //   that was not: abandoning the 1,022 km Formosa tour mid-way books all 1,022 km
         //   of it into the cycling card while the wall draws the bib as DNF.
         //
+        //   CANCELLED — the organiser called the race off, so its kilometres are not coming
+        //   either. Before its day the clock would still say `booked`; this asks the state.
+        //
         // Skipping is also the safe direction while the bot catches up: the deficit stays
         // whole, so the rate reads high rather than flattering. The cross-consumer sweep
         // in tests/patch-wall.test.ts forces this line — without it the wall and the card
@@ -609,7 +612,17 @@ export function formatDateline(iso: string = UPDATED_AT): string | null {
  * recording, which is also right: he rode those kilometres and the bot's total holds
  * them. The two exclusions have different causes and must not be merged.
  */
-export type PatchState = "finished" | "booked" | "dnf"
+export type PatchState = "finished" | "booked" | "dnf" | "cancelled"
+
+/*
+ * `cancelled` IS THE FOURTH STATE AND IT IS TOLD, LIKE `dnf`, for the reason written above
+ * `outcome` in `src/lib/race.ts`: the organiser called the race off, and no recording, date or
+ * clock can see that. It is asked first for the same reason too — the day after the race the
+ * clock would answer `finished` and hand out a patch nobody rode for, and before it the clock
+ * would answer `booked` and count kilometres that are not coming. It is drawn like a booked bib
+ * (an outline, no patch) and says so in its own word in the meta row, `cancelled_label`. It
+ * shares the history's rank with `finished` and `dnf`: it happened, or failed to, on its day.
+ */
 
 /** The last day an event occupies — its own date unless it spans several. */
 const eventEnd = (event: RaceEvent): string => event.end_date ?? event.date
@@ -619,6 +632,10 @@ export function patchState(event: RaceEvent, iso: string = BUILD_DATE): PatchSta
     // has both halves of a recording and a date long past, so every question below this one
     // answers "finished" for it.
     if (event.outcome === "dnf") return "dnf"
+    // TOLD, LIKE A DNF, AND ASKED BEFORE THE CLOCK for the same reason — see the note under
+    // the type. A cancelled race has no recording, so without this line it is `booked` until
+    // its day and `finished` from the day after.
+    if (event.outcome === "cancelled") return "cancelled"
     // The recording is the finish line. Asked before the clock, because the clock
     // cannot see a race run this morning and this is the only way a race becomes a
     // patch on the day it is run. See `hasRecording` for why it takes both fields.
@@ -703,7 +720,7 @@ export type Patch = {event: RaceEvent, state: PatchState}
  * types, green suite on any calendar with no DNF, and a wall that silently stops sorting
  * the moment one appears. Compare the RANKS and fall through when they match.
  */
-const STATE_RANK: Record<PatchState, number> = {booked: 0, finished: 1, dnf: 1}
+const STATE_RANK: Record<PatchState, number> = {booked: 0, finished: 1, dnf: 1, cancelled: 1}
 
 export function patchWall(
     sport?: Sport,

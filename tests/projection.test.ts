@@ -244,19 +244,20 @@ describe("the site's clock", () => {
 
 describe("booked race distance", () => {
     it("counts only future events, per sport", () => {
-        // At 2026-07-27 the cycling races still ahead are the October city ride and the
-        // November tour, so 42.00 + 1022.00 is the whole of it. TWO DIFFERENT MECHANISMS get
+        // At 2026-07-27 the cycling race still ahead is the November tour, so 1022.00 is the
+        // whole of it. The October city ride (42.00) is out because the organiser CANCELLED it,
+        // a third mechanism: `bookedAhead` asks `patchState`, which is told the cancellation. TWO DIFFERENT MECHANISMS get
         // everything else out, and conflating them is easy: this year's ridden races (both
         // July DCR legs, the May virtual ride, the August round-island) are excluded because
         // they carry a RECORDING, while the earlier editions of the annual round-island ride
         // never reach the arithmetic at all — `bookedAhead` defaults to `GOAL_YEAR_EVENTS`, so
         // a 2024 race is out by YEAR and would be out even with no recording at all.
         //
-        // THE SUM IS SPELLED OUT rather than folded to 1064, so that adding or removing a
-        // booked race shows up here as a term rather than as a digit. Running is the
+        // THE SUM IS SPELLED OUT, so that adding or removing a booked race shows up here as a
+        // term rather than as a digit. Running is the
         // December marathon alone: the September Kiprun is out by its RECORDING, the first
         // mechanism, even though 27 July is before it.
-        expect(bookedAhead("cycling", "2026-07-27")).toBeCloseTo(42.00 + 1022.00, 2);
+        expect(bookedAhead("cycling", "2026-07-27")).toBeCloseTo(1022.00, 2);
         expect(bookedAhead("running", "2026-07-27")).toBeCloseTo(42.20, 2);
     });
 
@@ -691,12 +692,15 @@ describe("the next race for a sport", () => {
                 // and the two-term form would go red the first time a race in GOAL_YEAR is
                 // abandoned. Only the year scope is hiding that today: every DNF on the
                 // calendar predates GOAL_YEAR, so this sweep never sees one.
+                // A CANCELLED RACE IS THE FOURTH TERM, for the same reason: on the wall, and
+                // neither a patch nor still to come.
                 const dnf = wall.filter((p) => p.state === "dnf").length;
+                const cancelled = wall.filter((p) => p.state === "cancelled").length;
                 const earned = patchesEarned(goal.sport, iso);
-                if (earned + booked + dnf !== wall.length) {
+                if (earned + booked + dnf + cancelled !== wall.length) {
                     wrong.push(
                         `${iso} ${goal.sport}: earned(${earned}) + booked(${booked}) + dnf(${dnf}) `
-                        + `!= wall(${wall.length})`,
+                        + `+ cancelled(${cancelled}) != wall(${wall.length})`,
                     );
                 }
             }

@@ -660,8 +660,22 @@ describe("a race that has been and gone says what became of it", () => {
         expect(unresolved.map((e) => `${e.date} ${e.name}`),
             `these races ended more than ${RESOLUTION_GRACE_DAYS} days ago and carry no recording, no `
             + "elapsed_time and no outcome, so patchState draws each of them as an earned Finisher Patch "
-            + "on the strength of the calendar alone. Record the race, or say it was abandoned with "
-            + 'outcome: "dnf"').toEqual([]);
+            + "on the strength of the calendar alone. Record the race, say it was abandoned with "
+            + 'outcome: "dnf", or say the organiser called it off with outcome: "cancelled"').toEqual([]);
+    });
+
+    /*
+     * A CANCELLED RACE CARRIES NO RESULT OF ANY KIND. Nobody rode it, so a recording, a clock or
+     * a results sheet beside `outcome: "cancelled"` is an invented fact — and the bib's ledger
+     * would print it, since a cancelled bib is not `booked`. The type cannot say this without
+     * splitting the union again, so it is said here, over the real calendar.
+     */
+    it("lets no cancelled race carry a recording, a time or an official result", () => {
+        const invented = EVENTS.filter((e) => e.outcome === "cancelled"
+            && (e.elapsed_time !== undefined || recordingsOf(e).length > 0 || e.official !== undefined));
+        expect(invented.map((e) => `${e.date} ${e.name}`),
+            "a race the organiser cancelled was never ridden, so it may hold no recording, elapsed_time "
+            + "or official result").toEqual([]);
     });
 });
 

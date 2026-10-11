@@ -119,7 +119,9 @@ export const SOURCE_OF_RECORD: Readonly<Record<string, SourceOfRecord>> = {
 
     /**
      * THE ONE FACT ON A BIB NOTHING CAN DERIVE. No device models a DNF — an abandoned ride is
-     * stored exactly like a finished one — so this is told or it is not known.
+     * stored exactly like a finished one — so this is told or it is not known. A `cancelled`
+     * edition is announced by the organiser, but nothing the site reads holds that either: it
+     * reaches this file because he tells it, so the field keeps one origin.
      */
     outcome: "athlete",
 

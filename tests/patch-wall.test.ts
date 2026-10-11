@@ -13,7 +13,8 @@ import {
     raceKm, type RaceEvent, type Recording, recordingKm, recordingsOf, stravaActivityUrl,
 } from "../src/lib/race";
 import {
-    bookedAhead, formatPatchDate, officialAccount, patchDateSegments, patchState, type PatchState,
+    bookedAhead, formatPatchDate, nextRace, officialAccount, patchDateSegments, patchesEarned, patchState,
+    type PatchState,
     patchWall, UPDATED_AT,
 } from "../src/lib/projection";
 import {renderPatchWall} from "../src/lib/patch-doc";
@@ -38,6 +39,7 @@ import {decl, isKeyframeStep, lastDecl, pageCss, parseRules, type Rule, structur
 const STATE_CLASS: Record<PatchState, string | null> = {
     booked: "bib--booked",
     dnf: "bib--dnf",
+    cancelled: "bib--cancelled",
     finished: null,
 };
 
@@ -398,6 +400,28 @@ describe("a bib's state is derived from the calendar, never stored", () => {
         // And an abandonment on a race that has not happened is still not a finish — the
         // clock cannot promote it either.
         expect(patchState(ev({date: "2030-01-01", outcome: "dnf"}), "2026-06-10")).toBe("dnf");
+    });
+
+    /**
+     * A RACE THE ORGANISER CANCELLED, the second told state, and the clock is the risk from
+     * BOTH sides: it would call the race `booked` until its day, counting kilometres that are
+     * not coming, and `finished` from the day after, handing out a patch nobody rode for.
+     */
+    it("calls a cancelled race cancelled on every day, and books none of its distance", () => {
+        const cancelled = ev({date: "2026-10-11", advertised_km: 42, sport: "cycling", outcome: "cancelled"});
+        for (const iso of ["1970-01-01", "2026-10-10", "2026-10-11", "2026-10-12", "2030-01-01"]) {
+            expect(patchState(cancelled, iso), `${iso}: a cancelled race is neither to come nor finished`)
+                .toBe("cancelled");
+        }
+        // THE DISCRIMINATOR, as for the DNF: the same row without its outcome is booked before
+        // its day and finished after it, so this fails the moment `outcome` stops being asked.
+        const {outcome: _o, ...plain} = cancelled;
+        expect(patchState(plain, "2026-10-10")).toBe("booked");
+        expect(patchState(plain, "2026-10-12")).toBe("finished");
+        expect(bookedAhead("cycling", "2026-10-01", [cancelled]), "a cancelled race promises nothing").toBe(0);
+        expect(bookedAhead("cycling", "2026-10-01", [plain]), "the same race, not cancelled").toBe(42);
+        expect(patchesEarned("cycling", "2026-12-31", [cancelled]), "a cancelled race earns no patch").toBe(0);
+        expect(nextRace("cycling", "2026-10-01", [cancelled]), "nor is it the next race").toBeNull();
     });
 
     it("calls an unparseable date booked, never finished", () => {
@@ -779,11 +803,15 @@ describe("dist/patches", () => {
     it("says 'booked' in words on exactly the bibs the calendar calls booked", () => {
         for (const {bib, event, state} of wallBibs(PAGES.all)) {
             const tag = bib.querySelector(".bib-tag")?.textContent?.trim() ?? null;
+            // A CANCELLED BIB IS TAGGED TOO, with its own word in the same slot: it is the one
+            // other state whose word is an annotation rather than a result.
+            const want = state === "booked" ? PATCHES.booked_label
+                : state === "cancelled" ? PATCHES.cancelled_label : null;
             expect(
                 tag,
                 `"${event.name}" (${event.date}) is ${state} at the ${UPDATED_AT} stamp, so its tag must be `
-                + `${state === "booked" ? `"${PATCHES.booked_label}"` : "absent"}`,
-            ).toBe(state === "booked" ? PATCHES.booked_label : null);
+                + `${want === null ? "absent" : `"${want}"`}`,
+            ).toBe(want);
             // THE SECOND UNEARNED STATE SAYS ITS WORD IN A DIFFERENT SLOT, which is why the
             // assertion above stopped being the whole of SC 1.4.1 here. A DNF bib carries no
             // tag, so it satisfies that line by being untagged — exactly as an earned bib
@@ -809,7 +837,7 @@ describe("dist/patches", () => {
      * whole of any January before the year's first race, and was false for DNF from the
      * day the state existed until the day a race was entered into it.
      */
-    it("gives each of the three states its own words and its own class, whatever the date", async () => {
+    it("gives each of the four states its own words and its own class, whatever the date", async () => {
         const container = await AstroContainer.create();
         // A RACE THIS TEST CONTROLS, NOT `EVENTS[0]`. Forcing a state onto whatever race
         // happens to sit first in the calendar makes this test's meaning depend on how the
@@ -837,6 +865,15 @@ describe("dist/patches", () => {
                 expect(bib.classList.contains(cls), `a ${state} bib and ${cls}`).toBe(state === named);
             }
         }
+
+        // A CANCELLED BIB SAYS ITS WORD AS A TAG, IN BOOKED'S SLOT AND INSTEAD OF IT, and keeps a
+        // distance in the hero: the race has no result of any kind, so nothing takes the hero.
+        const cancelled = await rendered("cancelled");
+        expect(cancelled.querySelector(".bib-tag")?.textContent?.trim()).toBe(PATCHES.cancelled_label);
+        expect(cancelled.querySelectorAll(".bib-tag"), "one word, never Booked beside it").toHaveLength(1);
+        expect(cancelled.querySelector(".bib-value")?.textContent?.trim(), "a cancelled race is not a DNF")
+            .not.toBe(PATCHES.dnf_result);
+        expect(cancelled.querySelector(".bib-unit"), "the hero is still the distance entered").not.toBeNull();
 
         const dnf = await rendered("dnf");
         expect(dnf.querySelector(".bib-tag"), "a DNF says its word in the hero, so it takes no tag").toBeNull();
