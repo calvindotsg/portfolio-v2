@@ -97,7 +97,9 @@ export const GET: APIRoute = ({site}) => {
         // but Krabi to Phuket reaches a reader as `158.1 km` against the bib's own `158.10` —
         // one race described two ways by one site.
         const dnfWithNothingRecorded = patchState(event) === "dnf" && recordingsOf(event).length === 0
-        const far = dnfWithNothingRecorded
+        // A CANCELLED RACE HAS NO DISTANCE TO GIVE EITHER, for the same reason and more plainly:
+        // nobody rode it, and `raceKm` would hand back the advertised figure as though he had.
+        const far = dnfWithNothingRecorded || patchState(event) === "cancelled"
             ? ""
             : patchState(event) === "dnf"
                 ? `, ${PATCHES.recorded_row.toLowerCase()} ${raceKm(event).toFixed(2)} km`
@@ -125,6 +127,7 @@ export const GET: APIRoute = ({site}) => {
     const done = EVENTS.filter((event) => patchState(event) === "finished")
     const abandoned = EVENTS.filter((event) => patchState(event) === "dnf")
     const upcoming = EVENTS.filter((event) => patchState(event) === "booked")
+    const cancelled = EVENTS.filter((event) => patchState(event) === "cancelled")
 
     const body = [
         `# ${METADATA.full_name}`,
@@ -180,6 +183,10 @@ export const GET: APIRoute = ({site}) => {
         // The heading is `dnf_name` rather than the bib's three letters: this is read by a
         // machine with no wall around it, and `DNF` is unambiguous only inside its own venue.
         ...(abandoned.length ? [`${PATCHES.dnf_name}:`, "", ...abandoned.map(run), ""] : []),
+        // CANCELLED BY THE ORGANISER: its own bucket, by equality like the other three, and
+        // like the DNF one it disappears when empty. It is not "completed", not "did not
+        // finish" and not "still to come", and a row filed under any of those would be false.
+        ...(cancelled.length ? [`${PATCHES.cancelled_label} by the organiser:`, "", ...cancelled.map(run), ""] : []),
         "Still to come:",
         "",
         ...(upcoming.length ? upcoming.map(run) : ["- nothing scheduled"]),

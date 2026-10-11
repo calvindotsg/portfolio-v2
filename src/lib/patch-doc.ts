@@ -51,6 +51,7 @@ const stateWord = (event: RaceEvent): string => {
     // `dnf_name` rather than the bib's three letters, following `llms.txt.ts`: this is read by
     // a machine with no wall around it, and DNF is unambiguous only inside its own venue.
     if (state === "dnf") return PATCHES.dnf_name
+    if (state === "cancelled") return PATCHES.cancelled_label
     return PATCHES.finished_name
 }
 

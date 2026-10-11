@@ -81,8 +81,11 @@ the checklist, and `tests/data-contract.test.ts` holds it against that file in b
 - `advertised_km` — the organiser's own distance. **Required on a race with no `recordings`**,
   because nothing else could give it one, and required again beside `official`, whose ledger
   row needs a distance from the same source as its clock.
-- `outcome` — optional, and `"dnf"` is its only member. The one fact on a bib nothing can
-  derive: no device models an abandonment, so it is told rather than looked up.
+- `outcome` — optional, `"dnf"` or `"cancelled"`. The one fact on a bib nothing can derive,
+  so it is told rather than looked up: no device models an abandonment, and nothing in the
+  data can see that the organiser called a race off. `"cancelled"` takes a booked race out of
+  the required rate and prints `Cancelled` where the bib said `Booked`; a postponed race is not
+  cancelled, so give it its new `date` instead.
 - `elapsed_time` — optional, `H:MM:SS`. Elapsed, never moving. Beside a recording it is what
   makes the bib a patch, whatever day it is.
 - `recordings` — the Strava activities the race was recorded as, in the order they were

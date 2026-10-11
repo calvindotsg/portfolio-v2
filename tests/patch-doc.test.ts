@@ -1,6 +1,7 @@
 import {describe, expect, it, vi} from "vitest";
 
 import type {RaceEvent} from "../src/lib/race";
+import type {PatchState} from "../src/lib/projection";
 
 /**
  * THE WALL'S MARKDOWN TWIN, HELD TO THE WALL.
@@ -154,7 +155,8 @@ describe("the patch wall as markdown", () => {
         const states = new Set(wall.map((p) => p.state));
         expect(states.size, "the wall holds one state — the discrimination below is weak")
             .toBeGreaterThan(1);
-        const word = {booked: PATCHES.booked_label, dnf: PATCHES.dnf_name, finished: PATCHES.finished_name};
+        const word: Record<PatchState, string> = {booked: PATCHES.booked_label, dnf: PATCHES.dnf_name,
+            cancelled: PATCHES.cancelled_label, finished: PATCHES.finished_name};
         for (const state of states) {
             expect(doc, `no race is marked ${state}, though the wall holds one`).toContain(word[state]);
         }

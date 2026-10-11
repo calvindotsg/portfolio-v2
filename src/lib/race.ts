@@ -328,8 +328,18 @@ type RaceEventCommon = {
      * reaches for — `GoalStatus` and `PatchState` in projection.ts are both unions for the
      * same reason. Do not add a member he has not asked for; the point is only not to
      * foreclose one.
+     *
+     * `cancelled` IS THE SECOND MEMBER, AND HE ASKED FOR IT: the organiser called off the
+     * 2026-10-11 OCBC Cycle Johor Bahru for haze two days out, and the requirement was that the
+     * site stop presenting it as a race to come without making it look like a finish or a DNF.
+     * It passes the same test `dnf` does. Nothing in the data can see a cancellation — a booked
+     * race the organiser cancelled carries exactly the fields of one still to come, and the
+     * day after, the clock would call it FINISHED and the wall would hand it a patch nobody
+     * rode for. And it cannot go stale: once the organiser cancels an edition, that edition
+     * stays cancelled. A postponement is NOT this — the race moves to a new date and is still
+     * booked, so write the new `date` instead.
      */
-    outcome?: "dnf"
+    outcome?: "dnf" | "cancelled"
     /**
      * How long the race took, as `H:MM:SS`. Absent until the race has been run and the
      * figure typed in; a bib without one simply prints no time line.

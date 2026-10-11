@@ -267,7 +267,8 @@ if (recordings.length === 1) {
     was caught by looking at the built page. */}
 <div
         class:list={["bib", `bib--${event.sport}`, state === "booked" && "bib--booked",
-                     state === "dnf" && "bib--dnf", stub.length > 0 && "bib--stub"]}
+                     state === "dnf" && "bib--dnf", state === "cancelled" && "bib--cancelled",
+                     stub.length > 0 && "bib--stub"]}
 >
     <p class="bib-meta">
         {/* One <time> per endpoint, never one around the whole range: `datetime` names a
@@ -283,6 +284,7 @@ if (recordings.length === 1) {
             <span class="bib-word">{goal.short_name}</span>
         </span>
         {state === "booked" && <span class="bib-tag">{PATCHES.booked_label}</span>}
+        {state === "cancelled" && <span class="bib-tag">{PATCHES.cancelled_label}</span>}
     </p>
     {/* THE HERO SLOT SAYS HOW THE RACE ENDED, AND ON ONE KIND OF BIB THAT IS NOT A DISTANCE.
         See the note at the head of this file for the whole argument; what it comes to here is that a
@@ -520,7 +522,8 @@ if (recordings.length === 1) {
      * the four locals above exist to prevent.
      */
     .bib--booked,
-    .bib--dnf {
+    .bib--dnf,
+    .bib--cancelled {
         --face: transparent;
         --ink: var(--text);
         --sport: var(--sport-on-card);
@@ -549,7 +552,8 @@ if (recordings.length === 1) {
         }
 
         .bib--booked,
-        .bib--dnf {
+        .bib--dnf,
+        .bib--cancelled {
             border-width: 1px;
         }
     }
@@ -584,7 +588,8 @@ if (recordings.length === 1) {
         }
 
         .bib--booked,
-        .bib--dnf {
+        .bib--dnf,
+        .bib--cancelled {
             border-width: 1px;
         }
     }

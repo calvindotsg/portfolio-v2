@@ -10,11 +10,12 @@ with a prerendered page per sport; `/training` is the same dataset drawn as a
 series — one bar a week for a whole calendar year, with the races on the weeks
 they were ridden in. A **Finisher Patch** is a race completed and
 earned, which is why the wall's headings say "events" and only the earned bibs are
-patches. **An outline is a bib with no patch on it, and that is TWO different
-facts**: a race still to come, or one that was started and not finished. They share
-a treatment because the treatment means "not earned"; what tells them apart is the
-word each one prints — `Booked` in the meta row, or `DNF` in the hero slot. See
-`patchState` in `projection.ts` and `.bib--dnf` in `Patch.astro`.
+patches. **An outline is a bib with no patch on it, and that is THREE different
+facts**: a race still to come, one that was started and not finished, or one the
+organiser cancelled. They share a treatment because the treatment means "not earned";
+what tells them apart is the word each one prints — `Booked` or `Cancelled` in the meta
+row, or `DNF` in the hero slot. See `patchState` in `projection.ts` and `.bib--dnf` in
+`Patch.astro`.
 
 **THAT OUTLINE IS ONE TREATMENT WORN BY THREE OBJECTS, AND THE THIRD IS ON THE
 OTHER PAGE.** A week that has not happened is drawn exactly like a race not yet

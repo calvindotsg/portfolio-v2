@@ -288,6 +288,11 @@ describe("dist/", () => {
             if (patchState(event) === "dnf" && recordingsOf(event).length === 0) {
                 expect(row, `${event.name} was abandoned with nothing recorded, so no distance may be claimed`)
                     .not.toMatch(/\d+\.\d\d km/);
+            } else if (patchState(event) === "cancelled") {
+                // The same omission for a race the organiser called off: nobody rode it, so the
+                // advertised figure would claim a distance that was never covered.
+                expect(row, `${event.name} was cancelled, so no distance may be claimed`)
+                    .not.toMatch(/\d+\.\d\d km/);
             } else {
                 expect(row, `${event.name}'s distance must be on its own line`)
                     .toContain(`${raceKm(event).toFixed(2)} km`);
@@ -352,7 +357,16 @@ describe("dist/", () => {
             `llms.txt must carry a "${dnfHeading}" section when, and only when, a race on the calendar was abandoned`,
         ).toBe(anyDnf);
 
-        const markers = ["completed:", ...(anyDnf ? [dnfHeading] : []), "Still to come:", "## Pages"];
+        // THE CANCELLED LIST IS CONDITIONAL TOO, by the same rule and checked the same way.
+        const cancelledHeading = `${PATCHES.cancelled_label} by the organiser:`;
+        const anyCancelled = EVENTS.some((event) => patchState(event) === "cancelled");
+        expect(
+            llms.includes(cancelledHeading),
+            `llms.txt must carry a "${cancelledHeading}" section when, and only when, a race on the calendar was cancelled`,
+        ).toBe(anyCancelled);
+
+        const markers = ["completed:", ...(anyDnf ? [dnfHeading] : []),
+            ...(anyCancelled ? [cancelledHeading] : []), "Still to come:", "## Pages"];
         const bounds = markers.map((marker) => {
             const at = llms.indexOf(marker);
             expect(at, `llms.txt must contain the "${marker}" marker this gate slices on`)
@@ -365,6 +379,7 @@ describe("dist/", () => {
         const sections: Record<string, string> = {
             finished: llms.slice(bounds[0], bounds[1]),
             ...(anyDnf ? {dnf: llms.slice(bounds[1], bounds[2])} : {}),
+            ...(anyCancelled ? {cancelled: llms.slice(bounds[markers.length - 3], bounds[markers.length - 2])} : {}),
             booked: llms.slice(bounds[markers.length - 2], bounds[markers.length - 1]),
         };
         for (const state of new Set(EVENTS.map((event) => patchState(event)))) {
@@ -383,7 +398,8 @@ describe("dist/", () => {
         // "completed:" marker, so a heading of "Races and challenges in 2026, completed:"
         // puts the year BEFORE the window and the assertion inspects "completed:" alone.
         const headings = llms.split("\n")
-            .filter((line) => line.endsWith("completed:") || line === "Still to come:" || line === dnfHeading);
+            .filter((line) => line.endsWith("completed:") || line === "Still to come:" || line === dnfHeading
+                || line === cancelledHeading);
         expect(headings, "every race-list heading must be found").toHaveLength(markers.length - 1);
         for (const heading of headings) {
             expect(heading, `"${heading}" names a year over the whole-calendar EVENTS list`)
@@ -489,7 +505,7 @@ describe("dist/", () => {
         // recorded has no honest figure to give, and the advertised one would be the exact
         // claim the bib refuses. Asserted as an absence below rather than as a substring.
         const clauseFor = (event: typeof EVENTS[number]): string =>
-            patchState(event) === "dnf"
+            patchState(event) === "cancelled" ? "" : patchState(event) === "dnf"
                 ? (recordingsOf(event).length === 0
                     ? ""
                     : `${PATCHES.recorded_row.toLowerCase()} ${expectedKm(event)} km`)
@@ -507,7 +523,7 @@ describe("dist/", () => {
             expect(row, `"${line}" must be on a line of its own`).toBeDefined();
             const clause = clauseFor(event);
             if (clause === "") {
-                expect(row, `${event.name} was abandoned with nothing recorded, so its row must claim no `
+                expect(row, `${event.name} (${state}) has no ridden distance to give, so its row must claim no `
                     + `distance at all — the advertised figure would say he covered a route he did not finish`)
                     .not.toMatch(/\d+\.\d\d km/);
             } else {

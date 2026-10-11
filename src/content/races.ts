@@ -121,6 +121,15 @@ export const PATCHES: {
      */
     dnf_result: string
     /**
+     * WHAT A BIB PRINTS IN THE META ROW WHEN THE ORGANISER CALLED THE RACE OFF. A TAG, like
+     * {@link booked_label} and unlike {@link dnf_result}, and the difference is the fact: a DNF
+     * is a RESULT and takes the hero, while a cancelled race has no result of any kind, so the
+     * hero keeps the distance he entered and the tag says that edition never ran. It replaces
+     * `Booked` on the same bib rather than joining it — the race is no longer to come. See
+     * `outcome` in `src/lib/race.ts`.
+     */
+    cancelled_label: string
+    /**
      * WHAT {@link dnf_result} IS SHORT FOR, said in the accessible name and nowhere on
      * screen. It is the same device {@link split_name} and {@link NEW_TAB_NOTICE} use, and
      * for the same reason: the name stays a true SUPERSET of the visible text rather than an
@@ -411,6 +420,7 @@ export const PATCHES: {
     all_label: "All",
     booked_label: "Booked",
     dnf_result: "DNF",
+    cancelled_label: "Cancelled",
     dnf_name: "Did not finish",
     finished_name: "Finisher Patch",
     filter_label: "Filter by sport",
