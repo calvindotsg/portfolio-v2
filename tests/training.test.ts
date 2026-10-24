@@ -10,6 +10,7 @@ import {
     renderWeek,
     toSession,
     weekKeysOfYear,
+    weeksYear,
     yearWindow,
 } from "../scripts/fetch-strava-weeks.mjs";
 import {EVENTS} from "../src/data/races";
@@ -303,6 +304,25 @@ describe("the writer's allow-list, asked of the writer rather than of the data",
             expect(before, `${year} ends too early`).toBeGreaterThan(lastSunday + 86400);
             expect(keys[0]).toBe(`${year}-W01`);
         }
+    });
+
+    it("fetches today's week-year by default and lets a backfill name only a past one", () => {
+        /*
+         * THE REFUSAL IS WHAT KEEPS THE YEAR TOTALS HONEST. A run that names a year skips the
+         * totals fetch, so naming the CURRENT year would refresh the weeks and not the totals they
+         * are checked against below — the defect a `year=2018` dispatch hit, the other way round.
+         * The boundary rows are the week-year rule: 1 January 2027 is still week-year 2026.
+         */
+        expect(weeksYear(undefined, "2026-10-24")).toBe(2026);
+        expect(weeksYear("", "2026-10-24")).toBe(2026);
+        expect(weeksYear("2018", "2026-10-24")).toBe(2018);
+        expect(weeksYear("2025", "2026-10-24")).toBe(2025);
+        expect(() => weeksYear("2026", "2026-10-24")).toThrow(/not before the current week-year 2026/);
+        expect(() => weeksYear("2027", "2026-10-24")).toThrow(/leave `year` blank/);
+        expect(() => weeksYear("18", "2026-10-24")).toThrow(/four-digit/);
+        expect(weeksYear("", "2027-01-01")).toBe(2026);
+        expect(() => weeksYear("2026", "2027-01-01")).toThrow(/current week-year 2026/);
+        expect(weeksYear("2026", "2027-01-04")).toBe(2026);
     });
 });
 

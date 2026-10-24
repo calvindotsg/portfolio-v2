@@ -12,13 +12,18 @@ on:
       # file naming one — a year written here would be a configuration value in a workflow,
       # and this repository allows exactly three homes for one, none of them here.
       #
-      # IT IS FOR A BACKFILL AND FOR NOTHING ELSE. The fetch rewrites a whole week-year every
-      # time, so asking for a past year writes that year's modules and leaves the current
-      # year's alone; asking for the current year is what the cron already does. The year
-      # totals in `src/data/strava-progress.json` are year-to-date and ignore this entirely,
-      # so a backfill run moves weeks and never moves a kilometre figure.
+      # IT IS FOR A BACKFILL AND FOR NOTHING ELSE, and it must name a PAST week-year. The fetch
+      # rewrites a whole week-year every time, so asking for a past year writes that year's
+      # modules and leaves the current year's alone. That is exactly why a run that names one
+      # SKIPS the totals step below: `src/data/strava-progress.json` holds year-to-date figures
+      # as of the moment of fetching, and `tests/training.test.ts` checks them against the
+      # current year's weeks, which a backfill does not refresh. Writing them anyway put
+      # 85 km ridden since the nightly into the totals and not the weeks, and blocked the
+      # bot's pull request. Naming the current year would be the same defect the other way
+      # round, so `weeksYear` in `scripts/fetch-strava-weeks.mjs` refuses it, and any later
+      # year, before anything is written. Leave this blank to fetch the current year.
       year:
-        description: "Week-year to fetch, YYYY. Blank means the current Singapore year."
+        description: "A PAST week-year to backfill, YYYY. Leave blank for the current Singapore year (what the nightly does)."
         required: false
         type: string
 
@@ -181,6 +186,9 @@ jobs:
         with:
           token: ${{ steps.bot-app.outputs.token }}
       - name: Fetch YTD totals and write src/data/strava-progress.json
+        # NOT ON A BACKFILL: see the `year` input above. `inputs.year` is blank on every
+        # scheduled run, where `inputs` is empty, and on a dispatch that leaves it blank.
+        if: '!inputs.year'
         # ubuntu-latest ships node >= 20 preinstalled (22.x on 24.04) —
         # built-in fetch, zero deps, no setup-node needed.
         env:
@@ -309,6 +317,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           APP_TOKEN: ${{ steps.bot-app.outputs.token }}
+          YEAR: ${{ inputs.year }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -368,7 +377,16 @@ jobs:
           # nothing committed, nothing pushed and no pull request opened. Both endings are
           # loud and this one is earlier; the outcome that still cannot happen is the silent
           # numberless commit, so do not "fix" the quoting to prevent it.
-          SUBJECT="$(node -e 'const p=require("./src/data/strava-progress.json"); console.log(`chore(goals): update Strava progress to ${p.cycling_km} km ride / ${p.running_km} km run`)')"
+          #
+          # A BACKFILL MOVED NO KILOMETRE FIGURE — its totals step did not run — so its subject
+          # names the year it wrote instead of two totals it left alone.
+          if [ -n "$YEAR" ]; then
+            SUBJECT="chore(training): backfill ${YEAR}"
+            JOIN=","
+          else
+            SUBJECT="$(node -e 'const p=require("./src/data/strava-progress.json"); console.log(`chore(goals): update Strava progress to ${p.cycling_km} km ride / ${p.running_km} km run`)')"
+            JOIN=", and"
+          fi
 
           # THE SUBJECT NAMES WHAT MOVED, AND TWO THINGS CAN NOW MOVE INDEPENDENTLY. A night
           # that adds a gym session moves a week module and no kilometre figure at all — the
@@ -378,9 +396,9 @@ jobs:
           # to be committed: a week the fetcher rewrote byte-identically is not in it.
           WEEK_FILES="$(git diff --cached --name-only -- src/data/weeks | grep -c . || true)"
           if [ "${WEEK_FILES:-0}" -eq 1 ]; then
-            SUBJECT="${SUBJECT}, and 1 training week"
+            SUBJECT="${SUBJECT}${JOIN} 1 training week"
           elif [ "${WEEK_FILES:-0}" -gt 1 ]; then
-            SUBJECT="${SUBJECT}, and ${WEEK_FILES} training weeks"
+            SUBJECT="${SUBJECT}${JOIN} ${WEEK_FILES} training weeks"
           fi
 
           git commit -m "$SUBJECT"
@@ -409,7 +427,12 @@ jobs:
           # block scalar: a continuation line carries the block's own indentation into the
           # string, and four spaces at the start of a Markdown line is a code fence nobody
           # asked for.
-          BODY="$(printf '%s\n\n%s\n' "Fetched from Strava by \`scripts/fetch-strava-progress.mjs\` (the year-to-date totals) and \`scripts/fetch-strava-weeks.mjs\` (the week's sessions), in one run, and opened by the run below. Nothing here is hand-edited, and a run opens nothing at all unless one of the two moved." "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
+          if [ -n "$YEAR" ]; then
+            SOURCE="Backfilled from Strava by \`scripts/fetch-strava-weeks.mjs\` for week-year ${YEAR} alone, and opened by the run below. The year-to-date totals were not fetched, because a backfill does not refresh the current year's weeks they are checked against. Nothing here is hand-edited."
+          else
+            SOURCE="Fetched from Strava by \`scripts/fetch-strava-progress.mjs\` (the year-to-date totals) and \`scripts/fetch-strava-weeks.mjs\` (the week's sessions), in one run, and opened by the run below. Nothing here is hand-edited, and a run opens nothing at all unless one of the two moved."
+          fi
+          BODY="$(printf '%s\n\n%s\n' "$SOURCE" "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")"
 
           # `gh pr create` REFUSES A HEAD THAT ALREADY HAS AN OPEN PULL REQUEST, with an error
           # rather than by reusing it, so the reuse the branch policy above depends on has to
