@@ -56,7 +56,9 @@ than the goal; the target stays in `src/data/goals.ts` and caps the displayed fi
 athlete's activities and writes one module per week into `src/data/weeks/`, each holding that
 week's sessions. Like the fetch above it has no `pnpm` script of its own and is invoked by the
 workflow as `node scripts/fetch-strava-weeks.mjs`; `STRAVA_WEEKS_YEAR` names a year for a
-backfill and is empty on every scheduled run.
+backfill and is empty on every scheduled run. A backfill may name only a week-year before
+today's, and the workflow skips the totals fetch on it: those totals are as of the run, and a
+backfill does not refresh the current year's weeks they are checked against.
 
 It calls a **different endpoint** — `GET /athlete/activities`, not `GET /athletes/{id}/stats` —
 because the totals endpoint returns totals and nothing else. Two consequences worth knowing
