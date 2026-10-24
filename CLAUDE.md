@@ -100,6 +100,9 @@ block above it before giving either consumer the other's list.
   (tsconfig includes `**/*`) and by the suite. The scripts arm needs its own
   block in `eslint.config.js` carrying its own globals; widening the glob alone
   matches no config and reports zero problems, which reads exactly like a pass
+- `./gate` runs every check a pull request runs (the `build` job's steps, plus `dns.yml`'s
+  `filter semantics`) and ends with one line, `GATE <passed>/<total> failed=<n> notrun=<n>
+  needs-calvin=<reason|none>`; it exits 0 only when that line has nothing failed or not run
 - `pnpm preview` serves the built `dist/` directory locally on
   http://localhost:4321 — the site is a static build with no adapter, and the
   deploy jobs upload the very `dist/` the suite asserted against rather than

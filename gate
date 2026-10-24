@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# The merge gate: every merge-relevant check in this repo, one command (merge-on-green plan § 3.1, phase 3).
+#
+#   ./gate              run every check this machine can
+#   GATE_RUNNER=linux   what the hosted Linux job runs (the shared workflow in calvindotsg/.github sets it)
+#   GATE_RUNNER=macos   what the hosted macOS job runs: nothing here needs macOS (plan § 3.6, Linux-able)
+#
+# Last line: GATE <passed>/<total> failed=<n> notrun=<n> needs-calvin=<reason|none>
+# Exit 0 only with 0 failed, 0 not run, and nothing waiting on Calvin in CI.
+#
+# A check that belongs to the other platform is out of this run's total, never "not run". A check whose
+# tool is missing where it should run is "not run", and that fails the gate.
+#
+# The rows wrap what the pull_request jobs run, with the same commands:
+#   ci.yml `build and test`: pnpm install --frozen-lockfile, pnpm check, pnpm eslint, pnpm test, and the
+#     "analytics must not have been silently dropped" step. Node is the major in .nvmrc (setup-node reads it):
+#     put that node first on PATH (fnm use, or setup-node in CI).
+#   dns.yml `filter semantics` (PRs touching dns/): the hash-pinned install of dns/requirements.txt, then
+#     python dns/test_filters.py and octodns-validate. CI uses pip; here it is uv pip with --require-hashes,
+#     into a throwaway venv, on the workflow's PYTHON_VERSION.
+#
+# Out, never counted, each with its reason:
+#   - ci.yml "the deploy token must be unreadable outside a deployment environment": asserts the repository's
+#     secret settings, which only an Actions run can read
+#   - ci.yml deploy-preview, deploy-production, and dns.yml plan and apply: they need Cloudflare secrets and
+#     the live zone or Pages project (dns plan runs on PRs but blocks nothing; read its output for DNS changes)
+#   - origin.yml, pages-retention.yml, strava-progress.yml: scheduled or dispatched only, never on a PR, and
+#     each reads a live origin, Cloudflare or Strava
+#   - tests/strava-verify.test.ts "EVENTS against the Strava API": opt-in (STRAVA_VERIFY=1, live Strava);
+#     the suite skips it in CI too, so the vitest summary allows skipped tests
+#   - the analytics step's real id: CI checks vars.UMAMI_ID (a repository variable). Here the build gets
+#     UMAMI_ID from the environment or a fixed stand-in, and the row checks every page carries that one
+#   - .husky pre-commit lint-staged: eslint --fix on staged files, a subset of the pnpm eslint row
+# macOS bash 3.2: no mapfile, no associative arrays.
+
+set -u
+cd "$(dirname "$0")" || exit 2
+
+RUNNER="${GATE_RUNNER:-local}"
+case "$RUNNER" in
+  linux|macos|local) ;;
+  *) echo "gate: GATE_RUNNER must be linux, macos or unset (got $RUNNER)" >&2; exit 2 ;;
+esac
+# The Mac runs the rules with the system Python 3.9; elsewhere python3 is what there is.
+PY=python3
+[ -x /usr/bin/python3 ] && [ "$(uname -s)" = Darwin ] && PY=/usr/bin/python3
+DNS_PYTHON="$(sed -n 's/^  PYTHON_VERSION: "\([0-9.]*\)"$/\1/p' .github/workflows/dns.yml | head -1)"
+# The analytics id the build bakes into every page. Public by design (.env.example); a stand-in when unset.
+export UMAMI_ID="${UMAMI_ID:-gate-local-umami-id}"
+export ASTRO_TELEMETRY_DISABLED=1
+
+LOG="$(mktemp -d "${TMPDIR:-/tmp}/gate.XXXXXX")" || exit 2
+trap 'rm -rf "$LOG"' EXIT
+passed=0 failed=0 notrun=0 n=0
+needs="none"
+
+# applies <platforms>: true when this run includes a check for those platforms ("linux macos", "macos", ...).
+applies() {
+  case "$RUNNER" in
+    local) [ "$(uname -s)" = Darwin ] && return 0   # a Mac runs all; a Linux machine runs the Linux checks
+           case " $1 " in *" linux "*) return 0 ;; *) return 1 ;; esac ;;
+    *) case " $1 " in *" $RUNNER "*) return 0 ;; *) return 1 ;; esac ;;
+  esac
+}
+
+# check <name> <platforms> <tool> <command...>: run one check and tally it.
+check() {
+  local name="$1" where="$2" tool="$3"; shift 3
+  applies "$where" || return 0
+  n=$((n + 1))
+  if [ -n "$tool" ] && ! command -v "$tool" > /dev/null 2>&1; then
+    notrun=$((notrun + 1)); echo "notrun $name ($tool not found)"; return 0
+  fi
+  local t0=$SECONDS
+  if "$@" > "$LOG/$n" 2>&1; then
+    passed=$((passed + 1)); echo "ok     $name ($((SECONDS - t0)) s)"
+  else
+    failed=$((failed + 1)); echo "FAIL   $name ($((SECONDS - t0)) s)"; tail -20 "$LOG/$n" | sed 's/^/       /'
+  fi
+}
+
+# A suite's exit code alone passes a script under test that exits 0 on import. So a suite passes only with
+# exit 0 AND its own passing summary as its last line, with N > 0:
+#   dns/test_filters.py   "N passed, 0 failed"
+#   vitest                "Tests  N passed (N)" or "Tests  N passed | M skipped (N+M)"; vitest prints a
+#                         "Start at" / "Duration" trailer after it, so those two lines are skipped first
+SUM_COUNT='^(Results: )?[1-9][0-9]* passed, 0 failed(, 0 not run)?$'
+SUM_RATIO='^([1-9][0-9]*)/([0-9]+) (assertions pass|passed|mutations caught)$'
+SUM_VITEST='^ *Tests +([1-9][0-9]*) passed( [|] ([0-9]+) skipped)? \(([0-9]+)\)$'
+summary_ok() {
+  [[ $1 =~ $SUM_COUNT ]] && return 0
+  [[ $1 =~ $SUM_RATIO ]] && [ "${BASH_REMATCH[1]}" = "${BASH_REMATCH[2]}" ] && return 0
+  [[ $1 =~ $SUM_VITEST ]] && [ $((BASH_REMATCH[1] + ${BASH_REMATCH[3]:-0})) = "${BASH_REMATCH[4]}" ]
+}
+suite() { # suite <command...>: run it, then require exit 0 and a passing summary line
+  "$@" > "$LOG/suite" 2>&1; local rc=$? last
+  cat "$LOG/suite"
+  [ "$rc" = 0 ] || return 1
+  last="$(sed $'s/\x1b\\[[0-9;]*m//g; s/\r$//' "$LOG/suite" | grep -v '^[[:space:]]*$' \
+          | grep -Ev '^ *(Start at|Duration) ' | tail -1)"
+  summary_ok "$last" || { echo "gate: exit 0 but no passing summary line (last line: ${last:-none})"; return 1; }
+}
+
+# setup-node reads .nvmrc; a different major here is a different toolchain from the PR's.
+node_matches() {
+  local want have
+  want="$(tr -d ' \n' < .nvmrc)"; have="$(node -p 'process.versions.node.split(".")[0]')"
+  echo "node $have, .nvmrc $want"; [ -n "$want" ] && [ "$have" = "$want" ]
+}
+# The analytics step from ci.yml, against the id this run built with. dist/ comes from the pnpm test row.
+analytics() {
+  local pages f fail=0
+  pages="$(find dist -name '*.html' 2> /dev/null)"
+  [ -n "$pages" ] || { echo "dist contains no HTML at all"; return 1; }
+  for f in $pages; do
+    grep -q "data-website-id=\"$UMAMI_ID\"" "$f" || { echo "$f: no data-website-id with this run's id"; fail=1; }
+  done
+  [ "$fail" = 0 ]
+}
+DNS_VENV="$LOG/dns-venv"
+dns_install() { # exit status is its contract
+  [ -n "$DNS_PYTHON" ] || { echo "no PYTHON_VERSION in dns.yml"; return 1; }
+  uv venv -q --python "$DNS_PYTHON" "$DNS_VENV" && VIRTUAL_ENV="$DNS_VENV" uv pip install -q --require-hashes -r dns/requirements.txt
+}
+# octodns-validate's contract is its exit status; the token is the same placeholder dns.yml sets.
+dns_validate() { CLOUDFLARE_DNS_TOKEN=unused-by-validate "$DNS_VENV/bin/octodns-validate" --config-file dns/config.yaml; }
+rules_pinned() { [ "$("$PY" -c 'import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())' scripts/gate/gate-rules.py)" = "$(cut -d' ' -f1 scripts/gate/gate-rules.sha256)" ]; }
+
+check "node matches .nvmrc"            "linux" node node_matches
+# Install, astro check (type checker), eslint (linter): each one's contract is its exit status.
+# confirmModulesPurge=false: a run with another HOME (another store) relinks node_modules instead of
+# stopping at a TTY prompt; CI starts from an empty checkout and never sees the prompt.
+check "pnpm install --frozen-lockfile" "linux" pnpm pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+check "pnpm check"                     "linux" pnpm pnpm check
+check "pnpm eslint"                    "linux" pnpm pnpm eslint
+check "pnpm test (builds dist/)"       "linux" pnpm suite pnpm test
+check "analytics id on every page"     "linux" ""   analytics
+check "dns: install requirements.txt"  "linux" uv   dns_install
+check "dns/test_filters.py"            "linux" uv   suite "$DNS_VENV/bin/python" dns/test_filters.py
+check "dns: octodns-validate"          "linux" uv   dns_validate
+check "gate-rules.py matches its pin"  "linux" ""   rules_pinned
+
+# The needs-Calvin rules (plan § 3.4). Run only when the vendored copy matches its pin.
+if applies linux; then
+  n=$((n + 1))
+  if ! rules_pinned; then
+    notrun=$((notrun + 1)); echo "notrun needs-calvin rules (scripts/gate/gate-rules.py differs from its pin)"
+  else
+    "$PY" scripts/gate/gate-rules.py > "$LOG/rules" 2>&1; rc=$?
+    line="$(grep '^needs-calvin=' "$LOG/rules" | tail -1)"
+    case "$rc" in
+      0) passed=$((passed + 1)); echo "ok     needs-calvin rules ($line)" ;;
+      1) passed=$((passed + 1)); echo "ok     needs-calvin rules, waiting on Calvin ($line)" ;;
+      *) failed=$((failed + 1)); echo "FAIL   needs-calvin rules (cannot decide)" ;;
+    esac
+    sed 's/^/       /' "$LOG/rules"
+    reason="${line#needs-calvin=}"; reason="${reason% review=*}"
+    [ -n "$line" ] && [ "$reason" != none ] && needs="$reason"
+    [ "$rc" = 1 ] && rules_block=1
+  fi
+fi
+
+echo "GATE $passed/$n failed=$failed notrun=$notrun needs-calvin=$needs"
+[ "$failed" = 0 ] && [ "$notrun" = 0 ] && [ "${rules_block:-0}" = 0 ]
