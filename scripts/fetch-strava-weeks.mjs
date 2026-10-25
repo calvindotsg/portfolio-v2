@@ -9,7 +9,8 @@
 // per-activity or per-week data in it at all — so the series needs
 // `GET /athlete/activities`, which is a different shape, a different pagination and a
 // different hazard. They run in the SAME JOB, seconds apart, so the year total and the weeks
-// it should sum to always move together; see the workflow.
+// it should sum to always move together — and a backfill, which names a past year, runs this
+// one alone; see `weeksYear` and the workflow.
 //
 // THE HAZARD, WHICH IS THE REASON THIS FILE IS WRITTEN THE WAY IT IS: a summary activity
 // already carries the private fields. No detail fetch is needed to leak physiology or a home
@@ -32,7 +33,7 @@ import { accessToken } from "./strava-auth.mjs";
 
 // This script holds no configuration of its own: the athlete comes from the
 // STRAVA_ATHLETE_ID repository variable, and the year is either today's in Singapore or the
-// STRAVA_WEEKS_YEAR the workflow's `year` input supplies for a backfill.
+// past one the workflow's `year` input supplies for a backfill, as STRAVA_WEEKS_YEAR.
 // See README.md "Configuration".
 
 const API = "https://www.strava.com/api/v3";
@@ -207,6 +208,47 @@ export function bucketByWeek(sessions, coveredKeys) {
     return weeks;
 }
 
+/**
+ * THE WEEK-YEAR TO FETCH: today's when `raw` is blank, or the past one a backfill names.
+ *
+ * TODAY'S WEEK-YEAR IS NOT THE CALENDAR YEAR AND MUST NOT BE. Plan 045 said to take "the
+ * Singapore calendar year", and running the boundary found the hole: ISO week 2026-W53 runs
+ * Monday 28 December 2026 to Sunday 3 January 2027, so on 1 January 2027 a CALENDAR-year rule
+ * asks for week-year 2027 — whose weeks begin on Monday 4 January — and the ride ridden that
+ * morning falls in 2026-W53, a week the fetch no longer covers. Three days of sessions would be
+ * dropped every year, silently, and the cross-check in `tests/training.test.ts` would go red
+ * against a year total that still counted them. Asking which week-year TODAY is in closes it by
+ * construction, because the answer only moves once the previous week-year is complete:
+ * `2025-12-30` answers `2026`, `2027-01-01` answers `2026`, and `2027-01-04` answers `2027`.
+ *
+ * A BACKFILL MAY NAME ONLY A WEEK-YEAR BEFORE TODAY'S, and that refusal is what keeps the year
+ * totals honest. The workflow skips `fetch-strava-progress.mjs` whenever `year` is set, because
+ * those totals are as of NOW and a backfill does not refresh the current year's weeks they are
+ * checked against — writing them anyway is how dispatching `year=2018` reddened that check on
+ * a day with a ride since the nightly. So a named current year would refresh the weeks and not
+ * the totals, the same defect the other way round, and a future year has nothing to fetch.
+ * Both fail here, before anything is written. A week-year is not its calendar year at either
+ * end: up to three of calendar year Y's first days sit in Y-1's last week, and up to three of
+ * its last days in Y+1's W01 (31 December 2024 is 2025-W01), so a whole calendar year of
+ * history takes the backfills of its neighbours as well.
+ *
+ * `singaporeDate` is imported rather than re-derived: a second timezone conversion is a second
+ * thing to get wrong, and the sibling script's copy already carries the argument.
+ */
+export function weeksYear(raw, today = singaporeDate()) {
+    const current = Number(isoWeekKey(today).slice(0, 4));
+    if (raw === undefined || raw === "") return current;
+    if (!/^\d{4}$/.test(raw)) {
+        throw new Error(`STRAVA_WEEKS_YEAR is not a four-digit year: ${JSON.stringify(raw)}`);
+    }
+    const year = Number(raw);
+    if (year >= current) {
+        throw new Error(`STRAVA_WEEKS_YEAR=${raw} is not before the current week-year ${current}. `
+            + "A backfill names a PAST year; leave `year` blank to fetch the current one, which is what the nightly does.");
+    }
+    return year;
+}
+
 async function main() {
     // THIS SCRIPT READS NO ATHLETE ID, AND THAT IS A PROPERTY OF THE ENDPOINT RATHER THAN AN
     // OMISSION. `GET /athlete/activities` is scoped to whoever the access token belongs to —
@@ -217,31 +259,7 @@ async function main() {
     // configuration, it is something to go stale. The workflow still supplies it to the step, so
     // the two scripts share one env block.
 
-    // THE WEEK-YEAR TODAY FALLS IN, WHICH IS NOT THE CALENDAR YEAR AND MUST NOT BE.
-    //
-    // Plan 045 said to take "the Singapore calendar year", and running the boundary found the
-    // hole: ISO week 2026-W53 runs Monday 28 December 2026 to Sunday 3 January 2027, so on
-    // 1 January 2027 a CALENDAR-year rule asks for week-year 2027 — whose weeks begin on
-    // Monday 4 January — and the ride ridden that morning falls in 2026-W53, a week the fetch
-    // no longer covers. The 2026 runs had already stopped. Three days of sessions would be
-    // dropped every year, silently, and the cross-check in `tests/training.test.ts` would go
-    // red against a year total that still counted them.
-    //
-    // Asking which week-year TODAY is in closes it by construction, because the answer only
-    // moves once the previous week-year is complete: `2025-12-30` answers `2026`, and week-year
-    // 2025 ended on 28 December; `2027-01-01` answers `2026`, and `2027-01-04` answers `2027`.
-    // And it costs the ordinary case nothing — every day of calendar 2026 answers `2026`.
-    //
-    // A BACKFILL NAMES A WEEK-YEAR TOO, and that is complete for the calendar year of the same
-    // name: ISO week-year Y contains every date of calendar year Y by definition.
-    //
-    // `singaporeDate` is imported rather than re-derived: a second timezone conversion is a
-    // second thing to get wrong, and the sibling script's copy already carries the argument.
-    const raw = process.env.STRAVA_WEEKS_YEAR;
-    if (raw !== undefined && raw !== "" && !/^\d{4}$/.test(raw)) {
-        throw new Error(`STRAVA_WEEKS_YEAR is not a four-digit year: ${JSON.stringify(raw)}`);
-    }
-    const year = raw ? Number(raw) : Number(isoWeekKey(singaporeDate()).slice(0, 4));
+    const year = weeksYear(process.env.STRAVA_WEEKS_YEAR);
 
     const access_token = await accessToken(process.env);
     const headers = { Authorization: `Bearer ${access_token}` };

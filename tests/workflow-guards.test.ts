@@ -1065,6 +1065,55 @@ describe("the unattended deploy's own guard", () => {
     });
 });
 
+/**
+ * A BACKFILL MUST NOT FETCH THE YEAR TOTALS, AND THAT IS A STEP GUARD READ BY NOTHING ELSE.
+ *
+ * `src/data/strava-progress.json` is year-to-date AS OF THE FETCH, and `tests/training.test.ts`
+ * checks it against the current year's weeks. A dispatch naming a past `year` rewrites that year
+ * and leaves the current one as the nightly wrote it, so fetching the totals on that run put a
+ * ride from since the nightly into them and not into the weeks: dispatch `year=2018` on
+ * 4 October 2026 reddened the check by 85 km and its pull request could not merge. Executed rather
+ * than pinned, for the reason the dispatch guard above gives; an absent `if:` is modelled as
+ * running, which is what it means here, so DELETING the guard is red on the backfill row.
+ *
+ * DISCOVERED FROM WHAT THE STEP RUNS, so renaming it does not quietly retire this block.
+ */
+const totalsSteps = readdirSync(WORKFLOW_DIR)
+    .filter((file) => /\.ya?ml$/.test(file))
+    .flatMap((file) => {
+        const doc = parse(readFileSync(`${WORKFLOW_DIR}/${file}`, "utf8")) as {jobs?: Record<string, Job>};
+        return Object.values(doc.jobs ?? {}).flatMap((definition) =>
+            (definition.steps ?? []).filter((step) => /^\s*node scripts\/fetch-strava-progress\.mjs\s*$/m.test(step.run ?? "")));
+    });
+
+const evaluateWithInputs = (expr: string, inputs: unknown): boolean => {
+    const parser = new Parser(new Lexer(unwrapExpression(expr)).lex().tokens, ["inputs"], []);
+    const context = new data.Dictionary({key: "inputs", value: toData(inputs)});
+    return truthy(new Evaluator(parser.parse(), context).evaluate());
+};
+
+/** `inputs` is empty on a scheduled run and carries the field, possibly blank, on a dispatch. */
+const TOTALS_INTENT: [string, unknown, boolean][] = [
+    ["a scheduled run", {}, true],
+    ["a scheduled run with no inputs object", null, true],
+    ["a dispatch that leaves year blank", {year: ""}, true],
+    ["a backfill dispatch, year=2018", {year: "2018"}, false],
+];
+
+describe("a backfill leaves the year totals alone", () => {
+    it("finds the step that fetches the totals", () => {
+        expect(totalsSteps.length, "no workflow step runs scripts/fetch-strava-progress.mjs").toBe(1);
+    });
+
+    it.each(TOTALS_INTENT)("fetches the totals exactly when it should on %s", (_name, inputs, runs) => {
+        const guard = String(totalsSteps[0].if ?? "true");
+        expect(evaluateWithInputs(guard, inputs),
+            `the totals step's guard \`${guard}\` must evaluate to ${runs}. A backfill rewrites a past `
+            + "year's weeks and not the current year's, so totals fetched on it disagree with the weeks "
+            + "tests/training.test.ts checks them against.").toBe(runs);
+    });
+});
+
 /** `npx` as a command, rather than the word appearing inside one. */
 const INVOKES_NPX = /(?:^|[|&;(]\s*)npx(?=\s|$)/;
 
