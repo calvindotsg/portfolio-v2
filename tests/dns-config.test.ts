@@ -542,8 +542,7 @@ describe("the zone file holds what it claims and nothing it excluded", () => {
      *
      * The invariant is universal for a reason rather than by coincidence. Every routable name
      * here reaches something only Cloudflare's edge can reach: the apex and `www` are the Pages
-     * project, and `hermes`/`ssh-hermes` are `cfargotunnel.com` targets, which have no public
-     * address at all. There is no member of this file for which grey-cloud is the right answer,
+     * project. There is no member of this file for which grey-cloud is the right answer,
      * so a new one arriving unproxied is a mistake and not a decision.
      */
     it("proxies every routable record in the file", () => {
