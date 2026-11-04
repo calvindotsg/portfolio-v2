@@ -37,7 +37,7 @@
     "linkedom": "^0.18.13",
     "lint-staged": "^17.3.0",
     "postcss": "^8.5.24",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "typescript": "^6.0.2",
     "unocss": "^66.8.1",
     "vitest": "^4.1.11",
