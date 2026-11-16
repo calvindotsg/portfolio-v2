@@ -9,4 +9,5 @@ export default {sessions: [
     {id: "20968099691", sport_type: "Ride", start_local: "2026-11-13T08:07:52Z", metres: 61129.4, moving_seconds: 11334, elapsed_seconds: 17250},
     {id: "20969761824", sport_type: "Ride", start_local: "2026-11-13T17:36:08Z", metres: 1700.7, moving_seconds: 488, elapsed_seconds: 684},
     {id: "20980524418", sport_type: "Ride", start_local: "2026-11-14T08:12:57Z", metres: 94713.4, moving_seconds: 15573, elapsed_seconds: 28357},
+    {id: "20994275887", sport_type: "Ride", start_local: "2026-11-15T08:15:51Z", metres: 69458.8, moving_seconds: 12484, elapsed_seconds: 26824},
 ]} satisfies TrainingWeek
