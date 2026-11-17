@@ -373,7 +373,10 @@ describe("EVENTS", () => {
                 + `carries elapsed_time ${e.elapsed_time} — the bib would print a result for a day that `
                 + `has not happened`,
             ).toBe(true);
-            expect(e.elapsed_time, `${e.name} elapsed_time must read H:MM:SS`).toMatch(/^\d{1,2}:[0-5]\d:[0-5]\d$/);
+            // THREE DIGITS OF HOURS, for the race's own clock only: a nine-day tour's first start to
+            // last stop is 199:27:46, and `elapsed_time` is that span, never the sum of the days.
+            // Every other clock (a recording's, a sheet's) stays within a day and keeps two digits.
+            expect(e.elapsed_time, `${e.name} elapsed_time must read H:MM:SS`).toMatch(/^\d{1,3}:[0-5]\d:[0-5]\d$/);
         }
     });
 
