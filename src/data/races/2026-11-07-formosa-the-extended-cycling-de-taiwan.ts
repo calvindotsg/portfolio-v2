@@ -8,7 +8,7 @@ import type {RaceEvent} from "../../lib/race"
  *
  * Two days are shorter than the 1,022 km booked, and the module says so rather than the bib: Day 2's
  * recording stops at his crash (119.91 km of a 162 km board; he rested in the van and rode on from Day 3),
- * and Day 7's 61.13 km leaves out about 88 km that went by train. The recorded 937.31 km is therefore below
+ * and Day 7's 61.13 km leaves out about 88 km that went by train, as planned. The recorded 937.31 km is therefore below
  * `advertised_km`, and the two figures are kept apart on purpose.
  */
 export default {date: "2026-11-07", end_date: "2026-11-15", name: "Formosa – The Extended Cycling de Taiwan", advertised_km: 1022.00, sport: "cycling", country: "Taiwan", elapsed_time: "199:27:46",
