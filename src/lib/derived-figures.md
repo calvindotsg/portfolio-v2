@@ -40,12 +40,13 @@ never as what the suite pins.
 - 2026-07-29 · running · Garmin Run Virtual Challenge · 10.16 km
 - 2026-08-02 · cycling · Pesta Sukan Round Island Bike Adventure · 160.56 km
 - 2026-09-27 · running · The Kiprun Singapore 2026 · 10.11 km
+- 2026-11-07 · cycling · Formosa – The Extended Cycling de Taiwan · 937.31 km
 
 WHAT THE MIX IS WORTH, which is the half a list of names leaves out. Those kilometres
 were ridden and are not in the frozen totals, so the required rate below asks for them a
 second time — by this much:
 
-- cycling: the required rate is overstated by 7.11 km/wk (160.56 km / 22.57 weeks), 9.5% of the 75.2411 published below
+- cycling: the required rate is overstated by 48.64 km/wk (1097.87 km / 22.57 weeks), 40.4% of the 120.5196 published below
 - running: the required rate is overstated by 0.90 km/wk (20.27 km / 22.57 weeks), 5.0% of the 17.9475 published below
 
 The de-raced pace is NOT affected: its numerator subtracts only races that ended on or
@@ -55,10 +56,10 @@ before the reference, which is the one scoping rule this generator applies.
 
 | figure | cycling | running |
 |---|---|---|
-| booked ahead | 1022.00 km | 42.20 km |
-| required rate | 76 km/wk (exactly 75.2411; 7.11 of that is the epoch mix) | 18 km/wk (exactly 17.9475; 0.90 of that is the epoch mix) |
+| booked ahead | 0.00 km | 42.20 km |
+| required rate | 121 km/wk (exactly 120.5196; 48.64 of that is the epoch mix) | 18 km/wk (exactly 17.9475; 0.90 of that is the epoch mix) |
 | ignoring races | 121 km/wk (exactly 120.5196) | 20 km/wk (exactly 19.8171) |
-| what booking races is worth | 121 → 76 km/wk, 37.2% | 20 → 18 km/wk, 10.0% |
+| what booking races is worth | 121 → 121 km/wk, 0.0% | 20 → 18 km/wk, 10.0% |
 | observed pace | 76.72 km/wk | 5.14 km/wk |
 | de-raced pace | 61.54 km/wk | 5.14 km/wk |
 | races ridden by the reference | 3 (451.18 km) | 0 (0.00 km) |
@@ -69,15 +70,19 @@ A pace displayed beside the required rate must be the DE-RACED one. The required
 already has future race kilometres subtracted; setting it beside an observed pace that
 still contains past race kilometres reimports the double count by juxtaposition.
 
-The ORDERING is the rule and the gaps move:
+The de-raced pace is always the LOWER of the two — same denominator, a numerator less
+this year's races — and that much holds on any calendar. Where the REQUIREMENT falls
+between them is not a rule but a fact about the year, and at this reference no sport
+puts it there. Read the lines below as a counter-example to the ordering sentence in
+`src/lib/projection.ts`, not as an illustration of it:
 
-- cycling: 61.54 de-raced · 76 required · 76.72 observed — de-raced < required < observed, the requirement sitting BETWEEN the two paces
+- cycling: 61.54 de-raced · 121 required · 76.72 observed — the requirement does not sit between the two paces at this reference
 - running: 5.14 de-raced · 18 required · 5.14 observed — nothing was recorded for this sport by the reference, so the two paces are the same figure and this sport cannot demonstrate the rule
 
 ## Ceil against round
 
 Over every day from the reference to 31 December, both sports: **290** sport-days
-land in the rate branch, and on **151** of them rounding the requirement
+land in the rate branch, and on **156** of them rounding the requirement
 to nearest would ask for LESS than the goal needs. That is the whole case for rounding up:
 a rider following a rounded-down rate exactly misses the goal, and which days discriminate
 moves with the numerator, so no single worked example survives a data edit.
