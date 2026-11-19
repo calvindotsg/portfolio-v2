@@ -518,7 +518,7 @@ block above it before giving either consumer the other's list.
   wall had two states — it skips an abandoned race that was recorded and books one that
   was not. Recording a race you have just run is a
   two-step edit, and **which step goes first depends on whether the race is already in
-  `EVENTS`**: a race not yet listed — fetch first (`gh workflow run strava-progress.yml`),
+  `EVENTS`**: a race not yet listed — fetch first (`gh workflow run strava-progress.yml -f dry_run=false`),
   then add it; a race already listed — add the recording first and let the cron follow.
   Fetching first on an already-listed race counts its distance twice, measured at 66 km/wk
   against an honest 71. There is no order that is right at both moments; read the note
