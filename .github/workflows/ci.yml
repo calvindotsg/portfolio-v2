@@ -77,10 +77,11 @@ on:
 #
 # A DRY RUN WAITS IN ITS OWN GROUP. A group holds one waiting run, and a newly queued run
 # cancels the one already waiting, so a hand dry run started while the nightly's real dispatch
-# waited would cancel that day's deploy. The `-dry-run` suffix keeps the two apart; a push, a
-# pull request and a real dispatch get the same group as before.
+# waited would cancel that day's deploy. The `~dry-run` suffix keeps the two apart; `~` cannot
+# appear in a ref, so no real run's group can end in it. A push, a pull request and a real
+# dispatch get the same group as before.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}${{ (github.event_name == 'workflow_dispatch' && toJSON(inputs.dry_run) != 'false') && '-dry-run' || '' }}
+  group: ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}${{ (github.event_name == 'workflow_dispatch' && toJSON(inputs.dry_run) != 'false') && '~dry-run' || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -630,8 +631,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   # A hand start that deploys nothing, because it left `dry_run` at its default or ran off
-  # `main`: say what it did not do. Exactly one of this and deploy-production runs on a
-  # dispatch. No credential, no environment and no download, so it is not a publishing job.
+  # `main`: say what it did not do. Once the build passes, exactly one of this and
+  # deploy-production runs on a dispatch. No credential, no environment and no download, so it is not a publishing job.
   deploy-dry-run:
     name: deploy (dry run)
     needs: build

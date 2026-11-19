@@ -666,6 +666,7 @@ const CONTEXTS: Record<string, unknown> = {
     "workflow_dispatch on main, dry_run=true": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main", event: {}},
     "workflow_dispatch on main, dry_run input missing": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main", event: {}},
     "workflow_dispatch on a feature branch": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/wp3", event: {}},
+    "workflow_dispatch on a feature branch, dry_run=true": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/wp3", event: {}},
     "push to a feature branch": {actor: "calvindotsg", event_name: "push", repository: REPO, ref: "refs/heads/wp3", event: {}},
     "same-repo PR from a human": prContext(1, REPO, "calvindotsg"),
     "fork PR": prContext(2, "someone/portfolio-v2", "someone"),
@@ -693,6 +694,7 @@ const CONTEXT_INPUTS: Record<string, unknown> = {
     "workflow_dispatch on main, dry_run=true": {dry_run: true},
     "workflow_dispatch on main, dry_run input missing": {},
     "workflow_dispatch on a feature branch": {dry_run: false},
+    "workflow_dispatch on a feature branch, dry_run=true": {dry_run: true},
 };
 const inputsOf = (name: string): unknown => CONTEXT_INPUTS[name] ?? {};
 
@@ -704,6 +706,7 @@ const INTENDED: Record<string, string[]> = {
     "workflow_dispatch on main, dry_run=true": [],
     "workflow_dispatch on main, dry_run input missing": [],
     "workflow_dispatch on a feature branch": [],
+    "workflow_dispatch on a feature branch, dry_run=true": [],
     "push to a feature branch": [],
     "same-repo PR from a human": ["deploy-preview"],
     "fork PR": [],
@@ -1171,7 +1174,7 @@ describe("a dry run waits in a concurrency group of its own", () => {
         const before = renderTemplate(CI_GROUP_BEFORE, github, {});
         const group = renderTemplate(ciGroup, github, inputs);
         const dry = github.event_name === "workflow_dispatch" && inputs.dry_run !== false;
-        expect(group).toBe(dry ? `${before}-dry-run` : before);
+        expect(group).toBe(dry ? `${before}~dry-run` : before);
     });
 
     it.each(HAND_STARTS)("strava-progress.yml: %s", (_name, github, inputs, writes) => {
