@@ -66,8 +66,13 @@ permissions:
 # then be refused by `--match-head-commit` rather than silently landing the wrong numbers.
 # Still recoverable, still not worth having. Never cancel in flight — that could kill a run
 # between its commit and its merge.
+#
+# A DRY RUN WAITS IN ITS OWN GROUP. A group holds one waiting run and a newly queued run cancels
+# it, so a hand dry run could otherwise cancel a waiting cron run. A dry run writes nothing, not
+# even the Strava token (this job writes neither credential store), so it needs no place in the
+# real runs' queue. The cron and a real dispatch keep the group `strava-progress`.
 concurrency:
-  group: strava-progress
+  group: strava-progress${{ (github.event_name == 'workflow_dispatch' && toJSON(inputs.dry_run) != 'false') && '-dry-run' || '' }}
   cancel-in-progress: false
 
 jobs:

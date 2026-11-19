@@ -743,6 +743,18 @@ describe("the deploy guards, executed in GitHub's own evaluator", () => {
      * a green board. Both are invisible to reading and neither is caught by the partition
      * above if the intent table is written to match the bug.
      */
+    /**
+     * A HAND START THAT DEPLOYS NOTHING SAYS SO. Without the report job a dry run and a
+     * broken deploy look the same: green, and nothing new on the site. So on every dispatch
+     * exactly one of the two runs, and on any other event the report stays silent.
+     */
+    it.each(Object.keys(CONTEXTS))("reports a dispatch that deploys nothing, and only that, on: %s", (name) => {
+        const ctx = CONTEXTS[name] as {event_name: string};
+        const reports = evaluate(CI.jobs["deploy-dry-run"]!.if as string, CONTEXTS[name], inputsOf(name));
+        const isDispatch = ctx.event_name === "workflow_dispatch";
+        expect(reports).toBe(isDispatch && !INTENDED[name].includes("deploy-production"));
+    });
+
     it.each(["deploy-preview", "deploy-production"])("gives %s a guard that actually discriminates", (id) => {
         const results = Object.keys(CONTEXTS).map((n) => evaluate(guardOf(id), CONTEXTS[n], inputsOf(n)));
         expect(results).toContain(true);
@@ -1132,6 +1144,40 @@ const HAND_STARTS: [string, unknown, unknown, boolean][] = [
     ["a hand start with the input missing", {event_name: "workflow_dispatch"}, {}, false],
     ["a backfill that left dry_run at its default", {event_name: "workflow_dispatch"}, {year: "2018", dry_run: true}, false],
 ];
+
+/**
+ * A DRY RUN MUST NOT CANCEL A REAL ONE. A concurrency group holds one waiting run, and a newly
+ * queued run cancels the one already waiting. So a hand dry run that shared a group with the
+ * nightly's real dispatch, or with the cron, could cancel it, and that day's numbers or deploy
+ * would never land. Each group is rendered in GitHub's own evaluator: every dry start gets a
+ * group no real run uses, and every real run keeps the group it had before the switch.
+ */
+const renderTemplate = (template: string, github: unknown, inputs: unknown): string =>
+    template.replace(/\$\{\{([\s\S]*?)\}\}/g, (_m, expr: string) => {
+        const parser = new Parser(new Lexer(expr).lex().tokens, ["github", "inputs"], []);
+        const context = new data.Dictionary(
+            {key: "github", value: toData(github)}, {key: "inputs", value: toData(inputs)});
+        return new Evaluator(parser.parse(), context).evaluate().coerceString();
+    });
+
+const ciGroup = (CI as unknown as {concurrency: {group: string}}).concurrency.group;
+const nightlyGroup = (nightly as unknown as {concurrency: {group: string}}).concurrency.group;
+const CI_GROUP_BEFORE = "ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}";
+
+describe("a dry run waits in a concurrency group of its own", () => {
+    it.each(Object.keys(CONTEXTS))("ci.yml: %s", (name) => {
+        const github = CONTEXTS[name] as {event_name: string};
+        const inputs = inputsOf(name) as {dry_run?: unknown};
+        const before = renderTemplate(CI_GROUP_BEFORE, github, {});
+        const group = renderTemplate(ciGroup, github, inputs);
+        const dry = github.event_name === "workflow_dispatch" && inputs.dry_run !== false;
+        expect(group).toBe(dry ? `${before}-dry-run` : before);
+    });
+
+    it.each(HAND_STARTS)("strava-progress.yml: %s", (_name, github, inputs, writes) => {
+        expect(renderTemplate(nightlyGroup, github, inputs)).toBe(writes ? "strava-progress" : "strava-progress-dry-run");
+    });
+});
 
 describe("a hand start of the nightly lands and deploys nothing unless it passes dry_run=false", () => {
     it("finds both writing steps and a dry-run report, so the rows below are not vacuous", () => {
