@@ -188,11 +188,13 @@ every night the kilometres move, which is what `.github/workflows/pages-retentio
 
 The schedule does not use up the day. The workflow takes `workflow_dispatch`, so a run can be
 asked for at any time and as often as you like — the **Run workflow** button on the Actions
-tab, or:
+tab with `dry_run` unticked, or:
 
 ```bash
-gh workflow run strava-progress.yml --ref main
+gh workflow run strava-progress.yml --ref main -f dry_run=false
 ```
+
+A start that leaves `dry_run` at its default fetches in the runner and banks nothing.
 
 There is no cooldown and nothing to reset. That is the answer to "I rode after this morning's
 cron".

@@ -26,6 +26,15 @@ on:
         description: "A PAST week-year to backfill, YYYY. Leave blank for the current Singapore year (what the nightly does)."
         required: false
         type: string
+      # A HAND START FETCHES AND WRITES THE FILES IN THE RUNNER, AND LANDS AND DEPLOYS NOTHING,
+      # unless it passes `-f dry_run=false` (the owner's ruling of 13 Nov 2026). The two steps
+      # it skips are the commit-and-merge and the dispatch of `ci.yml`. A backfill is a real
+      # run, so it needs both: `-f year=YYYY -f dry_run=false`. The cron carries no inputs and
+      # passes every guard on its event name.
+      dry_run:
+        description: "Fetch only: open no pull request and start no deploy. Set false for a real run."
+        type: boolean
+        default: true
 
 # `actions: write` is what lets the last step dispatch `ci.yml`, and it has to be
 # written here rather than assumed: a `permissions:` block REPLACES the defaults
@@ -57,8 +66,13 @@ permissions:
 # then be refused by `--match-head-commit` rather than silently landing the wrong numbers.
 # Still recoverable, still not worth having. Never cancel in flight — that could kill a run
 # between its commit and its merge.
+#
+# A DRY RUN WAITS IN ITS OWN GROUP. A group holds one waiting run and a newly queued run cancels
+# it, so a hand dry run could otherwise cancel a waiting cron run. A dry run writes nothing, not
+# even the Strava token (this job writes neither credential store), so it needs no place in the
+# real runs' queue. The cron and a real dispatch keep the group `strava-progress`.
 concurrency:
-  group: strava-progress
+  group: strava-progress${{ (github.event_name == 'workflow_dispatch' && toJSON(inputs.dry_run) != 'false') && '-dry-run' || '' }}
   cancel-in-progress: false
 
 jobs:
@@ -137,7 +151,7 @@ jobs:
       # `tests/docs-drift.test.ts` is what pointed out that nothing read it any more, and a
       # variable nothing reads is not configuration, it is something to go stale. The App id lives
       # in 1Password and on the App's own settings page, which is where a reader should look for it.
-      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: bot-app
         with:
           client-id: ${{ vars.BOT_APP_CLIENT_ID }}
@@ -314,6 +328,7 @@ jobs:
       #     publish the OLDER of two same-day artifacts. Keeping the merge on the ambient token
       #     leaves the deploy topology exactly as it was.
       - name: Commit the new km values and land them on main through a pull request
+        if: github.event_name != 'workflow_dispatch' || toJSON(inputs.dry_run) == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
           APP_TOKEN: ${{ steps.bot-app.outputs.token }}
@@ -578,14 +593,26 @@ jobs:
       # SYNTAX in this file, not to the repository owner and not to whoever wrote the step that
       # broke. What the step does NOT do is wait for the dispatched run, so green here means
       # "the build was asked for", never "the build passed". Read the CI run itself.
+      #
+      # THE DISPATCH PASSES `-f dry_run=false` BECAUSE `ci.yml` TREATS A BARE DISPATCH AS A DRY
+      # RUN. Without it the nightly stays green while the site stops rebuilding: the build runs,
+      # the deploy skips, and a skipped job reads as a pass. A hand start of THIS workflow that
+      # left its own switch at the default skips the dispatch altogether, by the same guard as
+      # the step above.
       - name: Ask CI to build and deploy, since the merge above triggers nothing
-        if: '!cancelled()'
+        if: "!cancelled() && (github.event_name != 'workflow_dispatch' || toJSON(inputs.dry_run) == 'false')"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh workflow run ci.yml --ref main; then
+          if ! gh workflow run ci.yml --ref main -f dry_run=false; then
             echo "::error::could not dispatch ci.yml on main, so today's build and deploy did not happen. Nothing else in this repository will notice — check the actions:write permission on this workflow and that ci.yml is enabled."
             exit 1
           fi
           echo "Dispatched ci.yml on main. This step does not wait for it; follow it at:"
           echo "https://github.com/${GITHUB_REPOSITORY}/actions/workflows/ci.yml"
+
+      - name: Dry run, report what was skipped
+        if: "!cancelled() && github.event_name == 'workflow_dispatch' && toJSON(inputs.dry_run) != 'false'"
+        run: |
+          git status --short -- src/data
+          echo "::notice title=Dry run::The files above were fetched in this runner only. No pull request was opened and no deploy was started. Start with -f dry_run=false for a real run."

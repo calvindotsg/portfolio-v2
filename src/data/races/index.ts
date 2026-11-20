@@ -34,8 +34,8 @@ import type {RaceEvent} from "../../lib/race"
  * be. So:
  *
  *   A RACE NOT YET ON THIS LIST — a one-off, or a back-catalogue entry. FETCH FIRST:
- *   `gh workflow run strava-progress.yml` (or the Run workflow button; it has always
- *   taken `workflow_dispatch`), then write its module here. Exact for the whole window,
+ *   `gh workflow run strava-progress.yml -f dry_run=false` (or the Run workflow button
+ *   with `dry_run` unticked; without the switch a start banks nothing), then write its module here. Exact for the whole window,
  *   because a race that is not in `EVENTS` was never booked, so banking its kilometres
  *   first can double nothing. This is the Garmin Run case.
  *
