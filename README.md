@@ -119,8 +119,9 @@ adding one are in [CONTRIBUTING.md](CONTRIBUTING.md).
 The site builds to a static `dist/` directory, and `.github/workflows/ci.yml` is the only thing
 that builds it. Its build job runs the checks above and uploads `dist/`; the deploy jobs
 download that same artifact and hand it to wrangler. A pull request opened from this repository
-gets a preview deploy, and a push to `main` — or a manual dispatch from it, which is the path
-the overnight Strava run uses — goes to production.
+gets a preview deploy, and a push to `main` — or a manual dispatch from it with `-f dry_run=false`,
+which is the path the overnight Strava run uses — goes to production. A dispatch without that
+switch builds and tests, and deploys nothing.
 
 The `calvin.sg` zone is in git under `dns/`, planned by `.github/workflows/dns.yml` on every
 pull request that touches it and again weekly, so drift between the repository and the live

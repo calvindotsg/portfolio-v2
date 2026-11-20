@@ -51,7 +51,7 @@ The page is out by the length of the race until the second step lands, and the o
 which way it is out. There is no unconditional order.
 
 **A race that is not yet a file here — FETCH FIRST.** Run
-`gh workflow run strava-progress.yml`, let the bot bank the kilometres, then write the module.
+`gh workflow run strava-progress.yml -f dry_run=false`, let the bot bank the kilometres, then write the module.
 Exact for the whole window: a race the site has never seen was never booked, so banking its
 distance first can double nothing. The Garmin Run is this case.
 

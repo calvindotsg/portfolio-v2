@@ -370,7 +370,7 @@ const PUBLISHING_PATHS = ["same-repo PR from a human", "push to main"] as const;
 const stepAlwaysRuns = (s: Step): boolean => {
     if (s.if === undefined) return true;
     const guard = String(s.if);
-    return PUBLISHING_PATHS.every((name) => evaluate(guard, CONTEXTS[name]));
+    return PUBLISHING_PATHS.every((name) => evaluate(guard, CONTEXTS[name], inputsOf(name)));
 };
 
 const stepsRunning = (id: string, command: string): Step[] =>
@@ -625,9 +625,10 @@ const toData = (v: unknown): data.ExpressionData => {
  * the union. The original of this gate lived in an untyped `.mjs` outside the repository
  * and this was invisible there; `pnpm check` found it the first time the file was checked.
  */
-const evaluate = (expr: string, github: unknown): boolean => {
-    const parser = new Parser(new Lexer(unwrapExpression(expr)).lex().tokens, ["github"], []);
-    const context = new data.Dictionary({key: "github", value: toData(github)});
+const evaluate = (expr: string, github: unknown, inputs: unknown = {}): boolean => {
+    const parser = new Parser(new Lexer(unwrapExpression(expr)).lex().tokens, ["github", "inputs"], []);
+    const context = new data.Dictionary(
+        {key: "github", value: toData(github)}, {key: "inputs", value: toData(inputs)});
     return truthy(new Evaluator(parser.parse(), context).evaluate());
 };
 
@@ -660,8 +661,12 @@ const prContext = (n: number, headRepo: string, actor: string, author: string = 
  */
 const CONTEXTS: Record<string, unknown> = {
     "push to main": {actor: "calvindotsg", event_name: "push", repository: REPO, ref: "refs/heads/main", event: {}},
-    "workflow_dispatch on main": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main", event: {}},
+    "workflow_dispatch on main, dry_run=false": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main", event: {}},
+    "workflow_dispatch on main, no inputs": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main", event: {}},
+    "workflow_dispatch on main, dry_run=true": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main", event: {}},
+    "workflow_dispatch on main, dry_run input missing": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/main", event: {}},
     "workflow_dispatch on a feature branch": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/wp3", event: {}},
+    "workflow_dispatch on a feature branch, dry_run=true": {actor: "calvindotsg", event_name: "workflow_dispatch", repository: REPO, ref: "refs/heads/wp3", event: {}},
     "push to a feature branch": {actor: "calvindotsg", event_name: "push", repository: REPO, ref: "refs/heads/wp3", event: {}},
     "same-repo PR from a human": prContext(1, REPO, "calvindotsg"),
     "fork PR": prContext(2, "someone/portfolio-v2", "someone"),
@@ -676,11 +681,32 @@ const CONTEXTS: Record<string, unknown> = {
     "issue_comment, ref=main": {actor: "someone", event_name: "issue_comment", repository: REPO, ref: "refs/heads/main", event: {}},
 };
 
+/**
+ * `inputs` per context; a context not listed carries none, which is what a push or a PR gets.
+ * A start with no inputs still reaches the job with the DEFAULT filled in, as a boolean: past
+ * run logs show it, and `-f dry_run=false` arrives as a boolean too. "input missing" is the
+ * case GitHub should never send and a fail-open guard would deploy on, so it is modelled anyway.
+ * The feature-branch dispatch asks for a real run, so the ref test alone has to refuse it.
+ */
+const CONTEXT_INPUTS: Record<string, unknown> = {
+    "workflow_dispatch on main, dry_run=false": {dry_run: false},
+    "workflow_dispatch on main, no inputs": {dry_run: true},
+    "workflow_dispatch on main, dry_run=true": {dry_run: true},
+    "workflow_dispatch on main, dry_run input missing": {},
+    "workflow_dispatch on a feature branch": {dry_run: false},
+    "workflow_dispatch on a feature branch, dry_run=true": {dry_run: true},
+};
+const inputsOf = (name: string): unknown => CONTEXT_INPUTS[name] ?? {};
+
 /** Exactly which publishing jobs SHOULD run in each context. */
 const INTENDED: Record<string, string[]> = {
     "push to main": ["deploy-production"],
-    "workflow_dispatch on main": ["deploy-production"],
+    "workflow_dispatch on main, dry_run=false": ["deploy-production"],
+    "workflow_dispatch on main, no inputs": [],
+    "workflow_dispatch on main, dry_run=true": [],
+    "workflow_dispatch on main, dry_run input missing": [],
     "workflow_dispatch on a feature branch": [],
+    "workflow_dispatch on a feature branch, dry_run=true": [],
     "push to a feature branch": [],
     "same-repo PR from a human": ["deploy-preview"],
     "fork PR": [],
@@ -701,7 +727,8 @@ const guardOf = (id: string): string => {
     return guard.replace(/^\s*success\s*\(\s*\)\s*&&\s*/, "");
 };
 
-const deployedBy = (context: unknown): string[] => publishingJobs.filter((id) => evaluate(guardOf(id), context));
+const deployedBy = (name: string): string[] =>
+    publishingJobs.filter((id) => evaluate(guardOf(id), CONTEXTS[name], inputsOf(name)));
 
 describe("the deploy guards, executed in GitHub's own evaluator", () => {
     it("names an intended outcome for every context, and covers every publishing job", () => {
@@ -710,7 +737,7 @@ describe("the deploy guards, executed in GitHub's own evaluator", () => {
     });
 
     it.each(Object.keys(CONTEXTS))("deploys exactly what it should on: %s", (name) => {
-        expect(deployedBy(CONTEXTS[name])).toEqual(INTENDED[name]);
+        expect(deployedBy(name)).toEqual(INTENDED[name]);
     });
 
     /**
@@ -719,8 +746,20 @@ describe("the deploy guards, executed in GitHub's own evaluator", () => {
      * a green board. Both are invisible to reading and neither is caught by the partition
      * above if the intent table is written to match the bug.
      */
+    /**
+     * A HAND START THAT DEPLOYS NOTHING SAYS SO. Without the report job a dry run and a
+     * broken deploy look the same: green, and nothing new on the site. So on every dispatch
+     * exactly one of the two runs, and on any other event the report stays silent.
+     */
+    it.each(Object.keys(CONTEXTS))("reports a dispatch that deploys nothing, and only that, on: %s", (name) => {
+        const ctx = CONTEXTS[name] as {event_name: string};
+        const reports = evaluate(CI.jobs["deploy-dry-run"]!.if as string, CONTEXTS[name], inputsOf(name));
+        const isDispatch = ctx.event_name === "workflow_dispatch";
+        expect(reports).toBe(isDispatch && !INTENDED[name].includes("deploy-production"));
+    });
+
     it.each(["deploy-preview", "deploy-production"])("gives %s a guard that actually discriminates", (id) => {
-        const results = Object.values(CONTEXTS).map((c) => evaluate(guardOf(id), c));
+        const results = Object.keys(CONTEXTS).map((n) => evaluate(guardOf(id), CONTEXTS[n], inputsOf(n)));
         expect(results).toContain(true);
         expect(results).toContain(false);
     });
@@ -777,6 +816,19 @@ const HISTORICAL_DEFECTS: {defect: string; job: string; guard: string; admits?: 
         // run the shipped one admits. Row asserted by `refuses` rather than `admits` below.
         refuses: "human pushes onto a Dependabot branch",
     },
+    {
+        defect: "the guard before the dry-run switch — every hand start on main deployed, including one that only meant to test",
+        job: "deploy-production",
+        guard: "(github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'",
+        admits: "workflow_dispatch on main, no inputs",
+    },
+    {
+        defect: "the dry-run test written `inputs.dry_run == false` — null compares equal to false, so a start with the input missing deploys",
+        job: "deploy-production",
+        guard: "(github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' "
+            + "&& (github.event_name != 'workflow_dispatch' || inputs.dry_run == false)",
+        admits: "workflow_dispatch on main, dry_run input missing",
+    },
 ];
 
 describe("the context set is sharp enough to catch the defects it was written for", () => {
@@ -793,10 +845,10 @@ describe("the context set is sharp enough to catch the defects it was written fo
         // shipped one must DISAGREE on this context. Asserting both halves is what stops a row
         // passing because the context is degenerate for both.
         const want = admits !== undefined;
-        expect(evaluate(guard, CONTEXTS[context as string]),
+        expect(evaluate(guard, CONTEXTS[context as string], inputsOf(context as string)),
             `"${context}" no longer distinguishes this defect from the shipped guard, so the context set has `
             + "gone blunt — restore the context or the intent row that made it discriminate.").toBe(want);
-        expect(evaluate(guardOf(job), CONTEXTS[context as string]),
+        expect(evaluate(guardOf(job), CONTEXTS[context as string], inputsOf(context as string)),
             want
                 ? `the shipped guard for "${job}" admits "${context}", which is the defect itself.`
                 : `the shipped guard for "${job}" also refuses "${context}", so it has the defect this row names.`)
@@ -959,11 +1011,17 @@ const statusFunctions = (situation: {failed: boolean; cancelled: boolean}): Map<
 };
 
 /** The wrapper is stripped by `unwrapExpression`, which says why and is the only copy. */
-const evaluateStep = (expr: string, situation: {failed: boolean; cancelled: boolean}): boolean => {
+/**
+ * `github` and `inputs` default to what the nightly gets: a schedule, and no inputs. The
+ * dry-run block further down passes a hand start's instead.
+ */
+const evaluateStep = (expr: string, situation: {failed: boolean; cancelled: boolean},
+    github: unknown = {event_name: "schedule"}, inputs: unknown = {}): boolean => {
     const funcs = statusFunctions(situation);
     const infos = [...funcs.values()].map(({name, minArgs, maxArgs}) => ({name, minArgs, maxArgs}));
-    const parser = new Parser(new Lexer(unwrapExpression(expr)).lex().tokens, ["github"], infos);
-    const context = new data.Dictionary({key: "github", value: toData({})});
+    const parser = new Parser(new Lexer(unwrapExpression(expr)).lex().tokens, ["github", "inputs"], infos);
+    const context = new data.Dictionary(
+        {key: "github", value: toData(github)}, {key: "inputs", value: toData(inputs)});
     return truthy(new Evaluator(parser.parse(), context, funcs).evaluate());
 };
 
@@ -1061,6 +1119,95 @@ describe("the unattended deploy's own guard", () => {
         for (const right of ["!cancelled()", "${{ !cancelled() }}", "success() || failure()"]) {
             expect(says(right), `\`${right}\` is a legitimate spelling of the shipped guard and this table must `
                 + "accept it — a string pin would redden on it").toEqual(DISPATCH_INTENT);
+        }
+    });
+});
+
+/**
+ * A HAND START OF THE NIGHTLY WRITES NOTHING UNLESS IT ASKS TO — the owner's ruling of 13 Nov 2026:
+ * a start that leaves the switch out is a dry run. The two steps that reach past the runner are the
+ * commit-and-merge and the dispatch of `ci.yml`; both are found by what they run, so a rename does
+ * not retire this block. Executed rather than pinned, for the reason the dispatch guard above gives.
+ *
+ * THE OTHER HALF IS THE DISPATCH'S OWN ARGUMENT. `ci.yml` reads a bare dispatch as a dry run too, so
+ * a nightly that dropped `-f dry_run=false` would stay green while the site stopped rebuilding: the
+ * build runs, the deploy skips, and a skipped job reads as a pass.
+ */
+const nightly = parse(readFileSync(`${WORKFLOW_DIR}/strava-progress.yml`, "utf8")) as {jobs?: Record<string, Job>};
+const nightlySteps = Object.values(nightly.jobs ?? {}).flatMap((job) => job.steps ?? []);
+const nightlyWrites = nightlySteps.filter((step) => /git push|gh workflow run/.test(step.run ?? ""));
+const nightlyDryReports = nightlySteps.filter((step) => /::notice title=Dry run::/.test(step.run ?? ""));
+
+const HAND_STARTS: [string, unknown, unknown, boolean][] = [
+    ["the nightly cron", {event_name: "schedule"}, {}, true],
+    ["a hand start with dry_run=false", {event_name: "workflow_dispatch"}, {dry_run: false}, true],
+    ["a backfill, year=2018 and dry_run=false", {event_name: "workflow_dispatch"}, {year: "2018", dry_run: false}, true],
+    ["a hand start with no inputs", {event_name: "workflow_dispatch"}, {dry_run: true}, false],
+    ["a hand start with dry_run=true", {event_name: "workflow_dispatch"}, {dry_run: true}, false],
+    ["a hand start with the input missing", {event_name: "workflow_dispatch"}, {}, false],
+    ["a backfill that left dry_run at its default", {event_name: "workflow_dispatch"}, {year: "2018", dry_run: true}, false],
+];
+
+/**
+ * A DRY RUN MUST NOT CANCEL A REAL ONE. A concurrency group holds one waiting run, and a newly
+ * queued run cancels the one already waiting. So a hand dry run that shared a group with the
+ * nightly's real dispatch, or with the cron, could cancel it, and that day's numbers or deploy
+ * would never land. Each group is rendered in GitHub's own evaluator: every dry start gets a
+ * group no real run uses, and every real run keeps the group it had before the switch.
+ */
+const renderTemplate = (template: string, github: unknown, inputs: unknown): string =>
+    template.replace(/\$\{\{([\s\S]*?)\}\}/g, (_m, expr: string) => {
+        const parser = new Parser(new Lexer(expr).lex().tokens, ["github", "inputs"], []);
+        const context = new data.Dictionary(
+            {key: "github", value: toData(github)}, {key: "inputs", value: toData(inputs)});
+        return new Evaluator(parser.parse(), context).evaluate().coerceString();
+    });
+
+const ciGroup = (CI as unknown as {concurrency: {group: string}}).concurrency.group;
+const nightlyGroup = (nightly as unknown as {concurrency: {group: string}}).concurrency.group;
+const CI_GROUP_BEFORE = "ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}";
+
+describe("a dry run waits in a concurrency group of its own", () => {
+    it.each(Object.keys(CONTEXTS))("ci.yml: %s", (name) => {
+        const github = CONTEXTS[name] as {event_name: string};
+        const inputs = inputsOf(name) as {dry_run?: unknown};
+        const before = renderTemplate(CI_GROUP_BEFORE, github, {});
+        const group = renderTemplate(ciGroup, github, inputs);
+        const dry = github.event_name === "workflow_dispatch" && inputs.dry_run !== false;
+        expect(group).toBe(dry ? `${before}~dry-run` : before);
+    });
+
+    it.each(HAND_STARTS)("strava-progress.yml: %s", (_name, github, inputs, writes) => {
+        expect(renderTemplate(nightlyGroup, github, inputs)).toBe(writes ? "strava-progress" : "strava-progress-dry-run");
+    });
+});
+
+describe("a hand start of the nightly lands and deploys nothing unless it passes dry_run=false", () => {
+    it("finds both writing steps and a dry-run report, so the rows below are not vacuous", () => {
+        expect(nightlyWrites.length, "strava-progress.yml should push a branch in one step and dispatch ci.yml in another")
+            .toBe(2);
+        expect(nightlyDryReports.length, "strava-progress.yml has no step that says what a dry run skipped").toBe(1);
+    });
+
+    it.each(HAND_STARTS)("runs the writing steps exactly when it should on %s", (_name, github, inputs, writes) => {
+        const situation = STEP_SITUATIONS["every earlier step succeeded"];
+        for (const step of nightlyWrites) {
+            expect(evaluateStep(guardOfStep(step), situation, github, inputs),
+                `"${step.name}" must ${writes ? "run" : "skip"} on "${_name}"`).toBe(writes);
+        }
+        for (const step of nightlyDryReports) {
+            expect(evaluateStep(guardOfStep(step), situation, github, inputs),
+                `"${step.name}" must ${writes ? "skip" : "run"} on "${_name}"`).toBe(!writes);
+        }
+    });
+
+    it("asks ci.yml for a real run, so the nightly deploy is not a dry run", () => {
+        expect(dispatchers.length).toBeGreaterThan(0);
+        for (const {where, step} of dispatchers) {
+            for (const line of commandLines(step).filter((l) => /gh workflow run ci\.yml/.test(l))) {
+                expect(line, `${where} dispatches ci.yml without \`-f dry_run=false\`, so the deploy would skip `
+                    + "every night while the run stays green").toMatch(/(?:-f|--field|--raw-field|-F)[=\s]+dry_run=false(?:\s|;|$)/);
+            }
         }
     });
 });

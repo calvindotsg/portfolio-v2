@@ -365,7 +365,7 @@ export function editOrderNote(date, existing) {
             + "66 km/wk against an honest 71.";
     }
     return `No race dated ${date} was listed before this one, so FETCH FIRST: run `
-        + "`gh workflow run strava-progress.yml` and let the bot bank the kilometres before this "
+        + "`gh workflow run strava-progress.yml -f dry_run=false` and let the bot bank the kilometres before this "
         + "module lands. A race the site never saw was never booked, so banking it first can "
         + "double nothing.";
 }
