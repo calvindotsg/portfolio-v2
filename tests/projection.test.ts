@@ -257,7 +257,9 @@ describe("booked race distance", () => {
         // term rather than as a digit. Running is the
         // December marathon alone: the September Kiprun is out by its RECORDING, the first
         // mechanism, even though 27 July is before it.
-        expect(bookedAhead("cycling", "2026-07-27")).toBeCloseTo(1022.00, 2);
+        // RE-PINNED when the November tour was ridden: it carries recordings now, so it is out by
+        // the first mechanism like the rest, and cycling has nothing booked left on this calendar.
+        expect(bookedAhead("cycling", "2026-07-27")).toBe(0);
         expect(bookedAhead("running", "2026-07-27")).toBeCloseTo(42.20, 2);
     });
 
@@ -269,16 +271,20 @@ describe("booked race distance", () => {
         // The Formosa tour is 1022 km over 9 days (07–15 Nov). Booking it whole on
         // its start date would drop the figure ~930 km while one day has been
         // ridden, then recover it eight days later.
-        const before = bookedAhead("cycling", "2026-11-07");
-        const midway = bookedAhead("cycling", "2026-11-11");
-        const after = bookedAhead("cycling", "2026-11-16");
+        // A FIXTURE, because the live tour is ridden and recorded and so books nothing. It is the
+        // tour's own shape: 1022 km, 7 to 15 Nov, no recordings.
+        const tour = [{date: "2026-11-07", end_date: "2026-11-15", name: "A Nine Day Tour",
+            advertised_km: 1022.00, sport: "cycling", country: "Taiwan"} as RaceEvent];
+        const before = bookedAhead("cycling", "2026-11-07", tour);
+        const midway = bookedAhead("cycling", "2026-11-11", tour);
+        const after = bookedAhead("cycling", "2026-11-16", tour);
         expect(before).toBeCloseTo(1022.00, 2);
         expect(after).toBe(0);
         expect(midway).toBeGreaterThan(0);
         expect(midway).toBeLessThan(before);
         // Continuity: no single day may move it by more than one day's share.
         const oneDay = 1022.00 / 9;
-        expect(bookedAhead("cycling", "2026-11-08") - midway).toBeLessThan(oneDay * 4);
+        expect(bookedAhead("cycling", "2026-11-08", tour) - midway).toBeLessThan(oneDay * 4);
         // PIN THE VALUE, not just the shape. Ordering and bounds assertions alone let
         // two non-equivalent mutants of the pro-rata formula survive — including one
         // that reinstates booking the whole tour on day one, which is the exact defect
