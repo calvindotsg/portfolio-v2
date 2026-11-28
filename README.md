@@ -7,7 +7,8 @@
 
 Hi, I am Calvin. Business Systems Analyst by day, road cyclist before sunrise. This is my
 [landing page](https://calvin.sg): who I am, what I am working on now, and a live tracker for
-this year's cycling and running goals.
+this year's cycling and running goals. It also keeps a week-by-week log of my training and a
+wall of every race I have entered.
 
 [![The calvin.sg home page](public/preview.jpg)](https://calvin.sg)
 
@@ -17,11 +18,14 @@ this year's cycling and running goals.
 | --- | --- |
 | [`/`](https://calvin.sg) | A bento grid: an introduction, my career, a few interests, what I am doing now, and a card per goal showing how far along it is, the weekly rate it still asks for, and the countdown to my next race |
 | [`/patches`](https://calvin.sg/patches) | Every race I have entered, in any year, drawn as a race bib. A finished race carries a patch; an outline is one still booked, or one I started and did not finish. A prerendered page per sport |
+| [`/training`](https://calvin.sg/training) | My training year, one bar a week, drawn against the busiest week of the year. Every race sits on the week it happened in. A prerendered page per sport |
+| [`/design`](https://calvin.sg/design) | How this site is drawn. The colors, the text sizes, the controls and the marks, read live from the stylesheet the site ships |
+| [`/llms.txt`](https://calvin.sg/llms.txt) | The site as plain text for AI agents. `/training`, `/patches` and `/design` also have a markdown copy at the same path plus `.md`. So does each sport's page under them |
 
 Dark and light themes, applied before first paint. Sized in text-relative units, so the layout
 grows with the reader's font size instead of clipping it. No client-side UI framework and no
-JavaScript bundle; animation is CSS only. And the distances are not typed in — a scheduled job
-reads them from Strava overnight and commits whatever changed.
+JavaScript bundle; animation is CSS only. And the distances and the weekly sessions are not
+written by hand. A scheduled job reads them from Strava overnight and commits whatever changed.
 
 ## Background
 
@@ -73,14 +77,17 @@ of their own.
 | --- | --- |
 | `src/content/home.ts` | The home page's cards — the introduction, career, interests, and what I am doing now |
 | `src/content/site.ts` | Copy every page wears: social links, footer, the 404 page, SEO metadata, and the security contact `/.well-known/security.txt` publishes |
+| `src/content/training.ts` | The copy on the training pages. The headings, the lede, and the labels around the weekly bars |
+| `src/content/design.ts` | The copy on `/design`. What each token is for, and the guidance under each heading |
 | `src/content/races.ts` | The racing copy and the next-race line |
 | `src/data/goals.ts` | The year's targets and `GOAL_YEAR` |
 | `src/data/races/` | One module per race. The procedure, and every field a race may carry, are in [`src/data/races/README.md`](src/data/races/README.md) — read that rather than this |
 | `astro.config.mjs` | `site`, the origin the sitemap and the canonical URLs are built from. `METADATA.site_url` in `src/content/site.ts` carries the same origin for the structured data, so change both |
 
 **Goal progress.** The current figures are bot-owned: `.github/workflows/strava-progress.yml`
-fetches them from Strava overnight, writes `src/data/strava-progress.json`, lands it on `main`
-through a pull request it opens and merges itself, and dispatches a deploy. To bump a figure by
+fetches them from Strava overnight and writes `src/data/strava-progress.json` and the week
+modules under `src/data/weeks/`. It lands them on `main` through a PR it opens and merges
+itself, and dispatches a deploy. To bump a figure by
 hand, edit that JSON rather than the goal — `total_goal` stays in
 `src/data/goals.ts`. The credentials that workflow needs, why the nightly goes through a pull
 request at all, and where the credentials are kept, are in
